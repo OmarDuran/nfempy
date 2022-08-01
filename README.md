@@ -1,2 +1,2 @@
-# sfempy
-Scientific finite elements
+# nfempy
+Neat finite elements
