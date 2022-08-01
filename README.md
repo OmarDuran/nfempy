@@ -1,4 +1,4 @@
-# A sample Python project
+# Neat finite elements for python
 
 ![Python Logo](https://www.python.org/static/community_logos/python-logo.png "Sample inline image")
 
@@ -6,9 +6,8 @@ A sample project that exists as an aid to the [Python Packaging User
 Guide][packaging guide]'s [Tutorial on Packaging and Distributing
 Projects][distribution tutorial].
 
-This project does not aim to cover best practices for Python project
-development as a whole. For example, it does not provide guidance or tool
-recommendations for version control, documentation, or testing.
+The goal of this project is to provide a general but simple way to use finite element 
+methods in python.
 
 [The source for this project is available here][src].
 
