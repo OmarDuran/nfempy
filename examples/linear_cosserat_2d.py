@@ -9,6 +9,91 @@ import networkx as nx
 import matplotlib.pyplot as plt
 
 
+class Network:
+
+    def __init__(self, dimension):
+
+        self.dimension = dimension
+        self.grahp = None
+        self.vertices = None
+        self.connectivity = None
+
+    def intersect_fractures(self, vertices, connectivity):
+
+        self.vertices = vertices
+        self.connectivity = [[] for _ in connectivity]
+        c = vertices.shape[0]
+        for i in range(len(connectivity)):
+            for j in range(i + 1, len(connectivity)):
+                fi = LineString(vertices[connectivity[i]])
+                fj = LineString(vertices[connectivity[j]])
+                point = fi.intersection(fj)
+                if not point.is_empty:
+                    print("p: ", point)
+                    self.vertices = np.append(self.vertices, np.array([[point.x, point.y]]), axis=0)
+                    self.connectivity[i].append(c)
+                    self.connectivity[j].append(c)
+                    c = c + 1
+
+        for i in range(len(connectivity)):
+            R = self.vertices[self.connectivity[i]] - self.vertices[connectivity[i, 0]]
+            r_norm = la.norm(R, axis=1)
+            perm = np.argsort(r_norm)
+            indices = [self.connectivity[i][k] for k in perm.tolist()]
+            indices.insert(0, connectivity[i, 0])
+            indices.append(connectivity[i, 1])
+            self.connectivity[i] = [(indices[i], indices[i + 1]) for i in
+                          range(0, len(indices) - 1)]
+
+    def build_grahp(self):
+        fedge_list = [item for sublist in self.connectivity for item in sublist]
+        self.grahp = nx.from_edgelist(fedge_list, create_using=nx.DiGraph)
+
+    def draw_grahp(self):
+
+        if self.grahp is None:
+            self.build_grahp()
+
+        nodes = list(self.grahp.nodes)
+        pos = {nodes[i]: self.vertices[nodes[i]] for i in range(len(nodes))}
+
+        # add axis
+        fig, ax = plt.subplots()
+        nx.draw(self.grahp, pos=pos, node_color='k', ax=ax)
+        nx.draw(self.grahp, pos=pos, node_size=1500, ax=ax)  # draw nodes and edges
+        nx.draw_networkx_labels(self.grahp, pos=pos)  # draw node labels/names
+        # draw edge weights
+        labels = nx.get_edge_attributes(self.grahp, 'weight')
+        nx.draw_networkx_edge_labels(self.grahp, pos, edge_labels=labels, ax=ax)
+        plt.axis("on")
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
+        plt.show()
+
+class geometry_builder:
+
+    def __init__(self, dimension):
+        self.dimension = dimension
+
+    def set_boundary(self, vertices, connectivity, material_id):
+        self.vertices = vertices
+        self.connectivity = connectivity
+        self.material_id = material_id
+
+    def build_internal_bc(self, Network, normal_expansion = 1.0e-1):
+        assert Network.dimension == self.dimension, f"Geometry and network dimension are not equal {Network.dimension}"
+
+        # classify intersections
+        nodes = list(Network.grahp.nodes)
+        node_neighs = [[] for _ in nodes]
+        for i in range(len(nodes)):
+            neighs = list(nx.all_neighbors(Network.grahp, nodes[i]))
+            node_neighs[i].append(neighs)
+
+        xd = 0
+
+
 class Fracture:
 
     def __init__(self, vertices: np.array, connectivity: np.array, dimension):
@@ -21,66 +106,19 @@ class Fracture:
 
 def main():
 
-    pts = np.array([[0.25, 0.25], [0.75, 0.75],[0.25, 0.75],[0.75, 0.25],[0.55, 0.25],[0.55, 0.75],[0.1, 0.35],[0.8, 0.35]])
-    c_map = np.array([[0,1],[2,3],[4,5],[6,7]])
+    pts = np.array([[0.25, 0.25], [0.75, 0.75],[0.25, 0.75],[0.75, 0.25]])
+    c_map = np.array([[0,1],[2,3]])
 
-    n_pts = pts
-    f_c_map = [[] for _ in c_map]
-    c = pts.shape[0]
-    for i in range(len(c_map)):
-        ids = []
-        for j in range(i + 1,len(c_map)):
-            fi = LineString(pts[c_map[i]])
-            fj = LineString(pts[c_map[j]])
-            point = fi.intersection(fj)
-            if not point.is_empty:
-                print("p: ", point)
-                n_pts = np.append(n_pts,np.array([[point.x, point.y]]),axis=0)
-                f_c_map[i].append(c)
-                f_c_map[j].append(c)
-                c = c + 1
+    fracture_network = Network(dimension=2)
+    fracture_network.intersect_fractures(pts,c_map)
+    fracture_network.build_grahp()
+    # fracture_network.draw_grahp()
 
-    # for i in range(len(c_map)):
-    for i in range(len(c_map)):
-        R = n_pts[f_c_map[i]] - n_pts[c_map[i, 0]]
-        r_norm = la.norm(R, axis=1)
-        perm = np.argsort(r_norm)
-        findexes = [f_c_map[i][k] for k in perm.tolist()]
-        findexes.insert(0,c_map[i, 0])
-        findexes.append(c_map[i, 1])
-        f_c_map[i] = [(findexes[i], findexes[i+1]) for i in range(0, len(findexes)-1)]
+    gbuilder = geometry_builder(dimension=2)
+    gbuilder.build_internal_bc(fracture_network)
 
-    fedge_list = [item for sublist in f_c_map for item in sublist]
-    G = nx.from_edgelist(fedge_list, create_using=nx.DiGraph)
-    # nx.draw_planar(
-    #     G,
-    #     with_labels=True,
-    #     node_size=1000,
-    #     node_color="#ffff8f",
-    #     width=0.8,
-    #     font_size=14,
-    # )
 
-    # you want your own layout
-    pos = nx.spring_layout(G)
-    nodes  =  list(G.nodes)
-    pos = {nodes[i]: n_pts[nodes[i]] for i in range(len(nodes))}
-
-    # add axis
-    fig, ax = plt.subplots()
-    nx.draw(G, pos=pos, node_color='k', ax=ax)
-    nx.draw(G, pos=pos, node_size=1500, ax=ax)  # draw nodes and edges
-    nx.draw_networkx_labels(G, pos=pos)  # draw node labels/names
-    # draw edge weights
-    labels = nx.get_edge_attributes(G, 'weight')
-    nx.draw_networkx_edge_labels(G, pos, edge_labels=labels, ax=ax)
-    plt.axis("on")
-    ax.set_xlim(-1, 1)
-    ax.set_ylim(-1, 1)
-    ax.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
-    plt.show()
-
-    neigh = list(nx.all_neighbors(G, 8))
+    # neigh = list(nx.all_neighbors(G, 8))
 
 if __name__ == '__main__':
     main()
