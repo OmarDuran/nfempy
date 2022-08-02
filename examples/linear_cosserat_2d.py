@@ -52,14 +52,33 @@ def main():
 
     fedge_list = [item for sublist in f_c_map for item in sublist]
     G = nx.from_edgelist(fedge_list, create_using=nx.DiGraph)
-    nx.draw_planar(
-        G,
-        with_labels=True,
-        node_size=1000,
-        node_color="#ffff8f",
-        width=0.8,
-        font_size=14,
-    )
+    # nx.draw_planar(
+    #     G,
+    #     with_labels=True,
+    #     node_size=1000,
+    #     node_color="#ffff8f",
+    #     width=0.8,
+    #     font_size=14,
+    # )
+
+    # you want your own layout
+    pos = nx.spring_layout(G)
+    nodes  =  list(G.nodes)
+    pos = {nodes[i]: n_pts[nodes[i]] for i in range(len(nodes))}
+
+    # add axis
+    fig, ax = plt.subplots()
+    nx.draw(G, pos=pos, node_color='k', ax=ax)
+    nx.draw(G, pos=pos, node_size=1500, ax=ax)  # draw nodes and edges
+    nx.draw_networkx_labels(G, pos=pos)  # draw node labels/names
+    # draw edge weights
+    labels = nx.get_edge_attributes(G, 'weight')
+    nx.draw_networkx_edge_labels(G, pos, edge_labels=labels, ax=ax)
+    plt.axis("on")
+    ax.set_xlim(-1, 1)
+    ax.set_ylim(-1, 1)
+    ax.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
+    plt.show()
 
     neigh = list(nx.all_neighbors(G, 8))
 
