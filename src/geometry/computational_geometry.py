@@ -11,6 +11,8 @@ class ComputationalGeometry:
     def __init__(self):
         pass
 
-    def TVolume(self, a, b, c, p) -> float:
-        tequ = np.array([a, b, c, p])
-        print(tequ)
+    # TODO: name it to TMeasurement
+    def TVolume(self, a: np.array, b: np.array, c: np.array, p: np.array) -> float:
+        tequ = np.hstack((np.array([a, b, c, p]), np.ones((4, 1))))
+        measurement = np.linalg.det(tequ)
+        return measurement

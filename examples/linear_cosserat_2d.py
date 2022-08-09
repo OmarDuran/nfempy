@@ -137,13 +137,10 @@ class Fracture:
 import geometry.computational_geometry as cgeo
 
 def main():
-    import os
-
-    print('getcwd:      ', os.getcwd())
-    print('__file__:    ', __file__)
 
     obj = cgeo.ComputationalGeometry()
-    obj.TVolume([0.25, 0.25], [0.75, 0.75],[0.25, 0.75],[0.75, 0.25])
+    volume = obj.TVolume([0.25, 0.25, 0.25], [0.75, 0.75, 0.25],[0.25, 0.75, 0.25],[0.75, 0.25, 0.9])
+    
 
     # cd.TVolume([0.25, 0.25], [0.75, 0.75],[0.25, 0.75],[0.75, 0.25])
     print("dir: ",dir())
