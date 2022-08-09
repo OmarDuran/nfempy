@@ -147,7 +147,10 @@ def main():
     cplanar_m = obj.coplanar_measurement(a,b,c,p)
     clinear_m = obj.colinear_measurement(a,b,p,pos)
     point_member_q = obj.point_in_triangle(a,b,c,p,pos)
-    point_member_q = obj.line_line_intersection(a, b, p, c, pos, True)
+    intersection_data = obj.line_line_intersection(a, b, p, c, pos, False)
+    plane = np.array([[1.25, 0.25, 1],[0, 0, 1],[1, 1, 1]])
+    p, q = np.array([0, 0, 0]), np.array([1, 1, 0.5])
+    intersection_data = obj.line_plane_intersection(plane,p,q)
 
     # cd.TVolume([0.25, 0.25], [0.75, 0.75],[0.25, 0.75],[0.75, 0.25])
     print("dir: ",dir())

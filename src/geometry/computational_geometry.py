@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -129,3 +130,16 @@ class ComputationalGeometry:
             return (True, p_intersection, np.array)
         else:
             return (False, np.array, np.array)
+
+    def line_plane_intersection(self, plane: np.array, p: np.array, q: np.array) -> np.array:
+        t_row = np.ones((1, 4));
+        n_data = np.array([plane[0], plane[1], plane[2], p]).T
+        d_data = np.array([plane[0], plane[1], plane[2], q - p]).T
+        n_equ = np.vstack((np.array([[1., 1., 1., 1.]]), n_data))
+        d_equ = np.vstack((np.array([[1., 1., 1., 0.]]), d_data))
+        tv = - np.linalg.det(n_equ) / np.linalg.det(d_equ)
+        t_intersection_q = 0.0 <= tv and tv <= 1.0;
+        if not t_intersection_q:
+            warnings.warn("line_plane_intersection:: intersection ocurrs outside segment.")
+        p_intersection = p + tv * (q - p)
+        return p_intersection
