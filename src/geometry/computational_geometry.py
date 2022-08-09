@@ -149,15 +149,21 @@ class ComputationalGeometry:
         p_intersection = p + tv * (q - p)
         return p_intersection
 
-    def intersect_with_coplanar_point(self, t_triangle: np.array, p: np.array, drop: np.array) -> (bool, np.array, np.array):
+    def intersect_with_coplanar_point(
+        self, t_triangle: np.array, p: np.array, drop: np.array
+    ) -> (bool, np.array, np.array):
         result = (False, np.array, np.array)
         return result
 
-    def intersect_with_coplanar_segment(self, t_triangle: np.array, s: np.array, drop: np.array) -> (bool, np.array, np.array):
+    def intersect_with_coplanar_segment(
+        self, t_triangle: np.array, s: np.array, drop: np.array
+    ) -> (bool, np.array, np.array):
         result = (False, np.array, np.array)
         return result
 
-    def intersect_with_non_coplanar_segments(self, t_triangle: np.array, s_1: np.array, s_2: np.array, drop: np.array) -> (bool, np.array, np.array):
+    def intersect_with_non_coplanar_segments(
+        self, t_triangle: np.array, s_1: np.array, s_2: np.array, drop: np.array
+    ) -> (bool, np.array, np.array):
         result = (False, np.array, np.array)
         return result
 
@@ -220,20 +226,20 @@ class ComputationalGeometry:
 
             if discard_pq_q:
                 print("Intersection could lie on segments qr and/or rp")
-                s_1 = np.array([q,r])
-                s_2 = np.array([r,p])
+                s_1 = np.array([q, r])
+                s_2 = np.array([r, p])
 
             if discard_qr_q:
                 print("Intersection could lie on segments pq and/or rp")
-                s_1 = np.array([p,q])
-                s_2 = np.array([r,p])
+                s_1 = np.array([p, q])
+                s_2 = np.array([r, p])
 
             if discard_rp_q:
                 print("Intersection could lie on segments pq and/or qr")
-                s_1 = np.array([p,q])
-                s_2 = np.array([q,r])
+                s_1 = np.array([p, q])
+                s_2 = np.array([q, r])
 
-            result = intersect_with_non_coplanar_segments(t_triangle,s_1,s_2,drop)
+            result = intersect_with_non_coplanar_segments(t_triangle, s_1, s_2, drop)
             return result
 
         pq_is_coplanar_q = p1_coplanarity_q and q1_coplanarity_q
@@ -246,7 +252,7 @@ class ComputationalGeometry:
             s: np.array = None
             if pq_is_coplanar_q:
                 print("Segment pq is coplanar")
-                s = np.array([p,q])
+                s = np.array([p, q])
 
             if qr_is_coplanar_q:
                 print("Segment qr is coplanar")
@@ -256,7 +262,7 @@ class ComputationalGeometry:
                 print("Segment rp is coplanar")
                 s = np.array([r, p])
 
-            result = intersect_with_non_coplanar_segments(t_triangle,s,drop)
+            result = intersect_with_non_coplanar_segments(t_triangle, s, drop)
             return result
 
         coplanar_point_q = p1_coplanarity_q or q1_coplanarity_q or r1_coplanarity_q
@@ -275,7 +281,7 @@ class ComputationalGeometry:
                 print("Point r is on t_trinagle plane")
                 point = r
 
-            result = intersect_with_coplanar_point(t_triangle,s,drop)
+            result = intersect_with_coplanar_point(t_triangle, s, drop)
             return result
 
         return result
