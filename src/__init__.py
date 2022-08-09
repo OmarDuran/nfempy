@@ -4,9 +4,8 @@ from __future__ import division, print_function, absolute_import
 
 from . geometry import computational_geometry
 
-#
-# __all__ = ['geometry', 'integration', 'mesh', 'postprocess']
-#
+__all__ = ['geometry', 'integration', 'mesh', 'postprocess']
+
 # __all__.extend(geometry.__all__)
 # __all__.extend(integration.__all__)
 # __all__.extend(mesh.__all__)
@@ -20,5 +19,5 @@ from . geometry import computational_geometry
 # except:
 #     nfempy_dir = ''
 #
-# __version__ = '0.0.0'
+__version__ = '0.0.0'
 
