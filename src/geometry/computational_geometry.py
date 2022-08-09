@@ -1,5 +1,5 @@
 import numpy as np
-
+import matplotlib.pyplot as plt
 
 class ComputationalGeometry:
     """Worker class for computational geometry.
@@ -58,3 +58,7 @@ class ComputationalGeometry:
         v = (dot00 * dot12 - dot01 * dot02) / dv
         region_member_q = (u >= 0) and (v >= 0) and (u + v < 1)
         return region_member_q
+
+    def line_line_intersection(self, a: np.array, b: np.array, p: np.array, q: np.array, pos: np.array, render_lines_q: bool = False) -> np.array:
+        ar, br, pr, qr = np.array([a, b, p, q])[:, pos]
+        if render_lines_q:

@@ -147,6 +147,7 @@ def main():
     cplanar_m = obj.coplanar_measurement(a,b,c,p)
     clinear_m = obj.colinear_measurement(a,b,p,pos)
     point_member_q = obj.point_in_triangle(a,b,c,p,pos)
+    point_member_q = obj.line_line_intersection(a, b, c, p, pos)
 
     # cd.TVolume([0.25, 0.25], [0.75, 0.75],[0.25, 0.75],[0.75, 0.25])
     print("dir: ",dir())
