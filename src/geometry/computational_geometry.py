@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 class ComputationalGeometry:
     """Worker class for computational geometry.
 
@@ -59,6 +60,72 @@ class ComputationalGeometry:
         region_member_q = (u >= 0) and (v >= 0) and (u + v < 1)
         return region_member_q
 
-    def line_line_intersection(self, a: np.array, b: np.array, p: np.array, q: np.array, pos: np.array, render_lines_q: bool = False) -> np.array:
+    def render_lines(
+        self, a: np.array, b: np.array, p: np.array, q: np.array, pos: np.array
+    ):
+        ar, br, pr, qr = np.array([a, b, p, q])[:, pos]
+        lab = np.array([ar, br])
+        lpq = np.array([pr, qr])
+        plt.plot(lab[:, 0], lab[:, 1], color="red", marker="o", lw=2)
+        plt.plot(lpq[:, 0], lpq[:, 1], color="blue", marker="o", lw=2)
+        plt.show()
+
+    def line_line_intersection(
+        self,
+        a: np.array,
+        b: np.array,
+        p: np.array,
+        q: np.array,
+        pos: np.array,
+        render_lines_q: bool = False,
+    ) -> (bool, np.array, np.array):
         ar, br, pr, qr = np.array([a, b, p, q])[:, pos]
         if render_lines_q:
+            self.render_lines(a, b, p, q, pos)
+        dv = np.linalg.det(np.array([ar - br, pr - qr]).T)
+        parallel_lines_q = np.abs(dv) < self.eps
+        if parallel_lines_q:
+            p_is_ab_colinear_q = (
+                np.abs(self.colinear_measurement(a, b, p, pos)) < self.eps
+            )
+            q_is_ab_colinear_q = (
+                np.abs(self.colinear_measurement(a, b, q, pos)) < self.eps
+            )
+            if not p_is_ab_colinear_q and not q_is_ab_colinear_q:
+                return (False, np.array, np.array)
+            tau = (ar - br) / np.linalg.norm(ar - br)
+            n = np.array([tau[1], -tau[1]])
+
+            drop = np.argmax(np.abs(n))
+            pos = np.array(
+                list(
+                    {
+                        0,
+                        1,
+                    }
+                    - {drop}
+                )
+            )
+
+            ar_member_q = pr[pos] <= ar[pos] and ar[pos] <= qr[pos]
+            br_member_q = pr[pos] <= br[pos] and br[pos] <= qr[pos]
+            if ar_member_q or br_member_q:
+                if ar_member_q and br_member_q:
+                    return (True, a, b)
+                if ar_member_q:
+                    return (True, a, q)
+                if br_member_q:
+                    return (True, p, b)
+            else:
+                return (True, p, q)
+
+        tv = np.linalg.det(np.array([ar - pr, pr - qr]).T) / dv
+        uv = np.linalg.det(np.array([ar - pr, ar - br]).T) / dv
+        t_intersection_q = 0.0 <= tv and tv <= 1.0
+        u_intersection_q = 0.0 <= uv and uv <= 1.0
+        p_intersection = None
+        if t_intersection_q and u_intersection_q:
+            p_intersection = a + tv * (b - a)
+            return (True, p_intersection, np.array)
+        else:
+            return (False, np.array, np.array)

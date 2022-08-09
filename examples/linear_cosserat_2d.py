@@ -140,14 +140,14 @@ def main():
 
     obj = cgeo.ComputationalGeometry()
 
-    p = np.array([5, 5.5, 2])
-    a, b, c = np.array([1, 0, 1]), np.array([1, 1, 1]), np.array([0, 0, 1])
+    p = np.array([0.0, 0.5, 2])
+    a, b, c = np.array([0, 0, 1]), np.array([1, 1, 1]), np.array([1.25, 0.25, 1])
     pos = np.array([0, 1])
 
     cplanar_m = obj.coplanar_measurement(a,b,c,p)
     clinear_m = obj.colinear_measurement(a,b,p,pos)
     point_member_q = obj.point_in_triangle(a,b,c,p,pos)
-    point_member_q = obj.line_line_intersection(a, b, c, p, pos)
+    point_member_q = obj.line_line_intersection(a, b, p, c, pos, True)
 
     # cd.TVolume([0.25, 0.25], [0.75, 0.75],[0.25, 0.75],[0.75, 0.25])
     print("dir: ",dir())
