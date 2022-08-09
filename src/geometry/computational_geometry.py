@@ -1,6 +1,7 @@
 import warnings
 import numpy as np
 import matplotlib.pyplot as plt
+import math
 
 
 class ComputationalGeometry:
@@ -131,15 +132,150 @@ class ComputationalGeometry:
         else:
             return (False, np.array, np.array)
 
-    def line_plane_intersection(self, plane: np.array, p: np.array, q: np.array) -> np.array:
-        t_row = np.ones((1, 4));
+    def line_plane_intersection(
+        self, plane: np.array, p: np.array, q: np.array
+    ) -> np.array:
+        t_row = np.ones((1, 4))
         n_data = np.array([plane[0], plane[1], plane[2], p]).T
         d_data = np.array([plane[0], plane[1], plane[2], q - p]).T
-        n_equ = np.vstack((np.array([[1., 1., 1., 1.]]), n_data))
-        d_equ = np.vstack((np.array([[1., 1., 1., 0.]]), d_data))
-        tv = - np.linalg.det(n_equ) / np.linalg.det(d_equ)
-        t_intersection_q = 0.0 <= tv and tv <= 1.0;
+        n_equ = np.vstack((np.array([[1.0, 1.0, 1.0, 1.0]]), n_data))
+        d_equ = np.vstack((np.array([[1.0, 1.0, 1.0, 0.0]]), d_data))
+        tv = -np.linalg.det(n_equ) / np.linalg.det(d_equ)
+        t_intersection_q = 0.0 <= tv and tv <= 1.0
         if not t_intersection_q:
-            warnings.warn("line_plane_intersection:: intersection ocurrs outside segment.")
+            warnings.warn(
+                "line_plane_intersection:: intersection ocurrs outside segment."
+            )
         p_intersection = p + tv * (q - p)
         return p_intersection
+
+    def intersect_with_coplanar_point(self, t_triangle: np.array, p: np.array, drop: np.array) -> (bool, np.array, np.array):
+        result = (False, np.array, np.array)
+        return result
+
+    def intersect_with_coplanar_segment(self, t_triangle: np.array, s: np.array, drop: np.array) -> (bool, np.array, np.array):
+        result = (False, np.array, np.array)
+        return result
+
+    def intersect_with_non_coplanar_segments(self, t_triangle: np.array, s_1: np.array, s_2: np.array, drop: np.array) -> (bool, np.array, np.array):
+        result = (False, np.array, np.array)
+        return result
+
+    def trinagle_trinagle_intersection(
+        self, o_triangle: np.array, t_triangle: np.array
+    ) -> (bool, np.array, np.array):
+        sign = lambda x: math.copysign(1, x)
+
+        p1, q1, r1 = o_triangle
+        p2, q2, r2 = t_triangle
+
+        volp1 = self.coplanar_measurement(p2, q2, r2, p1)
+        volq1 = self.coplanar_measurement(p2, q2, r2, q1)
+        volr1 = self.coplanar_measurement(p2, q2, r2, r1)
+
+        volp2 = self.coplanar_measurement(p1, q1, r1, p2)
+        volq2 = self.coplanar_measurement(p1, q1, r1, q2)
+        volr2 = self.coplanar_measurement(p1, q1, r1, r2)
+
+        p1_coplanarity_q = np.abs(volp1) < self.eps
+        q1_coplanarity_q = np.abs(volq1) < self.eps
+        r1_coplanarity_q = np.abs(volr1) < self.eps
+
+        p2_coplanarity_q = np.abs(volp2) < self.eps
+        q2_coplanarity_q = np.abs(volq2) < self.eps
+        r2_coplanarity_q = np.abs(volr2) < self.eps
+
+        t1_coplanarity_q = p1_coplanarity_q and q1_coplanarity_q and r1_coplanarity_q
+        t2_coplanarity_q = p2_coplanarity_q and q2_coplanarity_q and r2_coplanarity_q
+
+        t1_intersection_q = sign(volp1) == sign(volq1) == sign(volr1)
+        t2_intersection_q = sign(volp2) == sign(volq2) == sign(volr2)
+
+        if t1_coplanarity_q or t2_coplanarity_q:
+            print("T_o and T_t are coplanar.")
+
+        if t1_intersection_q:
+            print("T_o does not intersect the plane of T_t.")
+
+        if t2_intersection_q:
+            print("T_r does not intersect the plane of T_o.")
+
+        if t1_intersection_q or t2_intersection_q:
+            return (False, np.array, np.array)
+
+        dir_cross = np.cross(p2 - q2, r2 - q2)
+        n_t = dir_cross / np.linalg.norm(dir_cross)
+        drop = np.argmax(np.abs(n_t))
+
+        discard_pq_q = sign(volp1) == sign(volq1) != 0
+        discard_qr_q = sign(volq1) == sign(volr1) != 0
+        discard_rp_q = sign(volr1) == sign(volp1) != 0
+
+        result = (False, np.array, np.array)
+
+        non_coplanar_segments_q = discard_pq_q or discard_qr_q or discard_rp_q
+        if non_coplanar_segments_q:
+            s_1: np.array = None
+            s_2: np.array = None
+
+            if discard_pq_q:
+                print("Intersection could lie on segments qr and/or rp")
+                s_1 = np.array([q,r])
+                s_2 = np.array([r,p])
+
+            if discard_qr_q:
+                print("Intersection could lie on segments pq and/or rp")
+                s_1 = np.array([p,q])
+                s_2 = np.array([r,p])
+
+            if discard_rp_q:
+                print("Intersection could lie on segments pq and/or qr")
+                s_1 = np.array([p,q])
+                s_2 = np.array([q,r])
+
+            result = intersect_with_non_coplanar_segments(t_triangle,s_1,s_2,drop)
+            return result
+
+        pq_is_coplanar_q = p1_coplanarity_q and q1_coplanarity_q
+        qr_is_coplanar_q = q1_coplanarity_q and r1_coplanarity_q
+        rp_is_coplanar_q = r1_coplanarity_q and p1_coplanarity_q
+
+        coplanar_segment_q = pq_is_coplanar_q or qr_is_coplanar_q or rp_is_coplanar_q
+
+        if coplanar_segment_q:
+            s: np.array = None
+            if pq_is_coplanar_q:
+                print("Segment pq is coplanar")
+                s = np.array([p,q])
+
+            if qr_is_coplanar_q:
+                print("Segment qr is coplanar")
+                s = np.array([q, r])
+
+            if rp_is_coplanar_q:
+                print("Segment rp is coplanar")
+                s = np.array([r, p])
+
+            result = intersect_with_non_coplanar_segments(t_triangle,s,drop)
+            return result
+
+        coplanar_point_q = p1_coplanarity_q or q1_coplanarity_q or r1_coplanarity_q
+
+        if coplanar_point_q:
+            point: np.array = None
+            if p1_coplanarity_q:
+                print("Point p is on t_trinagle plane")
+                point = p
+
+            if q1_coplanarity_q:
+                print("Point q is on t_trinagle plane")
+                point = q
+
+            if r1_coplanarity_q:
+                print("Point r is on t_trinagle plane")
+                point = r
+
+            result = intersect_with_coplanar_point(t_triangle,s,drop)
+            return result
+
+        return result
