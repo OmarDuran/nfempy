@@ -9,16 +9,47 @@ import networkx as nx
 import matplotlib.pyplot as plt
 
 
-class Network:
+class facet:
+
+    def __init__(self, dimension):
+        self.connectivity = None
+
+class cell:
 
     def __init__(self, dimension):
 
         self.dimension = dimension
+        self.facets = None
+        self.connectivy_grahp = None
+
+
+class Network:
+
+    # The network object represents a mesh of intersecting objects.
+    # For 2d the mesh includes (d-f)-facets f = {0,1}:
+    #   (0)-facets vertices
+    #   (1)-facets edges
+
+    # For 3d the mesh includes (d-f)-facets f = {0,1,2}:
+    #   (0)-facets vertices
+    #   (1)-facets edges
+    #   (2)-facets faces
+
+    def __init__(self, dimension):
+
+        self.network = [] # list of cells
+        self.dimension = dimension
         self.grahp = None
         self.vertices = None
         self.connectivity = None
+        self.fractures_indices = None
+        self.fractures_bcs = None
 
     def intersect_fractures(self, vertices, connectivity):
+
+        # preserve original data
+        self.fractures_indices = [[] for _ in connectivity]
+        self.fractures_bcs = connectivity
 
         self.vertices = vertices
         self.connectivity = [[] for _ in connectivity]
@@ -105,6 +136,8 @@ class Fracture:
 
 
 def main():
+
+
 
     pts = np.array([[0.25, 0.25], [0.75, 0.75],[0.25, 0.75],[0.75, 0.25]])
     c_map = np.array([[0,1],[2,3]])
