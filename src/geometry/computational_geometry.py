@@ -11,7 +11,6 @@ class ComputationalGeometry:
     def __init__(self):
         pass
 
-    @staticmethod
     def TVolume(self, a, b, c, p) -> float:
         tequ = np.array([a, b, c, p])
         print(tequ)
