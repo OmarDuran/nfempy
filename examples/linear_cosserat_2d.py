@@ -134,11 +134,16 @@ class Fracture:
         self.dimension = dimension
         self.boundary = connectivity
 
-import nfempy
+# import geometry.compuational_geometry as cg
 
 def main():
+    import os
 
+    print('getcwd:      ', os.getcwd())
+    print('__file__:    ', __file__)
 
+    # cd.TVolume([0.25, 0.25], [0.75, 0.75],[0.25, 0.75],[0.75, 0.25])
+    print("dir: ",dir())
     pts = np.array([[0.25, 0.25], [0.75, 0.75],[0.25, 0.75],[0.75, 0.25]])
     c_map = np.array([[0,1],[2,3]])
 
