@@ -9,6 +9,9 @@ https://github.com/OmarDuran/nfempy/tree/main
 from setuptools import setup, find_packages
 import pathlib
 
+import os.path
+from glob import glob
+
 here = pathlib.Path(__file__).parent.resolve()
 
 # Get the long description from the README file
@@ -100,7 +103,7 @@ setup(
     # Note that this is a list of additional keywords, separated
     # by commas, to be used to assist searching for the distribution in a
     # larger catalog.
-    keywords="FE, Nolinear mappings, science",  # Optional
+    keywords="Finite Elements, Nonlinear mappings, science",  # Optional
     # When your source code is in a subdirectory under the project root, e.g.
     # `src/`, it is necessary to specify the `package_dir` argument.
     package_dir={"": "src"},  # Optional
@@ -118,6 +121,9 @@ setup(
     # 'Programming Language' classifiers above, 'pip install' will check this
     # and refuse to install the project if the version does not match. See
     # https://packaging.python.org/guides/distributing-packages-using-setuptools/#python-requires
+    py_modules=[
+        os.path.splitext(os.path.basename(path))[0] for path in glob("src/*.py")
+    ],
     python_requires=">=3.8, <4",
     # This field lists other packages that your project depends on to run.
     # Any package you put here will be installed by pip when your project is
@@ -136,7 +142,7 @@ setup(
     # projects.
     extras_require={  # Optional
         "dev": ["check-manifest"],
-        "test": ["coverage"],
+        "test": ["pytest"],
     },
     # If there are data files included in your packages that need to be
     # installed, specify them here.

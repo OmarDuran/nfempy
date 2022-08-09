@@ -134,6 +134,7 @@ class Fracture:
         self.dimension = dimension
         self.boundary = connectivity
 
+import geometry.computational_geometry as cgeo
 
 def main():
 
@@ -145,7 +146,7 @@ def main():
     fracture_network = Network(dimension=2)
     fracture_network.intersect_fractures(pts,c_map)
     fracture_network.build_grahp()
-    # fracture_network.draw_grahp()
+    fracture_network.draw_grahp()
 
     gbuilder = geometry_builder(dimension=2)
     gbuilder.build_internal_bc(fracture_network)
