@@ -134,10 +134,9 @@ class Fracture:
         self.dimension = dimension
         self.boundary = connectivity
 
-import geometry.computational_geometry as cgeo
+import nfempy
 
 def main():
-
 
 
     pts = np.array([[0.25, 0.25], [0.75, 0.75],[0.25, 0.75],[0.75, 0.25]])
