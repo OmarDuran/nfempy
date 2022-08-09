@@ -139,8 +139,14 @@ import geometry.computational_geometry as cgeo
 def main():
 
     obj = cgeo.ComputationalGeometry()
-    volume = obj.TVolume([0.25, 0.25, 0.25], [0.75, 0.75, 0.25],[0.25, 0.75, 0.25],[0.75, 0.25, 0.9])
-    
+
+    p = np.array([5, 5.5, 2])
+    a, b, c = np.array([1, 0, 1]), np.array([1, 1, 1]), np.array([0, 0, 1])
+    pos = np.array([0, 1])
+
+    cplanar_m = obj.coplanar_measurement(a,b,c,p)
+    clinear_m = obj.colinear_measurement(a,b,p,pos)
+    point_member_q = obj.point_in_triangle(a,b,c,p,pos)
 
     # cd.TVolume([0.25, 0.25], [0.75, 0.75],[0.25, 0.75],[0.75, 0.25])
     print("dir: ",dir())
