@@ -152,9 +152,13 @@ def main():
     p, q = np.array([0, 0, 0]), np.array([1, 1, 0.5])
     intersection_data = obj.line_plane_intersection(plane,p,q)
 
-    o_triangle = np.array([[-0.8, -0.9, 1],[0.8, -0.8, 1],[2, -1, 2]])
-    t_triangle = np.array([[-1., -1., 1.], [1., -1., 1.5], [1., 1., 1.]])
-    intersection_data = obj.trinagle_trinagle_intersection(o_triangle,t_triangle)
+    o_triangle = np.array([[-1, -1, 0], [2, 0, 2], [2, 2, 2]])
+    t_triangle = np.array([[0, 0, 1], [1, 0, 1], [1, 1, 1]])
+
+    # o_triangle = np.array([[-0.8, -0.9, 1],[0.8, -0.8, 1],[2, -1, 2]])
+    # t_triangle = np.array([[-1., -1., 1.], [1., -1., 1.5], [1., 1., 1.]])
+
+    intersection_data = obj.triangle_triangle_intersection(o_triangle,t_triangle)
     # cd.TVolume([0.25, 0.25], [0.75, 0.75],[0.25, 0.75],[0.75, 0.25])
     print("dir: ",dir())
     pts = np.array([[0.25, 0.25], [0.75, 0.75],[0.25, 0.75],[0.75, 0.25]])

@@ -149,25 +149,256 @@ class ComputationalGeometry:
         p_intersection = p + tv * (q - p)
         return p_intersection
 
-    def intersect_with_coplanar_point(
-        self, t_triangle: np.array, p: np.array, drop: np.array
+    def intersect_with_coplanar_point_and_segment(
+        self, t_triangle: np.array, p: np.array, s: np.array, drop: np.array
     ) -> (bool, np.array, np.array):
         result = (False, np.array, np.array)
+        pos = np.array(
+            list(
+                {
+                    0,
+                    1,
+                    2,
+                }
+                - {drop}
+            )
+        )
+        a, b, c = t_triangle
+        ps, qs = s
+
+        p_is_member_q = self.point_in_triangle(a, b, c, p, pos)
+        q = self.line_plane_intersection(t_triangle, ps, qs)
+
+        ab_intersected_q = self.line_line_intersection(a, b, p, q, pos, False)
+        bc_intersected_q = self.line_line_intersection(b, c, p, q, pos, False)
+        ca_intersected_q = self.line_line_intersection(c, a, p, q, pos, False)
+
+        i_results = np.array(
+            [
+                chunk[0]
+                for chunk in [ab_intersected_q, bc_intersected_q, ca_intersected_q]
+            ]
+        )
+        n_intersections = np.count_nonzero(i_results)
+
+        pti: np.array = None
+        qti: np.array = None
+
+        if n_intersections == 1 or n_intersections == 2:
+            if p_is_member_q:
+                pti = p
+                if ab_intersected_q[0]:
+                    qti = ab_intersected_q[1]
+                if bc_intersected_q[0]:
+                    qti = bc_intersected_q[1]
+                if ca_intersected_q[0]:
+                    qti = ca_intersected_q[1]
+            else:
+                if ab_intersected_q[0] and bc_intersected_q[0]:
+                    pti = ab_intersected_q[1]
+                    qti = bc_intersected_q[1]
+                if bc_intersected_q[0] and ca_intersected_q[0]:
+                    pti = bc_intersected_q[1]
+                    qti = ca_intersected_q[1]
+                if ca_intersected_q[0] and ab_intersected_q[0]:
+                    pti = ca_intersected_q[1]
+                    qti = ab_intersected_q[1]
+        else:
+            warnings.warn("The number intersections is not 1 or 2:", n_intersections)
+
+        result = (True, pti, qti)
         return result
 
     def intersect_with_coplanar_segment(
         self, t_triangle: np.array, s: np.array, drop: np.array
     ) -> (bool, np.array, np.array):
+        pos = np.array(
+            list(
+                {
+                    0,
+                    1,
+                    2,
+                }
+                - {drop}
+            )
+        )
+
         result = (False, np.array, np.array)
+        a, b, c = t_triangle
+        p, q = s
+
+        p_is_ab_colinear_q = self.colinear_measurement(a, b, p, pos)
+        q_is_ab_colinear_q = self.colinear_measurement(a, b, q, pos)
+
+        p_is_bc_colinear_q = self.colinear_measurement(b, c, p, pos)
+        q_is_bc_colinear_q = self.colinear_measurement(b, c, q, pos)
+
+        p_is_ca_colinear_q = self.colinear_measurement(c, a, p, pos)
+        q_is_ca_colinear_q = self.colinear_measurement(c, a, q, pos)
+
+        ab_intersected_q = self.line_line_intersection(a, b, p, q, pos, False)
+        bc_intersected_q = self.line_line_intersection(b, c, p, q, pos, False)
+        ca_intersected_q = self.line_line_intersection(c, a, p, q, pos, False)
+
+        if p_is_ab_colinear_q and q_is_ab_colinear_q:
+            print("Intersection lies on ab")
+            if ab_intersected_q[0]:
+                return (True, ab_intersected_q[1], ab_intersected_q[2])
+            else:
+                return result
+
+        if p_is_bc_colinear_q and q_is_bc_colinear_q:
+            print("Intersection lies on bc")
+            if bc_intersected_q[0]:
+                return (True, bc_intersected_q[1], bc_intersected_q[2])
+            else:
+                return result
+
+        if p_is_ca_colinear_q and q_is_ca_colinear_q:
+            print("Intersection lies on ca")
+            if ca_intersected_q[0]:
+                return (True, ca_intersected_q[1], ca_intersected_q[2])
+            else:
+                return result
+
+        p_is_member_q = self.point_in_triangle(a, b, c, p, pos)
+        q_is_member_q = self.point_in_triangle(a, b, c, q, pos)
+
+        i_results = np.array(
+            [
+                chunk[0]
+                for chunk in [ab_intersected_q, bc_intersected_q, ca_intersected_q]
+            ]
+        )
+        n_intersections = np.count_nonzero(i_results)
+
+        if p_is_member_q and q_is_member_q:
+            return (True, p, q)
+
+        if not p_is_member_q and not q_is_member_q:
+            # Triangle is convex
+            if n_intersections == 2:
+                intersections = [
+                    chunk[1]
+                    for chunk in [ab_intersected_q, bc_intersected_q, ca_intersected_q]
+                    if chunk[0]
+                ]
+                same_point_q = np.linalg.norm(intersections[0] - [1]) < self.eps
+                if same_point_q:
+                    return result
+                return (True, intersections[0], intersections[1])
+            else:
+                return result
+
+        pti: np.array = None
+        qti: np.array = None
+        if p_is_member_q or q_is_member_q:
+            if p_is_member_q:
+                pti = p
+            else:
+                pti = q
+            if ab_intersected_q[0]:
+                same_point_q = np.linalg.norm(pti - ab_intersected_q[1]) < self.eps
+                if not same_point_q:
+                    qti = ab_intersected_q[1]
+
+            if bc_intersected_q[0]:
+                same_point_q = np.linalg.norm(pti - bc_intersected_q[1]) < self.eps
+                if not same_point_q:
+                    qti = bc_intersected_q[1]
+
+            if ca_intersected_q[0]:
+                same_point_q = np.linalg.norm(pti - ca_intersected_q[1]) < self.eps
+                if not same_point_q:
+                    qti = ca_intersected_q[1]
+            # One point is close to boundary and the segment does not generate intersections
+            if qti is None:
+                return result
+            return (True, pti, qti)
+
         return result
 
     def intersect_with_non_coplanar_segments(
         self, t_triangle: np.array, s_1: np.array, s_2: np.array, drop: np.array
     ) -> (bool, np.array, np.array):
+        pos = np.array(
+            list(
+                {
+                    0,
+                    1,
+                    2,
+                }
+                - {drop}
+            )
+        )
+
         result = (False, np.array, np.array)
+
+        a, b, c = t_triangle
+        ps1, qs1 = s_1
+        ps2, qs2 = s_2
+        p = self.line_plane_intersection(t_triangle, ps1, qs1)
+        q = self.line_plane_intersection(t_triangle, ps2, qs2)
+        p_is_member_q = self.point_in_triangle(a, b, c, p, pos)
+        q_is_member_q = self.point_in_triangle(a, b, c, q, pos)
+
+        ab_intersected_q = self.line_line_intersection(a, b, p, q, pos, False)
+        bc_intersected_q = self.line_line_intersection(b, c, p, q, pos, False)
+        ca_intersected_q = self.line_line_intersection(c, a, p, q, pos, False)
+        i_results = np.array(
+            [
+                chunk[0]
+                for chunk in [ab_intersected_q, bc_intersected_q, ca_intersected_q]
+            ]
+        )
+        n_intersections = np.count_nonzero(i_results)
+
+        if p_is_member_q and q_is_member_q:
+            return (True, p, q)
+
+        if not p_is_member_q and not q_is_member_q:
+            # Triangle is convex
+            if n_intersections == 2:
+                intersections = [
+                    chunk[1]
+                    for chunk in [ab_intersected_q, bc_intersected_q, ca_intersected_q]
+                    if chunk[0]
+                ]
+                same_point_q = np.linalg.norm(intersections[0] - [1]) < self.eps
+                if same_point_q:
+                    return result
+                return (True, intersections[0], intersections[1])
+            else:
+                return result
+
+        pti: np.array = None
+        qti: np.array = None
+        if p_is_member_q or q_is_member_q:
+            if p_is_member_q:
+                pti = p
+            else:
+                pti = q
+            if ab_intersected_q[0]:
+                same_point_q = np.linalg.norm(pti - ab_intersected_q[1]) < self.eps
+                if not same_point_q:
+                    qti = ab_intersected_q[1]
+
+            if bc_intersected_q[0]:
+                same_point_q = np.linalg.norm(pti - bc_intersected_q[1]) < self.eps
+                if not same_point_q:
+                    qti = bc_intersected_q[1]
+
+            if ca_intersected_q[0]:
+                same_point_q = np.linalg.norm(pti - ca_intersected_q[1]) < self.eps
+                if not same_point_q:
+                    qti = ca_intersected_q[1]
+            # One point is close to boundary and the segment does not generate intersections
+            if qti is None:
+                return result
+            return (True, pti, qti)
         return result
 
-    def trinagle_trinagle_intersection(
+    def triangle_triangle_intersection(
         self, o_triangle: np.array, t_triangle: np.array
     ) -> (bool, np.array, np.array):
         sign = lambda x: math.copysign(1, x)
@@ -226,20 +457,22 @@ class ComputationalGeometry:
 
             if discard_pq_q:
                 print("Intersection could lie on segments qr and/or rp")
-                s_1 = np.array([q, r])
-                s_2 = np.array([r, p])
+                s_1 = np.array([q1, r1])
+                s_2 = np.array([r1, p1])
 
             if discard_qr_q:
                 print("Intersection could lie on segments pq and/or rp")
-                s_1 = np.array([p, q])
-                s_2 = np.array([r, p])
+                s_1 = np.array([p1, q1])
+                s_2 = np.array([r1, p1])
 
             if discard_rp_q:
                 print("Intersection could lie on segments pq and/or qr")
-                s_1 = np.array([p, q])
-                s_2 = np.array([q, r])
+                s_1 = np.array([p1, q1])
+                s_2 = np.array([q1, r1])
 
-            result = intersect_with_non_coplanar_segments(t_triangle, s_1, s_2, drop)
+            result = self.intersect_with_non_coplanar_segments(
+                t_triangle, s_1, s_2, drop
+            )
             return result
 
         pq_is_coplanar_q = p1_coplanarity_q and q1_coplanarity_q
@@ -252,36 +485,42 @@ class ComputationalGeometry:
             s: np.array = None
             if pq_is_coplanar_q:
                 print("Segment pq is coplanar")
-                s = np.array([p, q])
+                s = np.array([p1, q1])
 
             if qr_is_coplanar_q:
                 print("Segment qr is coplanar")
-                s = np.array([q, r])
+                s = np.array([q1, r1])
 
             if rp_is_coplanar_q:
                 print("Segment rp is coplanar")
-                s = np.array([r, p])
+                s = np.array([r1, p1])
 
-            result = intersect_with_non_coplanar_segments(t_triangle, s, drop)
+            result = self.intersect_with_non_coplanar_segments(t_triangle, s, drop)
             return result
 
         coplanar_point_q = p1_coplanarity_q or q1_coplanarity_q or r1_coplanarity_q
 
         if coplanar_point_q:
-            point: np.array = None
+            p: np.array = None
+            s: np.array = None
             if p1_coplanarity_q:
                 print("Point p is on t_trinagle plane")
-                point = p
+                p = p1
+                s = np.array([q1, r1])
 
             if q1_coplanarity_q:
                 print("Point q is on t_trinagle plane")
-                point = q
+                p = q1
+                s = np.array([r1, p1])
 
             if r1_coplanarity_q:
                 print("Point r is on t_trinagle plane")
-                point = r
+                p = r1
+                s = np.array([p1, q1])
 
-            result = intersect_with_coplanar_point(t_triangle, s, drop)
+            result = self.intersect_with_coplanar_point_and_segment(
+                t_triangle, p, s, drop
+            )
             return result
 
         return result
