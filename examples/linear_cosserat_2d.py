@@ -139,7 +139,7 @@ import geometry.polygon_polygon_intersection_test as pp_intersector
 def polygon_polygon_intersection():
 
     obj = pp_intersector.PolygonPolygonIntersectionTest()
-    o_vertices = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]]) + np.array([[10.0, 0, 0]])
+    o_vertices = np.array([[-1, -1, 0], [1, -1, 0], [1, 1, 0], [-1, 1, 0]]) + np.array([[0.0, 0.5, 0]])
     # t_vertices = np.array([[1.25, 0., 0.5], [1.25, 0., -0.5], [0.90798, 0.939693, -0.5], [0.90798, 0.939693, 0.5]])
     t_vertices = np.array([[0.25, 0., 0.5], [0.914463, 0.241845, -0.207107], [0.572443, 1.18154, -0.207107],
      [-0.0920201, 0.939693, 0.5]])
