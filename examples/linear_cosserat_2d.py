@@ -134,33 +134,32 @@ class Fracture:
         self.dimension = dimension
         self.boundary = connectivity
 
-import geometry.computational_geometry as cgeo
+import geometry.triangle_triangle_intersection_test as tritri_intersector
+
+def polygon_polygon_intersection():
+
+    obj = tritri_intersector.TriangleTriangleIntersectionTest()
+
+    tc = np.array([[0, 1, 3],[1, 2, 3]])
+    o_vertices = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
+    t_vertices = np.array([[1.25, 0., 0.5], [1.25, 0., -0.5], [0.90798, 0.939693, -0.5], [0.90798, 0.939693, 0.5]])
+    opoly = [o_vertices[tc[0]], o_vertices[tc[1]]]
+    tpoly = [t_vertices[tc[0]], t_vertices[tc[1]]]
+
+    intersection_data = []
+    for i, ot in enumerate(opoly):
+        for j, tt in enumerate(tpoly):
+            intersection = obj.triangle_triangle_intersection(ot, tt)
+            intersection_data.append(intersection)
+
+    intersection_data = obj.triangle_triangle_intersection(o_triangle, t_triangle)
+
+    print("dir: ", dir())
 
 def main():
 
-    obj = cgeo.ComputationalGeometry()
+    polygon_polygon_intersection()
 
-    p = np.array([0.0, 0.5, 2])
-    a, b, c = np.array([0, 0, 1]), np.array([1, 1, 1]), np.array([1.25, 0.25, 1])
-    pos = np.array([0, 1])
-
-    cplanar_m = obj.coplanar_measurement(a,b,c,p)
-    clinear_m = obj.colinear_measurement(a,b,p,pos)
-    point_member_q = obj.point_in_triangle(a,b,c,p,pos)
-    intersection_data = obj.line_line_intersection(a, b, p, c, pos, False)
-    plane = np.array([[1.25, 0.25, 1],[0, 0, 1],[1, 1, 1]])
-    p, q = np.array([0, 0, 0]), np.array([1, 1, 0.5])
-    intersection_data = obj.line_plane_intersection(plane,p,q)
-
-    o_triangle = np.array([[-1, -1, 0], [2, 0, 2], [2, 2, 2]])
-    t_triangle = np.array([[0, 0, 1], [1, 0, 1], [1, 1, 1]])
-
-    # o_triangle = np.array([[-0.8, -0.9, 1],[0.8, -0.8, 1],[2, -1, 2]])
-    # t_triangle = np.array([[-1., -1., 1.], [1., -1., 1.5], [1., 1., 1.]])
-
-    intersection_data = obj.triangle_triangle_intersection(o_triangle,t_triangle)
-    # cd.TVolume([0.25, 0.25], [0.75, 0.75],[0.25, 0.75],[0.75, 0.25])
-    print("dir: ",dir())
     pts = np.array([[0.25, 0.25], [0.75, 0.75],[0.25, 0.75],[0.75, 0.25]])
     c_map = np.array([[0,1],[2,3]])
 
