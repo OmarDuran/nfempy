@@ -8,21 +8,27 @@ import networkx as nx
 
 import matplotlib.pyplot as plt
 
+# Topology for Geometric Design
+# It is required to find a better reference
+#https://www.maruf.ca/files/caadoc/CAATobTechArticles/TopoConcepts.htm#Manifold
 
-class facet:
-
-    def __init__(self, dimension):
-        self.connectivity = None
+def cell_type(dimension):
+    types = ("Vertex","Edge","Face","Volume")
+    # types = ("0-cell", "1-cell", "2-cell", "3-cell")
+    return types[dimension]
 
 class cell:
 
-    def __init__(self, dimension):
+    def __init__(self, dimension, id):
 
         self.dimension = dimension
-        self.facets = None
-        self.connectivy_grahp = None
+        self.type = cell_type(dimension)
+        self.id = id
+        self.boundary_cells = None
+        self.immersed_cells = None
 
 
+# geometry representation
 class Network:
 
     # The network object represents a mesh of intersecting objects.
@@ -37,7 +43,7 @@ class Network:
 
     def __init__(self, dimension):
 
-        self.network = [] # list of cells
+        self.network = [] # list of facets
         self.dimension = dimension
         self.grahp = None
         self.vertices = None
@@ -133,6 +139,10 @@ class Fracture:
         self.connectivity = connectivity
         self.dimension = dimension
         self.boundary = connectivity
+        self.normal: np.array = None
+        self.tangent: np.array = None
+
+
 
 import geometry.polygon_polygon_intersection_test as pp_intersector
 
@@ -146,7 +156,121 @@ def polygon_polygon_intersection():
     intersection_q = obj.polygon_polygon_intersection(o_vertices,t_vertices,True)
     k = 0
 
+
+# geometry method
+def build_box(cells, box_points):
+
+    cells = np.append(cells, np.array([cell(0, i) for i, point in enumerate(box_points)]))
+
+    edge = cell(1, 8)
+    edge.boundary_cells = cells[[0, 1]]
+    cells = np.append(cells, edge)
+
+    edge = cell(1, 9)
+    edge.boundary_cells = cells[[1, 2]]
+    cells = np.append(cells, edge)
+
+    edge = cell(1, 10)
+    edge.boundary_cells = cells[[2, 3]]
+    cells = np.append(cells, edge)
+
+    edge = cell(1, 11)
+    edge.boundary_cells = cells[[3, 0]]
+    cells = np.append(cells, edge)
+
+    edge = cell(1, 12)
+    edge.boundary_cells = cells[[4, 5]]
+    cells = np.append(cells, edge)
+
+    edge = cell(1, 13)
+    edge.boundary_cells = cells[[5, 6]]
+    cells = np.append(cells, edge)
+
+    edge = cell(1, 14)
+    edge.boundary_cells = cells[[6, 7]]
+    cells = np.append(cells, edge)
+
+    edge = cell(1, 15)
+    edge.boundary_cells = cells[[7, 4]]
+    cells = np.append(cells, edge)
+
+    edge = cell(1, 16)
+    edge.boundary_cells = cells[[0, 4]]
+    cells = np.append(cells, edge)
+
+    edge = cell(1, 17)
+    edge.boundary_cells = cells[[1, 5]]
+    cells = np.append(cells, edge)
+
+    edge = cell(1, 18)
+    edge.boundary_cells = cells[[2, 6]]
+    cells = np.append(cells, edge)
+
+    edge = cell(1, 19)
+    edge.boundary_cells = cells[[3, 7]]
+    cells = np.append(cells, edge)
+
+    surface = cell(2, 20)
+    surface.boundary_cells = cells[[8, 17, 12, 16]]
+    cells = np.append(cells, surface)
+
+    surface = cell(2, 21)
+    surface.boundary_cells = cells[[9, 18, 13, 17]]
+    cells = np.append(cells, surface)
+
+    surface = cell(2, 22)
+    surface.boundary_cells = cells[[10, 13, 14, 19]]
+    cells = np.append(cells, surface)
+
+    surface = cell(2, 23)
+    surface.boundary_cells = cells[[11, 16, 15, 19]]
+    cells = np.append(cells, surface)
+
+    surface = cell(2, 24)
+    surface.boundary_cells = cells[[8, 9, 10, 11]]
+    cells = np.append(cells, surface)
+
+    surface = cell(2, 25)
+    surface.boundary_cells = cells[[12, 13, 14, 15]]
+    cells = np.append(cells, surface)
+
+    volume = cell(3, 26)
+    volume.boundary_cells = cells[[20, 21, 22, 23, 24, 25]]
+    cells = np.append(cells, volume)
+    return cells
+
+def insert_graph_edge(g_cell: cell, tuple_id_list):
+    for bc_cell in g_cell.boundary_cells:
+        tuple_id_list.append((g_cell.id, bc_cell.id))
+        if bc_cell.dimension == 0:
+            print("Vertex with id: ",bc_cell.id)
+        else:
+            insert_graph_edge(bc_cell, tuple_id_list)
+
+def draw_graph(G):
+    # pos = nx.bipartite_layout(G, top)
+    nx.draw(G, pos=nx.spring_layout(G), with_labels=True, node_color="skyblue")
+
+def build_geometry_graph(cells):
+
+    return graph
+
+
 def main():
+
+    cells = np.array([],dtype=cell)
+    s = 1.0;
+    points = s * np.array([[-1, -1, 0], [+1, -1, 0], [+1, +1, 0], [-1, +1, 0],
+                       [-1, -1, +1], [+1, -1, +1], [+1, +1, +1], [-1, +1, +1]])
+
+    # create volume cell
+    cells = build_box(cells,points)
+    tuple_id_list = []
+    insert_graph_edge(cells[26],tuple_id_list)
+    gbuilder = geometry_builder(dimension=3)
+
+    graph = nx.from_edgelist(tuple_id_list, create_using=nx.DiGraph)
+    draw_graph(graph)
 
     polygon_polygon_intersection()
     return 0
