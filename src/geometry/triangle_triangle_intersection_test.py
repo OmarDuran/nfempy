@@ -10,7 +10,7 @@ class TriangleTriangleIntersectionTest:
 
     """
 
-    def __init__(self, eps: float = 1.0e-18):
+    def __init__(self, eps: float = 1.0e-12):
         self.eps = eps
 
     def coplanar_measurement(
@@ -344,19 +344,19 @@ class TriangleTriangleIntersectionTest:
         t1_coplanarity_q = p1_coplanarity_q and q1_coplanarity_q and r1_coplanarity_q
         t2_coplanarity_q = p2_coplanarity_q and q2_coplanarity_q and r2_coplanarity_q
 
-        t1_intersection_q = sign(volp1) == sign(volq1) == sign(volr1)
-        t2_intersection_q = sign(volp2) == sign(volq2) == sign(volr2)
+        t1_no_intersection_q = sign(volp1) == sign(volq1) == sign(volr1)
+        t2_no_intersection_q = sign(volp2) == sign(volq2) == sign(volr2)
 
         if t1_coplanarity_q or t2_coplanarity_q:
             print("T_o and T_t are coplanar.")
 
-        if t1_intersection_q:
+        if t1_no_intersection_q:
             print("T_o does not intersect the plane of T_t.")
 
-        if t2_intersection_q:
+        if t2_no_intersection_q:
             print("T_r does not intersect the plane of T_o.")
 
-        if t1_intersection_q or t2_intersection_q:
+        if t1_no_intersection_q or t2_no_intersection_q:
             return (False, np.array, np.array)
 
         dir_cross = np.cross(p2 - q2, r2 - q2)

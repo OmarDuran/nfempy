@@ -12,7 +12,7 @@ class PolygonPolygonIntersectionTest:
 
     """
 
-    def __init__(self, eps: float = 1.0e-18):
+    def __init__(self, eps: float = 1.0e-12):
         self.eps = eps
         self.tt_intersector = tt_intersector.TriangleTriangleIntersectionTest(eps)
         self.tc = np.array([[0, 1, 3],[1, 2, 3]])
@@ -68,7 +68,7 @@ class PolygonPolygonIntersectionTest:
         if poly_line_r.shape[0] > 1:
             ar, br = poly_line_r[[0,1]]
             tau = (ar - br) / np.linalg.norm(ar - br)
-            n = np.array([tau[1], -tau[1]])
+            n = np.array([tau[1], -tau[0]])
             drop = np.argmax(np.abs(n))
             pos = np.array(
                 list(
@@ -88,9 +88,9 @@ class PolygonPolygonIntersectionTest:
 
     def polygon_polygon_intersection(
         self, o_polygon: np.array, t_polygon: np.array, render_polygons_q: bool = False
-    ) -> bool:
+    ) -> (bool, np.array, np.array):
 
-        result = False
+        result = (False, np.array, np.array)
         opoly = [o_polygon[self.tc[0]], o_polygon[self.tc[1]]]
         tpoly = [t_polygon[self.tc[0]], t_polygon[self.tc[1]]]
 
@@ -104,7 +104,6 @@ class PolygonPolygonIntersectionTest:
         n_intersections = np.count_nonzero(i_results)
 
         if n_intersections != 0:
-            result = True
             points = []
             for chunk in intersection_data:
                 if chunk[0]:
@@ -112,6 +111,7 @@ class PolygonPolygonIntersectionTest:
                     points.append(chunk[2])
             self.poly_line = np.array(points)
             self.reduce_poly_line(o_polygon)
+            result = (True,self.poly_line[0],self.poly_line[1])
 
 
         if render_polygons_q:

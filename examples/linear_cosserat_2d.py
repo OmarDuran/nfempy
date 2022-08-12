@@ -51,7 +51,10 @@ class Network:
         self.fractures_indices = None
         self.fractures_bcs = None
 
-    def intersect_fractures(self, vertices, connectivity):
+    def intersect_2D_fractures(self, vertices, connectivity):
+        k = 0
+
+    def intersect_1D_fractures(self, vertices, connectivity):
 
         # preserve original data
         self.fractures_indices = [[] for _ in connectivity]
@@ -148,12 +151,24 @@ import geometry.polygon_polygon_intersection_test as pp_intersector
 
 def polygon_polygon_intersection():
 
-    obj = pp_intersector.PolygonPolygonIntersectionTest()
-    o_vertices = np.array([[-1, -1, 0], [1, -1, 0], [1, 1, 0], [-1, 1, 0]]) + np.array([[0.0, 0.5, 0]])
-    # t_vertices = np.array([[1.25, 0., 0.5], [1.25, 0., -0.5], [0.90798, 0.939693, -0.5], [0.90798, 0.939693, 0.5]])
-    t_vertices = np.array([[0.25, 0., 0.5], [0.914463, 0.241845, -0.207107], [0.572443, 1.18154, -0.207107],
+    fracture_1 = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
+    fracture_2 = np.array([[0.6, 0., 0.5], [0.6, 0., -0.5], [0.6, 1., -0.5], [0.6, 1., 0.5]])
+    fracture_3 = np.array([[0.25, 0., 0.5], [0.914463, 0.241845, -0.207107], [0.572443, 1.18154, -0.207107],
      [-0.0920201, 0.939693, 0.5]])
-    intersection_q = obj.polygon_polygon_intersection(o_vertices,t_vertices,True)
+
+    fractures = [fracture_2,fracture_1,fracture_3]
+
+
+    intersections = 3*[3*[None]]
+    for i, f_o in enumerate(fractures):
+        for j,  f_t in enumerate(fractures):
+            if i == j:
+                intersections[i][j] = False
+                continue
+            obj = pp_intersector.PolygonPolygonIntersectionTest()
+            intersection_q = obj.polygon_polygon_intersection(f_o, f_t, True)
+            intersections[i][j] = intersection_q
+
     k = 0
 
 
@@ -270,7 +285,7 @@ def main():
     gbuilder = geometry_builder(dimension=3)
 
     graph = nx.from_edgelist(tuple_id_list, create_using=nx.DiGraph)
-    draw_graph(graph)
+    # draw_graph(graph)
 
     polygon_polygon_intersection()
     return 0
