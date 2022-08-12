@@ -156,20 +156,54 @@ def polygon_polygon_intersection():
     fracture_3 = np.array([[0.25, 0., 0.5], [0.914463, 0.241845, -0.207107], [0.572443, 1.18154, -0.207107],
      [-0.0920201, 0.939693, 0.5]])
 
-    fractures = [fracture_2,fracture_1,fracture_3]
+    fractures = [fracture_1,fracture_2,fracture_3]
 
-
-    intersections = 3*[3*[None]]
+    intersection_data = 3*[3*[None]]
     for i, f_o in enumerate(fractures):
         for j,  f_t in enumerate(fractures):
             if i == j:
-                intersections[i][j] = False
+                intersection_data[i][j] = (False,np.array,np.array)
                 continue
             obj = pp_intersector.PolygonPolygonIntersectionTest()
-            intersection_q = obj.polygon_polygon_intersection(f_o, f_t, True)
-            intersections[i][j] = intersection_q
+            intersection_q = obj.polygon_polygon_intersection(f_o, f_t, False)
+            intersection_data[i][j] = intersection_q
 
-    k = 0
+    i = 0
+    i_results = [chunk[0] for chunk in intersection_data[i]]
+    n_intersections = np.count_nonzero(i_results)
+    if n_intersections > 1:
+
+        p, q, r = fractures[i][[0, 1, 3]]
+        dir_cross = np.cross(p - q, r - q)
+        n_t = dir_cross / np.linalg.norm(dir_cross)
+        drop = np.argmax(np.abs(n_t))
+        pos = np.array(
+            list(
+                {
+                    0,
+                    1,
+                    2,
+                }
+                - {drop}
+            )
+        )
+
+        points = []
+        for chunk in intersection_data[i]:
+            if chunk[0]:
+                points.append(chunk[1])
+                points.append(chunk[2])
+        points = np.array(points)
+
+        pts = points[:,pos]
+        c_map = np.array([[0,1],[2,3]])
+
+        fracture_network = Network(dimension=2)
+        fracture_network.intersect_1D_fractures(pts,c_map)
+        fracture_network.build_grahp()
+        fracture_network.draw_grahp()
+
+
 
 
 # geometry method
@@ -294,7 +328,7 @@ def main():
     c_map = np.array([[0,1],[2,3]])
 
     fracture_network = Network(dimension=2)
-    fracture_network.intersect_fractures(pts,c_map)
+    fracture_network.intersect_1D_fractures(pts,c_map)
     fracture_network.build_grahp()
     fracture_network.draw_grahp()
 
