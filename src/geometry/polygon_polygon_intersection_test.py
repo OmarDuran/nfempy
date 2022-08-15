@@ -15,7 +15,8 @@ class PolygonPolygonIntersectionTest:
     def __init__(self, eps: float = 1.0e-12):
         self.eps = eps
         self.tt_intersector = tt_intersector.TriangleTriangleIntersectionTest(eps)
-        self.tc = np.array([[0, 1, 3],[1, 2, 3]])
+        self.oc = np.array([[0, 1, 3],[1, 2, 3]])
+        self.tc = np.array([[0, 1, 3], [1, 2, 3]])
         self.poly_line : np.array = None
 
 
@@ -85,13 +86,17 @@ class PolygonPolygonIntersectionTest:
             end_id = np.argmax(poly_line_r_1d)
             self.poly_line = self.poly_line[[begin_id, end_id]]
 
+    # def build_connectivity(self, connectivity, polygon):
+    #     m, n = polygon.shape
+    #     xc = np.mean(a, axis=0)
+    #     connectivity
 
     def polygon_polygon_intersection(
         self, o_polygon: np.array, t_polygon: np.array, render_polygons_q: bool = False
     ) -> (bool, np.array, np.array):
 
         result = (False, np.array, np.array)
-        opoly = [o_polygon[self.tc[0]], o_polygon[self.tc[1]]]
+        opoly = [o_polygon[self.oc[0]], o_polygon[self.oc[1]]]
         tpoly = [t_polygon[self.tc[0]], t_polygon[self.tc[1]]]
 
         intersection_data = []
