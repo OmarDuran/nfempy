@@ -111,12 +111,12 @@ class Network:
 
         intersection_data = [[None for f in fractures] for f in fractures]
 
-        cells_2d = [cell_2d for cell_2d in self.cells if cell_2d.dimension == 2]
+        cells_2d = [cell_i for cell_i in self.cells if cell_i.dimension == 2]
         for i, cell_i in enumerate(cells_2d):
             f_i = fractures[i]
             for j, cell_j in enumerate(cells_2d):
                 f_j = fractures[j]
-                if i == j:
+                if i >= j:
                     intersection_data[i][j] = (False, np.array, np.array)
                     continue
 
@@ -128,6 +128,8 @@ class Network:
 
             i_results = [chunk[0] for chunk in intersection_data[i]]
             n_intersections = np.count_nonzero(i_results)
+
+            dfn_immersed_cells = np.array([], dtype=cell)
             if n_intersections > 0:
 
                 p, q, r = fractures[i][[0, 1, 3]]
@@ -162,12 +164,40 @@ class Network:
                 self.points = np.append(self.points,
                                    np.array([point for point in fracture_network.points]),
                                    axis=0)
+
                 for f_cell in fracture_network.cells:
                     f_cell.id = f_cell.id + cells_id
                     if f_cell.dimension == 0:
                         f_cell.point_id = f_cell.point_id + point_id
-                    cell_i.immersed_cells = np.append(cell_i.immersed_cells, f_cell)
                     self.cells = np.append(self.cells, f_cell)
+
+                f_cell_1d = []
+                if n_intersections == 1:
+                    f_cell_1d = [f_cell for f_cell in fracture_network.cells if f_cell.dimension == 1]
+                else:
+                    f_cell_1d = [f_cell for f_cell in fracture_network.cells if
+                                 f_cell.dimension == 1 and len(f_cell.immersed_cells) > 0]
+
+                cj = 0
+                for j, chunk in enumerate(intersection_data[i]):
+                    if chunk[0]:
+                        f_cell_intersection = f_cell_1d[cj]
+                        cell_j = cells_2d[j]
+                        cell_i.immersed_cells = np.append(cell_i.immersed_cells, f_cell_intersection)
+                        cell_j.immersed_cells = np.append(cell_j.immersed_cells, f_cell_intersection)
+                        cj = cj + 1
+
+
+
+
+
+    # delete duplicated points
+    # vertices = [cell_i for cell_i in self.cells if cell_i.dimension == 0]
+    # aka = 0
+
+
+
+
 
 
 
@@ -304,10 +334,10 @@ def polygon_polygon_intersection():
 
     fracture_1 = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
     fracture_2 = np.array([[0.6, 0., 0.5], [0.6, 0., -0.5], [0.6, 1., -0.5], [0.6, 1., 0.5]])
-    # fracture_3 = np.array([[0.25, 0., 0.5], [0.914463, 0.241845, -0.207107], [0.572443, 1.18154, -0.207107],
-    #  [-0.0920201, 0.939693, 0.5]])
+    fracture_3 = np.array([[0.25, 0., 0.5], [0.914463, 0.241845, -0.207107], [0.572443, 1.18154, -0.207107],
+     [-0.0920201, 0.939693, 0.5]])
 
-    fractures = [fracture_1,fracture_2]
+    fractures = [fracture_1,fracture_2,fracture_3]
 
     fracture_network = Network(dimension=3)
     fracture_network.intersect_2D_fractures(fractures, True)
@@ -316,6 +346,7 @@ def polygon_polygon_intersection():
     pre_cells = fracture_network.graph.pred[6]
 
     fracture_network.draw_grahp()
+    ika = 0
 
 
 
