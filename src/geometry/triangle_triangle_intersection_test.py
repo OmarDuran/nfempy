@@ -6,9 +6,7 @@ import numpy as np
 
 
 class TriangleTriangleIntersectionTest:
-    """Worker class for triangle-triangle intersection in R3.
-
-    """
+    """Worker class for triangle-triangle intersection in R3."""
 
     def __init__(self, eps: float = 1.0e-12):
         self.eps = eps

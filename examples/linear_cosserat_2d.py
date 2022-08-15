@@ -61,8 +61,9 @@ class Network:
     #   (1)-facets edges
     #   (2)-facets faces
 
-    def __init__(self, dimension):
+    def __init__(self, dimension, eps: float = 1.0e-12):
 
+        self.eps = eps
         self.cells = np.array([], dtype=cell)
         self.points: np.array = None
         self.vertices = None
@@ -87,6 +88,25 @@ class Network:
             axes.plot(ox, oy, oz, color="green", marker="o", lw=2)
 
         plt.show()
+
+    def insert_vertex_cell(self, point):
+        R = self.points - point
+        r_norm = la.norm(R, axis=1)
+        index = np.where(r_norm < self.eps)
+        vertex = None
+        if index[0].size == 0:
+            point_id = len(self.points)
+            self.points = np.append(self.points, [point], axis=0)
+            cell_id = len(self.cells)
+            # vertex = cell(0, cell_id, point_id)
+            self.cells = np.append(self.cells, vertex)
+        else:
+            target_point_id = index[0]
+            for cell in self.cells:
+                if cell.dimension == 0 and cell.point_id == target_point_id:
+                    vertex = cell
+                    break
+        return vertex
 
     def insert_fracture_cell(self, cell_id, fracture):
 
@@ -145,7 +165,7 @@ class Network:
             i_results = [chunk[0] for chunk in intersection_data[i]]
             n_intersections = np.count_nonzero(i_results)
 
-            dfn_immersed_cells = np.array([], dtype=cell)
+            # dfn_immersed_cells = np.array([], dtype=cell)
             if n_intersections > 0:
 
                 p, q, r = fractures[i][[0, 1, 3]]
@@ -203,20 +223,6 @@ class Network:
                         cell_j.immersed_cells = np.append(cell_j.immersed_cells, f_cell_intersection)
                         cj = cj + 1
 
-
-
-
-
-    # delete duplicated points
-    # vertices = [cell_i for cell_i in self.cells if cell_i.dimension == 0]
-    # aka = 0
-
-
-
-
-
-
-
     def intersect_1D_fractures(self, fractures, pos = np.array([0, 1]), render_intersection_q = False):
 
         self.cells = np.array([], dtype=cell)
@@ -241,26 +247,62 @@ class Network:
         tt_test = tt_intersector.TriangleTriangleIntersectionTest()
 
         cells_1d = [cell_1d for cell_1d in self.cells if cell_1d.dimension == 1]
+        # n_fractures = len(fractures)
+        # intersection_points = [[] for i in range(n_fractures)]
+        # intersection_pairs = [[] for i in range(n_fractures)]
         for i, cell_i in enumerate(cells_1d):
             cell_i_bc_ids = [bc_cell.id for bc_cell in cell_i.boundary_cells]
             a, b = [self.points[id] for id in cell_i_bc_ids]
             for j, cell_j in enumerate(cells_1d):
                 cell_j_bc_ids = [bc_cell.id for bc_cell in cell_j.boundary_cells]
                 p, q = [self.points[id] for id in cell_j_bc_ids]
-                if i >= j:
+                if i == j:
                     continue
                 intersection_data = tt_test.line_line_intersection(a, b, p, q,
                                                                    pos,
                                                                    render_intersection_q)
                 if intersection_data[0]:
                     point = intersection_data[1]
-                    max_point_id = len(self.points)
-                    self.points = np.append(self.points, [point], axis=0)
-                    vertex = cell(0, cell_id, max_point_id)
-                    self.cells = np.append(self.cells, vertex)
+                    vertex = self.insert_vertex(point)
                     cell_i.immersed_cells = np.append(cell_i.immersed_cells, vertex)
                     cell_j.immersed_cells = np.append(cell_j.immersed_cells, vertex)
-                    cell_id = cell_id + 1
+                    #
+                    # max_point_id = len(self.points)
+                    # self.points = np.append(self.points, [point], axis=0)
+                    # vertex = cell(0, cell_id, max_point_id)
+                    # self.cells = np.append(self.cells, vertex)
+
+                    # cell_id = cell_id + 1
+
+        # # find repeated intersections
+        # aka = 0
+        # repeated_pairs = [[] for i in range(n_fractures)]
+        # for i in range(n_fractures):
+        #     points = intersection_points[i]
+        #     for l, p_l in enumerate(points):
+        #         for k, p_k in enumerate(points):
+        #             if k > l:
+        #                 are_equal_q = np.linalg.norm(p_k - p_l) < self.eps
+        #                 repeated_pairs[i].append((are_equal_q,l,k))
+
+
+        # # removing repeated locations
+        # for i in range(n_fractures):
+        #     cell_i = cells_1d[i]
+        #     points = intersection_points[i]
+        #     j = intersection_pairs[i]
+        #     cell_j = cells_1d[j]
+        #     for l, p_l in enumerate(points):
+        #         cell_id = cell_id + 1
+        #         for k, p_k in enumerate(points):
+        #             if k > l:
+        #
+        #                 are_equal_q = np.linalg.norm(p_k - p_l) > self.eps
+        #                 if are_equal_q:
+        #                     continue
+        #
+        #
+        # aka = 0
 
         for cell_i in cells_1d:
             b, e = [bc_cell.point_id for bc_cell in cell_i.boundary_cells]
@@ -504,10 +546,10 @@ def build_geometry_graph(cells):
 def main():
 
 
-    polygon_polygon_intersection()
-    return 0
+    # polygon_polygon_intersection()
+    # return 0
 
-    cells = np.array([],dtype=cell)
+    # cells = np.array([],dtype=cell)
 
     s = 1.0;
 
@@ -530,7 +572,9 @@ def main():
     # insert base fractures
     fracture_1 = np.array([[0.25, 0.25], [0.75, 0.75]])
     fracture_2 = np.array([[0.25, 0.75], [0.75, 0.25]])
-    fractures = [fracture_1,fracture_2]
+    fracture_3 = np.array([[0.5, 0.25], [0.5, 0.75]])
+
+    fractures = [fracture_1,fracture_2,fracture_3]
 
     fracture_network = Network(dimension=2)
     fracture_network.intersect_1D_fractures(fractures)
@@ -539,8 +583,6 @@ def main():
     pre_cells = fracture_network.graph.pred[6]
 
     fracture_network.draw_grahp()
-
-
 
     gbuilder = geometry_builder(dimension=2)
     gbuilder.build_internal_bc(fracture_network)

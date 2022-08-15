@@ -7,26 +7,22 @@ import numpy as np
 
 import geometry.triangle_triangle_intersection_test as tt_intersector
 
-class PolygonPolygonIntersectionTest:
-    """Worker class for polygon-polygon intersection in R3.
 
-    """
+class PolygonPolygonIntersectionTest:
+    """Worker class for polygon-polygon intersection in R3."""
 
     def __init__(self, eps: float = 1.0e-12):
         self.eps = eps
         self.tt_intersector = tt_intersector.TriangleTriangleIntersectionTest(eps)
-        self.oc = np.array([[0, 1, 3],[1, 2, 3]])
+        self.oc = np.array([[0, 1, 3], [1, 2, 3]])
         self.tc = np.array([[0, 1, 3], [1, 2, 3]])
-        self.poly_line : np.array = None
+        self.poly_line: np.array = None
 
-
-    def render_polygons(
-        self, o_polygon: np.array, t_polygon: np.array
-    ):
+    def render_polygons(self, o_polygon: np.array, t_polygon: np.array):
         axes = plt.axes(projection="3d")
-        axes.set_xlabel('$X$', fontsize=12)
-        axes.set_ylabel('$Y$', fontsize=12)
-        axes.set_zlabel('$Z$', fontsize=12)
+        axes.set_xlabel("$X$", fontsize=12)
+        axes.set_ylabel("$Y$", fontsize=12)
+        axes.set_zlabel("$Z$", fontsize=12)
 
         ox = o_polygon[[0, 1, 2, 3, 0]].T[0]
         oy = o_polygon[[0, 1, 2, 3, 0]].T[1]
@@ -39,7 +35,7 @@ class PolygonPolygonIntersectionTest:
         axes.plot(tx, ty, tz, color="blue", marker="o", lw=2)
 
         if self.poly_line is not None:
-            n,m = self.poly_line.shape
+            n, m = self.poly_line.shape
             r = [i for i in range(n)]
             r.append(0)
             lx = self.poly_line[r].T[0]
@@ -65,9 +61,9 @@ class PolygonPolygonIntersectionTest:
                 - {drop}
             )
         )
-        poly_line_r = self.poly_line[:,pos]
+        poly_line_r = self.poly_line[:, pos]
         if poly_line_r.shape[0] > 1:
-            ar, br = poly_line_r[[0,1]]
+            ar, br = poly_line_r[[0, 1]]
             tau = (ar - br) / np.linalg.norm(ar - br)
             n = np.array([tau[1], -tau[0]])
             drop = np.argmax(np.abs(n))
@@ -81,7 +77,7 @@ class PolygonPolygonIntersectionTest:
                 )
             )
 
-            poly_line_r_1d = poly_line_r[:,pos]
+            poly_line_r_1d = poly_line_r[:, pos]
             begin_id = np.argmin(poly_line_r_1d)
             end_id = np.argmax(poly_line_r_1d)
             self.poly_line = self.poly_line[[begin_id, end_id]]
@@ -102,7 +98,9 @@ class PolygonPolygonIntersectionTest:
         intersection_data = []
         for ot in opoly:
             for tt in tpoly:
-                intersection = self.tt_intersector.triangle_triangle_intersection(ot, tt)
+                intersection = self.tt_intersector.triangle_triangle_intersection(
+                    ot, tt
+                )
                 intersection_data.append(intersection)
 
         i_results = [chunk[0] for chunk in intersection_data]
@@ -116,10 +114,9 @@ class PolygonPolygonIntersectionTest:
                     points.append(chunk[2])
             self.poly_line = np.array(points)
             self.reduce_poly_line(o_polygon)
-            result = (True,self.poly_line[0],self.poly_line[1])
-
+            result = (True, self.poly_line[0], self.poly_line[1])
 
         if render_polygons_q:
-            self.render_polygons(o_polygon,t_polygon)
+            self.render_polygons(o_polygon, t_polygon)
 
         return result
