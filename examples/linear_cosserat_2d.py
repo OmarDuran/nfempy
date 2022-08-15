@@ -72,6 +72,22 @@ class Network:
         self.fractures_indices = None
         self.fractures_bcs = None
 
+    def render_fractures(
+        self, fractures: np.array
+    ):
+        axes = plt.axes(projection="3d")
+        axes.set_xlabel('$X$', fontsize=12)
+        axes.set_ylabel('$Y$', fontsize=12)
+        axes.set_zlabel('$Z$', fontsize=12)
+
+        for fracture in fractures:
+            ox = fracture[[0, 1, 2, 3, 0]].T[0]
+            oy = fracture[[0, 1, 2, 3, 0]].T[1]
+            oz = fracture[[0, 1, 2, 3, 0]].T[2]
+            axes.plot(ox, oy, oz, color="green", marker="o", lw=2)
+
+        plt.show()
+
     def insert_fracture_cell(self, cell_id, fracture):
 
         self.points = np.append(self.points, np.array([point for point in fracture]), axis=0)
@@ -212,7 +228,7 @@ class Network:
                               np.array(
                                   [cell(0, i) for i, point in enumerate(self.points)]))
 
-        connectivities = np.array([[index, index+1] for index in range(n_points-1)])
+        connectivities = np.array([[index, index+1] for index in range(0,n_points,2)])
 
         # insert fracture cells
         cell_id = n_points
@@ -333,6 +349,11 @@ import geometry.polygon_polygon_intersection_test as pp_intersector
 def polygon_polygon_intersection():
 
     fracture_1 = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
+
+    fracture_2 = np.array([[0.5, 0., 0.5], [0.5, 0., -0.5], [0.5, 1., -0.5], [0.5, 1., 0.5]])
+    fracture_3 = np.array([[0., 0.5, -0.5], [1., 0.5, -0.5], [1., 0.5, 0.5],
+     [0., 0.5, 0.5]])
+
     fracture_2 = np.array([[0.6, 0., 0.5], [0.6, 0., -0.5], [0.6, 1., -0.5], [0.6, 1., 0.5]])
     fracture_3 = np.array([[0.25, 0., 0.5], [0.914463, 0.241845, -0.207107], [0.572443, 1.18154, -0.207107],
      [-0.0920201, 0.939693, 0.5]])
@@ -340,11 +361,9 @@ def polygon_polygon_intersection():
     fractures = [fracture_1,fracture_2,fracture_3]
 
     fracture_network = Network(dimension=3)
+    fracture_network.render_fractures(fractures)
     fracture_network.intersect_2D_fractures(fractures, True)
     fracture_network.build_grahp()
-
-    pre_cells = fracture_network.graph.pred[6]
-
     fracture_network.draw_grahp()
     ika = 0
 
