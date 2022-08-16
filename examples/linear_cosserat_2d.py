@@ -98,13 +98,13 @@ class Network:
             point_id = len(self.points)
             self.points = np.append(self.points, [point], axis=0)
             cell_id = len(self.cells)
-            # vertex = cell(0, cell_id, point_id)
+            vertex = cell(0, cell_id, point_id)
             self.cells = np.append(self.cells, vertex)
         else:
-            target_point_id = index[0]
-            for cell in self.cells:
-                if cell.dimension == 0 and cell.point_id == target_point_id:
-                    vertex = cell
+            target_point_id = index[0][0]
+            for cell_i in self.cells:
+                if cell_i.dimension == 0 and cell_i.point_id == target_point_id:
+                    vertex = cell_i
                     break
         return vertex
 
@@ -165,7 +165,6 @@ class Network:
             i_results = [chunk[0] for chunk in intersection_data[i]]
             n_intersections = np.count_nonzero(i_results)
 
-            # dfn_immersed_cells = np.array([], dtype=cell)
             if n_intersections > 0:
 
                 p, q, r = fractures[i][[0, 1, 3]]
@@ -247,63 +246,24 @@ class Network:
         tt_test = tt_intersector.TriangleTriangleIntersectionTest()
 
         cells_1d = [cell_1d for cell_1d in self.cells if cell_1d.dimension == 1]
-        # n_fractures = len(fractures)
-        # intersection_points = [[] for i in range(n_fractures)]
-        # intersection_pairs = [[] for i in range(n_fractures)]
         for i, cell_i in enumerate(cells_1d):
             cell_i_bc_ids = [bc_cell.id for bc_cell in cell_i.boundary_cells]
             a, b = [self.points[id] for id in cell_i_bc_ids]
             for j, cell_j in enumerate(cells_1d):
                 cell_j_bc_ids = [bc_cell.id for bc_cell in cell_j.boundary_cells]
                 p, q = [self.points[id] for id in cell_j_bc_ids]
-                if i == j:
+                if i >= j:
                     continue
                 intersection_data = tt_test.line_line_intersection(a, b, p, q,
                                                                    pos,
                                                                    render_intersection_q)
                 if intersection_data[0]:
                     point = intersection_data[1]
-                    vertex = self.insert_vertex(point)
+                    vertex = self.insert_vertex_cell(point)
                     cell_i.immersed_cells = np.append(cell_i.immersed_cells, vertex)
                     cell_j.immersed_cells = np.append(cell_j.immersed_cells, vertex)
-                    #
-                    # max_point_id = len(self.points)
-                    # self.points = np.append(self.points, [point], axis=0)
-                    # vertex = cell(0, cell_id, max_point_id)
-                    # self.cells = np.append(self.cells, vertex)
 
-                    # cell_id = cell_id + 1
-
-        # # find repeated intersections
-        # aka = 0
-        # repeated_pairs = [[] for i in range(n_fractures)]
-        # for i in range(n_fractures):
-        #     points = intersection_points[i]
-        #     for l, p_l in enumerate(points):
-        #         for k, p_k in enumerate(points):
-        #             if k > l:
-        #                 are_equal_q = np.linalg.norm(p_k - p_l) < self.eps
-        #                 repeated_pairs[i].append((are_equal_q,l,k))
-
-
-        # # removing repeated locations
-        # for i in range(n_fractures):
-        #     cell_i = cells_1d[i]
-        #     points = intersection_points[i]
-        #     j = intersection_pairs[i]
-        #     cell_j = cells_1d[j]
-        #     for l, p_l in enumerate(points):
-        #         cell_id = cell_id + 1
-        #         for k, p_k in enumerate(points):
-        #             if k > l:
-        #
-        #                 are_equal_q = np.linalg.norm(p_k - p_l) > self.eps
-        #                 if are_equal_q:
-        #                     continue
-        #
-        #
-        # aka = 0
-
+        cell_id = len(self.cells)
         for cell_i in cells_1d:
             b, e = [bc_cell.point_id for bc_cell in cell_i.boundary_cells]
             i = [immersed_cell.point_id for immersed_cell in cell_i.immersed_cells]
@@ -312,6 +272,7 @@ class Network:
                 r_norm = la.norm(R, axis=1)
                 perm = np.argsort(r_norm)
                 cell_indices = [cell_i.immersed_cells[k].id for k in perm.tolist()]
+                cell_indices = list(dict.fromkeys(cell_indices))
                 cell_indices.insert(0, b)
                 cell_indices.append(e)
                 connectivities = np.array([[cell_indices[index],cell_indices[index+1]] for index in range(len(cell_indices) - 1)])
