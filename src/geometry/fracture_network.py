@@ -284,14 +284,23 @@ class FractureNetwork:
             else:
                 self.gather_edges(immersed_cell, tuple_id_list)
 
-    def build_grahp(self):
+    def build_grahp(self, all_fixed_d_cells_q=False):
 
-        disjoint_cells = [
-            cell_i
-            for cell_i in self.cells
-            if cell_i.dimension == self.dimension - 1
-            and len(cell_i.immersed_cells) != 0
-        ]
+        disjoint_cells = []
+        if all_fixed_d_cells_q:
+            disjoint_cells = [
+                cell_i
+                for cell_i in self.cells
+                if cell_i.dimension == self.dimension - 1
+            ]
+        else:
+            disjoint_cells = [
+                cell_i
+                for cell_i in self.cells
+                if cell_i.dimension == self.dimension - 1
+                and len(cell_i.immersed_cells) == 0
+            ]
+
         tuple_id_list = []
         for cell_1d in disjoint_cells:
             self.gather_edges(cell_1d, tuple_id_list)

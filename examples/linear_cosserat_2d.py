@@ -175,8 +175,8 @@ def build_geometry_graph(cells):
 def main():
 
 
-    polygon_polygon_intersection()
-    return 0
+    # polygon_polygon_intersection()
+    # return 0
 
     # cells = np.array([],dtype=cell)
 
@@ -201,24 +201,21 @@ def main():
     # insert base fractures
     fracture_1 = np.array([[0.25, 0.25], [0.75, 0.75]])
     fracture_2 = np.array([[0.25, 0.75], [0.75, 0.25]])
-    # fracture_3 = np.array([[0.5, 0.25], [0.5, 0.75]])
-    fracture_3 = np.array([[0.65, 0.25], [0.65, 0.75]])
+    fracture_3 = np.array([[0.5, 0.25], [0.5, 0.75]])
+    fracture_4 = np.array([[0.65, 0.25], [0.65, 0.75]])
 
-    fractures = [fracture_1,fracture_2,fracture_3]
+    fractures = [fracture_1,fracture_2,fracture_3,fracture_4]
 
     fracture_network = fn.FractureNetwork(dimension=2)
     fracture_network.intersect_1D_fractures(fractures, render_intersection_q = True)
     fracture_network.build_grahp()
-
-    pre_cells = fracture_network.graph.pred[6]
-
     fracture_network.draw_grahp()
 
-    gbuilder = geometry_builder(dimension=2)
-    gbuilder.build_internal_bc(fracture_network)
+    pre_cells = fracture_network.graph.pred[0]
 
 
-    # neigh = list(nx.all_neighbors(G, 8))
+
+
 
 if __name__ == '__main__':
     main()
