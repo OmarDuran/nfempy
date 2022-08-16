@@ -2,8 +2,8 @@ import math
 import warnings
 
 import matplotlib.pyplot as plt
-from mpl_toolkits import mplot3d
 import numpy as np
+from mpl_toolkits import mplot3d
 
 import geometry.triangle_triangle_intersection_test as tt_intersector
 
