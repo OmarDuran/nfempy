@@ -234,8 +234,9 @@ def main():
     fracture_2 = np.array([[0.25, 0.75], [0.75, 0.25]])
     fracture_3 = np.array([[0.5, 0.25], [0.5, 0.75]])
     fracture_4 = np.array([[0.65, 0.25], [0.65, 0.75]])
+    fracture_5 = np.array([[0.25, 0.5], [0.75, 0.5]])
 
-    fractures = [fracture_1,fracture_2,fracture_3]
+    fractures = [fracture_1,fracture_2,fracture_3,fracture_4,fracture_5]
 
     fracture_network = fn.FractureNetwork(dimension=2)
     fracture_network.intersect_1D_fractures(fractures, render_intersection_q = False)
@@ -276,6 +277,8 @@ def main():
         tags_2d.append(geo_2_cell.id)
 
     gmsh.model.geo.synchronize()
+
+    # add physical tags
     for geo_1_cell in geo_1_cells:
         gmsh.model.addPhysicalGroup(1, [geo_1_cell.id], geo_1_cell.id)
 
@@ -320,23 +323,25 @@ def main():
 
     mesh_from_file = meshio.read("gmesh.msh")
 
+    # add skins
+
     physical_tags_2d = mesh_from_file.get_cell_data("gmsh:physical", "triangle")
     cells_dict = {"triangle": mesh_from_file.get_cells_type("triangle")}
-    cell_data = {"rock": [physical_tags_2d]}
+    cell_data = {"physical_tag": [physical_tags_2d]}
     mesh_2d = meshio.Mesh(mesh_from_file.points,cells=cells_dict,cell_data=cell_data)
-    meshio.write("rock.vtk", mesh_2d)
+    meshio.write("geometric_mesh_2d.vtk", mesh_2d)
 
     physical_tags_1d = mesh_from_file.get_cell_data("gmsh:physical", "line")
     cells_dict = {"line": mesh_from_file.get_cells_type("line")}
-    cell_data = {"fractures": [physical_tags_1d]}
+    cell_data = {"physical_tag": [physical_tags_1d]}
     mesh_1d = meshio.Mesh(mesh_from_file.points, cells=cells_dict, cell_data=cell_data)
-    meshio.write("fracture_network_1d.vtk", mesh_1d)
+    meshio.write("geometric_mesh_1d.vtk", mesh_1d)
 
     physical_tags_0d = mesh_from_file.get_cell_data("gmsh:physical", "vertex")
     cells_dict = {"vertex": mesh_from_file.get_cells_type("vertex")}
-    cell_data = {"intersections": [physical_tags_0d]}
+    cell_data = {"physical_tag": [physical_tags_0d]}
     mesh_0d = meshio.Mesh(mesh_from_file.points,cells=cells_dict,cell_data=cell_data)
-    meshio.write("fracture_network_0d.vtk", mesh_0d)
+    meshio.write("geometric_mesh_0d.vtk", mesh_0d)
 
 
 if __name__ == '__main__':
