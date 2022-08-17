@@ -270,12 +270,12 @@ class FractureNetwork:
                     cell_i.immersed_cells = np.append(cell_i.immersed_cells, edge)
                     cell_id = cell_id + 1
 
-    def shift_point_ids(self, shift = 0):
+    def shift_point_ids(self, shift=0):
         cells_0d = [cell for cell in self.cells if cell.dimension == 0]
         for cell in cells_0d:
             cell.point_id = cell.point_id + shift
 
-    def shift_cell_ids(self, shift = 0):
+    def shift_cell_ids(self, shift=0):
         for cell in self.cells:
             cell.id = cell.id + shift
 

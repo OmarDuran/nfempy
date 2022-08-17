@@ -236,7 +236,7 @@ def main():
     fracture_4 = np.array([[0.65, 0.25], [0.65, 0.75]])
     fracture_5 = np.array([[0.25, 0.5], [0.75, 0.5]])
 
-    fractures = [fracture_1,fracture_2,fracture_3,fracture_4,fracture_5]
+    fractures = [fracture_1,fracture_2]
 
     fracture_network = fn.FractureNetwork(dimension=2)
     fracture_network.intersect_1D_fractures(fractures, render_intersection_q = False)
@@ -255,7 +255,7 @@ def main():
     points = g_builder.points
     points = np.append(points,fracture_network.points,axis=0)
 
-    lc = 0.05
+    lc = 1.0
     n_points = len(points)
     for tag, point in enumerate(points):
         gmsh.model.geo.addPoint(point[0], point[1], 0, lc, tag + 1)
@@ -318,13 +318,35 @@ def main():
     gmsh.model.mesh.generate(2)
     gmsh.write("gmesh.msh")
 
-    if '-nopopup' not in sys.argv:
-        gmsh.fltk.run()
+    # if '-nopopup' not in sys.argv:
+    #     gmsh.fltk.run()
 
     mesh_from_file = meshio.read("gmesh.msh")
 
     # add skins
+    # Clipping out with scissors
 
+    # step 1: create a base geo_mesh
+    gm_points = mesh_from_file.points
+    gm_cells = np.array([], dtype=Cell)
+
+    def insert_simplex(gm_cells,meshio_cell,cell_id):
+        if meshio_cell.dim == 0:
+            point_id = cell_i.data[0,0]
+            cell = Cell(cell_i.dim,cell_id)
+
+    cell_id = 0
+    for cell_i in mesh_from_file.cells:
+        if cell_i.dim == 0:
+            point_id = cell_i.data[0,0]
+            cell = Cell(cell_i.dim,cell_id)
+            gm_cells = np.append(gm_cells, np.array([cell]))
+        else:
+            cell = Cell(cell_i.dim,cell_id)
+            gm_cells = np.append(gm_cells, np.array([cell]))
+        cell_id = cell_id + 1
+
+    # write vtk files
     physical_tags_2d = mesh_from_file.get_cell_data("gmsh:physical", "triangle")
     cells_dict = {"triangle": mesh_from_file.get_cells_type("triangle")}
     cell_data = {"physical_tag": [physical_tags_2d]}

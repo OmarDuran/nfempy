@@ -10,6 +10,7 @@ def cell_type(dimension):
     return types[dimension]
 
 
+# TODO rename to GeometryCell
 class Cell:
     def __init__(self, dimension, id, point_id=None):
 
