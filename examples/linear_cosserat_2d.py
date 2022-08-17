@@ -235,7 +235,7 @@ def main():
     fracture_3 = np.array([[0.5, 0.25], [0.5, 0.75]])
     fracture_4 = np.array([[0.65, 0.25], [0.65, 0.75]])
 
-    fractures = [fracture_1,fracture_2,fracture_3,fracture_4]
+    fractures = [fracture_1,fracture_2,fracture_3]
 
     fracture_network = fn.FractureNetwork(dimension=2)
     fracture_network.intersect_1D_fractures(fractures, render_intersection_q = False)
@@ -254,7 +254,7 @@ def main():
     points = g_builder.points
     points = np.append(points,fracture_network.points,axis=0)
 
-    lc = 0.1
+    lc = 0.05
     n_points = len(points)
     for tag, point in enumerate(points):
         gmsh.model.geo.addPoint(point[0], point[1], 0, lc, tag + 1)
@@ -283,9 +283,11 @@ def main():
 
     # add fn cells
     geo_cells = fracture_network.cells[list(fracture_network.graph.nodes())]
+    geo_0_cells = [cell for cell in geo_cells if cell.dimension == 0]
     geo_1_cells = [cell for cell in geo_cells if cell.dimension == 1 and len(cell.immersed_cells) > 0]
 
     tags_1d = []
+    tags_0d = []
     for geo_1_cell in geo_1_cells:
         n_immersed_cells = len(geo_1_cell.immersed_cells)
         for cell_i in geo_1_cell.immersed_cells:
@@ -293,23 +295,30 @@ def main():
             e = cell_i.boundary_cells[1].point_id + 1
             gmsh.model.geo.addLine(b, e, cell_i.id)
             tags_1d.append(cell_i.id)
+            tags_0d.append(b)
+            tags_0d.append(e)
 
     gmsh.model.geo.synchronize()
+
+    for geo_0_cell in geo_0_cells:
+        gmsh.model.addPhysicalGroup(0, [geo_0_cell.point_id + 1], geo_0_cell.id)
 
     for geo_1_cell in geo_1_cells:
         tags = [cell.id for cell in geo_1_cell.immersed_cells]
         gmsh.model.addPhysicalGroup(1, tags, geo_1_cell.id)
 
+    # embed entities
+    gmsh.model.mesh.embed(0, tags_0d, 2, tags_2d[0])
     gmsh.model.mesh.embed(1, tags_1d, 2, tags_2d[0])
+
     gmsh.model.geo.synchronize()
     gmsh.model.mesh.generate(2)
     gmsh.write("gmesh.msh")
 
-    # if '-nopopup' not in sys.argv:
-    #     gmsh.fltk.run()
+    if '-nopopup' not in sys.argv:
+        gmsh.fltk.run()
 
     mesh_from_file = meshio.read("gmesh.msh")
-
 
     physical_tags_2d = mesh_from_file.get_cell_data("gmsh:physical", "triangle")
     cells_dict = {"triangle": mesh_from_file.get_cells_type("triangle")}
@@ -321,11 +330,13 @@ def main():
     cells_dict = {"line": mesh_from_file.get_cells_type("line")}
     cell_data = {"fractures": [physical_tags_1d]}
     mesh_1d = meshio.Mesh(mesh_from_file.points, cells=cells_dict, cell_data=cell_data)
+    meshio.write("fracture_network_1d.vtk", mesh_1d)
 
-
-    meshio.write("fracture_network.vtk", mesh_1d)
-
-
+    physical_tags_0d = mesh_from_file.get_cell_data("gmsh:physical", "vertex")
+    cells_dict = {"vertex": mesh_from_file.get_cells_type("vertex")}
+    cell_data = {"intersections": [physical_tags_0d]}
+    mesh_0d = meshio.Mesh(mesh_from_file.points,cells=cells_dict,cell_data=cell_data)
+    meshio.write("fracture_network_0d.vtk", mesh_0d)
 
 
 if __name__ == '__main__':
