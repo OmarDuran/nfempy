@@ -2,6 +2,7 @@ import numpy as np
 from numpy import linalg as la
 import quadpy
 import gmsh
+import meshio
 
 from shapely.geometry import LineString
 
@@ -204,15 +205,61 @@ def main():
     fracture_3 = np.array([[0.5, 0.25], [0.5, 0.75]])
     fracture_4 = np.array([[0.65, 0.25], [0.65, 0.75]])
 
-    fractures = [fracture_1,fracture_2,fracture_3,fracture_4]
+    fractures = [fracture_1,fracture_2,fracture_3]
 
     fracture_network = fn.FractureNetwork(dimension=2)
-    fracture_network.intersect_1D_fractures(fractures, render_intersection_q = True)
-    fracture_network.build_grahp()
-    fracture_network.draw_grahp()
+    fracture_network.intersect_1D_fractures(fractures, render_intersection_q = False)
+    fracture_network.build_grahp(all_fixed_d_cells_q = True)
+    # fracture_network.draw_grahp()
 
-    pre_cells = fracture_network.graph.pred[0]
 
+    # points
+    import gmsh
+    import sys
+    gmsh.initialize()
+
+    # Next we add a new model named "t1" (if gmsh.model.add() is not called a new
+    # unnamed model will be created on the fly, if necessary):
+    gmsh.model.add("fn_2d")
+
+    lc = 0.25
+    n_points = len(fracture_network.points)
+    for tag, point in enumerate(fracture_network.points):
+        gmsh.model.geo.addPoint(point[0], point[1], 0, lc, tag + 1)
+
+    geo_cells = fracture_network.cells[list(fracture_network.graph.nodes())]
+    geo_0_cells = [cell for cell in geo_cells if cell.dimension == 0]
+    geo_1_cells = [cell for cell in geo_cells if cell.dimension == 1 and len(cell.immersed_cells) > 0]
+    assert n_points == len(geo_0_cells)
+
+    for geo_1_cell in geo_1_cells:
+        n_immersed_cells = len(geo_1_cell.immersed_cells)
+        for cell_i in geo_1_cell.immersed_cells:
+            b = cell_i.boundary_cells[0].point_id + 1
+            e = cell_i.boundary_cells[1].point_id + 1
+            gmsh.model.geo.addLine(b, e, cell_i.id)
+
+    gmsh.model.geo.synchronize()
+
+    for geo_1_cell in geo_1_cells:
+        tags = [cell.id for cell in geo_1_cell.immersed_cells]
+        gmsh.model.addPhysicalGroup(1, tags, geo_1_cell.id)
+
+    gmsh.model.geo.synchronize()
+    gmsh.model.mesh.generate(1)
+    gmsh.write("fracture_network.msh")
+
+    # if '-nopopup' not in sys.argv:
+    #     gmsh.fltk.run()
+
+    mesh_from_file = meshio.read("fracture_network.msh")
+
+    cells_dict = {"line": mesh_from_file.get_cells_type("line")}
+    physical_tags = mesh_from_file.cell_data["gmsh:physical"]
+    list_physical_tags = [np.array([j]) for i in physical_tags for j in i]
+    cell_data = {"fractures": [list_physical_tags]}
+    mesh = meshio.Mesh(mesh_from_file.points,cells=cells_dict,cell_data=cell_data)
+    meshio.write("fracture_network.vtk", mesh)
 
 
 
