@@ -11,11 +11,14 @@ import networkx as nx
 
 import matplotlib.pyplot as plt
 
+from geometry.cell import Cell
 
 class geometry_builder:
 
     def __init__(self, dimension):
         self.dimension = dimension
+        self.cells = np.array([], dtype=Cell)
+        self.points = np.empty((0, dimension), dtype=float)
 
     def set_boundary(self, vertices, connectivity, material_id):
         self.vertices = vertices
@@ -32,7 +35,74 @@ class geometry_builder:
             neighs = list(nx.all_neighbors(Network.grahp, nodes[i]))
             node_neighs[i].append(neighs)
 
-        xd = 0
+    def gather_graph_edges(self, g_cell: Cell, tuple_id_list):
+        for bc_cell in g_cell.boundary_cells:
+            tuple_id_list.append((g_cell.id, bc_cell.id))
+            if bc_cell.dimension == 0:
+                print("BC: Vertex with id: ", bc_cell.id)
+            else:
+                self.gather_graph_edges(bc_cell, tuple_id_list)
+        for immersed_cell in g_cell.immersed_cells:
+            tuple_id_list.append((g_cell.id, immersed_cell.id))
+            if immersed_cell.dimension == 0:
+                print("IM: Vertex with id: ", immersed_cell.id)
+            else:
+                self.gather_graph_edges(immersed_cell, tuple_id_list)
+
+    def build_grahp(self, all_fixed_d_cells_q=False):
+
+        disjoint_cells = []
+        if all_fixed_d_cells_q:
+            disjoint_cells = [
+                cell_i
+                for cell_i in self.cells
+            ]
+        else:
+            disjoint_cells = [
+                cell_i
+                for cell_i in self.cells if len(cell_i.immersed_cells) == 0
+            ]
+
+        tuple_id_list = []
+        for cell_1d in disjoint_cells:
+            self.gather_graph_edges(cell_1d, tuple_id_list)
+
+        self.graph = nx.from_edgelist(tuple_id_list, create_using=nx.DiGraph)
+
+    def draw_grahp(self):
+        nx.draw(
+            self.graph,
+            pos=nx.circular_layout(self.graph),
+            with_labels=True,
+            node_color="skyblue",
+        )
+
+    def build_box_2D(self, box_points):
+
+        self.points = np.append(
+            self.points, np.array([point for point in box_points]), axis=0
+        )
+        loop = [i for i in range(len(box_points))]
+        self.cells = np.append(self.cells, np.array([Cell(0, index) for index in loop]))
+
+        loop.append(loop[0])
+        connectivities = np.array(
+            [[loop[index], loop[index + 1]] for index in range(len(loop) - 1)]
+        )
+
+        cell_id = len(box_points)
+        edges_indices = []
+        for con in connectivities:
+            edge = Cell(1, cell_id)
+            edge.boundary_cells = self.cells[con]
+            self.cells = np.append(self.cells, edge)
+            edges_indices.append(cell_id)
+            cell_id = cell_id + 1
+
+        edges_indices = np.array(edges_indices)
+        surface = Cell(2, cell_id)
+        surface.boundary_cells = self.cells[edges_indices]
+        self.cells = np.append(self.cells, surface)
 
 
 
@@ -142,35 +212,6 @@ def build_box(cells, box_points):
     cells = np.append(cells, volume)
     return cells
 
-def build_box_2D(cells, box_points):
-    cells = np.append(cells, np.array([cell(0, i) for i, point in enumerate(box_points)]))
-
-    edge = cell(1, 4)
-    edge.boundary_cells = cells[[0, 1]]
-    cells = np.append(cells, edge)
-
-    edge = cell(1, 5)
-    edge.boundary_cells = cells[[1, 2]]
-    cells = np.append(cells, edge)
-
-    edge = cell(1, 6)
-    edge.boundary_cells = cells[[2, 3]]
-    cells = np.append(cells, edge)
-
-    edge = cell(1, 7)
-    edge.boundary_cells = cells[[3, 0]]
-    cells = np.append(cells, edge)
-
-    surface = cell(2, 8)
-    surface.boundary_cells = cells[[4, 5, 6, 7]]
-    cells = np.append(cells, surface)
-
-    return cells
-
-
-def build_geometry_graph(cells):
-
-    return graph
 
 
 def main():
@@ -179,25 +220,14 @@ def main():
     # polygon_polygon_intersection()
     # return 0
 
-    # cells = np.array([],dtype=cell)
-
-    s = 1.0;
-
-    # points = s * np.array([[-1, -1, 0], [+1, -1, 0], [+1, +1, 0], [-1, +1, 0],
-    #                    [-1, -1, +1], [+1, -1, +1], [+1, +1, +1], [-1, +1, +1]])
-    # create volume cell
-    # cells = build_box(cells,points)
-    # tuple_id_list = []
-    # insert_graph_edge(cells[26],tuple_id_list)
-    # graph = nx.from_edgelist(tuple_id_list, create_using=nx.DiGraph)
-    # draw_graph(graph)
-    # gbuilder = geometry_builder(dimension=3)
-    # polygon_polygon_intersection()
-    # return 0
-
     # surface cell
-    points = s * np.array([[-1, -1], [+1, -1], [+1, +1], [-1, +1]])
-    # cells = build_box_2D(cells,points)
+    s = 1.0;
+    box_points = s * np.array([[0, 0], [1, 0], [1, 1], [0, 1]])
+    g_builder = geometry_builder(dimension=2)
+    g_builder.build_box_2D(box_points)
+    g_builder.build_grahp()
+    max_point_id = len(g_builder.points)
+    max_cell_id = len(g_builder.cells)
 
     # insert base fractures
     fracture_1 = np.array([[0.25, 0.25], [0.75, 0.75]])
@@ -205,39 +235,62 @@ def main():
     fracture_3 = np.array([[0.5, 0.25], [0.5, 0.75]])
     fracture_4 = np.array([[0.65, 0.25], [0.65, 0.75]])
 
-    fractures = [fracture_1,fracture_2,fracture_3]
+    fractures = [fracture_1,fracture_2,fracture_3,fracture_4]
 
     fracture_network = fn.FractureNetwork(dimension=2)
     fracture_network.intersect_1D_fractures(fractures, render_intersection_q = False)
     fracture_network.build_grahp(all_fixed_d_cells_q = True)
     # fracture_network.draw_grahp()
+    fracture_network.shift_point_ids(max_point_id)
+    fracture_network.shift_cell_ids(max_cell_id)
 
 
-    # points
     import gmsh
     import sys
     gmsh.initialize()
-
-    # Next we add a new model named "t1" (if gmsh.model.add() is not called a new
-    # unnamed model will be created on the fly, if necessary):
     gmsh.model.add("fn_2d")
 
-    lc = 0.25
-    n_points = len(fracture_network.points)
-    for tag, point in enumerate(fracture_network.points):
+    # merged points
+    points = g_builder.points
+    points = np.append(points,fracture_network.points,axis=0)
+
+    lc = 0.1
+    n_points = len(points)
+    for tag, point in enumerate(points):
         gmsh.model.geo.addPoint(point[0], point[1], 0, lc, tag + 1)
 
-    geo_cells = fracture_network.cells[list(fracture_network.graph.nodes())]
-    geo_0_cells = [cell for cell in geo_cells if cell.dimension == 0]
-    geo_1_cells = [cell for cell in geo_cells if cell.dimension == 1 and len(cell.immersed_cells) > 0]
-    assert n_points == len(geo_0_cells)
+    # add domain cells
+    geo_cells = g_builder.cells[list(g_builder.graph.nodes())]
+    geo_1_cells = [cell for cell in geo_cells if cell.dimension == 1]
+    geo_2_cells = [cell for cell in geo_cells if cell.dimension == 2]
 
+    tags_2d = []
+    for geo_2_cell in geo_2_cells:
+        for cell_i in geo_2_cell.boundary_cells:
+            b = cell_i.boundary_cells[0].point_id + 1
+            e = cell_i.boundary_cells[1].point_id + 1
+            gmsh.model.geo.addLine(b, e, cell_i.id)
+        tags = [cell.id for cell in geo_2_cell.boundary_cells]
+        gmsh.model.geo.addCurveLoop(tags, geo_2_cell.id)
+        gmsh.model.geo.addPlaneSurface([geo_2_cell.id],geo_2_cell.id)
+        tags_2d.append(geo_2_cell.id)
+
+    gmsh.model.geo.synchronize()
+    for geo_1_cell in geo_1_cells:
+        gmsh.model.addPhysicalGroup(1, [geo_1_cell.id], geo_1_cell.id)
+
+    # add fn cells
+    geo_cells = fracture_network.cells[list(fracture_network.graph.nodes())]
+    geo_1_cells = [cell for cell in geo_cells if cell.dimension == 1 and len(cell.immersed_cells) > 0]
+
+    tags_1d = []
     for geo_1_cell in geo_1_cells:
         n_immersed_cells = len(geo_1_cell.immersed_cells)
         for cell_i in geo_1_cell.immersed_cells:
             b = cell_i.boundary_cells[0].point_id + 1
             e = cell_i.boundary_cells[1].point_id + 1
             gmsh.model.geo.addLine(b, e, cell_i.id)
+            tags_1d.append(cell_i.id)
 
     gmsh.model.geo.synchronize()
 
@@ -245,21 +298,25 @@ def main():
         tags = [cell.id for cell in geo_1_cell.immersed_cells]
         gmsh.model.addPhysicalGroup(1, tags, geo_1_cell.id)
 
+    gmsh.model.mesh.embed(1, tags_1d, 2, tags_2d[0])
     gmsh.model.geo.synchronize()
-    gmsh.model.mesh.generate(1)
+    gmsh.model.mesh.generate(2)
     gmsh.write("fracture_network.msh")
 
-    # if '-nopopup' not in sys.argv:
-    #     gmsh.fltk.run()
+    if '-nopopup' not in sys.argv:
+        gmsh.fltk.run()
 
     mesh_from_file = meshio.read("fracture_network.msh")
 
-    cells_dict = {"line": mesh_from_file.get_cells_type("line")}
+    cells_dict = {"line": mesh_from_file.get_cells_type("line"),
+                  "triangle": mesh_from_file.get_cells_type("triangle")}
     physical_tags = mesh_from_file.cell_data["gmsh:physical"]
     list_physical_tags = [np.array([j]) for i in physical_tags for j in i]
     cell_data = {"fractures": [list_physical_tags]}
+
     mesh = meshio.Mesh(mesh_from_file.points,cells=cells_dict,cell_data=cell_data)
     meshio.write("fracture_network.vtk", mesh)
+    meshio.write("fracture_network_2.msh", mesh)
 
 
 

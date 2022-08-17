@@ -270,19 +270,28 @@ class FractureNetwork:
                     cell_i.immersed_cells = np.append(cell_i.immersed_cells, edge)
                     cell_id = cell_id + 1
 
-    def gather_edges(self, g_cell: Cell, tuple_id_list):
+    def shift_point_ids(self, shift = 0):
+        cells_0d = [cell for cell in self.cells if cell.dimension == 0]
+        for cell in cells_0d:
+            cell.point_id = cell.point_id + shift
+
+    def shift_cell_ids(self, shift = 0):
+        for cell in self.cells:
+            cell.id = cell.id + shift
+
+    def gather_graph_edges(self, g_cell: Cell, tuple_id_list):
         for bc_cell in g_cell.boundary_cells:
             tuple_id_list.append((g_cell.id, bc_cell.id))
             if bc_cell.dimension == 0:
                 print("BC: Vertex with id: ", bc_cell.id)
             else:
-                self.gather_edges(bc_cell, tuple_id_list)
+                self.gather_graph_edges(bc_cell, tuple_id_list)
         for immersed_cell in g_cell.immersed_cells:
             tuple_id_list.append((g_cell.id, immersed_cell.id))
             if immersed_cell.dimension == 0:
                 print("IM: Vertex with id: ", immersed_cell.id)
             else:
-                self.gather_edges(immersed_cell, tuple_id_list)
+                self.gather_graph_edges(immersed_cell, tuple_id_list)
 
     def build_grahp(self, all_fixed_d_cells_q=False):
 
@@ -303,7 +312,7 @@ class FractureNetwork:
 
         tuple_id_list = []
         for cell_1d in disjoint_cells:
-            self.gather_edges(cell_1d, tuple_id_list)
+            self.gather_graph_edges(cell_1d, tuple_id_list)
 
         self.graph = nx.from_edgelist(tuple_id_list, create_using=nx.DiGraph)
 
