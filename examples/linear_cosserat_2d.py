@@ -279,6 +279,8 @@ def main():
     for geo_1_cell in geo_1_cells:
         gmsh.model.addPhysicalGroup(1, [geo_1_cell.id], geo_1_cell.id)
 
+    gmsh.model.addPhysicalGroup(2, tags_2d, tags_2d[0])
+
     # add fn cells
     geo_cells = fracture_network.cells[list(fracture_network.graph.nodes())]
     geo_1_cells = [cell for cell in geo_cells if cell.dimension == 1 and len(cell.immersed_cells) > 0]
@@ -301,22 +303,27 @@ def main():
     gmsh.model.mesh.embed(1, tags_1d, 2, tags_2d[0])
     gmsh.model.geo.synchronize()
     gmsh.model.mesh.generate(2)
-    gmsh.write("fracture_network.msh")
+    gmsh.write("gmesh.msh")
 
-    if '-nopopup' not in sys.argv:
-        gmsh.fltk.run()
+    # if '-nopopup' not in sys.argv:
+    #     gmsh.fltk.run()
 
-    mesh_from_file = meshio.read("fracture_network.msh")
+    mesh_from_file = meshio.read("gmesh.msh")
 
-    cells_dict = {"line": mesh_from_file.get_cells_type("line"),
-                  "triangle": mesh_from_file.get_cells_type("triangle")}
-    physical_tags = mesh_from_file.cell_data["gmsh:physical"]
-    list_physical_tags = [np.array([j]) for i in physical_tags for j in i]
-    cell_data = {"fractures": [list_physical_tags]}
 
-    mesh = meshio.Mesh(mesh_from_file.points,cells=cells_dict,cell_data=cell_data)
-    meshio.write("fracture_network.vtk", mesh)
-    meshio.write("fracture_network_2.msh", mesh)
+    physical_tags_2d = mesh_from_file.get_cell_data("gmsh:physical", "triangle")
+    cells_dict = {"triangle": mesh_from_file.get_cells_type("triangle")}
+    cell_data = {"rock": [physical_tags_2d]}
+    mesh_2d = meshio.Mesh(mesh_from_file.points,cells=cells_dict,cell_data=cell_data)
+    meshio.write("rock.vtk", mesh_2d)
+
+    physical_tags_1d = mesh_from_file.get_cell_data("gmsh:physical", "line")
+    cells_dict = {"line": mesh_from_file.get_cells_type("line")}
+    cell_data = {"fractures": [physical_tags_1d]}
+    mesh_1d = meshio.Mesh(mesh_from_file.points, cells=cells_dict, cell_data=cell_data)
+
+
+    meshio.write("fracture_network.vtk", mesh_1d)
 
 
 
