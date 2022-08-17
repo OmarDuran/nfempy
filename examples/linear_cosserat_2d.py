@@ -12,6 +12,8 @@ import networkx as nx
 import matplotlib.pyplot as plt
 
 from geometry.cell import Cell
+from mesh.mesh_cell import MeshCell
+from mesh.simplex_cell import SimplexCell
 
 class geometry_builder:
 
