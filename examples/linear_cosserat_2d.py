@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 
 from geometry.cell import Cell
 from mesh.mesh_cell import MeshCell
-from mesh.simplex_cell import SimplexCell
+
 
 class geometry_builder:
 
@@ -214,7 +214,9 @@ def build_box(cells, box_points):
     cells = np.append(cells, volume)
     return cells
 
-
+def mesh_cell_type_index(name):
+    types = {"vertex": 1, "line": 2, "triangle":3, "tetra": 4}
+    return types[name]
 
 def main():
 
@@ -330,23 +332,165 @@ def main():
 
     # step 1: create a base geo_mesh
     gm_points = mesh_from_file.points
-    gm_cells = np.array([], dtype=Cell)
+    gm_cells = np.array([], dtype=MeshCell)
+    d_cells = np.empty((0, 5), dtype=int)
 
-    def insert_simplex(gm_cells,meshio_cell,cell_id):
-        if meshio_cell.dim == 0:
-            point_id = cell_i.data[0,0]
-            cell = Cell(cell_i.dim,cell_id)
+    # insert mesh cells
+    def validate_entity(node_tags):
+        perm = np.argsort(node_tags)
+        return node_tags[perm]
 
-    cell_id = 0
-    for cell_i in mesh_from_file.cells:
-        if cell_i.dim == 0:
-            point_id = cell_i.data[0,0]
-            cell = Cell(cell_i.dim,cell_id)
-            gm_cells = np.append(gm_cells, np.array([cell]))
+    def insert_cell_data(gm_cells, mesh_cell, conn_cells, type_index, tags):
+        chunk = [0 for i in range(5)]
+        chunk[0] = type_index
+        for i, tag in enumerate(tags):
+            chunk[i+1] = tag
+        position = np.where((conn_cells == tuple(chunk)).all(axis=1))
+        cell_id = None
+        if position[0].size == 0:
+            cell_id = len(conn_cells)
+            conn_cells = np.append(conn_cells, [chunk], axis=0)
+            gm_cells = np.append(gm_cells,mesh_cell)
         else:
-            cell = Cell(cell_i.dim,cell_id)
-            gm_cells = np.append(gm_cells, np.array([cell]))
-        cell_id = cell_id + 1
+            cell_id = position[0][0]
+        mesh_cell.set_id(cell_id)
+        return (gm_cells, mesh_cell, conn_cells)
+
+    for cell_block, physical in zip(mesh_from_file.cells,mesh_from_file.cell_data['gmsh:physical']):
+
+        if cell_block.dim == 0: # insert cell
+            type_index = mesh_cell_type_index(cell_block.type)
+            for node_tags, p_tag in zip(cell_block.data,physical):
+                mesh_cell = MeshCell(0)
+                mesh_cell.set_material_id(p_tag)
+                mesh_cell.set_node_tags(node_tags)
+                tags_v = validate_entity(node_tags)
+                gm_cells, mesh_cell, d_cells = insert_cell_data(gm_cells, mesh_cell, d_cells, type_index, tags_v)
+
+        elif cell_block.dim == 1:
+            # 0d cells
+            for node_tags, p_tag in zip(cell_block.data,physical):
+                cells_0d = []
+                for node_tag in node_tags:
+                    type_index = mesh_cell_type_index('vertex')
+                    mesh_cell = MeshCell(0)
+                    mesh_cell.set_node_tags(np.array([node_tag]))
+                    tag_v = validate_entity(np.array([node_tag]))
+                    gm_cells, mesh_cell, d_cells = insert_cell_data(gm_cells, mesh_cell, d_cells, type_index, tag_v)
+                    cells_0d.append(mesh_cell)
+
+                # 1d cells
+                type_index = mesh_cell_type_index(cell_block.type)
+                mesh_cell = MeshCell(1)
+                mesh_cell.set_material_id(p_tag)
+                mesh_cell.set_node_tags(node_tags)
+                mesh_cell.set_cells_0d(np.array(cells_0d))
+                tags_v = validate_entity(node_tags)
+                gm_cells, mesh_cell, d_cells = insert_cell_data(gm_cells, mesh_cell, d_cells,
+                                                                type_index, tags_v)
+        elif cell_block.dim == 2:
+
+            for node_tags in cell_block.data:
+
+                # 0d cells
+                cells_0d = []
+                for node_tag in node_tags:
+                    type_index = mesh_cell_type_index('vertex')
+                    mesh_cell = MeshCell(0)
+                    mesh_cell.set_node_tags(np.array([node_tag]))
+                    tag_v = validate_entity(np.array([node_tag]))
+                    gm_cells, mesh_cell, d_cells = insert_cell_data(gm_cells, mesh_cell, d_cells, type_index, tag_v)
+                    cells_0d.append(mesh_cell)
+
+                # 1d cells
+                loop = [i for i in range(len(node_tags))]
+                loop.append(loop[0])
+                connectivities = np.array([[loop[index], loop[index + 1]] for index in range(len(loop) - 1)])
+
+                cells_1d = []
+                for con in connectivities:
+                    type_index = mesh_cell_type_index('line')
+                    mesh_cell = MeshCell(1)
+                    mesh_cell.set_node_tags(node_tags[con])
+                    mesh_cell.set_cells_0d(np.array(cells_0d)[con])
+                    tags_v = validate_entity(node_tags[con])
+                    gm_cells, mesh_cell, d_cells = insert_cell_data(gm_cells, mesh_cell, d_cells,
+                                                                    type_index, tags_v)
+                    cells_1d.append(mesh_cell)
+
+                # 2d cells
+                type_index = mesh_cell_type_index(cell_block.type)
+                mesh_cell = MeshCell(2)
+                mesh_cell.set_material_id(p_tag)
+                mesh_cell.set_node_tags(node_tags)
+                mesh_cell.set_cells_0d(np.array(cells_0d))
+                mesh_cell.set_cells_1d(np.array(cells_1d))
+                tags_v = validate_entity(node_tags)
+                gm_cells, mesh_cell, d_cells = insert_cell_data(gm_cells, mesh_cell, d_cells,
+                                                                type_index, tags_v)
+
+
+
+    def gather_graph_edges(dimension, mesh_cell: MeshCell, tuple_id_list):
+        for cell in mesh_cell.cells_0d:
+            tuple_id_list.append((mesh_cell.id, cell.id))
+            if cell.dimension == 0:
+                print("BC: Vertex with id: ", cell.id)
+            else:
+                gather_graph_edges(dimension, cell, tuple_id_list)
+
+        for cell in mesh_cell.cells_1d:
+            tuple_id_list.append((mesh_cell.id, cell.id))
+            if cell.dimension == 0:
+                print("BC: Vertex with id: ", cell.id)
+            else:
+                gather_graph_edges(dimension, cell, tuple_id_list)
+
+        for cell in mesh_cell.cells_2d:
+            tuple_id_list.append((mesh_cell.id, cell.id))
+            if cell.dimension == 0:
+                print("BC: Vertex with id: ", cell.id)
+            else:
+                gather_graph_edges(dimension, cell, tuple_id_list)
+
+    def build_graph(cells, dimension, co_dimension):
+
+        disjoint_cells = [
+            cell_i
+            for cell_i in cells
+            if cell_i.dimension == dimension
+        ]
+
+        tuple_id_list = []
+        for cell_i in disjoint_cells:
+            gather_graph_edges(co_dimension, cell_i, tuple_id_list)
+
+        graph = nx.from_edgelist(tuple_id_list, create_using=nx.DiGraph)
+        return graph
+
+    def draw_graph(graph):
+        nx.draw(
+            graph,
+            pos=nx.circular_layout(graph),
+            with_labels=True,
+            node_color="skyblue",
+        )
+
+    graph = build_graph(gm_cells, 1, 1)
+    draw_graph(graph)
+    aka = 0
+
+    # def insert_cell(gm_cells,meshio_cell,cell_id):
+    #     cell = MeshCell(cell_i.dim, cell_id)
+    #     point_ids = cell_i.data
+    #     cell.set_nodes(point_ids)
+    #     gm_cells = np.append(gm_cells, np.array([cell]))
+    #
+    # cell_id = 0
+    # for cell_i in mesh_from_file.cells:
+    #     insert_simplex(gm_cells,cell_i,cell_id)
+    #     cell_id = cell_id + 1
+
 
     # write vtk files
     physical_tags_2d = mesh_from_file.get_cell_data("gmsh:physical", "triangle")
