@@ -58,10 +58,10 @@ def main():
     fracture_4 = np.array([[0.65, 0.25], [0.65, 0.75]])
     fracture_5 = np.array([[0.25, 0.5], [0.75, 0.5]])
 
-    # fracture_1 = np.array([[0.5, 0.25], [0.5, 0.75]])
-    # fracture_2 = np.array([[0.25, 0.5], [0.75, 0.5]])
+    fracture_1 = np.array([[0.5, 0.25], [0.5, 0.75]])
+    fracture_2 = np.array([[0.25, 0.5], [0.75, 0.5]])
 
-    fractures = [fracture_1,fracture_2,fracture_3,fracture_4,fracture_5]
+    fractures = [fracture_1,fracture_2]
 
     fracture_network = fn.FractureNetwork(dimension=2)
     fracture_network.intersect_1D_fractures(fractures, render_intersection_q = False)
@@ -73,7 +73,7 @@ def main():
     mesher.set_geometry_builder(g_builder)
     mesher.set_fracture_network(fracture_network)
     mesher.set_points()
-    mesher.generate(0.0125)
+    mesher.generate(0.5)
     mesher.write_mesh("gmesh.msh")
 
 
@@ -89,11 +89,11 @@ def main():
     gd1c1 = gmesh.build_graph(1, 1)
     # gmesh.draw_graph(gd1c1)
     gmesh.write_vtk()
-    gmesh.cut_conformity_on_fractures()
-
-    cgd2c1 = gmesh.build_graph(2, 1)
-    cgd2c2 = gmesh.build_graph(2, 2)
-    cgd1c1 = gmesh.build_graph(1, 1)
+    # gmesh.cut_conformity_on_fractures()
+    #
+    # cgd2c1 = gmesh.build_graph(2, 1)
+    # cgd2c2 = gmesh.build_graph(2, 2)
+    # cgd1c1 = gmesh.build_graph(1, 1)
     aka = 0
 
 if __name__ == '__main__':

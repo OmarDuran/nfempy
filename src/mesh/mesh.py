@@ -39,6 +39,7 @@ class Mesh:
             # self.cell_data = np.append(self.cell_data, [chunk], axis=0)
             self.cell_data = np.vstack((self.cell_data,[chunk]))
             self.cells = np.append(self.cells, mesh_cell)
+            # self.cells = np.vstack((self.cells,mesh_cell))
             mesh_cell.set_id(cell_id)
         else:
             cell_id = position[0][0]
