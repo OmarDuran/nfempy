@@ -72,23 +72,29 @@ class Mesher:
         graph_nodes = list(self.fracture_network.graph.nodes())
         geo_cells = self.fracture_network.cells[graph_nodes]
         geo_0_cells = [cell for cell in geo_cells if cell.dimension == 0]
-        geo_1_cells = [
-            cell
-            for cell in geo_cells
-            if cell.dimension == 1 and len(cell.immersed_cells) > 0
-        ]
+        i_cells = [cell for cell in geo_cells if cell.dimension == 1 and len(cell.immersed_cells) > 0]
+        ni_cells = [cell.id for m_cell in i_cells for cell in m_cell.immersed_cells]
+        geo_1_cells = [cell for cell in geo_cells if cell.dimension == 1 and cell.id not in ni_cells]
 
         self.tags_1d = []
         self.tags_0d = []
         for geo_1_cell in geo_1_cells:
             n_immersed_cells = len(geo_1_cell.immersed_cells)
-            for cell_i in geo_1_cell.immersed_cells:
-                b = cell_i.boundary_cells[0].point_id + 1
-                e = cell_i.boundary_cells[1].point_id + 1
-                gmsh.model.geo.addLine(b, e, cell_i.id)
-                self.tags_1d.append(cell_i.id)
+            if n_immersed_cells == 0:
+                b = geo_1_cell.boundary_cells[0].point_id + 1
+                e = geo_1_cell.boundary_cells[1].point_id + 1
+                gmsh.model.geo.addLine(b, e, geo_1_cell.id)
+                self.tags_1d.append(geo_1_cell.id)
                 self.tags_0d.append(b)
                 self.tags_0d.append(e)
+            else:
+                for cell_i in geo_1_cell.immersed_cells:
+                    b = cell_i.boundary_cells[0].point_id + 1
+                    e = cell_i.boundary_cells[1].point_id + 1
+                    gmsh.model.geo.addLine(b, e, cell_i.id)
+                    self.tags_1d.append(cell_i.id)
+                    self.tags_0d.append(b)
+                    self.tags_0d.append(e)
 
         gmsh.model.geo.synchronize()
 
@@ -96,14 +102,20 @@ class Mesher:
             gmsh.model.addPhysicalGroup(0, [geo_0_cell.point_id + 1], geo_0_cell.id)
 
         for geo_1_cell in geo_1_cells:
-            tags = [cell.id for cell in geo_1_cell.immersed_cells]
+            tags = []
+            n_immersed_cells = len(geo_1_cell.immersed_cells)
+            if n_immersed_cells == 0:
+                tags = [geo_1_cell.id]
+            else:
+                tags = [cell.id for cell in geo_1_cell.immersed_cells]
             gmsh.model.addPhysicalGroup(1, tags, geo_1_cell.id)
 
     def write_mesh(self, file_name):
         gmsh.write(file_name)
+        gmsh.finalize()
 
-    def generate(self):
-        self.lc = 1.0
+    def generate(self, lc):
+        self.lc = lc
         n_points = len(self.points)
         for tag, point in enumerate(self.points):
             gmsh.model.geo.addPoint(point[0], point[1], 0, self.lc, tag + 1)

@@ -282,16 +282,14 @@ class FractureNetwork:
     def gather_graph_edges(self, g_cell: Cell, tuple_id_list):
         for bc_cell in g_cell.boundary_cells:
             tuple_id_list.append((g_cell.id, bc_cell.id))
-            if bc_cell.dimension == 0:
-                print("BC: Vertex with id: ", bc_cell.id)
-            else:
+            if bc_cell.dimension != 0:
                 self.gather_graph_edges(bc_cell, tuple_id_list)
+
         for immersed_cell in g_cell.immersed_cells:
             tuple_id_list.append((g_cell.id, immersed_cell.id))
-            if immersed_cell.dimension == 0:
-                print("IM: Vertex with id: ", immersed_cell.id)
-            else:
+            if immersed_cell.dimension != 0:
                 self.gather_graph_edges(immersed_cell, tuple_id_list)
+
 
     def build_grahp(self, all_fixed_d_cells_q=False):
 
