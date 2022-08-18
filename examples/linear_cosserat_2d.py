@@ -338,18 +338,19 @@ def main():
     # step 1: create a base geo_mesh
     gm_points = mesh_from_file.points
     gm_cells = np.array([], dtype=MeshCell)
-    d_cells = np.empty((0, 5), dtype=int)
+    d_cells = np.empty((0, 6), dtype=int)
 
     # insert mesh cells
     def validate_entity(node_tags):
         perm = np.argsort(node_tags)
         return node_tags[perm]
 
-    def insert_cell_data(gm_cells, mesh_cell, conn_cells, type_index, tags):
-        chunk = [0 for i in range(5)]
-        chunk[0] = type_index
+    def insert_cell_data(gm_cells, mesh_cell, conn_cells, type_index, tags, sign = 0):
+        chunk = [0 for i in range(6)]
+        chunk[0] = sign
+        chunk[1] = type_index
         for i, tag in enumerate(tags):
-            chunk[i+1] = tag
+            chunk[i+2] = tag
         position = np.where((conn_cells == tuple(chunk)).all(axis=1))
         cell_id = None
         if position[0].size == 0:
@@ -395,7 +396,7 @@ def main():
                                                                 type_index, tags_v)
         elif cell_block.dim == 2:
 
-            for node_tags in cell_block.data:
+            for node_tags, p_tag in zip(cell_block.data,physical):
 
                 # 0d cells
                 cells_0d = []
@@ -493,22 +494,6 @@ def main():
             node_color="skyblue",
         )
 
-    # graph = build_graph_on_index(gm_cells, 20, 2, 2)
-    graph = build_graph(gm_cells, 2, 1)
-    draw_graph(graph)
-    aka = 0
-
-    # def insert_cell(gm_cells,meshio_cell,cell_id):
-    #     cell = MeshCell(cell_i.dim, cell_id)
-    #     point_ids = cell_i.data
-    #     cell.set_nodes(point_ids)
-    #     gm_cells = np.append(gm_cells, np.array([cell]))
-    #
-    # cell_id = 0
-    # for cell_i in mesh_from_file.cells:
-    #     insert_simplex(gm_cells,cell_i,cell_id)
-    #     cell_id = cell_id + 1
-
     tags_0d = [cell.id for cell in gm_cells if cell.dimension == 0]
     tags_1d = [cell.id for cell in gm_cells if cell.dimension == 1]
     tags_2d = [cell.id for cell in gm_cells if cell.dimension == 2]
@@ -532,6 +517,15 @@ def main():
     mesh_0d = meshio.Mesh(mesh_from_file.points,cells=cells_dict,cell_data=cell_data)
     meshio.write("geometric_mesh_0d.vtk", mesh_0d)
 
+    # find predicates to spot fractures
+
+    # graph = build_graph_on_index(gm_cells, 20, 2, 2)
+    gd2c1 = build_graph(gm_cells, 2, 1)
+    gd2c2 = build_graph(gm_cells, 2, 2)
+    gd1c1 = build_graph(gm_cells, 1, 1)
+    # draw_graph(gd1c1)
+
+    f1_cells = [cell for cell in gm_cells if cell.material_id == 13]
 
 if __name__ == '__main__':
     main()
