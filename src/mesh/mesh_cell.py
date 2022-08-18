@@ -3,6 +3,10 @@ import abc
 import numpy as np
 
 
+def barycenter(points):
+    xc = np.mean(points, axis=0)
+    return xc
+
 # class MeshCell(abc.ABC):
 class MeshCell:
     def __init__(self, dimension):
@@ -16,16 +20,7 @@ class MeshCell:
         self.cells_1d = np.array([], dtype=MeshCell)
         self.cells_2d = np.array([], dtype=MeshCell)
 
-    # def copy(self, orig):
-    #     self.dimension = orig.dimension
-    #     self.type = self.mesh_cell_type(dimension)
-    #     self.id = orig.id
-    #     self.material_id = orig.material_id
-    #     self.node_tags = orig.node_tags
-    #     self.perm = orig.perm
-    #     self.cells_0d = orig.cells_0d
-    #     self.cells_1d = orig.cells_1d
-    #     self.cells_2d = orig.cells_2d
+
 
     def set_id(self, id):
         self.id = id

@@ -93,7 +93,7 @@ class TriangleTriangleIntersectionTest:
             if not p_is_ab_colinear_q and not q_is_ab_colinear_q:
                 return (False, np.array, np.array)
             tau = (ar - br) / np.linalg.norm(ar - br)
-            n = np.array([tau[1], -tau[1]])
+            n = np.array([tau[1], -tau[0]])
 
             drop = np.argmax(np.abs(n))
             pos = np.array(

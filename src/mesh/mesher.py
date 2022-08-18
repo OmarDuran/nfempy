@@ -113,6 +113,10 @@ class Mesher:
     def write_mesh(self, file_name):
         gmsh.write(file_name)
         gmsh.finalize()
+        max_point_id = -len(self.geometry_builder.points)
+        # max_cell_id = -len(self.geometry_builder.cells)
+        self.fracture_network.shift_point_ids(max_point_id)
+        # self.fracture_network.shift_cell_ids(max_cell_id)
 
     def generate(self, lc):
         self.lc = lc

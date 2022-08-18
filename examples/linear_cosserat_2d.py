@@ -14,7 +14,7 @@ from geometry.geometry_builder import GeometryBuilder
 
 from mesh.mesher import Mesher
 from mesh.mesh import Mesh
-import copy
+
 
 
 def polygon_polygon_intersection():
@@ -73,7 +73,7 @@ def main():
     mesher.set_geometry_builder(g_builder)
     mesher.set_fracture_network(fracture_network)
     mesher.set_points()
-    mesher.generate(0.5)
+    mesher.generate(1.0)
     mesher.write_mesh("gmesh.msh")
 
 
@@ -81,19 +81,16 @@ def main():
     gmesh.set_fracture_network(fracture_network)
     gmesh.transfer_conformal_mesh()
 
-    # find predicates to spot fractures
-
-    # graph = build_graph_on_index(gm_cells, 20, 2, 2)
     gd2c1 = gmesh.build_graph(2, 1)
     gd2c2 = gmesh.build_graph(2, 2)
     gd1c1 = gmesh.build_graph(1, 1)
     # gmesh.draw_graph(gd1c1)
     gmesh.write_vtk()
-    # gmesh.cut_conformity_on_fractures()
-    #
-    # cgd2c1 = gmesh.build_graph(2, 1)
-    # cgd2c2 = gmesh.build_graph(2, 2)
-    # cgd1c1 = gmesh.build_graph(1, 1)
+    gmesh.cut_conformity_on_fractures()
+    cgd2c1 = gmesh.build_graph(2, 1)
+    cgd2c2 = gmesh.build_graph(2, 2)
+    cgd1c1 = gmesh.build_graph(1, 1)
+    gmesh.draw_graph(gd1c1)
     aka = 0
 
 if __name__ == '__main__':

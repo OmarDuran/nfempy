@@ -2,6 +2,8 @@ import meshio
 import numpy as np
 import networkx as nx
 from mesh.mesh_cell import MeshCell
+from mesh.mesh_cell import barycenter
+import copy
 
 from geometry.fracture_network import FractureNetwork
 
@@ -9,11 +11,12 @@ class Mesh:
     def __init__(self, dimension, file_name):
         self.dimension = dimension
         self.graph = None
-        self.points = None
         self.cell_data = np.empty((0, 6), dtype=int)
         self.cells = np.array([], dtype=MeshCell)
         self.conformal_mesh = meshio.read(file_name)
-        self.fracture_normals = None
+        self.points = self.conformal_mesh.points
+        self.fracture_normals = {}
+        self.fracture_network = None
 
     def set_fracture_network(self, fracture_network):
         self.fracture_network = fracture_network
@@ -212,128 +215,142 @@ class Mesh:
         )
 
     def compute_fracture_normals(self):
-        d = 0
-
-    def cut_conformity_on_fractures(self):
-
-        # this method requires
-        # dictionary of fracture id's to normals
 
         assert self.dimension == 2
 
+        graph_nodes = list(self.fracture_network.graph.nodes())
+        geo_cells = self.fracture_network.cells[graph_nodes]
+        i_cells = [cell for cell in geo_cells if
+                   cell.dimension == 1 and len(cell.immersed_cells) > 0]
+        ni_cells = [cell.id for m_cell in i_cells for cell in m_cell.immersed_cells]
+        geo_1_cells = [cell for cell in geo_cells if
+                       cell.dimension == 1 and cell.id not in ni_cells]
 
-        target_mat_id = 13
+        for geo_1_cell in geo_1_cells:
+            b, e = (geo_1_cell.boundary_cells[0].point_id, geo_1_cell.boundary_cells[1].point_id)
+            cell_points = self.fracture_network.points[[b, e]]
+            R = cell_points[1] - cell_points[0]
+            tau = (R)/np.linalg.norm(R)
+            n = np.array([tau[1], -tau[0]])
+            xc = barycenter(cell_points)
+            self.fracture_normals[geo_1_cell.id] = (n,xc)
 
-        f_cells = [cell for cell in gm_cells if cell.material_id == target_mat_id]
-        for mesh_cell in f_cells:
-            cell_id = mesh_cell.id
-            tag_v = validate_entity(mesh_cell.node_tags)
 
-            # cutting edge support
-            type_index = mesh_cell_type_index('line')
-            cells_2d_ids = list(gd2c1.predecessors(cell_id))
-            assert len(cells_2d_ids) == 2
-            cell_p = copy.deepcopy(mesh_cell)
-            cell_n = copy.deepcopy(mesh_cell)
 
-            # positive side
-            gm_cells, cell_p, d_cells = insert_cell_data(gm_cells, cell_p, d_cells,
-                                                         type_index, tag_v, +1)
-            cell_2d_p = gm_cells[cells_2d_ids[0]]
-            edge_id_p = [i for i, cell in enumerate(cell_2d_p.cells_1d) if
-                         cell.id == cell_id]
-            cell_2d_p.cells_1d[edge_id_p[0]] = cell_p
+    def cut_conformity_on_fractures(self):
 
-            # negative side
-            gm_cells, cell_n, d_cells = insert_cell_data(gm_cells, cell_n, d_cells,
-                                                         type_index, tag_v, -1)
 
-            cell_2d_n = gm_cells[cells_2d_ids[1]]
-            edge_id_n = [i for i, cell in enumerate(cell_2d_n.cells_1d) if
-                         cell.id == cell_id]
-            cell_2d_n.cells_1d[edge_id_n[0]] = cell_n
+        # this method requires
+        # dictionary of fracture id's to (normal,fracture barycenter)
+        self.compute_fracture_normals()
 
-            print("Edge - New ids: ", [cell_p.id, cell_n.id])
+        gd2c1 = self.build_graph(2, 1)
+        gd2c2 = self.build_graph(2, 2)
+        gd1c1 = self.build_graph(1, 1)
 
-            # cutting node support
-            cell_id_0 = mesh_cell.cells_0d[0].id
-            cell_id_1 = mesh_cell.cells_0d[1].id
-            pre_id_0 = list(gd1c1.predecessors(cell_id_0))
-            pre_id_1 = list(gd1c1.predecessors(cell_id_1))
+        assert self.dimension == 2
 
-            pre_cells_id_0 = [gm_cells[id] for id in pre_id_0 if
-                              gm_cells[id].material_id is not None]
-            pre_cells_id_1 = [gm_cells[id] for id in pre_id_1 if
-                              gm_cells[id].material_id is not None]
-            id_0_bc_q = len(pre_cells_id_0) > 1
-            id_1_bc_q = len(pre_cells_id_1) > 1
+        for data in self.fracture_normals.items():
 
-            if id_0_bc_q:
-                mesh_cell_0d = mesh_cell.cells_0d[0]
-                cell_id = mesh_cell_0d.id
-                cell_0d_p = copy.deepcopy(mesh_cell_0d)
-                cell_0d_n = copy.deepcopy(mesh_cell_0d)
+            mat_id, (n, f_xc) = data
+            f_cells = [cell for cell in self.cells if cell.material_id == mat_id]
+            for mesh_cell in f_cells:
+                cell_id = mesh_cell.id
+                tag_v = self.validate_entity(mesh_cell.node_tags)
 
-                tag_v = validate_entity(mesh_cell_0d.node_tags)
-                type_index = mesh_cell_type_index('vertex')
+                # cutting edge support
+                type_index = self.mesh_cell_type_index('line')
+                cells_2d_ids = list(gd2c1.predecessors(cell_id))
+                assert len(cells_2d_ids) == 2
 
-                # positive side
-                gm_cells, cell_0d_p, d_cells = insert_cell_data(gm_cells, cell_0d_p,
-                                                                d_cells,
-                                                                type_index, tag_v, +1)
+                # classify cells
+                cell_2d_p = self.cells[cells_2d_ids[0]]
+                cell_2d_n = self.cells[cells_2d_ids[1]]
+                cell_xc = barycenter(self.points[cell_2d_p.node_tags])[[0,1]]
+                negative_q = np.dot(cell_xc - f_xc,n) < 0.0
+                if negative_q:
+                    cell_2d_p = self.cells[cells_2d_ids[1]]
+                    cell_2d_n = self.cells[cells_2d_ids[0]]
 
-                vertex_id_p = [i for i, cell in enumerate(cell_p.cells_0d) if
-                               cell.id == cell_id]
-                cell_p.cells_0d[vertex_id_p[0]] = cell_0d_p
-
-                # negative side
-                gm_cells, cell_0d_n, d_cells = insert_cell_data(gm_cells, cell_0d_n,
-                                                                d_cells,
-                                                                type_index, tag_v, -1)
-
-                vertex_id_n = [i for i, cell in enumerate(cell_n.cells_0d) if
-                               cell.id == cell_id]
-                cell_n.cells_0d[vertex_id_n[0]] = cell_0d_n
-                print("Side 0 - New ids: ", [cell_0d_p.id, cell_0d_n.id])
-            else:
-                print("Disconnect boundary from skins ")
-
-            if id_1_bc_q:
-                mesh_cell_0d = mesh_cell.cells_0d[1]
-                cell_id = mesh_cell_0d.id
-                cell_0d_p = copy.deepcopy(mesh_cell_0d)
-                cell_0d_n = copy.deepcopy(mesh_cell_0d)
-
-                tag_v = validate_entity(mesh_cell_0d.node_tags)
-                type_index = mesh_cell_type_index('vertex')
+                cell_p = copy.deepcopy(mesh_cell)
+                cell_n = copy.deepcopy(mesh_cell)
 
                 # positive side
-                gm_cells, cell_0d_p, d_cells = insert_cell_data(gm_cells, cell_0d_p,
-                                                                d_cells,
-                                                                type_index, tag_v, +1)
-
-                vertex_id_p = [i for i, cell in enumerate(cell_p.cells_0d) if
-                               cell.id == cell_id]
-                cell_p.cells_0d[vertex_id_p[0]] = cell_0d_p
+                cell_p = self.insert_cell_data(cell_p, type_index, tag_v, +1)
+                edge_id_p = [i for i, cell in enumerate(cell_2d_p.cells_1d) if
+                             cell.id == cell_id]
+                cell_2d_p.cells_1d[edge_id_p[0]] = cell_p
 
                 # negative side
-                gm_cells, cell_0d_n, d_cells = insert_cell_data(gm_cells, cell_0d_n,
-                                                                d_cells,
-                                                                type_index, tag_v, -1)
+                cell_n = self.insert_cell_data(cell_n, type_index, tag_v, -1)
+                edge_id_n = [i for i, cell in enumerate(cell_2d_n.cells_1d) if
+                             cell.id == cell_id]
+                cell_2d_n.cells_1d[edge_id_n[0]] = cell_n
 
-                vertex_id_n = [i for i, cell in enumerate(cell_n.cells_0d) if
-                               cell.id == cell_id]
-                cell_n.cells_0d[vertex_id_n[0]] = cell_0d_n
-                print("Side 1 - New ids: ", [cell_0d_p.id, cell_0d_n.id])
+                print("Edge - New ids: ", [cell_p.id, cell_n.id])
 
-                cross_fracs = [cell for cell in pre_cells_id_1 if
-                               cell.material_id != target_mat_id]
-                for cell in cross_fracs:
-                    vertex_id_n = [i for i, cell in enumerate(cell.cells_0d) if
+                # cutting node support
+                cell_id_0 = mesh_cell.cells_0d[0].id
+                cell_id_1 = mesh_cell.cells_0d[1].id
+                pre_id_0 = list(gd1c1.predecessors(cell_id_0))
+                pre_id_1 = list(gd1c1.predecessors(cell_id_1))
+
+                pre_cells_id_0 = [self.cells[id] for id in pre_id_0 if
+                                  self.cells[id].material_id is not None]
+                pre_cells_id_1 = [self.cells[id] for id in pre_id_1 if
+                                  self.cells[id].material_id is not None]
+                id_0_bc_q = len(pre_cells_id_0) > 1
+                id_1_bc_q = len(pre_cells_id_1) > 1
+
+                if id_0_bc_q:
+                    mesh_cell_0d = mesh_cell.cells_0d[0]
+                    cell_id = mesh_cell_0d.id
+                    cell_0d_p = copy.deepcopy(mesh_cell_0d)
+                    cell_0d_n = copy.deepcopy(mesh_cell_0d)
+
+                    tag_v = self.validate_entity(mesh_cell_0d.node_tags)
+                    type_index = self.mesh_cell_type_index('vertex')
+
+                    # positive side
+                    cell_0d_p = self.insert_cell_data(cell_0d_p,type_index, tag_v, +1)
+
+                    vertex_id_p = [i for i, cell in enumerate(cell_p.cells_0d) if
                                    cell.id == cell_id]
-                    cell.cells_0d[vertex_id_n[0]] = cell_0d_n
+                    cell_p.cells_0d[vertex_id_p[0]] = cell_0d_p
 
-            else:
-                print("Disconnect boundary from skins ")
+                    # negative side
+                    cell_0d_n = self.insert_cell_data(cell_0d_n,type_index, tag_v, -1)
 
-            aka = 0
+                    vertex_id_n = [i for i, cell in enumerate(cell_n.cells_0d) if
+                                   cell.id == cell_id]
+                    cell_n.cells_0d[vertex_id_n[0]] = cell_0d_n
+                    print("Side 0 - New ids: ", [cell_0d_p.id, cell_0d_n.id])
+                else:
+                    print("Disconnect fracture boundary from skins ")
+
+                if id_1_bc_q:
+                    mesh_cell_0d = mesh_cell.cells_0d[1]
+                    cell_id = mesh_cell_0d.id
+                    cell_0d_p = copy.deepcopy(mesh_cell_0d)
+                    cell_0d_n = copy.deepcopy(mesh_cell_0d)
+
+                    tag_v = self.validate_entity(mesh_cell_0d.node_tags)
+                    type_index = self.mesh_cell_type_index('vertex')
+
+                    # positive side
+                    cell_0d_p = self.insert_cell_data(cell_0d_p, type_index, tag_v, +1)
+
+                    vertex_id_p = [i for i, cell in enumerate(cell_p.cells_0d) if
+                                   cell.id == cell_id]
+                    cell_p.cells_0d[vertex_id_p[0]] = cell_0d_p
+
+                    # negative side
+                    cell_0d_n = self.insert_cell_data(cell_0d_n, type_index, tag_v, -1)
+
+                    vertex_id_n = [i for i, cell in enumerate(cell_n.cells_0d) if
+                                   cell.id == cell_id]
+                    cell_n.cells_0d[vertex_id_n[0]] = cell_0d_n
+                    print("Side 1 - New ids: ", [cell_0d_p.id, cell_0d_n.id])
+
+                else:
+                    print("Disconnect fracture boundary from skins ")
