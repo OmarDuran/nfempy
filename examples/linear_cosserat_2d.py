@@ -357,9 +357,11 @@ def main():
             cell_id = len(conn_cells)
             conn_cells = np.append(conn_cells, [chunk], axis=0)
             gm_cells = np.append(gm_cells,mesh_cell)
+            mesh_cell.set_id(cell_id)
         else:
             cell_id = position[0][0]
-        mesh_cell.set_id(cell_id)
+            mesh_cell = gm_cells[cell_id]
+
         return (gm_cells, mesh_cell, conn_cells)
 
     for cell_block, physical in zip(mesh_from_file.cells,mesh_from_file.cell_data['gmsh:physical']):
@@ -531,6 +533,8 @@ def main():
     for mesh_cell in f_cells:
         cell_id = mesh_cell.id
         tag_v = validate_entity(mesh_cell.node_tags)
+
+        # cutting edge support
         type_index = mesh_cell_type_index('line')
         cells_2d_ids = list(gd2c1.predecessors(cell_id))
         assert len(cells_2d_ids) == 2
@@ -551,6 +555,73 @@ def main():
         cell_2d_n = gm_cells[cells_2d_ids[1]]
         edge_id_n = [i for i, cell in enumerate(cell_2d_n.cells_1d) if cell.id == cell_id]
         cell_2d_n.cells_1d[edge_id_n[0]] = cell_n
+
+        print("Edge - New ids: ", [cell_p.id, cell_n.id])
+
+        # cutting node support
+        cell_id_0 = mesh_cell.cells_0d[0].id
+        cell_id_1 = mesh_cell.cells_0d[1].id
+        pre_id_0 = list(gd1c1.predecessors(cell_id_0))
+        pre_id_1 = list(gd1c1.predecessors(cell_id_1))
+
+        id_0_bc_q = len([gm_cells[id].material_id for id in pre_id_0 if gm_cells[id].material_id is not None]) > 1
+        id_1_bc_q = len([gm_cells[id].material_id for id in pre_id_1 if gm_cells[id].material_id is not None]) > 1
+
+        if id_0_bc_q:
+            mesh_cell_0d = mesh_cell.cells_0d[0]
+            cell_id = mesh_cell_0d.id
+            cell_0d_p = copy.deepcopy(mesh_cell_0d)
+            cell_0d_n = copy.deepcopy(mesh_cell_0d)
+
+            tag_v = validate_entity(mesh_cell_0d.node_tags)
+            type_index = mesh_cell_type_index('vertex')
+
+
+            # positive side
+            gm_cells, cell_0d_p, d_cells = insert_cell_data(gm_cells, cell_0d_p, d_cells,
+                                                                type_index, tag_v, +1)
+
+            vertex_id_p = [i for i, cell in enumerate(cell_p.cells_0d) if
+                         cell.id == cell_id]
+            cell_p.cells_0d[vertex_id_p[0]] = cell_0d_p
+
+            # negative side
+            gm_cells, cell_0d_n, d_cells = insert_cell_data(gm_cells, cell_0d_n, d_cells,
+                                                                type_index, tag_v, -1)
+
+            vertex_id_n = [i for i, cell in enumerate(cell_n.cells_0d) if
+                         cell.id == cell_id]
+            cell_n.cells_0d[vertex_id_n[0]] = cell_0d_n
+            print("Side 0 - New ids: ", [cell_0d_p.id, cell_0d_n.id])
+
+        if id_1_bc_q:
+            mesh_cell_0d = mesh_cell.cells_0d[1]
+            cell_id = mesh_cell_0d.id
+            cell_0d_p = copy.deepcopy(mesh_cell_0d)
+            cell_0d_n = copy.deepcopy(mesh_cell_0d)
+
+            tag_v = validate_entity(mesh_cell_0d.node_tags)
+            type_index = mesh_cell_type_index('vertex')
+
+            # positive side
+            gm_cells, cell_0d_p, d_cells = insert_cell_data(gm_cells, cell_0d_p, d_cells,
+                                                         type_index, tag_v, +1)
+
+            vertex_id_p = [i for i, cell in enumerate(cell_p.cells_0d) if
+                           cell.id == cell_id]
+            cell_p.cells_0d[vertex_id_p[0]] = cell_0d_p
+
+            # negative side
+            gm_cells, cell_0d_n, d_cells = insert_cell_data(gm_cells, cell_0d_n, d_cells,
+                                                         type_index, tag_v, -1)
+
+            vertex_id_n = [i for i, cell in enumerate(cell_n.cells_0d) if
+                           cell.id == cell_id]
+            cell_n.cells_0d[vertex_id_n[0]] = cell_0d_n
+            print("Side 1 - New ids: ", [cell_0d_p.id,cell_0d_n.id])
+
+
+        aka = 0
 
 
     cgd2c1 = build_graph(gm_cells, 2, 1)
