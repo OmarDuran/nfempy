@@ -12,101 +12,10 @@ import networkx as nx
 import matplotlib.pyplot as plt
 
 from geometry.cell import Cell
+from geometry.geometry_builder import GeometryBuilder
 from mesh.mesh_cell import MeshCell
+from mesh.mesher import Mesher
 import copy
-
-class geometry_builder:
-
-    def __init__(self, dimension):
-        self.dimension = dimension
-        self.cells = np.array([], dtype=Cell)
-        self.points = np.empty((0, dimension), dtype=float)
-
-    def set_boundary(self, vertices, connectivity, material_id):
-        self.vertices = vertices
-        self.connectivity = connectivity
-        self.material_id = material_id
-
-    def build_internal_bc(self, Network, normal_expansion = 1.0e-1):
-        assert Network.dimension == self.dimension, f"Geometry and network dimension are not equal {Network.dimension}"
-
-        # classify intersections
-        nodes = list(Network.grahp.nodes)
-        node_neighs = [[] for _ in nodes]
-        for i in range(len(nodes)):
-            neighs = list(nx.all_neighbors(Network.grahp, nodes[i]))
-            node_neighs[i].append(neighs)
-
-    def gather_graph_edges(self, g_cell: Cell, tuple_id_list):
-        for bc_cell in g_cell.boundary_cells:
-            tuple_id_list.append((g_cell.id, bc_cell.id))
-            if bc_cell.dimension == 0:
-                print("BC: Vertex with id: ", bc_cell.id)
-            else:
-                self.gather_graph_edges(bc_cell, tuple_id_list)
-        for immersed_cell in g_cell.immersed_cells:
-            tuple_id_list.append((g_cell.id, immersed_cell.id))
-            if immersed_cell.dimension == 0:
-                print("IM: Vertex with id: ", immersed_cell.id)
-            else:
-                self.gather_graph_edges(immersed_cell, tuple_id_list)
-
-    def build_grahp(self, all_fixed_d_cells_q=False):
-
-        disjoint_cells = []
-        if all_fixed_d_cells_q:
-            disjoint_cells = [
-                cell_i
-                for cell_i in self.cells
-            ]
-        else:
-            disjoint_cells = [
-                cell_i
-                for cell_i in self.cells if len(cell_i.immersed_cells) == 0
-            ]
-
-        tuple_id_list = []
-        for cell_1d in disjoint_cells:
-            self.gather_graph_edges(cell_1d, tuple_id_list)
-
-        self.graph = nx.from_edgelist(tuple_id_list, create_using=nx.DiGraph)
-
-    def draw_grahp(self):
-        nx.draw(
-            self.graph,
-            pos=nx.circular_layout(self.graph),
-            with_labels=True,
-            node_color="skyblue",
-        )
-
-    def build_box_2D(self, box_points):
-
-        self.points = np.append(
-            self.points, np.array([point for point in box_points]), axis=0
-        )
-        loop = [i for i in range(len(box_points))]
-        self.cells = np.append(self.cells, np.array([Cell(0, index) for index in loop]))
-
-        loop.append(loop[0])
-        connectivities = np.array(
-            [[loop[index], loop[index + 1]] for index in range(len(loop) - 1)]
-        )
-
-        cell_id = len(box_points)
-        edges_indices = []
-        for con in connectivities:
-            edge = Cell(1, cell_id)
-            edge.boundary_cells = self.cells[con]
-            self.cells = np.append(self.cells, edge)
-            edges_indices.append(cell_id)
-            cell_id = cell_id + 1
-
-        edges_indices = np.array(edges_indices)
-        surface = Cell(2, cell_id)
-        surface.boundary_cells = self.cells[edges_indices]
-        self.cells = np.append(self.cells, surface)
-
-
 
 
 def polygon_polygon_intersection():
@@ -131,89 +40,6 @@ def polygon_polygon_intersection():
     ika = 0
 
 
-
-# geometry method
-def build_box(cells, box_points):
-
-    cells = np.append(cells, np.array([cell(0, i) for i, point in enumerate(box_points)]))
-
-    edge = cell(1, 8)
-    edge.boundary_cells = cells[[0, 1]]
-    cells = np.append(cells, edge)
-
-    edge = cell(1, 9)
-    edge.boundary_cells = cells[[1, 2]]
-    cells = np.append(cells, edge)
-
-    edge = cell(1, 10)
-    edge.boundary_cells = cells[[2, 3]]
-    cells = np.append(cells, edge)
-
-    edge = cell(1, 11)
-    edge.boundary_cells = cells[[3, 0]]
-    cells = np.append(cells, edge)
-
-    edge = cell(1, 12)
-    edge.boundary_cells = cells[[4, 5]]
-    cells = np.append(cells, edge)
-
-    edge = cell(1, 13)
-    edge.boundary_cells = cells[[5, 6]]
-    cells = np.append(cells, edge)
-
-    edge = cell(1, 14)
-    edge.boundary_cells = cells[[6, 7]]
-    cells = np.append(cells, edge)
-
-    edge = cell(1, 15)
-    edge.boundary_cells = cells[[7, 4]]
-    cells = np.append(cells, edge)
-
-    edge = cell(1, 16)
-    edge.boundary_cells = cells[[0, 4]]
-    cells = np.append(cells, edge)
-
-    edge = cell(1, 17)
-    edge.boundary_cells = cells[[1, 5]]
-    cells = np.append(cells, edge)
-
-    edge = cell(1, 18)
-    edge.boundary_cells = cells[[2, 6]]
-    cells = np.append(cells, edge)
-
-    edge = cell(1, 19)
-    edge.boundary_cells = cells[[3, 7]]
-    cells = np.append(cells, edge)
-
-    surface = cell(2, 20)
-    surface.boundary_cells = cells[[8, 17, 12, 16]]
-    cells = np.append(cells, surface)
-
-    surface = cell(2, 21)
-    surface.boundary_cells = cells[[9, 18, 13, 17]]
-    cells = np.append(cells, surface)
-
-    surface = cell(2, 22)
-    surface.boundary_cells = cells[[10, 13, 14, 19]]
-    cells = np.append(cells, surface)
-
-    surface = cell(2, 23)
-    surface.boundary_cells = cells[[11, 16, 15, 19]]
-    cells = np.append(cells, surface)
-
-    surface = cell(2, 24)
-    surface.boundary_cells = cells[[8, 9, 10, 11]]
-    cells = np.append(cells, surface)
-
-    surface = cell(2, 25)
-    surface.boundary_cells = cells[[12, 13, 14, 15]]
-    cells = np.append(cells, surface)
-
-    volume = cell(3, 26)
-    volume.boundary_cells = cells[[20, 21, 22, 23, 24, 25]]
-    cells = np.append(cells, volume)
-    return cells
-
 def mesh_cell_type_index(name):
     types = {"vertex": 1, "line": 2, "triangle":3, "tetra": 4}
     return types[name]
@@ -224,17 +50,14 @@ def main():
     # polygon_polygon_intersection()
     # return 0
 
-    # surface cell
+    # Higher dimension geometry
     s = 1.0;
     box_points = s * np.array([[0, 0], [1, 0], [1, 1], [0, 1]])
-    g_builder = geometry_builder(dimension=2)
+    g_builder = GeometryBuilder(dimension=2)
     g_builder.build_box_2D(box_points)
     g_builder.build_grahp()
-    max_point_id = len(g_builder.points)
-    max_cell_id = len(g_builder.cells)
 
     # insert base fractures
-
     fracture_1 = np.array([[0.25, 0.25], [0.75, 0.75]])
     fracture_2 = np.array([[0.25, 0.75], [0.75, 0.25]])
     fracture_3 = np.array([[0.5, 0.25], [0.5, 0.75]])
@@ -250,88 +73,20 @@ def main():
     fracture_network.intersect_1D_fractures(fractures, render_intersection_q = False)
     fracture_network.build_grahp(all_fixed_d_cells_q = True)
     # fracture_network.draw_grahp()
-    fracture_network.shift_point_ids(max_point_id)
-    fracture_network.shift_cell_ids(max_cell_id)
 
 
-    import gmsh
-    import sys
-    gmsh.initialize()
-    gmsh.model.add("fn_2d")
+    mesher = Mesher(dimension=2)
+    mesher.set_geometry_builder(g_builder)
+    mesher.set_fracture_network(fracture_network)
+    mesher.set_points()
+    mesher.generate()
+    mesher.write_mesh("gmesh.msh")
 
-    # merged points
-    points = g_builder.points
-    points = np.append(points,fracture_network.points,axis=0)
 
-    lc = 1.0
-    n_points = len(points)
-    for tag, point in enumerate(points):
-        gmsh.model.geo.addPoint(point[0], point[1], 0, lc, tag + 1)
-
-    # add domain cells
-    geo_cells = g_builder.cells[list(g_builder.graph.nodes())]
-    geo_1_cells = [cell for cell in geo_cells if cell.dimension == 1]
-    geo_2_cells = [cell for cell in geo_cells if cell.dimension == 2]
-
-    tags_2d = []
-    for geo_2_cell in geo_2_cells:
-        for cell_i in geo_2_cell.boundary_cells:
-            b = cell_i.boundary_cells[0].point_id + 1
-            e = cell_i.boundary_cells[1].point_id + 1
-            gmsh.model.geo.addLine(b, e, cell_i.id)
-        tags = [cell.id for cell in geo_2_cell.boundary_cells]
-        gmsh.model.geo.addCurveLoop(tags, geo_2_cell.id)
-        gmsh.model.geo.addPlaneSurface([geo_2_cell.id],geo_2_cell.id)
-        tags_2d.append(geo_2_cell.id)
-
-    gmsh.model.geo.synchronize()
-
-    # add physical tags
-    for geo_1_cell in geo_1_cells:
-        gmsh.model.addPhysicalGroup(1, [geo_1_cell.id], geo_1_cell.id)
-
-    gmsh.model.addPhysicalGroup(2, tags_2d, tags_2d[0])
-
-    # add fn cells
-    geo_cells = fracture_network.cells[list(fracture_network.graph.nodes())]
-    geo_0_cells = [cell for cell in geo_cells if cell.dimension == 0]
-    geo_1_cells = [cell for cell in geo_cells if cell.dimension == 1 and len(cell.immersed_cells) > 0]
-    # geo_1_cells = [cell for cell in geo_cells if cell.dimension == 1 and cell.id == 13]
-
-    tags_1d = []
-    tags_0d = []
-    for geo_1_cell in geo_1_cells:
-        n_immersed_cells = len(geo_1_cell.immersed_cells)
-        for cell_i in geo_1_cell.immersed_cells:
-            b = cell_i.boundary_cells[0].point_id + 1
-            e = cell_i.boundary_cells[1].point_id + 1
-            gmsh.model.geo.addLine(b, e, cell_i.id)
-            tags_1d.append(cell_i.id)
-            tags_0d.append(b)
-            tags_0d.append(e)
-
-    gmsh.model.geo.synchronize()
-
-    for geo_0_cell in geo_0_cells:
-        gmsh.model.addPhysicalGroup(0, [geo_0_cell.point_id + 1], geo_0_cell.id)
-
-    for geo_1_cell in geo_1_cells:
-        tags = [cell.id for cell in geo_1_cell.immersed_cells]
-        gmsh.model.addPhysicalGroup(1, tags, geo_1_cell.id)
-
-    # embed entities
-    gmsh.model.mesh.embed(0, tags_0d, 2, tags_2d[0])
-    gmsh.model.mesh.embed(1, tags_1d, 2, tags_2d[0])
-
-    gmsh.model.geo.synchronize()
-    gmsh.model.mesh.generate(2)
-    gmsh.write("gmesh.msh")
-
-    # if '-nopopup' not in sys.argv:
-    #     gmsh.fltk.run()
 
     mesh_from_file = meshio.read("gmesh.msh")
 
+    # nfempy mesh estructure
     # add skins
     # Clipping out with scissors
 
@@ -564,8 +319,10 @@ def main():
         pre_id_0 = list(gd1c1.predecessors(cell_id_0))
         pre_id_1 = list(gd1c1.predecessors(cell_id_1))
 
-        id_0_bc_q = len([gm_cells[id].material_id for id in pre_id_0 if gm_cells[id].material_id is not None]) > 1
-        id_1_bc_q = len([gm_cells[id].material_id for id in pre_id_1 if gm_cells[id].material_id is not None]) > 1
+        pre_cells_id_0 = [gm_cells[id] for id in pre_id_0 if gm_cells[id].material_id is not None]
+        pre_cells_id_1 = [gm_cells[id] for id in pre_id_1 if gm_cells[id].material_id is not None]
+        id_0_bc_q = len(pre_cells_id_0) > 1
+        id_1_bc_q = len(pre_cells_id_1) > 1
 
         if id_0_bc_q:
             mesh_cell_0d = mesh_cell.cells_0d[0]
@@ -593,6 +350,8 @@ def main():
                          cell.id == cell_id]
             cell_n.cells_0d[vertex_id_n[0]] = cell_0d_n
             print("Side 0 - New ids: ", [cell_0d_p.id, cell_0d_n.id])
+        else:
+            print("Disconnect boundary from skins ")
 
         if id_1_bc_q:
             mesh_cell_0d = mesh_cell.cells_0d[1]
@@ -619,6 +378,14 @@ def main():
                            cell.id == cell_id]
             cell_n.cells_0d[vertex_id_n[0]] = cell_0d_n
             print("Side 1 - New ids: ", [cell_0d_p.id,cell_0d_n.id])
+
+            cross_fracs = [cell for cell in pre_cells_id_1 if cell.material_id != target_mat_id]
+            for cell in cross_fracs:
+                vertex_id_n = [i for i, cell in enumerate(cell.cells_0d) if cell.id == cell_id]
+                cell.cells_0d[vertex_id_n[0]] = cell_0d_n
+
+        else:
+            print("Disconnect boundary from skins ")
 
 
         aka = 0

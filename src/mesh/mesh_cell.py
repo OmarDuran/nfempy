@@ -1,4 +1,5 @@
 import abc
+
 import numpy as np
 
 
@@ -56,7 +57,6 @@ class MeshCell:
     # @abc.abstractmethod
     def set_cells_2d(self, cells_2d):
         self.cells_2d = cells_2d
-
 
     @staticmethod
     def mesh_cell_type(dimension):
