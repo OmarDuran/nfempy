@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 
 from geometry.cell import Cell
 from mesh.mesh_cell import MeshCell
-
+import copy
 
 class geometry_builder:
 
@@ -525,7 +525,38 @@ def main():
     gd1c1 = build_graph(gm_cells, 1, 1)
     # draw_graph(gd1c1)
 
-    f1_cells = [cell for cell in gm_cells if cell.material_id == 13]
+    target_mat_id = 13
+
+    f_cells = [cell for cell in gm_cells if cell.material_id == target_mat_id]
+    for mesh_cell in f_cells:
+        cell_id = mesh_cell.id
+        tag_v = validate_entity(mesh_cell.node_tags)
+        type_index = mesh_cell_type_index('line')
+        cells_2d_ids = list(gd2c1.predecessors(cell_id))
+        assert len(cells_2d_ids) == 2
+        cell_p = copy.deepcopy(mesh_cell)
+        cell_n = copy.deepcopy(mesh_cell)
+
+        # positive side
+        gm_cells, cell_p, d_cells = insert_cell_data(gm_cells, cell_p, d_cells,
+                                                            type_index, tag_v, +1)
+        cell_2d_p = gm_cells[cells_2d_ids[0]]
+        edge_id_p = [i for i, cell in enumerate(cell_2d_p.cells_1d) if cell.id == cell_id]
+        cell_2d_p.cells_1d[edge_id_p[0]] = cell_p
+
+        # negative side
+        gm_cells, cell_n, d_cells = insert_cell_data(gm_cells, cell_n, d_cells,
+                                                            type_index, tag_v, -1)
+
+        cell_2d_n = gm_cells[cells_2d_ids[1]]
+        edge_id_n = [i for i, cell in enumerate(cell_2d_n.cells_1d) if cell.id == cell_id]
+        cell_2d_n.cells_1d[edge_id_n[0]] = cell_n
+
+
+    cgd2c1 = build_graph(gm_cells, 2, 1)
+    cgd2c2 = build_graph(gm_cells, 2, 2)
+    cgd1c1 = build_graph(gm_cells, 1, 1)
+    aka = 0
 
 if __name__ == '__main__':
     main()
