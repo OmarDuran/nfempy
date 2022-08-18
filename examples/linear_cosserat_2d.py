@@ -234,11 +234,15 @@ def main():
     max_cell_id = len(g_builder.cells)
 
     # insert base fractures
+
     fracture_1 = np.array([[0.25, 0.25], [0.75, 0.75]])
     fracture_2 = np.array([[0.25, 0.75], [0.75, 0.25]])
     fracture_3 = np.array([[0.5, 0.25], [0.5, 0.75]])
     fracture_4 = np.array([[0.65, 0.25], [0.65, 0.75]])
     fracture_5 = np.array([[0.25, 0.5], [0.75, 0.5]])
+
+    fracture_1 = np.array([[0.5, 0.25], [0.5, 0.75]])
+    fracture_2 = np.array([[0.25, 0.5], [0.75, 0.5]])
 
     fractures = [fracture_1,fracture_2]
 
@@ -292,6 +296,7 @@ def main():
     geo_cells = fracture_network.cells[list(fracture_network.graph.nodes())]
     geo_0_cells = [cell for cell in geo_cells if cell.dimension == 0]
     geo_1_cells = [cell for cell in geo_cells if cell.dimension == 1 and len(cell.immersed_cells) > 0]
+    # geo_1_cells = [cell for cell in geo_cells if cell.dimension == 1 and cell.id == 13]
 
     tags_1d = []
     tags_0d = []
@@ -432,21 +437,18 @@ def main():
 
 
     def gather_graph_edges(dimension, mesh_cell: MeshCell, tuple_id_list):
-        for cell in mesh_cell.cells_0d:
-            tuple_id_list.append((mesh_cell.id, cell.id))
-            if cell.dimension == 0:
-                print("BC: Vertex with id: ", cell.id)
-            else:
-                gather_graph_edges(dimension, cell, tuple_id_list)
 
-        for cell in mesh_cell.cells_1d:
-            tuple_id_list.append((mesh_cell.id, cell.id))
-            if cell.dimension == 0:
-                print("BC: Vertex with id: ", cell.id)
-            else:
-                gather_graph_edges(dimension, cell, tuple_id_list)
+        mesh_cell_list = None
+        if dimension == 0:
+            mesh_cell_list = mesh_cell.cells_0d
+        elif dimension == 1:
+            mesh_cell_list = mesh_cell.cells_1d
+        elif dimension == 2:
+            mesh_cell_list = mesh_cell.cells_2d
+        else:
+            raise ValueError('Dimension not available: ',dimension)
 
-        for cell in mesh_cell.cells_2d:
+        for cell in mesh_cell_list:
             tuple_id_list.append((mesh_cell.id, cell.id))
             if cell.dimension == 0:
                 print("BC: Vertex with id: ", cell.id)
@@ -463,7 +465,22 @@ def main():
 
         tuple_id_list = []
         for cell_i in disjoint_cells:
-            gather_graph_edges(co_dimension, cell_i, tuple_id_list)
+            gather_graph_edges(dimension-co_dimension, cell_i, tuple_id_list)
+
+        graph = nx.from_edgelist(tuple_id_list, create_using=nx.DiGraph)
+        return graph
+
+    def build_graph_on_index(cells, index, dimension, co_dimension):
+
+        disjoint_cells = [
+            cell_i
+            for cell_i in cells
+            if cell_i.dimension == dimension and cell_i.id == index
+        ]
+
+        tuple_id_list = []
+        for cell_i in disjoint_cells:
+            gather_graph_edges(dimension-co_dimension, cell_i, tuple_id_list)
 
         graph = nx.from_edgelist(tuple_id_list, create_using=nx.DiGraph)
         return graph
@@ -476,7 +493,8 @@ def main():
             node_color="skyblue",
         )
 
-    graph = build_graph(gm_cells, 1, 1)
+    # graph = build_graph_on_index(gm_cells, 20, 2, 2)
+    graph = build_graph(gm_cells, 2, 1)
     draw_graph(graph)
     aka = 0
 
@@ -491,6 +509,9 @@ def main():
     #     insert_simplex(gm_cells,cell_i,cell_id)
     #     cell_id = cell_id + 1
 
+    tags_0d = [cell.id for cell in gm_cells if cell.dimension == 0]
+    tags_1d = [cell.id for cell in gm_cells if cell.dimension == 1]
+    tags_2d = [cell.id for cell in gm_cells if cell.dimension == 2]
 
     # write vtk files
     physical_tags_2d = mesh_from_file.get_cell_data("gmsh:physical", "triangle")
