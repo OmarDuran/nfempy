@@ -53,6 +53,28 @@ class MeshCell:
     def set_cells_2d(self, cells_2d):
         self.cells_2d = cells_2d
 
+    def update_codimension_1_cell(self, index, d_m_1_cell):
+        if self.dimension == 3:
+            # 3-d case
+            current_cell = self.cells_2d[index]
+            for i, cell_0d in enumerate(current_cell.cells_0d):
+                cell_0d = d_m_1_cell.cells_0d[i]
+
+            for i, cell_1d in enumerate(current_cell.cells_1d):
+                cell_1d = d_m_1_cell.cells_1d[i]
+
+            self.cells_2d[index] = d_m_1_cell
+        elif self.dimension == 2:
+            # 2-d case
+            current_cell = self.cells_1d[index]
+            for i, cell_0d in enumerate(current_cell.cells_0d):
+                cell_0d = d_m_1_cell.cells_0d[i]
+
+            self.cells_1d[index] = d_m_1_cell
+        elif self.dimension == 1:
+            # 1-d case
+            self.cells_0d[index] = d_m_1_cell
+
     @staticmethod
     def mesh_cell_type(dimension):
         types = ("0d-cell", "1d-cell", "2d-cell", "3d-cell")

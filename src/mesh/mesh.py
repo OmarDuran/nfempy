@@ -47,11 +47,11 @@ class Mesh:
         if position is None:
             cell_id = len(self.cell_data)
             self.cell_data.__setitem__(key, cell_id)
-            # self.cells = np.append(self.cells, mesh_cell)
+            self.cells = np.append(self.cells, mesh_cell)
             mesh_cell.set_id(cell_id)
         else:
             cell_id = position
-            # mesh_cell = self.cells[cell_id]
+            mesh_cell = self.cells[cell_id]
 
         return mesh_cell
 
@@ -65,6 +65,8 @@ class Mesh:
             self.insert_simplex_cell(cell_block, physical)
 
     def insert_simplex_cell(self, cell_block, physical):
+
+        assert self.dimension == 2
 
         if cell_block.dim == 0:
             type_index = self.mesh_cell_type_index(cell_block.type)
@@ -225,8 +227,9 @@ class Mesh:
 
         assert self.dimension == 2
 
-        graph_nodes = list(self.fracture_network.graph.nodes())
-        geo_cells = self.fracture_network.cells[graph_nodes]
+        fracture_network = self.Mesher.fracture_network
+        graph_nodes = list(fracture_network.graph.nodes())
+        geo_cells = fracture_network.cells[graph_nodes]
         i_cells = [cell for cell in geo_cells if
                    cell.dimension == 1 and len(cell.immersed_cells) > 0]
         ni_cells = [cell.id for m_cell in i_cells for cell in m_cell.immersed_cells]
@@ -235,7 +238,7 @@ class Mesh:
 
         for geo_1_cell in geo_1_cells:
             b, e = (geo_1_cell.boundary_cells[0].point_id, geo_1_cell.boundary_cells[1].point_id)
-            cell_points = self.fracture_network.points[[b, e]]
+            cell_points = fracture_network.points[[b, e]]
             R = cell_points[1] - cell_points[0]
             tau = (R)/np.linalg.norm(R)
             n = np.array([tau[1], -tau[0]])
@@ -246,18 +249,17 @@ class Mesh:
 
     def cut_conformity_on_fractures(self):
 
-
         # this method requires
         # dictionary of fracture id's to (normal,fracture barycenter)
         self.compute_fracture_normals()
 
-        gd2c1 = self.build_graph(2, 1)
-        gd2c2 = self.build_graph(2, 2)
-        gd1c1 = self.build_graph(1, 1)
-
         assert self.dimension == 2
 
         for data in self.fracture_normals.items():
+
+            gd2c1 = self.build_graph(2, 1)
+            gd2c2 = self.build_graph(2, 2)
+            frac_graph = self.build_graph(1, 1)
 
             mat_id, (n, f_xc) = data
             f_cells = [cell for cell in self.cells if cell.material_id == mat_id]
@@ -279,85 +281,177 @@ class Mesh:
                     cell_2d_p = self.cells[cells_2d_ids[1]]
                     cell_2d_n = self.cells[cells_2d_ids[0]]
 
-                cell_p = copy.deepcopy(mesh_cell)
-                cell_n = copy.deepcopy(mesh_cell)
+                self.create_new_cells(frac_graph, mesh_cell, cell_2d_p, cell_2d_n)
 
-                # positive side
-                cell_p = self.insert_cell_data(cell_p, type_index, tag_v, +1)
-                edge_id_p = [i for i, cell in enumerate(cell_2d_p.cells_1d) if
-                             cell.id == cell_id]
-                cell_2d_p.cells_1d[edge_id_p[0]] = cell_p
 
-                # negative side
-                cell_n = self.insert_cell_data(cell_n, type_index, tag_v, -1)
-                edge_id_n = [i for i, cell in enumerate(cell_2d_n.cells_1d) if
-                             cell.id == cell_id]
-                cell_2d_n.cells_1d[edge_id_n[0]] = cell_n
+    def create_new_cells(self, frac_graph, d_m_1_frac_cell, cell_p, cell_n):
 
-                print("Edge - New ids: ", [cell_p.id, cell_n.id])
+        # Detecting fracture boundaries
+        d_m_1_cells = []
+        if self.dimension == 3:
+            d_m_1_cells = d_m_1_frac_cell.cells_1d
+        else:
+            d_m_1_cells = d_m_1_frac_cell.cells_0d
 
-                # cutting node support
-                cell_id_0 = mesh_cell.cells_0d[0].id
-                cell_id_1 = mesh_cell.cells_0d[1].id
-                pre_id_0 = list(gd1c1.predecessors(cell_id_0))
-                pre_id_1 = list(gd1c1.predecessors(cell_id_1))
+        are_there_boundaries_q = []
+        for d_m_1_cell in d_m_1_cells:
+            pre_ids = list(frac_graph.predecessors(d_m_1_cell.id))
+            pre_cells = [id for id in pre_ids if
+                              self.cells[id].material_id is not None]
+            is_d_m_2_cell_bc_q = len(pre_cells) <= 1
+            are_there_boundaries_q.append(is_d_m_2_cell_bc_q)
 
-                pre_cells_id_0 = [self.cells[id] for id in pre_id_0 if
-                                  self.cells[id].material_id is not None]
-                pre_cells_id_1 = [self.cells[id] for id in pre_id_1 if
-                                  self.cells[id].material_id is not None]
-                id_0_bc_q = len(pre_cells_id_0) > 1
-                id_1_bc_q = len(pre_cells_id_1) > 1
+        if any(are_there_boundaries_q):
+            # partial conformity cut
+            duplicates_q = [not boundary_q for boundary_q in are_there_boundaries_q]
+            d_m_1_cell_p = self.partial_duplicate_cell(d_m_1_frac_cell, +1, duplicates_q)
+            d_m_1_cell_n = self.partial_duplicate_cell(d_m_1_frac_cell, -1, duplicates_q)
 
-                if id_0_bc_q:
-                    mesh_cell_0d = mesh_cell.cells_0d[0]
-                    cell_id = mesh_cell_0d.id
-                    cell_0d_p = copy.deepcopy(mesh_cell_0d)
-                    cell_0d_n = copy.deepcopy(mesh_cell_0d)
+            d_m_1_cell_id_p = [i for i, cell in enumerate(cell_p.cells_1d) if
+                         cell.id == d_m_1_frac_cell.id]
+            d_m_1_cell_id_n = [i for i, cell in enumerate(cell_n.cells_1d) if
+                               cell.id == d_m_1_frac_cell.id]
 
-                    tag_v = self.validate_entity(mesh_cell_0d.node_tags)
-                    type_index = self.mesh_cell_type_index('vertex')
+            cell_p.update_codimension_1_cell(d_m_1_cell_id_p[0], d_m_1_cell_p)
+            cell_n.update_codimension_1_cell(d_m_1_cell_id_n[0], d_m_1_cell_n)
 
-                    # positive side
-                    cell_0d_p = self.insert_cell_data(cell_0d_p,type_index, tag_v, +1)
+            print("Partial duplicated d-1-cells with ids: ", [cell_p.id, cell_n.id])
+        else:
+            # full conformity cut
+            d_m_1_cell_p = self.duplicate_cell(d_m_1_frac_cell, +1)
+            d_m_1_cell_n = self.duplicate_cell(d_m_1_frac_cell, -1)
 
-                    vertex_id_p = [i for i, cell in enumerate(cell_p.cells_0d) if
-                                   cell.id == cell_id]
-                    cell_p.cells_0d[vertex_id_p[0]] = cell_0d_p
+            d_m_1_cell_id_p = [i for i, cell in enumerate(cell_p.cells_1d) if
+                         cell.id == d_m_1_frac_cell.id]
+            d_m_1_cell_id_n = [i for i, cell in enumerate(cell_n.cells_1d) if
+                               cell.id == d_m_1_frac_cell.id]
 
-                    # negative side
-                    cell_0d_n = self.insert_cell_data(cell_0d_n,type_index, tag_v, -1)
+            cell_p.update_codimension_1_cell(d_m_1_cell_id_p[0], d_m_1_cell_p)
+            cell_n.update_codimension_1_cell(d_m_1_cell_id_n[0], d_m_1_cell_n)
 
-                    vertex_id_n = [i for i, cell in enumerate(cell_n.cells_0d) if
-                                   cell.id == cell_id]
-                    cell_n.cells_0d[vertex_id_n[0]] = cell_0d_n
-                    print("Side 0 - New ids: ", [cell_0d_p.id, cell_0d_n.id])
-                else:
-                    print("Disconnect fracture boundary from skins ")
+            print("Full duplicated d-1-cells with ids: ", [cell_p.id, cell_n.id])
 
-                if id_1_bc_q:
-                    mesh_cell_0d = mesh_cell.cells_0d[1]
-                    cell_id = mesh_cell_0d.id
-                    cell_0d_p = copy.deepcopy(mesh_cell_0d)
-                    cell_0d_n = copy.deepcopy(mesh_cell_0d)
 
-                    tag_v = self.validate_entity(mesh_cell_0d.node_tags)
-                    type_index = self.mesh_cell_type_index('vertex')
+        aka = 0
 
-                    # positive side
-                    cell_0d_p = self.insert_cell_data(cell_0d_p, type_index, tag_v, +1)
+    def duplicate_cell(self, cell, sign):
 
-                    vertex_id_p = [i for i, cell in enumerate(cell_p.cells_0d) if
-                                   cell.id == cell_id]
-                    cell_p.cells_0d[vertex_id_p[0]] = cell_0d_p
+        mesh_cell = None
+        if cell.dimension == 1:
+            mesh_cell = self.duplicate_cells_1d(cell, sign)
+        elif cell.dimesion == 2:
+            mesh_cell = self.duplicate_cells_2d(cell, sign)
 
-                    # negative side
-                    cell_0d_n = self.insert_cell_data(cell_0d_n, type_index, tag_v, -1)
+        return mesh_cell
 
-                    vertex_id_n = [i for i, cell in enumerate(cell_n.cells_0d) if
-                                   cell.id == cell_id]
-                    cell_n.cells_0d[vertex_id_n[0]] = cell_0d_n
-                    print("Side 1 - New ids: ", [cell_0d_p.id, cell_0d_n.id])
+    def duplicate_cells_0d(self, cell, sign):
 
-                else:
-                    print("Disconnect fracture boundary from skins ")
+        cells_0d = []
+        for d_m_1_cell in cell.cells_0d:
+            type_index = self.mesh_cell_type_index('vertex')
+            cell_0d = copy.deepcopy(d_m_1_cell)
+            node_tags = cell_0d.node_tags
+            tags_v = self.validate_entity(cell_0d.node_tags)
+            cell_0d = self.insert_cell_data(cell_0d, type_index, tags_v, sign)
+            cells_0d.append(cell_0d)
+
+        return cells_0d
+
+    def duplicate_cells_1d(self, cell, sign):
+
+        cells_0d = self.duplicate_cells_0d(cell, sign)
+        type_index = self.mesh_cell_type_index('line')
+        mesh_cell = MeshCell(1)
+        if sign != 0:
+            material_id = cell.get_material_id() * sign
+            mesh_cell.set_material_id(material_id)
+        mesh_cell.set_node_tags(cell.node_tags)
+        mesh_cell.set_cells_0d(np.array(cells_0d))
+        tags_v = self.validate_entity(cell.node_tags)
+        mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v, sign)
+        return mesh_cell
+
+    def duplicate_cells_2d(self, cell, sign):
+
+        cells_0d = self.duplicate_cells_0d(cell, sign)
+
+        cells_1d = []
+        for d_m_1_cell in cell.cells_1d:
+            cell_1d = self.duplicate_cells_1d(d_m_1_cell, sign)
+            cells_1d.append(cell_1d)
+
+        type_index = self.mesh_cell_type_index(cell_block.type)
+        mesh_cell = MeshCell(2)
+        if sign != 0:
+            material_id = cell.get_material_id() * sign
+            mesh_cell.set_material_id(material_id)
+        mesh_cell.set_node_tags(cell.node_tags)
+        mesh_cell.set_cells_0d(np.array(cells_0d))
+        mesh_cell.set_cells_1d(np.array(cells_1d))
+        tags_v = self.validate_entity(node_tags)
+        mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v)
+        return mesh_cell
+
+    def partial_duplicate_cell(self, cell, sign, duplicates_q):
+
+        mesh_cell = None
+        if cell.dimension == 1:
+            mesh_cell = self.partial_duplicate_cells_1d(cell, sign, duplicates_q)
+        elif cell.dimesion == 2:
+            assert cell.dimesion != 2
+            mesh_cell = self.partial_duplicate_cells_2d(cell, sign, duplicates_q, duplicates_q)
+
+        return mesh_cell
+
+    def partial_duplicate_cells_0d(self, cell, sign, duplicates_q):
+
+        cells_0d = []
+        for d_m_1_cell, duplicate_q in zip(cell.cells_0d, duplicates_q):
+            type_index = self.mesh_cell_type_index('vertex')
+            if duplicate_q:
+                cell_0d = copy.deepcopy(d_m_1_cell)
+                node_tags = cell_0d.node_tags
+                tags_v = self.validate_entity(cell_0d.node_tags)
+                cell_0d = self.insert_cell_data(cell_0d, type_index, tags_v, sign)
+                cells_0d.append(cell_0d)
+            else:
+                cells_0d.append(d_m_1_cell)
+
+        return cells_0d
+
+    def partial_duplicate_cells_1d(self, cell, sign, duplicates_q):
+
+        cells_0d = self.partial_duplicate_cells_0d(cell, sign, duplicates_q)
+        type_index = self.mesh_cell_type_index('line')
+        mesh_cell = MeshCell(1)
+        if sign != 0:
+            material_id = cell.get_material_id() * sign
+            mesh_cell.set_material_id(material_id)
+        mesh_cell.set_node_tags(cell.node_tags)
+        mesh_cell.set_cells_0d(np.array(cells_0d))
+        tags_v = self.validate_entity(cell.node_tags)
+        mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v, sign)
+        return mesh_cell
+
+    def partial_duplicate_cells_2d(self, cell, sign, duplicates_1d_q, duplicates_0d_q):
+
+        cells_0d = self.partial_duplicate_cells_0d(cell, sign, duplicates_0d_q)
+        cells_1d = []
+        for d_m_1_cell, duplicate_q in zip(cell.cells_1d,duplicates_1d_q):
+            if duplicate_q:
+                cell_1d = self.partial_duplicate_cells_1d(d_m_1_cell)
+                cells_1d.append(cell_1d)
+            else:
+                cells_1d.append(d_m_1_cell)
+
+        type_index = self.mesh_cell_type_index(cell_block.type)
+        mesh_cell = MeshCell(2)
+        if sign != 0:
+            material_id = cell.get_material_id() * sign
+            mesh_cell.set_material_id(material_id)
+        mesh_cell.set_node_tags(cell.node_tags)
+        mesh_cell.set_cells_0d(np.array(cells_0d))
+        mesh_cell.set_cells_1d(np.array(cells_1d))
+        tags_v = self.validate_entity(node_tags)
+        mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v)
+        return mesh_cell
