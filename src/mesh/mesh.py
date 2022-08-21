@@ -3,23 +3,23 @@ import numpy as np
 import networkx as nx
 from mesh.mesh_cell import MeshCell
 from mesh.mesh_cell import barycenter
+from mesh.mesher import Mesher
 import copy
-
-from geometry.fracture_network import FractureNetwork
 
 class Mesh:
     def __init__(self, dimension, file_name):
         self.dimension = dimension
         self.graph = None
-        self.cell_data = np.empty((0, 6), dtype=int)
         self.cells = np.array([], dtype=MeshCell)
+        self.duplicated_cells = np.array([], dtype=MeshCell)
         self.conformal_mesh = meshio.read(file_name)
         self.points = self.conformal_mesh.points
+        self.cell_data = {} #np.array([], dtype=int)
         self.fracture_normals = {}
-        self.fracture_network = None
+        self.Mesher = None
 
-    def set_fracture_network(self, fracture_network):
-        self.fracture_network = fracture_network
+    def set_Mesher(self, Mesher):
+        self.Mesher = Mesher
 
     def mesh_cell_type_index(self, name):
         types = {"vertex": 1, "line": 2, "triangle": 3, "tetra": 4}
@@ -30,27 +30,34 @@ class Mesh:
         return node_tags[perm]
 
     def insert_cell_data(self, mesh_cell, type_index, tags, sign=0):
+
+        # composing key
+        # The key can be composed in many ways
         chunk = [0 for i in range(6)]
         chunk[0] = sign
         chunk[1] = type_index
         for i, tag in enumerate(tags):
             chunk[i + 2] = tag
-        position = np.where((self.cell_data == tuple(chunk)).all(axis=1))
+        key = ''
+        for integer in chunk:
+            key = key + str(integer)
+
+        position = self.cell_data.get(key,None) # np.where((self.cell_data == tuple(chunk)).all(axis=1))
         cell_id = None
-        if position[0].size == 0:
+        if position is None:
             cell_id = len(self.cell_data)
-            # self.cell_data = np.append(self.cell_data, [chunk], axis=0)
-            self.cell_data = np.vstack((self.cell_data,[chunk]))
-            self.cells = np.append(self.cells, mesh_cell)
-            # self.cells = np.vstack((self.cells,mesh_cell))
+            self.cell_data.__setitem__(key, cell_id)
+            # self.cells = np.append(self.cells, mesh_cell)
             mesh_cell.set_id(cell_id)
         else:
-            cell_id = position[0][0]
-            mesh_cell = self.cells[cell_id]
+            cell_id = position
+            # mesh_cell = self.cells[cell_id]
 
         return mesh_cell
 
     def transfer_conformal_mesh(self):
+
+        # preallocate cells objects
 
         cells = self.conformal_mesh.cells
         physical_tag = self.conformal_mesh.cell_data["gmsh:physical"]
