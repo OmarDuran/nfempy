@@ -16,10 +16,8 @@ class MeshCell:
         self.material_id = None
         self.node_tags = np.array([], dtype=int)
         self.perm = np.array([], dtype=int)
-        self.cells_0d = np.array([], dtype=MeshCell)
-        self.cells_1d = np.array([], dtype=MeshCell)
-        self.cells_2d = np.array([], dtype=MeshCell)
-
+        data = [np.array([], dtype=int) for i in range(dimension)]
+        self.cells_ids = data
 
 
     def set_id(self, id):
@@ -41,39 +39,58 @@ class MeshCell:
     def get_node_tags(self):
         return self.node_tags
 
-    # @abc.abstractmethod
-    def set_cells_0d(self, cells_0d):
-        self.cells_0d = cells_0d
+    def set_cells_ids(self, dim, cells_ids):
+        assert self.dimension > dim
+        self.cells_ids[dim] = cells_ids
 
-    # @abc.abstractmethod
-    def set_cells_1d(self, cells_1d):
-        self.cells_1d = cells_1d
+    # def update_codimension_1_cell(self, index, d_m_1_cell):
+    #
+    #     # n_cells_0d = len(self.cells_0d)
+    #     # loop = [i for i in range(n_cells_0d)]
+    #     # loop.append(loop[0])
+    #     # connectivities = np.array(
+    #     #     [[loop[index], loop[index + 1]] for index in range(len(loop) - 1)]
+    #     # )
+    #
+    #     if self.dimension == 3:
+    #         # 3-d case
+    #         assert self.dimension == 2
+    #         self.update_cells_1d_from_cells_0d(index, d_m_1_cell)
+    #         current_cell = self.cells_2d[index]
+    #         for i, cell_0d in enumerate(current_cell.cells_0d):
+    #             cell_0d = d_m_1_cell.cells_0d[i]
+    #
+    #         for i, cell_1d in enumerate(current_cell.cells_1d):
+    #             cell_1d = d_m_1_cell.cells_1d[i]
+    #
+    #         self.cells_2d[index] = d_m_1_cell
+    #         self.update_cells_1d_from_cells_0d()
+    #     elif self.dimension == 2:
+    #         # 2-d case
+    #         self.update_cells_1d_from_cells_0d(index, d_m_1_cell)
+    #         self.cells_1d[index] = d_m_1_cell
+    #     elif self.dimension == 1:
+    #         # 1-d case
+    #         self.cells_0d[index] = d_m_1_cell
 
-    # @abc.abstractmethod
-    def set_cells_2d(self, cells_2d):
-        self.cells_2d = cells_2d
 
-    def update_codimension_1_cell(self, index, d_m_1_cell):
-        if self.dimension == 3:
-            # 3-d case
-            current_cell = self.cells_2d[index]
-            for i, cell_0d in enumerate(current_cell.cells_0d):
-                cell_0d = d_m_1_cell.cells_0d[i]
 
-            for i, cell_1d in enumerate(current_cell.cells_1d):
-                cell_1d = d_m_1_cell.cells_1d[i]
+    # def update_cells_1d_from_cells_0d(self, index, d_m_1_cell):
+    #
+    #     n_cells_0d = len(self.cells_0d)
+    #     loop = [i for i in range(n_cells_0d)]
+    #     loop.append(loop[0])
+    #     connectivities = np.array(
+    #         [[loop[index], loop[index + 1]] for index in range(len(loop) - 1)]
+    #     )
+    #
+    #     con = connectivities[index]
+    #     for i, c in enumerate(con):
+    #         self.cells_0d[c] = d_m_1_cell.cells_0d[i]
+    #
+    #     for i, con in enumerate(connectivities):
+    #         self.cells_1d[i].cells_0d = self.cells_0d[con]
 
-            self.cells_2d[index] = d_m_1_cell
-        elif self.dimension == 2:
-            # 2-d case
-            current_cell = self.cells_1d[index]
-            for i, cell_0d in enumerate(current_cell.cells_0d):
-                cell_0d = d_m_1_cell.cells_0d[i]
-
-            self.cells_1d[index] = d_m_1_cell
-        elif self.dimension == 1:
-            # 1-d case
-            self.cells_0d[index] = d_m_1_cell
 
     @staticmethod
     def mesh_cell_type(dimension):

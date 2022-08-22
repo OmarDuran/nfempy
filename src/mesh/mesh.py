@@ -11,7 +11,7 @@ class Mesh:
         self.dimension = dimension
         self.graph = None
         self.cells = np.array([], dtype=MeshCell)
-        self.duplicated_cells = np.array([], dtype=MeshCell)
+        self.duplicated_ids = {}
         self.conformal_mesh = meshio.read(file_name)
         self.points = self.conformal_mesh.points
         self.cell_data = {} #np.array([], dtype=int)
@@ -87,14 +87,14 @@ class Mesh:
                     mesh_cell.set_node_tags(np.array([node_tag]))
                     tag_v = self.validate_entity(np.array([node_tag]))
                     mesh_cell = self.insert_cell_data(mesh_cell, type_index, tag_v)
-                    cells_0d.append(mesh_cell)
+                    cells_0d.append(mesh_cell.id)
 
                 # 1d cells
                 type_index = self.mesh_cell_type_index(cell_block.type)
                 mesh_cell = MeshCell(1)
                 mesh_cell.set_material_id(p_tag)
                 mesh_cell.set_node_tags(node_tags)
-                mesh_cell.set_cells_0d(np.array(cells_0d))
+                mesh_cell.set_cells_ids(0,np.array(cells_0d))
                 tags_v = self.validate_entity(node_tags)
                 mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v)
         elif cell_block.dim == 2:
@@ -109,7 +109,7 @@ class Mesh:
                     mesh_cell.set_node_tags(np.array([node_tag]))
                     tag_v = self.validate_entity(np.array([node_tag]))
                     mesh_cell = self.insert_cell_data(mesh_cell, type_index, tag_v)
-                    cells_0d.append(mesh_cell)
+                    cells_0d.append(mesh_cell.id)
 
                 # 1d cells
                 loop = [i for i in range(len(node_tags))]
@@ -123,18 +123,18 @@ class Mesh:
                     type_index = self.mesh_cell_type_index("line")
                     mesh_cell = MeshCell(1)
                     mesh_cell.set_node_tags(node_tags[con])
-                    mesh_cell.set_cells_0d(np.array(cells_0d)[con])
+                    mesh_cell.set_cells_ids(0,np.array(cells_0d)[con])
                     tags_v = self.validate_entity(node_tags[con])
                     mesh_cell = self.insert_cell_data(mesh_cell,type_index, tags_v)
-                    cells_1d.append(mesh_cell)
+                    cells_1d.append(mesh_cell.id)
 
                 # 2d cells
                 type_index = self.mesh_cell_type_index(cell_block.type)
                 mesh_cell = MeshCell(2)
                 mesh_cell.set_material_id(p_tag)
                 mesh_cell.set_node_tags(node_tags)
-                mesh_cell.set_cells_0d(np.array(cells_0d))
-                mesh_cell.set_cells_1d(np.array(cells_1d))
+                mesh_cell.set_cells_ids(0,np.array(cells_0d))
+                mesh_cell.set_cells_ids(1,np.array(cells_1d))
                 tags_v = self.validate_entity(node_tags)
                 mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v)
 
@@ -224,18 +224,18 @@ class Mesh:
 
         mesh_cell_list = None
         if dimension == 0:
-            mesh_cell_list = mesh_cell.cells_0d
+            mesh_cell_list = mesh_cell.cells_ids[0]
         elif dimension == 1:
-            mesh_cell_list = mesh_cell.cells_1d
+            mesh_cell_list = mesh_cell.cells_ids[1]
         elif dimension == 2:
-            mesh_cell_list = mesh_cell.cells_2d
+            mesh_cell_list = mesh_cell.cells_ids[2]
         else:
             raise ValueError("Dimension not available: ", dimension)
 
-        for cell in mesh_cell_list:
-            tuple_id_list.append((mesh_cell.id, cell.id))
-            if cell.dimension != 0:
-                self.gather_graph_edges(dimension, cell, tuple_id_list)
+        for id in mesh_cell_list:
+            tuple_id_list.append((mesh_cell.id, id))
+            if self.cells[id].dimension != dimension:
+                self.gather_graph_edges(dimension, self.cells[id], tuple_id_list)
 
 
     def build_graph(self, dimension, co_dimension):
@@ -319,15 +319,10 @@ class Mesh:
 
         assert self.dimension == 2
 
-        # gd2c1 = self.build_graph(2, 1)
-        # gd2c2 = self.build_graph(2, 2)
-        # frac_graph = self.build_graph(1, 1)
-
         for data in self.fracture_normals.items():
 
             gd2c1 = self.build_graph(2, 1)
-            gd2c2 = self.build_graph(2, 2)
-            frac_graph = self.build_graph(1, 1)
+            gd1c1 = self.build_graph(1, 1)
 
             mat_id, (n, f_xc) = data
             f_cells = [cell for cell in self.cells if cell.material_id == mat_id]
@@ -349,7 +344,7 @@ class Mesh:
                     cell_2d_p = self.cells[cells_2d_ids[1]]
                     cell_2d_n = self.cells[cells_2d_ids[0]]
 
-                self.create_new_cells(frac_graph, mesh_cell, cell_2d_p, cell_2d_n)
+                self.create_new_cells(gd1c1, mesh_cell, cell_2d_p, cell_2d_n)
 
 
     def create_new_cells(self, frac_graph, d_m_1_frac_cell, cell_p, cell_n):
@@ -357,13 +352,13 @@ class Mesh:
         # Detecting fracture boundaries
         d_m_1_cells = []
         if self.dimension == 3:
-            d_m_1_cells = d_m_1_frac_cell.cells_1d
+            d_m_1_cells = d_m_1_frac_cell.cells_ids[1]
         else:
-            d_m_1_cells = d_m_1_frac_cell.cells_0d
+            d_m_1_cells = d_m_1_frac_cell.cells_ids[0]
 
         are_there_boundaries_q = []
-        for d_m_1_cell in d_m_1_cells:
-            pre_ids = list(frac_graph.predecessors(d_m_1_cell.id))
+        for id in d_m_1_cells:
+            pre_ids = list(frac_graph.predecessors(id))
             pre_cells = [id for id in pre_ids if
                               self.cells[id].material_id is not None]
             is_d_m_2_cell_bc_q = len(pre_cells) <= 1
@@ -375,13 +370,15 @@ class Mesh:
             d_m_1_cell_p = self.partial_duplicate_cell(d_m_1_frac_cell, +1, duplicates_q)
             d_m_1_cell_n = self.partial_duplicate_cell(d_m_1_frac_cell, -1, duplicates_q)
 
-            d_m_1_cell_id_p = [i for i, cell in enumerate(cell_p.cells_1d) if
-                         cell.id == d_m_1_frac_cell.id]
-            d_m_1_cell_id_n = [i for i, cell in enumerate(cell_n.cells_1d) if
-                               cell.id == d_m_1_frac_cell.id]
+            d_m_1_cell_id_p = [i for i, id in enumerate(cell_p.cells_ids[1]) if
+                         id == d_m_1_frac_cell.id]
+            d_m_1_cell_id_n = [i for i, id in enumerate(cell_n.cells_ids[1]) if
+                               id == d_m_1_frac_cell.id]
 
-            cell_p.update_codimension_1_cell(d_m_1_cell_id_p[0], d_m_1_cell_p)
-            cell_n.update_codimension_1_cell(d_m_1_cell_id_n[0], d_m_1_cell_n)
+            self.update_codimension_1_cell(cell_p, d_m_1_cell_id_p[0], d_m_1_cell_p)
+            self.update_codimension_1_cell(cell_n, d_m_1_cell_id_n[0], d_m_1_cell_n)
+
+
 
             print("Partial duplicated d-1-cells with ids: ", [cell_p.id, cell_n.id])
         else:
@@ -394,13 +391,52 @@ class Mesh:
             d_m_1_cell_id_n = [i for i, cell in enumerate(cell_n.cells_1d) if
                                cell.id == d_m_1_frac_cell.id]
 
-            cell_p.update_codimension_1_cell(d_m_1_cell_id_p[0], d_m_1_cell_p)
-            cell_n.update_codimension_1_cell(d_m_1_cell_id_n[0], d_m_1_cell_n)
+            self.update_codimension_1_cell(cell_p, d_m_1_cell_id_p[0], d_m_1_cell_p)
+            self.update_codimension_1_cell(cell_n, d_m_1_cell_id_n[0], d_m_1_cell_n)
 
             print("Full duplicated d-1-cells with ids: ", [cell_p.id, cell_n.id])
 
+    def update_codimension_1_cell(self, cell, index, d_m_1_cell):
 
-        aka = 0
+        if cell.dimension == 3:
+            # 3-d case
+            assert self.dimension == 2
+            # self.update_cells_1d_from_cells_0d(cell, index, d_m_1_cell)
+            # current_cell = self.cells_2d[index]
+            # for i, cell_0d in enumerate(current_cell.cells_0d):
+            #     cell_0d = d_m_1_cell.cells_0d[i]
+            #
+            # for i, cell_1d in enumerate(current_cell.cells_1d):
+            #     cell_1d = d_m_1_cell.cells_1d[i]
+            #
+            # cellcells_2d[index] = d_m_1_cell
+            # self.update_cells_1d_from_cells_0d()
+        elif cell.dimension == 2:
+            # 2-d case
+            self.update_cells_1d_from_cells_0d(cell, index, d_m_1_cell)
+            cell.cells_ids[1][index] = d_m_1_cell.id
+        elif cell.dimension == 1:
+            # 1-d case
+            cell.cells_ids[0][index] = d_m_1_cell.id
+
+    def update_cells_1d_from_cells_0d(self, cell, index, d_m_1_cell):
+
+        n_cells_0d = len(cell.cells_ids[0])
+        loop = [i for i in range(n_cells_0d)]
+        loop.append(loop[0])
+        connectivities = np.array(
+            [[loop[index], loop[index + 1]] for index in range(len(loop) - 1)]
+        )
+
+        con = connectivities[index]
+        for new_id in d_m_1_cell.cells_ids[0]:
+            old_id = self.duplicated_ids.get(new_id, None)
+            if old_id is None:
+                continue
+            for c in con:
+                current_id = cell.cells_ids[0][c]
+                if current_id == old_id:
+                    cell.cells_ids[0][c] = new_id
 
     def duplicate_cell(self, cell, sign):
 
@@ -415,7 +451,7 @@ class Mesh:
     def duplicate_cells_0d(self, cell, sign):
 
         cells_0d = []
-        for d_m_1_cell in cell.cells_0d:
+        for d_m_1_cell in cell.cells_ids[0]:
             type_index = self.mesh_cell_type_index('vertex')
             cell_0d = copy.deepcopy(d_m_1_cell)
             node_tags = cell_0d.node_tags
@@ -428,6 +464,7 @@ class Mesh:
 
             cell_0d = self.insert_cell_data(cell_0d, type_index, tags_v, sign)
             cells_0d.append(cell_0d)
+            self.duplicated_ids[cell_0d.id] = id
 
         return cells_0d
 
@@ -480,7 +517,8 @@ class Mesh:
     def partial_duplicate_cells_0d(self, cell, sign, duplicates_q):
 
         cells_0d = []
-        for d_m_1_cell, duplicate_q in zip(cell.cells_0d, duplicates_q):
+        for id, duplicate_q in zip(cell.cells_ids[0], duplicates_q):
+            d_m_1_cell = self.cells[id]
             type_index = self.mesh_cell_type_index('vertex')
             if duplicate_q:
                 cell_0d = copy.deepcopy(d_m_1_cell)
@@ -493,9 +531,10 @@ class Mesh:
                     cell_0d.set_material_id(material_id)
 
                 cell_0d = self.insert_cell_data(cell_0d, type_index, tags_v, sign)
-                cells_0d.append(cell_0d)
+                cells_0d.append(cell_0d.id)
+                self.duplicated_ids[cell_0d.id] = id
             else:
-                cells_0d.append(d_m_1_cell)
+                cells_0d.append(d_m_1_cell.id)
 
         return cells_0d
 
@@ -508,7 +547,7 @@ class Mesh:
             material_id = - (10*cell.get_material_id() + sign)
             mesh_cell.set_material_id(material_id)
         mesh_cell.set_node_tags(cell.node_tags)
-        mesh_cell.set_cells_0d(np.array(cells_0d))
+        mesh_cell.set_cells_ids(0,np.array(cells_0d))
         tags_v = self.validate_entity(cell.node_tags)
         mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v, sign)
         return mesh_cell
