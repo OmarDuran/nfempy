@@ -138,7 +138,7 @@ class Mesh:
                 tags_v = self.validate_entity(node_tags)
                 mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v)
 
-    def write_vtk(self):
+    def conformal_mesh_write_vtk(self):
 
         assert self.dimension == 2
 
@@ -151,7 +151,7 @@ class Mesh:
         mesh_2d = meshio.Mesh(
             self.conformal_mesh.points, cells=cells_dict, cell_data=cell_data
         )
-        meshio.write("geometric_mesh_2d.vtk", mesh_2d)
+        meshio.write("conf_geometric_mesh_2d.vtk", mesh_2d)
 
         physical_tags_1d = self.conformal_mesh.get_cell_data("gmsh:physical", "line")
         cells_dict = {"line": self.conformal_mesh.get_cells_type("line")}
@@ -159,13 +159,64 @@ class Mesh:
         mesh_1d = meshio.Mesh(
             points=self.conformal_mesh.points, cells=cells_dict, cell_data=cell_data
         )
-        meshio.write("geometric_mesh_1d.vtk", mesh_1d)
+        meshio.write("conf_geometric_mesh_1d.vtk", mesh_1d)
 
         physical_tags_0d = self.conformal_mesh.get_cell_data("gmsh:physical", "vertex")
         cells_dict = {"vertex": self.conformal_mesh.get_cells_type("vertex")}
         cell_data = {"physical_tag": [physical_tags_0d]}
         mesh_0d = meshio.Mesh(
             points=self.conformal_mesh.points, cells=cells_dict, cell_data=cell_data
+        )
+        meshio.write("conf_geometric_mesh_0d.vtk", mesh_0d)
+
+    def write_vtk(self):
+
+        assert self.dimension == 2
+
+        # write vtk files
+        physical_tags_2d = np.array([cell.material_id for cell in self.cells if
+                            cell.dimension == 2])
+        entity_tags_2d = np.array([cell.id for cell in self.cells if
+                                     cell.dimension == 2])
+
+        con_2d = np.array([cell.node_tags for cell in self.cells if
+         cell.dimension == 2])
+        cells_dict = {"triangle": con_2d}
+        cell_data = {"physical_tag": [physical_tags_2d],
+                     "entity_tag": [entity_tags_2d]}
+        mesh_2d = meshio.Mesh(
+            self.points, cells=cells_dict, cell_data=cell_data
+        )
+        meshio.write("geometric_mesh_2d.vtk", mesh_2d)
+
+        physical_tags_1d = np.array([cell.material_id for cell in self.cells if
+                            cell.dimension == 1 and cell.material_id != None])
+        entity_tags_1d = np.array([cell.id for cell in self.cells if
+                                     cell.dimension == 1 and cell.material_id != None])
+
+        con_1d = np.array([cell.node_tags for cell in self.cells if
+         cell.dimension == 1 and cell.material_id != None])
+        cells_dict = {"line": con_1d}
+        cell_data = {"physical_tag": [physical_tags_1d],
+                     "entity_tag": [entity_tags_1d]}
+        mesh_1d = meshio.Mesh(
+            self.points, cells=cells_dict, cell_data=cell_data
+        )
+        meshio.write("geometric_mesh_1d.vtk", mesh_1d)
+
+
+        physical_tags_0d = np.array([cell.material_id for cell in self.cells if
+                                     cell.dimension == 0 and cell.material_id != None])
+        entity_tags_0d = np.array([cell.id for cell in self.cells if
+                                   cell.dimension == 0 and cell.material_id != None])
+
+        con_0d = np.array([cell.node_tags for cell in self.cells if
+                           cell.dimension == 0 and cell.material_id != None])
+        cells_dict = {"vertex": con_0d}
+        cell_data = {"physical_tag": [physical_tags_0d],
+                     "entity_tag": [entity_tags_0d]}
+        mesh_0d = meshio.Mesh(
+            self.points, cells=cells_dict, cell_data=cell_data
         )
         meshio.write("geometric_mesh_0d.vtk", mesh_0d)
 
@@ -191,6 +242,19 @@ class Mesh:
 
         disjoint_cells = [
             cell_i for cell_i in self.cells if cell_i.dimension == dimension
+        ]
+
+        tuple_id_list = []
+        for cell_i in disjoint_cells:
+            self.gather_graph_edges(dimension - co_dimension, cell_i, tuple_id_list)
+
+        graph = nx.from_edgelist(tuple_id_list, create_using=nx.DiGraph)
+        return graph
+
+    def build_graph_on_materials(self, dimension, co_dimension):
+
+        disjoint_cells = [
+            cell_i for cell_i in self.cells if cell_i.dimension == dimension and cell_i.material_id is not None
         ]
 
         tuple_id_list = []
@@ -254,6 +318,10 @@ class Mesh:
         self.compute_fracture_normals()
 
         assert self.dimension == 2
+
+        # gd2c1 = self.build_graph(2, 1)
+        # gd2c2 = self.build_graph(2, 2)
+        # frac_graph = self.build_graph(1, 1)
 
         for data in self.fracture_normals.items():
 
@@ -351,7 +419,13 @@ class Mesh:
             type_index = self.mesh_cell_type_index('vertex')
             cell_0d = copy.deepcopy(d_m_1_cell)
             node_tags = cell_0d.node_tags
-            tags_v = self.validate_entity(cell_0d.node_tags)
+            tags_v = self.validate_entity(node_tags)
+
+            if d_m_1_cell.material_id is not None:
+                material_id = - (10*d_m_1_cell.get_material_id() + sign)
+                sign = sign * cell.material_id
+                cell_0d.set_material_id(material_id)
+
             cell_0d = self.insert_cell_data(cell_0d, type_index, tags_v, sign)
             cells_0d.append(cell_0d)
 
@@ -363,7 +437,7 @@ class Mesh:
         type_index = self.mesh_cell_type_index('line')
         mesh_cell = MeshCell(1)
         if sign != 0:
-            material_id = cell.get_material_id() * sign
+            material_id = - (10*cell.get_material_id() + sign)
             mesh_cell.set_material_id(material_id)
         mesh_cell.set_node_tags(cell.node_tags)
         mesh_cell.set_cells_0d(np.array(cells_0d))
@@ -383,7 +457,7 @@ class Mesh:
         type_index = self.mesh_cell_type_index(cell_block.type)
         mesh_cell = MeshCell(2)
         if sign != 0:
-            material_id = cell.get_material_id() * sign
+            material_id = - (10*cell.get_material_id() + sign)
             mesh_cell.set_material_id(material_id)
         mesh_cell.set_node_tags(cell.node_tags)
         mesh_cell.set_cells_0d(np.array(cells_0d))
@@ -411,7 +485,13 @@ class Mesh:
             if duplicate_q:
                 cell_0d = copy.deepcopy(d_m_1_cell)
                 node_tags = cell_0d.node_tags
-                tags_v = self.validate_entity(cell_0d.node_tags)
+                tags_v = self.validate_entity(node_tags)
+
+                if d_m_1_cell.material_id is not None:
+                    material_id = - (10*d_m_1_cell.get_material_id() + sign)
+                    sign = sign * cell.material_id
+                    cell_0d.set_material_id(material_id)
+
                 cell_0d = self.insert_cell_data(cell_0d, type_index, tags_v, sign)
                 cells_0d.append(cell_0d)
             else:
@@ -425,7 +505,7 @@ class Mesh:
         type_index = self.mesh_cell_type_index('line')
         mesh_cell = MeshCell(1)
         if sign != 0:
-            material_id = cell.get_material_id() * sign
+            material_id = - (10*cell.get_material_id() + sign)
             mesh_cell.set_material_id(material_id)
         mesh_cell.set_node_tags(cell.node_tags)
         mesh_cell.set_cells_0d(np.array(cells_0d))
@@ -447,7 +527,7 @@ class Mesh:
         type_index = self.mesh_cell_type_index(cell_block.type)
         mesh_cell = MeshCell(2)
         if sign != 0:
-            material_id = cell.get_material_id() * sign
+            material_id = - (10*cell.get_material_id() + sign)
             mesh_cell.set_material_id(material_id)
         mesh_cell.set_node_tags(cell.node_tags)
         mesh_cell.set_cells_0d(np.array(cells_0d))

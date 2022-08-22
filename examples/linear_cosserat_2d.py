@@ -74,7 +74,7 @@ def main():
     mesher.set_geometry_builder(g_builder)
     mesher.set_fracture_network(fracture_network)
     mesher.set_points()
-    mesher.generate(0.1)
+    mesher.generate(1.0)
     mesher.write_mesh("gmesh.msh")
 
 
@@ -86,11 +86,11 @@ def main():
     gd2c2 = gmesh.build_graph(2, 2)
     gd1c1 = gmesh.build_graph(1, 1)
     # gmesh.draw_graph(gd1c1)
-    gmesh.write_vtk()
     gmesh.cut_conformity_on_fractures()
-    cgd2c1 = gmesh.build_graph(2, 1)
-    cgd2c2 = gmesh.build_graph(2, 2)
-    cgd1c1 = gmesh.build_graph(1, 1)
+    gmesh.write_vtk()
+    cgd2c1 = gmesh.build_graph_on_materials(2, 1)
+    cgd2c2 = gmesh.build_graph_on_materials(2, 2)
+    cgd1c1 = gmesh.build_graph_on_materials(1, 1)
     # gmesh.draw_graph(gd1c1)
     aka = 0
 
