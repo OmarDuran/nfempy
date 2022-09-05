@@ -124,7 +124,7 @@ setup(
     py_modules=[
         os.path.splitext(os.path.basename(path))[0] for path in glob("src/*.py")
     ],
-    python_requires=">=3.8, <4",
+    python_requires=">=3.7, <4",
     # This field lists other packages that your project depends on to run.
     # Any package you put here will be installed by pip when your project is
     # installed, so they must be valid existing projects.

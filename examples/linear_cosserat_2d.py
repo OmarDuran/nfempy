@@ -1,6 +1,11 @@
+# from __future__ import print_function
+# from fenics import *
+# from mshr import *
+from dolfin import *
+
 import numpy as np
 from numpy import linalg as la
-import quadpy
+# import quadpy
 
 from shapely.geometry import LineString
 
@@ -14,6 +19,10 @@ from geometry.geometry_builder import GeometryBuilder
 
 from mesh.mesher import Mesher
 from mesh.mesh import Mesh
+from ufl import *
+
+import basix
+from basix import ElementFamily, CellType, LagrangeVariant
 
 
 
@@ -38,9 +47,129 @@ def polygon_polygon_intersection():
     fracture_network.draw_grahp()
     ika = 0
 
+def examples_fiat():
+
+    mesh = UnitSquareMesh(32, 32)
+
+    # Define function spaces and mixed (product) space
+    BDM = FunctionSpace(mesh, "BDM", 1)
+    DG = FunctionSpace(mesh, "DG", 0)
+    W = BDM * DG
+
+    # Define trial and test functions
+    (sigma, u) = TrialFunctions(W)
+    (tau, v) = TestFunctions(W)
+
+    # Define source function
+    f = Expression("10*exp(-(pow(x[0] - 0.5, 2) + pow(x[1] - 0.5, 2)) / 0.02)")
+
+    # Define variational form
+    a = (dot(sigma, tau) + div(tau) * u + div(sigma) * v) * dx
+    L = - f * v * dx
+
+    # Define function G such that G \cdot n = g
+    class BoundarySource(Expression):
+        def __init__(self, mesh):
+            self.mesh = mesh
+
+        def eval_cell(self, values, x, ufc_cell):
+            cell = Cell(self.mesh, ufc_cell.index)
+            n = cell.normal(ufc_cell.local_facet)
+            g = sin(5 * x[0])
+            values[0] = g * n[0]
+            values[1] = g * n[1]
+
+        def value_shape(self):
+            return (2,)
+
+    G = BoundarySource(mesh)
+
+    # Define essential boundary
+    def boundary(x):
+        return x[1] < DOLFIN_EPS or x[1] > 1.0 - DOLFIN_EPS
+
+    bc = DirichletBC(W.sub(0), G, boundary)
+
+    # Compute solution
+    w = Function(W)
+    solve(a == L, w, bc)
+    (sigma, u) = w.split()
+
+    # Plot sigma and u
+    plot(sigma)
+    plot(u)
+    interactive()
+
+    return
+
+    # Create mesh and define function space
+    domain = Circle(Point(0, 0), 1)
+    mesh = generate_mesh(domain, 64)
+
+    points, weights = basix.make_quadrature(
+        basix.QuadratureType.gauss_jacobi, CellType.triangle, 4)
+
+
+
+    aka = 0
+
+    # element = FiniteElement("Lagrange", triangle, 2)
+    #
+    # u = TrialFunction(element)
+    # v = TestFunction(element)
+    #
+    # x = SpatialCoordinate(triangle)
+    # d_x = x[0] - 0.5
+    # d_y = x[1] - 0.5
+    # f = 10.0 * exp(-(d_x * d_x + d_y * d_y) / 0.02)
+    # g = sin(5.0 * x[0])
+    #
+    # a = inner(grad(u), grad(v)) * dx
+    # L = f * v * dx + g * v * ds
+
+    # V = FiniteElement("CG", interval, 1)
+    # v = TestFunction(V)
+    # u = TrialFunction(V)
+    # w = Argument(V, 2)  # This was 0, not sure why
+    # f = Coefficient(V)
+    # x = SpatialCoordinate(interval)
+    # # pts = CellVertices(interval)
+
+    F0 = f * u * v * w * dx
+    a, L = system(F0)
+    assert (len(a.integrals()) == 0)
+    assert (len(L.integrals()) == 0)
+
+    F1 = derivative(F0, f)
+    a, L = system(F1)
+    assert (len(a.integrals()) == 0)
+    assert (len(L.integrals()) == 0)
+
+    F2 = action(F0, f)
+    a, L = system(F2)
+    assert (len(a.integrals()) == 1)
+    assert (len(L.integrals()) == 0)
+
+    F3 = action(F2, f)
+    a, L = system(F3)
+    assert (len(L.integrals()) == 1)
+
+    cell = Cell("triangle")
+    cell = triangle
+    aka = 0
+
+    # from FIAT import Lagrange, quadrature, shapes
+    # shape = shapes.TRIANGLE
+    # degree = 2
+    # U = Lagrange.Lagrange(shape, degree)
+    # Q = quadrature.make_quadrature(shape, 2)
+    # Ufs = U.function_space()
+    # Ufs.tabulate(Q.get_points())
 
 def main():
 
+    examples_fiat()
+    return 0
 
     # polygon_polygon_intersection()
     # return 0

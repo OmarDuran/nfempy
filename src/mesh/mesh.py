@@ -318,10 +318,10 @@ class Mesh:
         self.compute_fracture_normals()
 
         assert self.dimension == 2
+        gd2c1 = self.build_graph(2, 1)
 
         for data in self.fracture_normals.items():
 
-            gd2c1 = self.build_graph(2, 1)
             gd1c1 = self.build_graph(1, 1)
 
             mat_id, (n, f_xc) = data
@@ -346,6 +346,9 @@ class Mesh:
 
                 self.create_new_cells(gd1c1, mesh_cell, cell_2d_p, cell_2d_n)
 
+            self.duplicated_ids = {}
+
+
 
     def create_new_cells(self, frac_graph, d_m_1_frac_cell, cell_p, cell_n):
 
@@ -365,15 +368,18 @@ class Mesh:
             are_there_boundaries_q.append(is_d_m_2_cell_bc_q)
 
         if any(are_there_boundaries_q):
+            mat_id = d_m_1_frac_cell.material_id
             # partial conformity cut
-            duplicates_q = [not boundary_q for boundary_q in are_there_boundaries_q]
-            d_m_1_cell_p = self.partial_duplicate_cell(d_m_1_frac_cell, +1, duplicates_q)
-            d_m_1_cell_n = self.partial_duplicate_cell(d_m_1_frac_cell, -1, duplicates_q)
-
             d_m_1_cell_id_p = [i for i, id in enumerate(cell_p.cells_ids[1]) if
                          id == d_m_1_frac_cell.id]
             d_m_1_cell_id_n = [i for i, id in enumerate(cell_n.cells_ids[1]) if
                                id == d_m_1_frac_cell.id]
+
+            duplicates_q = [not boundary_q for boundary_q in are_there_boundaries_q]
+            d_m_1_cell_p = self.partial_duplicate_cell(mat_id, self.cells[d_m_1_frac_cell.id], +1, duplicates_q)
+            d_m_1_cell_n = self.partial_duplicate_cell(mat_id, self.cells[d_m_1_frac_cell.id], -1, duplicates_q)
+
+
 
             self.update_codimension_1_cell(cell_p, d_m_1_cell_id_p[0], d_m_1_cell_p)
             self.update_codimension_1_cell(cell_n, d_m_1_cell_id_n[0], d_m_1_cell_n)
@@ -428,6 +434,7 @@ class Mesh:
             [[loop[index], loop[index + 1]] for index in range(len(loop) - 1)]
         )
 
+        # Update 0d cells
         con = connectivities[index]
         for new_id in d_m_1_cell.cells_ids[0]:
             old_id = self.duplicated_ids.get(new_id, None)
@@ -437,6 +444,18 @@ class Mesh:
                 current_id = cell.cells_ids[0][c]
                 if current_id == old_id:
                     cell.cells_ids[0][c] = new_id
+
+        # update 1d cells
+        cells_1d = [self.cells[i] for i in cell.cells_ids[1]]
+        for new_id in d_m_1_cell.cells_ids[0]:
+            old_id = self.duplicated_ids.get(new_id, None)
+            if old_id is None:
+                continue
+            for cell_1d in cells_1d:
+                for i, id in enumerate(cell_1d.cells_ids[0]):
+                    if id == old_id:
+                        cell_1d.cells_ids[0][i] = new_id
+
 
     def duplicate_cell(self, cell, sign):
 
@@ -503,14 +522,14 @@ class Mesh:
         mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v)
         return mesh_cell
 
-    def partial_duplicate_cell(self, cell, sign, duplicates_q):
+    def partial_duplicate_cell(self, mat_id, cell, sign, duplicates_q):
 
         mesh_cell = None
         if cell.dimension == 1:
-            mesh_cell = self.partial_duplicate_cells_1d(cell, sign, duplicates_q)
+            mesh_cell = self.partial_duplicate_cells_1d(mat_id, cell, sign, duplicates_q)
         elif cell.dimesion == 2:
             assert cell.dimesion != 2
-            mesh_cell = self.partial_duplicate_cells_2d(cell, sign, duplicates_q, duplicates_q)
+            mesh_cell = self.partial_duplicate_cells_2d(mat_id, cell, sign, duplicates_q, duplicates_q)
 
         return mesh_cell
 
@@ -525,10 +544,10 @@ class Mesh:
                 node_tags = cell_0d.node_tags
                 tags_v = self.validate_entity(node_tags)
 
-                if d_m_1_cell.material_id is not None:
-                    material_id = - (10*d_m_1_cell.get_material_id() + sign)
-                    sign = sign * cell.material_id
-                    cell_0d.set_material_id(material_id)
+                mat_id = self.cells[id].material_id
+                material_id = - (10 * mat_id + sign)
+                sign = sign * cell.material_id
+                cell_0d.set_material_id(material_id)
 
                 cell_0d = self.insert_cell_data(cell_0d, type_index, tags_v, sign)
                 cells_0d.append(cell_0d.id)
@@ -538,23 +557,24 @@ class Mesh:
 
         return cells_0d
 
-    def partial_duplicate_cells_1d(self, cell, sign, duplicates_q):
+    def partial_duplicate_cells_1d(self, mat_id, cell, sign, duplicates_q):
 
         cells_0d = self.partial_duplicate_cells_0d(cell, sign, duplicates_q)
         type_index = self.mesh_cell_type_index('line')
         mesh_cell = MeshCell(1)
         if sign != 0:
-            material_id = - (10*cell.get_material_id() + sign)
+            material_id = - (10*mat_id + sign)
             mesh_cell.set_material_id(material_id)
         mesh_cell.set_node_tags(cell.node_tags)
         mesh_cell.set_cells_ids(0,np.array(cells_0d))
         tags_v = self.validate_entity(cell.node_tags)
         mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v, sign)
+        self.duplicated_ids[mesh_cell.id] = cell.id
         return mesh_cell
 
-    def partial_duplicate_cells_2d(self, cell, sign, duplicates_1d_q, duplicates_0d_q):
+    def partial_duplicate_cells_2d(self, mat_id, cell, sign, duplicates_1d_q, duplicates_0d_q):
 
-        cells_0d = self.partial_duplicate_cells_0d(cell, sign, duplicates_0d_q)
+        cells_0d = self.partial_duplicate_cells_0d(mat_id, cell, sign, duplicates_0d_q)
         cells_1d = []
         for d_m_1_cell, duplicate_q in zip(cell.cells_1d,duplicates_1d_q):
             if duplicate_q:
