@@ -318,10 +318,10 @@ class Mesh:
         self.compute_fracture_normals()
 
         assert self.dimension == 2
-        gd2c1 = self.build_graph(2, 1)
 
         for data in self.fracture_normals.items():
 
+            gd2c1 = self.build_graph(2, 1)
             gd1c1 = self.build_graph(1, 1)
 
             mat_id, (n, f_xc) = data
@@ -386,21 +386,22 @@ class Mesh:
 
 
 
-            print("Partial duplicated d-1-cells with ids: ", [cell_p.id, cell_n.id])
+            # print("Partial duplicated d-1-cells with ids: ", [cell_p.id, cell_n.id])
         else:
             # full conformity cut
-            d_m_1_cell_p = self.duplicate_cell(d_m_1_frac_cell, +1)
-            d_m_1_cell_n = self.duplicate_cell(d_m_1_frac_cell, -1)
+            mat_id = d_m_1_frac_cell.material_id
+            d_m_1_cell_id_p = [i for i, id in enumerate(cell_p.cells_ids[1]) if
+                         id == d_m_1_frac_cell.id]
+            d_m_1_cell_id_n = [i for i, id in enumerate(cell_n.cells_ids[1]) if
+                               id == d_m_1_frac_cell.id]
 
-            d_m_1_cell_id_p = [i for i, cell in enumerate(cell_p.cells_1d) if
-                         cell.id == d_m_1_frac_cell.id]
-            d_m_1_cell_id_n = [i for i, cell in enumerate(cell_n.cells_1d) if
-                               cell.id == d_m_1_frac_cell.id]
+            d_m_1_cell_p = self.duplicate_cell(mat_id, self.cells[d_m_1_frac_cell.id], +1)
+            d_m_1_cell_n = self.duplicate_cell(mat_id, self.cells[d_m_1_frac_cell.id], -1)
 
             self.update_codimension_1_cell(cell_p, d_m_1_cell_id_p[0], d_m_1_cell_p)
             self.update_codimension_1_cell(cell_n, d_m_1_cell_id_n[0], d_m_1_cell_n)
 
-            print("Full duplicated d-1-cells with ids: ", [cell_p.id, cell_n.id])
+            # print("Full duplicated d-1-cells with ids: ", [cell_p.id, cell_n.id])
 
     def update_codimension_1_cell(self, cell, index, d_m_1_cell):
 
@@ -457,12 +458,13 @@ class Mesh:
                         cell_1d.cells_ids[0][i] = new_id
 
 
-    def duplicate_cell(self, cell, sign):
+    def duplicate_cell(self, mat_id, cell, sign):
 
         mesh_cell = None
         if cell.dimension == 1:
-            mesh_cell = self.duplicate_cells_1d(cell, sign)
+            mesh_cell = self.duplicate_cells_1d(mat_id, cell, sign)
         elif cell.dimesion == 2:
+            assert cell.dimesion != 2
             mesh_cell = self.duplicate_cells_2d(cell, sign)
 
         return mesh_cell
@@ -470,35 +472,39 @@ class Mesh:
     def duplicate_cells_0d(self, cell, sign):
 
         cells_0d = []
-        for d_m_1_cell in cell.cells_ids[0]:
+        for id in cell.cells_ids[0]:
+            d_m_1_cell = self.cells[id]
             type_index = self.mesh_cell_type_index('vertex')
             cell_0d = copy.deepcopy(d_m_1_cell)
             node_tags = cell_0d.node_tags
             tags_v = self.validate_entity(node_tags)
 
-            if d_m_1_cell.material_id is not None:
-                material_id = - (10*d_m_1_cell.get_material_id() + sign)
-                sign = sign * cell.material_id
+            mat_id = self.cells[id].material_id
+            if mat_id is not None:
+                material_id = sign * (1000 * mat_id + sign)
                 cell_0d.set_material_id(material_id)
+                sign = material_id
 
             cell_0d = self.insert_cell_data(cell_0d, type_index, tags_v, sign)
-            cells_0d.append(cell_0d)
+            cells_0d.append(cell_0d.id)
             self.duplicated_ids[cell_0d.id] = id
 
         return cells_0d
 
-    def duplicate_cells_1d(self, cell, sign):
+    def duplicate_cells_1d(self, mat_id, cell, sign):
 
         cells_0d = self.duplicate_cells_0d(cell, sign)
         type_index = self.mesh_cell_type_index('line')
         mesh_cell = MeshCell(1)
         if sign != 0:
-            material_id = - (10*cell.get_material_id() + sign)
+            material_id = sign * (1000*mat_id + sign)
             mesh_cell.set_material_id(material_id)
+            sign = material_id
         mesh_cell.set_node_tags(cell.node_tags)
-        mesh_cell.set_cells_0d(np.array(cells_0d))
+        mesh_cell.set_cells_ids(0,np.array(cells_0d))
         tags_v = self.validate_entity(cell.node_tags)
         mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v, sign)
+        self.duplicated_ids[mesh_cell.id] = cell.id
         return mesh_cell
 
     def duplicate_cells_2d(self, cell, sign):
@@ -545,9 +551,10 @@ class Mesh:
                 tags_v = self.validate_entity(node_tags)
 
                 mat_id = self.cells[id].material_id
-                material_id = - (10 * mat_id + sign)
-                sign = sign * cell.material_id
-                cell_0d.set_material_id(material_id)
+                if mat_id is not None:
+                    material_id = sign * (1000 * mat_id + sign)
+                    cell_0d.set_material_id(material_id)
+                    sign = material_id
 
                 cell_0d = self.insert_cell_data(cell_0d, type_index, tags_v, sign)
                 cells_0d.append(cell_0d.id)
@@ -563,8 +570,9 @@ class Mesh:
         type_index = self.mesh_cell_type_index('line')
         mesh_cell = MeshCell(1)
         if sign != 0:
-            material_id = - (10*mat_id + sign)
+            material_id = sign * (1000*mat_id + sign)
             mesh_cell.set_material_id(material_id)
+            sign = material_id
         mesh_cell.set_node_tags(cell.node_tags)
         mesh_cell.set_cells_ids(0,np.array(cells_0d))
         tags_v = self.validate_entity(cell.node_tags)
@@ -594,3 +602,29 @@ class Mesh:
         tags_v = self.validate_entity(node_tags)
         mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v)
         return mesh_cell
+
+    def next_d_m_1(self, seed_id, cell_id, cell_m_1_id, graph):
+        pc = list(graph.predecessors(cell_m_1_id))
+        neighs = [id for id in pc if np.abs(self.cells[id].material_id) > 500]
+        fcell_ids = [id for id in neighs if id != cell_id]
+        assert len(fcell_ids) == 1
+        sc = list(graph.successors(fcell_ids[0]))
+        ids = [s_id for s_id in sc if s_id != cell_m_1_id]
+        assert len(ids) == 1
+        if seed_id == ids[0]:
+            print("Seed id was found: ", ids[0])
+            print("Skin boundary is closed.")
+        else:
+            print("Next pair:")
+            print("cell_id      : ", fcell_ids[0])
+            print("cell_m_1_id  : ", ids[0])
+            self.next_d_m_1(seed_id, fcell_ids[0], ids[0], graph)
+
+    def walk_on_skin(self, seed_id):
+        graph = self.build_graph_on_materials(1, 1)
+        pc = list(graph.predecessors(seed_id))
+        neighs = [id for id in pc if np.abs(self.cells[id].material_id) > 500]
+        assert len(neighs) != 0
+        id = seed_id
+        fcell_id = neighs[0]
+        self.next_d_m_1(seed_id, fcell_id, id, graph)

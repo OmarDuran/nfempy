@@ -10,9 +10,11 @@ import matplotlib.pyplot as plt
 
 from geometry.cell import Cell
 from geometry.geometry_builder import GeometryBuilder
+from mesh.mesher import Mesher
+from mesh.mesh import Mesh
 
 import basix
-from basix import ElementFamily, CellType, LagrangeVariant
+from basix import ElementFamily, CellType, LagrangeVariant, LatticeType
 
 
 
@@ -37,13 +39,149 @@ def polygon_polygon_intersection():
     fracture_network.draw_grahp()
     ika = 0
 
+
+def dof_permutations_tranformations():
+
+    # Degree 2 Lagrange element
+    # =========================
+    #
+    # We create a degree 2 Lagrange element on a triangle, then print the
+    # values of the attributes `dof_transformations_are_identity` and
+    # `dof_transformations_are_permutations`.
+    #
+    # The value of `dof_transformations_are_identity` is False: this tells
+    # us that permutations or transformations are needed for this element.
+    #
+    # The value of `dof_transformations_are_permutations` is True: this
+    # tells us that for this element, all the corrections we need to apply
+    # permutations. This is the simpler case, and means we make the
+    # orientation corrections by applying permutations when creating the
+    # DOF map.
+
+    lagrange = basix.create_element(
+        ElementFamily.P, CellType.triangle, 2, LagrangeVariant.equispaced)
+    print(lagrange.dof_transformations_are_identity)
+    print(lagrange.dof_transformations_are_permutations)
+
+    # We can apply permutations by using the matrices returned by the
+    # method `base_transformations`. This method will return one matrix
+    # for each edge of the cell (for 2D and 3D cells), and two matrices
+    # for each face of the cell (for 3D cells). These describe the effect
+    # of reversing the edge or reflecting and rotating the face.
+    #
+    # For this element, we know that the base transformations will be
+    # permutation matrices.
+
+    print(lagrange.base_transformations())
+
+    # The matrices returned by `base_transformations` are quite large, and
+    # are equal to the identity matrix except for a small block of the
+    # matrix. It is often easier and more efficient to use the matrices
+    # returned by the method `entity_transformations` instead.
+    #
+    # `entity_transformations` returns a dictionary that maps the type
+    # of entity (`"interval"`, `"triangle"`, `"quadrilateral"`) to a
+    # matrix describing the effect of permuting that entity on the DOFs
+    # on that entity.
+    #
+    # For this element, we see that this method returns one matrix for
+    # an interval: this matrix reverses the order of the four DOFs
+    # associated with that edge.
+
+    print(lagrange.entity_transformations())
+
+    # In orders to work out which DOFs are associated with each edge,
+    # we use the attribute `entity_dofs`. For example, the following can
+    # be used to see which DOF numbers are associated with edge (dim 1)
+    # number 2:
+
+    print(lagrange.entity_dofs[1][2])
+
+    # Degree 2 Lagrange element
+    # =========================
+    #
+    # For a degree 2 Lagrange element, no permutations or transformations
+    # are needed. We can verify this by checking that
+    # `dof_transformations_are_identity` is `True`. To confirm that the
+    # transformations are identity matrices, we also print the base
+    # transformations.
+
+    lagrange_degree_2 = basix.create_element(
+        ElementFamily.P, CellType.triangle, 2, LagrangeVariant.equispaced)
+    print(lagrange_degree_2.dof_transformations_are_identity)
+    print(lagrange_degree_2.base_transformations())
+
+    # Degree 2 Nédélec element
+    # ========================
+    #
+    # For a degree 2 Nédélec (first kind) element on a tetrahedron, the
+    # corrections are not all permutations, so both
+    # `dof_transformations_are_identity` and
+    # `dof_transformations_are_permutations` are `False`.
+
+    nedelec = basix.create_element(ElementFamily.N1E, CellType.tetrahedron, 2)
+    print(nedelec.dof_transformations_are_identity)
+    print(nedelec.dof_transformations_are_permutations)
+
+    # For this element, `entity_transformations` returns a dictionary
+    # with two entries: a matrix for an interval that describes
+    # the effect of reversing the edge; and an array of two matrices
+    # for a triangle. The first matrix for the triangle describes
+    # the effect of rotating the triangle. The second matrix describes
+    # the effect of reflecting the triangle.
+    #
+    # For this element, the matrix describing the effect of rotating
+    # the triangle is
+    #
+    # .. math::
+    #    \left(\begin{array}{cc}-1&-1\\1&0\end{array}\right).
+    #
+    # This is not a permutation, so this must be applied when assembling
+    # a form and cannot be applied to the DOF numbering in the DOF map.
+
+    print(nedelec.entity_transformations())
+
+    # To demonstrate how these transformations can be used, we create a
+    # lattice of points where we will tabulate the element.
+
+    points = basix.create_lattice(
+        CellType.tetrahedron, 3, LatticeType.equispaced, True)
+
+    # If (for example) the direction of edge 2 in the physical cell does
+    # not match its direction on the reference, then we need to adjust the
+    # tabulated data.
+    #
+    # As the cell sub-entity that we are correcting is an interval, we
+    # get the `"interval"` item from the entity transformations dictionary.
+    # We use `entity_dofs[1][2]` (1 is the dimension of an edge, 2 is the
+    # index of the edge we are reversing) to find out which dofs are on
+    # our edge.
+    #
+    # To adjust the tabulated data, we loop over each point in the lattice
+    # and over the value size. For each of these values, we apply the
+    # transformation matrix to the relevant DOFs.
+
+    data = nedelec.tabulate(0, points)
+
+    transformation = nedelec.entity_transformations()["interval"][0]
+    dofs = nedelec.entity_dofs[1][2]
+
+    for point in range(data.shape[1]):
+        for dim in range(data.shape[3]):
+            data[0, point, dofs, dim] = np.dot(transformation, data[0, point, dofs, dim])
+
+    print(data)
+
 def examples_fiat():
 
 
     points, weights = basix.make_quadrature(
-        basix.QuadratureType.gauss_jacobi, CellType.triangle, 4)
+        basix.QuadratureType.gauss_jacobi, CellType.triangle, 3)
 
+    lagrange = basix.create_element(
+        ElementFamily.P, CellType.triangle, 3, LagrangeVariant.equispaced)
 
+    lagrange.base_transformations()
     aka = 0
 
 
@@ -102,8 +240,11 @@ def examples_fiat():
 
 def main():
 
-    examples_fiat()
-    return 0
+    # dof_permutations_tranformations()
+    # return 0
+    #
+    # examples_fiat()
+    # return 0
 
     # polygon_polygon_intersection()
     # return 0
@@ -116,15 +257,17 @@ def main():
     g_builder.build_grahp()
 
     # insert base fractures
-    fracture_1 = np.array([[0.25, 0.25], [0.75, 0.75]])
-    fracture_2 = np.array([[0.25, 0.75], [0.75, 0.25]])
-    fracture_3 = np.array([[0.5, 0.25], [0.5, 0.75]])
-    fracture_4 = np.array([[0.65, 0.25], [0.65, 0.75]])
-    fracture_5 = np.array([[0.25, 0.5], [0.75, 0.5]])
+    fracture_1 = np.array([[0.5, 0.25], [0.5, 0.75]])
+    fracture_2 = np.array([[0.25, 0.5], [0.75, 0.5]])
+    fracture_3 = np.array([[0.25, 0.25], [0.75, 0.75]])
+    fracture_4 = np.array([[0.25, 0.75], [0.75, 0.25]])
+    fracture_5 = np.array([[0.65, 0.25], [0.65, 0.75]])
+
+    # fractures = [fracture_1, fracture_2, fracture_3, fracture_4]
+    # fractures = [fracture_3, fracture_4]
 
     fracture_1 = np.array([[0.5, 0.25], [0.5, 0.75]])
     fracture_2 = np.array([[0.25, 0.5], [0.75, 0.5]])
-
     fractures = [fracture_1,fracture_2]
 
     fracture_network = fn.FractureNetwork(dimension=2)
@@ -155,6 +298,12 @@ def main():
     cgd2c2 = gmesh.build_graph_on_materials(2, 2)
     cgd1c1 = gmesh.build_graph_on_materials(1, 1)
     # gmesh.draw_graph(gd1c1)
+
+
+
+    seed_id = 0
+    gmesh.walk_on_skin(seed_id)
+
     aka = 0
 
 if __name__ == '__main__':
