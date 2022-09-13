@@ -72,9 +72,17 @@ class Mesher:
         graph_nodes = list(self.fracture_network.graph.nodes())
         geo_cells = self.fracture_network.cells[graph_nodes]
         geo_0_cells = [cell for cell in geo_cells if cell.dimension == 0]
-        i_cells = [cell for cell in geo_cells if cell.dimension == 1 and len(cell.immersed_cells) > 0]
+        i_cells = [
+            cell
+            for cell in geo_cells
+            if cell.dimension == 1 and len(cell.immersed_cells) > 0
+        ]
         ni_cells = [cell.id for m_cell in i_cells for cell in m_cell.immersed_cells]
-        geo_1_cells = [cell for cell in geo_cells if cell.dimension == 1 and cell.id not in ni_cells]
+        geo_1_cells = [
+            cell
+            for cell in geo_cells
+            if cell.dimension == 1 and cell.id not in ni_cells
+        ]
 
         self.tags_1d = []
         self.tags_0d = []
@@ -98,8 +106,15 @@ class Mesher:
 
         gmsh.model.geo.synchronize()
 
+        for geo_1_cell in geo_1_cells:
+            tags = [cell.point_id + 1 for cell in geo_0_cells if cell.physical_tag == geo_1_cell.physical_tag]
+            gmsh.model.addPhysicalGroup(0, tags, geo_1_cell.physical_tag)
+
+        frac_tags = self.fracture_network.fracture_tags
         for geo_0_cell in geo_0_cells:
-            gmsh.model.addPhysicalGroup(0, [geo_0_cell.point_id + 1], geo_0_cell.id)
+            check_q = geo_0_cell.physical_tag not in frac_tags
+            if check_q:
+                gmsh.model.addPhysicalGroup(0, [geo_0_cell.point_id + 1], geo_0_cell.physical_tag)
 
         for geo_1_cell in geo_1_cells:
             tags = []
@@ -108,7 +123,7 @@ class Mesher:
                 tags = [geo_1_cell.id]
             else:
                 tags = [cell.id for cell in geo_1_cell.immersed_cells]
-            gmsh.model.addPhysicalGroup(1, tags, geo_1_cell.id)
+            gmsh.model.addPhysicalGroup(1, tags, geo_1_cell.physical_tag)
 
     def write_mesh(self, file_name):
         gmsh.write(file_name)

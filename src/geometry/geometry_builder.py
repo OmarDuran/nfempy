@@ -38,7 +38,6 @@ class GeometryBuilder:
             if immersed_cell.dimension != 0:
                 self.gather_graph_edges(immersed_cell, tuple_id_list)
 
-
     def build_grahp(self, all_fixed_d_cells_q=False):
 
         disjoint_cells = []

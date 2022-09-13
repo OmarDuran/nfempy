@@ -30,8 +30,8 @@ class FractureNetwork:
         self.dimension = dimension
         self.grahp = None
         self.connectivity = None
-        self.fractures_indices = None
-        self.fractures_bcs = None
+        self.fracture_tags = None
+        self.physical_tag_shift = 1
 
     def render_fractures(self, fractures: np.array):
         axes = plt.axes(projection="3d")
@@ -47,7 +47,7 @@ class FractureNetwork:
 
         plt.show()
 
-    def insert_vertex_cell(self, point):
+    def insert_vertex_cell(self, point, physical_tag):
         R = self.points - point
         r_norm = la.norm(R, axis=1)
         index = np.where(r_norm < self.eps)
@@ -56,7 +56,7 @@ class FractureNetwork:
             point_id = len(self.points)
             self.points = np.append(self.points, [point], axis=0)
             cell_id = len(self.cells)
-            vertex = Cell(0, cell_id, point_id)
+            vertex = Cell(0, cell_id, point_id = point_id, physical_tag = physical_tag)
             self.cells = np.append(self.cells, vertex)
         else:
             target_point_id = index[0][0]
@@ -66,7 +66,7 @@ class FractureNetwork:
                     break
         return vertex
 
-    def insert_fracture_cell(self, cell_id, fracture):
+    def insert_fracture_cell(self, cell_id, fracture, physical_tag):
 
         self.points = np.append(
             self.points, np.array([point for point in fracture]), axis=0
@@ -82,7 +82,7 @@ class FractureNetwork:
         cell_id = cell_id + len(fracture)
         edges_indices = []
         for con in connectivities:
-            edge = Cell(1, cell_id)
+            edge = Cell(1, cell_id, physical_tag = physical_tag)
             edge.boundary_cells = self.cells[con]
             self.cells = np.append(self.cells, edge)
             edges_indices.append(cell_id)
@@ -203,35 +203,41 @@ class FractureNetwork:
         self, fractures, pos=np.array([0, 1]), render_intersection_q=False
     ):
 
+        self.fracture_tags = [
+            i + self.physical_tag_shift for i, _ in enumerate(fractures)
+        ]
+        self.points = np.array([])
         self.cells = np.array([], dtype=Cell)
 
         # build dfn disjoint geometrical description
-        self.points = np.array([point for fracture in fractures for point in fracture])
-        n_points = len(self.points)
-        self.cells = np.append(
-            self.cells, np.array([Cell(0, i) for i, point in enumerate(self.points)])
-        )
+        points = []
+        cell_id = 0
+        point_id = 0
+        for f_i, fracture in enumerate(fractures):
+            physical_tag = self.fracture_tags[f_i]
+            bc_cells = np.array([], dtype=Cell)
+            for point in fracture:
+                vertex = Cell(0, cell_id, point_id = point_id, physical_tag=physical_tag)
+                self.cells = np.append(self.cells, np.array(vertex))
+                point_id = point_id + 1
+                points.append(point)
+                bc_cells = np.append(bc_cells,vertex)
+                cell_id = cell_id + 1
 
-        connectivities = np.array(
-            [[index, index + 1] for index in range(0, n_points, 2)]
-        )
-
-        # insert fracture cells
-        cell_id = n_points
-        for con in connectivities:
-            edge = Cell(1, cell_id)
-            edge.boundary_cells = self.cells[con]
+            edge = Cell(1, cell_id, physical_tag=physical_tag)
+            edge.boundary_cells = bc_cells
             self.cells = np.append(self.cells, edge)
             cell_id = cell_id + 1
+        self.points = np.stack(points, axis=0)
 
         tt_test = tt_intersector.TriangleTriangleIntersectionTest()
 
         cells_1d = [cell_1d for cell_1d in self.cells if cell_1d.dimension == 1]
         for i, cell_i in enumerate(cells_1d):
-            cell_i_bc_ids = [bc_cell.id for bc_cell in cell_i.boundary_cells]
+            cell_i_bc_ids = [bc_cell.point_id for bc_cell in cell_i.boundary_cells]
             a, b = [self.points[id] for id in cell_i_bc_ids]
             for j, cell_j in enumerate(cells_1d):
-                cell_j_bc_ids = [bc_cell.id for bc_cell in cell_j.boundary_cells]
+                cell_j_bc_ids = [bc_cell.point_id for bc_cell in cell_j.boundary_cells]
                 p, q = [self.points[id] for id in cell_j_bc_ids]
                 if i >= j:
                     continue
@@ -240,16 +246,17 @@ class FractureNetwork:
                 )
                 if intersection_data[0]:
                     point = intersection_data[1]
-                    vertex = self.insert_vertex_cell(point)
+                    physical_tag = self.pair_intergers(cell_i.physical_tag, cell_j.physical_tag)
+                    vertex = self.insert_vertex_cell(point,physical_tag)
                     cell_i.immersed_cells = np.append(cell_i.immersed_cells, vertex)
                     cell_j.immersed_cells = np.append(cell_j.immersed_cells, vertex)
 
         cell_id = len(self.cells)
         for cell_i in cells_1d:
-            b, e = [bc_cell.point_id for bc_cell in cell_i.boundary_cells]
+            b, e = [bc_cell.id for bc_cell in cell_i.boundary_cells]
             i = [immersed_cell.point_id for immersed_cell in cell_i.immersed_cells]
             if len(i) > 0:
-                R = self.points[i] - self.points[b]
+                R = self.points[i] - self.points[self.cells[b].point_id]
                 r_norm = la.norm(R, axis=1)
                 perm = np.argsort(r_norm)
                 cell_indices = [cell_i.immersed_cells[k].id for k in perm.tolist()]
@@ -264,11 +271,30 @@ class FractureNetwork:
                 )
                 cell_i.immersed_cells = np.array([], dtype=Cell)
                 for con in connectivities:
-                    edge = Cell(1, cell_id)
+                    edge = Cell(1, cell_id, physical_tag=cell_i.physical_tag)
                     edge.boundary_cells = self.cells[con]
                     self.cells = np.append(self.cells, edge)
                     cell_i.immersed_cells = np.append(cell_i.immersed_cells, edge)
                     cell_id = cell_id + 1
+
+    def pair_intergers(self, x , y):
+        # http://szudzik.com/ElegantPairing.pdf
+        z = None
+        if max(x,y) is not x:
+            z = y**2 + x
+        else:
+            z = x**2 + x + y
+        return z
+
+    def unpair_intergers(self, z):
+        # http://szudzik.com/ElegantPairing.pdf
+        pair = None
+        test = z - np.sqrt(z)**2 < np.sqrt(z)
+        if test:
+            pair  = [z - np.sqrt(z)**2,np.sqrt(z)]
+        else:
+            pair  = [np.sqrt(z), z - np.sqrt(z)**2 - np.sqrt(z)]
+        return pair
 
     def shift_point_ids(self, shift=0):
         cells_0d = [cell for cell in self.cells if cell.dimension == 0]
@@ -289,7 +315,6 @@ class FractureNetwork:
             tuple_id_list.append((g_cell.id, immersed_cell.id))
             if immersed_cell.dimension != 0:
                 self.gather_graph_edges(immersed_cell, tuple_id_list)
-
 
     def build_grahp(self, all_fixed_d_cells_q=False):
 

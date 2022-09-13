@@ -12,11 +12,12 @@ def cell_type(dimension):
 
 # TODO rename to GeometryCell
 class Cell:
-    def __init__(self, dimension, id, point_id=None):
+    def __init__(self, dimension, id, physical_tag=None, point_id=None):
 
         self.dimension = dimension
         self.type = cell_type(dimension)
         self.id = id
+        self.physical_tag = physical_tag
         self.boundary_cells = np.array([], dtype=Cell)
         self.immersed_cells = np.array([], dtype=Cell)
 

@@ -7,6 +7,7 @@ def barycenter(points):
     xc = np.mean(points, axis=0)
     return xc
 
+
 # class MeshCell(abc.ABC):
 class MeshCell:
     def __init__(self, dimension):
@@ -18,7 +19,6 @@ class MeshCell:
         self.perm = np.array([], dtype=int)
         data = [np.array([], dtype=int) for i in range(dimension)]
         self.cells_ids = data
-
 
     def set_id(self, id):
         self.id = id
@@ -73,8 +73,6 @@ class MeshCell:
     #         # 1-d case
     #         self.cells_0d[index] = d_m_1_cell
 
-
-
     # def update_cells_1d_from_cells_0d(self, index, d_m_1_cell):
     #
     #     n_cells_0d = len(self.cells_0d)
@@ -90,7 +88,6 @@ class MeshCell:
     #
     #     for i, con in enumerate(connectivities):
     #         self.cells_1d[i].cells_0d = self.cells_0d[con]
-
 
     @staticmethod
     def mesh_cell_type(dimension):
