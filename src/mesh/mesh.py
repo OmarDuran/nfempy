@@ -982,13 +982,16 @@ class Mesh:
             print("cell_m_1_id  : ", ids[0])
             self.next_d_m_1(seed_id, fcell_ids[0], ids[0], graph)
 
-    def walk_on_skin(self, seed_id):
+    def walk_on_skin(self):
 
-        fracture_tags = self.Mesher.fracture_network.fracture_tags
+        graph_e_to_cell = self.build_graph_on_materials(2, 1)
+        cells_1d = [cell.id for cell in self.cells if cell.material_id == 1]
+        f_cells = [id for id in cells_1d if graph_e_to_cell.has_node(id)]
+
+        cell_1d = self.cells[f_cells[0]]
+        assert cell_1d.dimension == 1
         graph = self.build_graph_on_materials(1, 1)
-        pc = list(graph.predecessors(seed_id))
-        neighs = [id for id in pc if self.cells[id].material_id in fracture_tags]
-        assert len(neighs) == 2
+        seed_id = cell_1d.cells_ids[0][0]
         id = seed_id
-        fcell_id = neighs[0]
+        fcell_id = cell_1d.id
         self.next_d_m_1(seed_id, fcell_id, id, graph)

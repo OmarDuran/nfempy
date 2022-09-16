@@ -263,15 +263,15 @@ def main():
     fracture_4 = np.array([[0.25, 0.75], [0.75, 0.25]])
     fracture_5 = np.array([[0.65, 0.25], [0.65, 0.75]])
 
-    # fractures = [fracture_1, fracture_2, fracture_3, fracture_4]
+    fractures = [fracture_1, fracture_2, fracture_3]
     # fractures = [fracture_3, fracture_4]
 
-    fracture_1 = np.array([[0.5, 0.25], [0.5, 0.75]])
-    fracture_2 = np.array([[0.25, 0.5], [0.75, 0.5]])
-    fractures = [fracture_1,fracture_2]
+    # fracture_1 = np.array([[0.5, 0.25], [0.5, 0.75]])
+    # fracture_2 = np.array([[0.25, 0.5], [0.75, 0.5]])
+    # fractures = [fracture_1,fracture_2]
 
     fracture_network = fn.FractureNetwork(dimension=2)
-    fracture_network.intersect_1D_fractures(fractures, render_intersection_q = False)
+    fracture_network.intersect_1D_fractures(fractures, render_intersection_q = True)
     fracture_network.build_grahp(all_fixed_d_cells_q = True)
     # fracture_network.draw_grahp()
 
@@ -301,8 +301,7 @@ def main():
 
 
 
-    seed_id = 41
-    gmesh.walk_on_skin(seed_id)
+    gmesh.walk_on_skin()
 
     aka = 0
 
