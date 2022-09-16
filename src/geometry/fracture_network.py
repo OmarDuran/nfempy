@@ -56,7 +56,7 @@ class FractureNetwork:
             point_id = len(self.points)
             self.points = np.append(self.points, [point], axis=0)
             cell_id = len(self.cells)
-            vertex = Cell(0, cell_id, point_id = point_id, physical_tag = physical_tag)
+            vertex = Cell(0, cell_id, point_id=point_id, physical_tag=physical_tag)
             self.cells = np.append(self.cells, vertex)
         else:
             target_point_id = index[0][0]
@@ -82,7 +82,7 @@ class FractureNetwork:
         cell_id = cell_id + len(fracture)
         edges_indices = []
         for con in connectivities:
-            edge = Cell(1, cell_id, physical_tag = physical_tag)
+            edge = Cell(1, cell_id, physical_tag=physical_tag)
             edge.boundary_cells = self.cells[con]
             self.cells = np.append(self.cells, edge)
             edges_indices.append(cell_id)
@@ -217,11 +217,11 @@ class FractureNetwork:
             physical_tag = self.fracture_tags[f_i]
             bc_cells = np.array([], dtype=Cell)
             for point in fracture:
-                vertex = Cell(0, cell_id, point_id = point_id, physical_tag=physical_tag)
+                vertex = Cell(0, cell_id, point_id=point_id, physical_tag=physical_tag)
                 self.cells = np.append(self.cells, np.array(vertex))
                 point_id = point_id + 1
                 points.append(point)
-                bc_cells = np.append(bc_cells,vertex)
+                bc_cells = np.append(bc_cells, vertex)
                 cell_id = cell_id + 1
 
             edge = Cell(1, cell_id, physical_tag=physical_tag)
@@ -246,8 +246,10 @@ class FractureNetwork:
                 )
                 if intersection_data[0]:
                     point = intersection_data[1]
-                    physical_tag = self.pair_intergers(cell_i.physical_tag, cell_j.physical_tag)
-                    vertex = self.insert_vertex_cell(point,physical_tag)
+                    physical_tag = self.pair_intergers(
+                        cell_i.physical_tag, cell_j.physical_tag
+                    )
+                    vertex = self.insert_vertex_cell(point, physical_tag)
                     cell_i.immersed_cells = np.append(cell_i.immersed_cells, vertex)
                     cell_j.immersed_cells = np.append(cell_j.immersed_cells, vertex)
 
@@ -277,10 +279,10 @@ class FractureNetwork:
                     cell_i.immersed_cells = np.append(cell_i.immersed_cells, edge)
                     cell_id = cell_id + 1
 
-    def pair_intergers(self, x , y):
+    def pair_intergers(self, x, y):
         # http://szudzik.com/ElegantPairing.pdf
         z = None
-        if max(x,y) is not x:
+        if max(x, y) is not x:
             z = y**2 + x
         else:
             z = x**2 + x + y
@@ -289,11 +291,11 @@ class FractureNetwork:
     def unpair_intergers(self, z):
         # http://szudzik.com/ElegantPairing.pdf
         pair = None
-        test = z - np.sqrt(z)**2 < np.sqrt(z)
+        test = z - np.sqrt(z) ** 2 < np.sqrt(z)
         if test:
-            pair  = [z - np.sqrt(z)**2,np.sqrt(z)]
+            pair = [z - np.sqrt(z) ** 2, np.sqrt(z)]
         else:
-            pair  = [np.sqrt(z), z - np.sqrt(z)**2 - np.sqrt(z)]
+            pair = [np.sqrt(z), z - np.sqrt(z) ** 2 - np.sqrt(z)]
         return pair
 
     def shift_point_ids(self, shift=0):

@@ -107,14 +107,20 @@ class Mesher:
         gmsh.model.geo.synchronize()
 
         for geo_1_cell in geo_1_cells:
-            tags = [cell.point_id + 1 for cell in geo_0_cells if cell.physical_tag == geo_1_cell.physical_tag]
+            tags = [
+                cell.point_id + 1
+                for cell in geo_0_cells
+                if cell.physical_tag == geo_1_cell.physical_tag
+            ]
             gmsh.model.addPhysicalGroup(0, tags, geo_1_cell.physical_tag)
 
         frac_tags = self.fracture_network.fracture_tags
         for geo_0_cell in geo_0_cells:
             check_q = geo_0_cell.physical_tag not in frac_tags
             if check_q:
-                gmsh.model.addPhysicalGroup(0, [geo_0_cell.point_id + 1], geo_0_cell.physical_tag)
+                gmsh.model.addPhysicalGroup(
+                    0, [geo_0_cell.point_id + 1], geo_0_cell.physical_tag
+                )
 
         for geo_1_cell in geo_1_cells:
             tags = []

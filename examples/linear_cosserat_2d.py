@@ -301,7 +301,7 @@ def main():
 
 
 
-    seed_id = 0
+    seed_id = 41
     gmesh.walk_on_skin(seed_id)
 
     aka = 0
