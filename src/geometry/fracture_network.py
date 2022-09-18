@@ -263,8 +263,12 @@ class FractureNetwork:
                 perm = np.argsort(r_norm)
                 cell_indices = [cell_i.immersed_cells[k].id for k in perm.tolist()]
                 cell_indices = list(dict.fromkeys(cell_indices))
-                cell_indices.insert(0, b)
-                cell_indices.append(e)
+
+                # Insert bondary points
+                if b not in cell_indices:
+                    cell_indices.insert(0, b)
+                if e not in cell_indices:
+                    cell_indices.append(e)
                 connectivities = np.array(
                     [
                         [cell_indices[index], cell_indices[index + 1]]

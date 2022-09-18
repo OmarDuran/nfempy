@@ -976,13 +976,14 @@ class Mesh:
         if seed_id == ids[0]:
             print("Seed id was found: ", ids[0])
             print("Skin boundary is closed.")
+            return True
         else:
             print("Next pair:")
             print("cell_id      : ", fcell_ids[0])
             print("cell_m_1_id  : ", ids[0])
             self.next_d_m_1(seed_id, fcell_ids[0], ids[0], graph)
 
-    def walk_on_skin(self):
+    def circulate_internal_bc(self):
 
         graph_e_to_cell = self.build_graph_on_materials(2, 1)
         cells_1d = [cell.id for cell in self.cells if cell.material_id == 1]
