@@ -974,13 +974,13 @@ class Mesh:
         ids = [s_id for s_id in sc if s_id != cell_m_1_id]
         assert len(ids) == 1
         if seed_id == ids[0]:
-            print("Seed id was found: ", ids[0])
-            print("Skin boundary is closed.")
+            # print("Seed id was found: ", ids[0])
+            # print("Skin boundary is closed.")
             closed_q[0] = True
         else:
-            print("Next pair:")
-            print("cell_id      : ", fcell_ids[0])
-            print("cell_m_1_id  : ", ids[0])
+            # print("Next pair:")
+            # print("cell_id      : ", fcell_ids[0])
+            # print("cell_m_1_id  : ", ids[0])
             self.next_d_m_1(seed_id, fcell_ids[0], ids[0], graph, closed_q)
 
 

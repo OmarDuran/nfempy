@@ -37,7 +37,6 @@ def generate_conformal_mesh(fracture_tags):
     fractures = []
     for tag in fracture_tags:
         fractures.append(fracture_2d_set()[tag])
-    print("fractures: ",fractures)
     mesher.set_fracture_network(generate_fracture_network(fractures))
     mesher.set_points()
     mesher.generate(1.0)
@@ -57,6 +56,3 @@ def test_internal_bc_mesh_circulation(fracture_tags):
     check_q = gmesh.circulate_internal_bc()
     assert check_q[0]
 
-
-# if __name__ == '__main__':
-#     unittest.main()
