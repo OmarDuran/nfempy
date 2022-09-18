@@ -960,7 +960,7 @@ class Mesh:
         mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v)
         return mesh_cell
 
-    def next_d_m_1(self, seed_id, cell_id, cell_m_1_id, graph):
+    def next_d_m_1(self, seed_id, cell_id, cell_m_1_id, graph, closed_q):
 
         fracture_tags = self.Mesher.fracture_network.fracture_tags
         pc = list(graph.predecessors(cell_m_1_id))
@@ -976,15 +976,17 @@ class Mesh:
         if seed_id == ids[0]:
             print("Seed id was found: ", ids[0])
             print("Skin boundary is closed.")
-            return True
+            closed_q[0] = True
         else:
             print("Next pair:")
             print("cell_id      : ", fcell_ids[0])
             print("cell_m_1_id  : ", ids[0])
-            self.next_d_m_1(seed_id, fcell_ids[0], ids[0], graph)
+            self.next_d_m_1(seed_id, fcell_ids[0], ids[0], graph, closed_q)
+
 
     def circulate_internal_bc(self):
 
+        closed_q = [False]
         graph_e_to_cell = self.build_graph_on_materials(2, 1)
         cells_1d = [cell.id for cell in self.cells if cell.material_id == 1]
         f_cells = [id for id in cells_1d if graph_e_to_cell.has_node(id)]
@@ -995,4 +997,6 @@ class Mesh:
         seed_id = cell_1d.cells_ids[0][0]
         id = seed_id
         fcell_id = cell_1d.id
-        self.next_d_m_1(seed_id, fcell_id, id, graph)
+        self.next_d_m_1(seed_id, fcell_id, id, graph, closed_q)
+        return closed_q
+

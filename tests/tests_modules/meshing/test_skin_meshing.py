@@ -7,7 +7,8 @@ from mesh.mesher import Mesher
 from mesh.mesh import Mesh
 
 
-fracture_tags = [[0], [0, 1], [0, 1, 2]]
+# fracture_tags = [[0], [0, 1], [0, 1, 2]]
+fracture_tags = [[0, 1],[0, 1, 2]]
 
 def generate_geometry_2d():
     box_points = np.array([[0, 0], [1, 0], [1, 1], [0, 1]])
@@ -33,32 +34,28 @@ def generate_fracture_network(fractures):
 def generate_conformal_mesh(fracture_tags):
     mesher = Mesher(dimension=2)
     mesher.set_geometry_builder(generate_geometry_2d())
-    print(fracture_tags)
-    print(fracture_2d_set())
     fractures = []
     for tag in fracture_tags:
         fractures.append(fracture_2d_set()[tag])
-
+    print("fractures: ",fractures)
     mesher.set_fracture_network(generate_fracture_network(fractures))
     mesher.set_points()
     mesher.generate(1.0)
     mesher.write_mesh("gmesh.msh")
+    return mesher
 
-def generate_mesh():
+def generate_mesh(fracture_tags):
     gmesh = Mesh(dimension=2, file_name="gmesh.msh")
-    gmesh.set_Mesher(mesher)
+    gmesh.set_Mesher(generate_conformal_mesh(fracture_tags))
     gmesh.transfer_conformal_mesh()
     gmesh.cut_conformity_on_fractures()
     return gmesh
 
-# class TestInternalBoundaryMesh(unittest.TestCase):
-
 @pytest.mark.parametrize("fracture_tags", fracture_tags)
 def test_internal_bc_mesh_circulation(fracture_tags):
-    generate_conformal_mesh(fracture_tags)
-    gmesh = generate_mesh()
+    gmesh = generate_mesh(fracture_tags)
     check_q = gmesh.circulate_internal_bc()
-    assert check_q
+    assert check_q[0]
 
 
 # if __name__ == '__main__':

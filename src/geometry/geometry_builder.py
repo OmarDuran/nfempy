@@ -88,6 +88,7 @@ class GeometryBuilder:
         surface = Cell(2, cell_id)
         surface.boundary_cells = self.cells[edges_indices]
         self.cells = np.append(self.cells, surface)
+        self.build_grahp()
 
     def build_box(cells, box_points):
 

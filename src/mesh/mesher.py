@@ -3,7 +3,7 @@ import sys
 import gmsh
 import numpy as np
 
-gmsh.initialize()
+
 
 from geometry.fracture_network import FractureNetwork
 from geometry.geometry_builder import GeometryBuilder
@@ -140,6 +140,7 @@ class Mesher:
         # self.fracture_network.shift_cell_ids(max_cell_id)
 
     def generate(self, lc):
+        gmsh.initialize()
         self.lc = lc
         n_points = len(self.points)
         for tag, point in enumerate(self.points):

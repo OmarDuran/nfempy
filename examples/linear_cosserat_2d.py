@@ -271,11 +271,11 @@ def main():
     fracture_3 = np.array([[0.2, 0.25], [0.85, 0.25]])
     fracture_4 = np.array([[0.15, 0.15], [0.85, 0.85]])
     fracture_5 = np.array([[0.15, 0.85], [0.85, 0.15]])
-    fractures = [fracture_1, fracture_2, fracture_3, fracture_4, fracture_5]
+    # fractures = [fracture_1, fracture_2, fracture_3, fracture_4, fracture_5]
 
-    # fracture_1 = np.array([[0.5, 0.25], [0.5, 0.75]])
-    # fracture_2 = np.array([[0.25, 0.5], [0.75, 0.5]])
-    # fractures = [fracture_1,fracture_2]
+    fracture_1 = np.array([[0.5, 0.25], [0.5, 0.75]])
+    fracture_2 = np.array([[0.25, 0.5], [0.75, 0.5]])
+    fractures = [fracture_1,fracture_2]
 
     fracture_network = fn.FractureNetwork(dimension=2)
     fracture_network.intersect_1D_fractures(fractures, render_intersection_q = False)
@@ -308,7 +308,8 @@ def main():
 
 
 
-    gmesh.circulate_internal_bc()
+    check_q = gmesh.circulate_internal_bc()
+
 
     aka = 0
 
