@@ -6,8 +6,6 @@ import geometry.fracture_network as fn
 from mesh.mesher import Mesher
 from mesh.mesh import Mesh
 
-
-# fracture_tags = [[0], [0, 1], [0, 1, 2]]
 fracture_tags = [[0, 1],[0, 1, 2]]
 
 def generate_geometry_2d():
