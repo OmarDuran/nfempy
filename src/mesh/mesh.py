@@ -987,8 +987,9 @@ class Mesh:
     def circulate_internal_bc(self):
 
         closed_q = [False]
+        fracture_tags = self.Mesher.fracture_network.fracture_tags
         graph_e_to_cell = self.build_graph_on_materials(2, 1)
-        cells_1d = [cell.id for cell in self.cells if cell.material_id == 1]
+        cells_1d = [cell.id for cell in self.cells if cell.material_id == fracture_tags[0]]
         f_cells = [id for id in cells_1d if graph_e_to_cell.has_node(id)]
 
         cell_1d = self.cells[f_cells[0]]

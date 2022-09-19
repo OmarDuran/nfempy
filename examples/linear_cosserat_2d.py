@@ -268,16 +268,16 @@ def main():
 
     fracture_1 = np.array([[0.5, 0.25], [0.5, 0.75]])
     fracture_2 = np.array([[0.25, 0.5], [0.75, 0.5]])
-    fracture_3 = np.array([[0.2, 0.25], [0.85, 0.25]])
+    fracture_3 = np.array([[0.2, 0.35], [0.85, 0.35]])
     fracture_4 = np.array([[0.15, 0.15], [0.85, 0.85]])
     fracture_5 = np.array([[0.15, 0.85], [0.85, 0.15]])
-    # fractures = [fracture_1, fracture_2, fracture_3, fracture_4, fracture_5]
+    fractures = [fracture_1, fracture_2, fracture_3, fracture_4, fracture_5]
 
-    fracture_1 = np.array([[0.5, 0.25], [0.5, 0.75]])
-    fracture_2 = np.array([[0.25, 0.5], [0.75, 0.5]])
-    fractures = [fracture_1,fracture_2]
+    # fracture_1 = np.array([[0.5, 0.25], [0.5, 0.75]])
+    # fracture_2 = np.array([[0.25, 0.5], [0.75, 0.5]])
+    # fractures = [fracture_1,fracture_2]
 
-    fracture_network = fn.FractureNetwork(dimension=2)
+    fracture_network = fn.FractureNetwork(dimension=2,physical_tag_shift=10)
     fracture_network.intersect_1D_fractures(fractures, render_intersection_q = False)
     fracture_network.build_grahp(all_fixed_d_cells_q = True)
     # fracture_network.draw_grahp()
@@ -287,7 +287,7 @@ def main():
     mesher.set_geometry_builder(g_builder)
     mesher.set_fracture_network(fracture_network)
     mesher.set_points()
-    mesher.generate(1.0)
+    mesher.generate(0.1)
     mesher.write_mesh("gmesh.msh")
 
 
@@ -309,7 +309,8 @@ def main():
 
 
     check_q = gmesh.circulate_internal_bc()
-
+    if check_q[0]:
+        print("Internal bc is closed.")
 
     aka = 0
 
