@@ -167,17 +167,17 @@ class Mesh:
                 tags_v = self.validate_entity(node_tags)
                 mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v)
 
-    def create_simplex_cell(self, dimension, node_tags, p_tag):
+    def create_simplex_cell(self, dimension, node_tags, p_tag, sign):
 
         assert self.dimension == 2
 
         if dimension == 0:
-            type_index = self.mesh_cell_type_index(cell_block.type)
+            type_index = self.mesh_cell_type_index("vertex")
             mesh_cell = MeshCell(0)
             mesh_cell.set_material_id(p_tag)
             mesh_cell.set_node_tags(node_tags)
             tags_v = self.validate_entity(node_tags)
-            mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v)
+            mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v, sign)
             return mesh_cell
 
         elif dimension == 1:
@@ -198,7 +198,7 @@ class Mesh:
             mesh_cell.set_node_tags(node_tags)
             mesh_cell.set_cells_ids(0, np.array(cells_0d))
             tags_v = self.validate_entity(node_tags)
-            mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v)
+            mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v, sign)
             return mesh_cell
 
         elif dimension == 2:
@@ -238,7 +238,7 @@ class Mesh:
             mesh_cell.set_cells_ids(0, np.array(cells_0d))
             mesh_cell.set_cells_ids(1, np.array(cells_1d))
             tags_v = self.validate_entity(node_tags)
-            mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v)
+            mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v, sign)
             return mesh_cell
 
     def conformal_mesh_write_vtk(self):
@@ -577,6 +577,12 @@ class Mesh:
                 for id in cells_2d_ids:
                     cell_2d = self.cells[id]
 
+                    cell_xc = barycenter(self.points[cell_2d.node_tags])[[0, 1]]
+                    negative_q = np.dot(cell_xc - f_xc, n) < 0.0
+                    sign = 1
+                    if negative_q:
+                        sign = -1
+
                     loop = [i for i in range(len(cell_2d.node_tags))]
                     loop.append(loop[0])
                     connectivities = np.array(
@@ -590,7 +596,7 @@ class Mesh:
                             con = connectivities[i]
                             dim = edge_cell.dimension
                             p_tag = edge_cell.material_id
-                            new_cell = self.create_simplex_cell(dim,cell_2d.node_tags[con],p_tag)
+                            new_cell = self.create_simplex_cell(dim,cell_2d.node_tags[con],p_tag,sign)
                             duplicated_ids[edge_cell.id] = new_cell.id
                     self.update_entity_on_dimension(1, cell_2d, duplicated_ids)
 
@@ -975,13 +981,13 @@ class Mesh:
         ids = [s_id for s_id in sc if s_id != cell_m_1_id]
         assert len(ids) == 1
         if seed_id == ids[0]:
-            print("Seed id was found: ", ids[0])
-            print("Skin boundary is closed.")
+            # print("Seed id was found: ", ids[0])
+            # print("Skin boundary is closed.")
             closed_q[0] = True
         else:
-            print("Next pair:")
-            print("cell_id      : ", fcell_ids[0])
-            print("cell_m_1_id  : ", ids[0])
+            # print("Next pair:")
+            # print("cell_id      : ", fcell_ids[0])
+            # print("cell_m_1_id  : ", ids[0])
             self.next_d_m_1(seed_id, fcell_ids[0], ids[0], graph, closed_q)
 
 
