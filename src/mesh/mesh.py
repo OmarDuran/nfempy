@@ -287,10 +287,12 @@ class Mesh:
         con_2d = np.array(
             [cell.node_tags for cell in self.cells if cell.dimension == 2 and cell.id != None]
         )
-        cells_dict = {"triangle": con_2d}
-        cell_data = {"physical_tag": [physical_tags_2d], "entity_tag": [entity_tags_2d]}
-        mesh_2d = meshio.Mesh(self.points, cells=cells_dict, cell_data=cell_data)
-        meshio.write("geometric_mesh_2d.vtk", mesh_2d)
+
+        if len(con_2d) != 0:
+            cells_dict = {"triangle": con_2d}
+            cell_data = {"physical_tag": [physical_tags_2d], "entity_tag": [entity_tags_2d]}
+            mesh_2d = meshio.Mesh(self.points, cells=cells_dict, cell_data=cell_data)
+            meshio.write("geometric_mesh_2d.vtk", mesh_2d)
 
         physical_tags_1d = np.array(
             [
@@ -314,10 +316,11 @@ class Mesh:
                 if cell.dimension == 1 and cell.material_id != None and cell.id != None
             ]
         )
-        cells_dict = {"line": con_1d}
-        cell_data = {"physical_tag": [physical_tags_1d], "entity_tag": [entity_tags_1d]}
-        mesh_1d = meshio.Mesh(self.points, cells=cells_dict, cell_data=cell_data)
-        meshio.write("geometric_mesh_1d.vtk", mesh_1d)
+        if len(con_1d) != 0:
+            cells_dict = {"line": con_1d}
+            cell_data = {"physical_tag": [physical_tags_1d], "entity_tag": [entity_tags_1d]}
+            mesh_1d = meshio.Mesh(self.points, cells=cells_dict, cell_data=cell_data)
+            meshio.write("geometric_mesh_1d.vtk", mesh_1d)
 
         physical_tags_0d = np.array(
             [
@@ -341,10 +344,12 @@ class Mesh:
                 if cell.dimension == 0 and cell.material_id != None and cell.id != None
             ]
         )
-        cells_dict = {"vertex": con_0d}
-        cell_data = {"physical_tag": [physical_tags_0d], "entity_tag": [entity_tags_0d]}
-        mesh_0d = meshio.Mesh(self.points, cells=cells_dict, cell_data=cell_data)
-        meshio.write("geometric_mesh_0d.vtk", mesh_0d)
+
+        if len(con_0d) != 0:
+            cells_dict = {"vertex": con_0d}
+            cell_data = {"physical_tag": [physical_tags_0d], "entity_tag": [entity_tags_0d]}
+            mesh_0d = meshio.Mesh(self.points, cells=cells_dict, cell_data=cell_data)
+            meshio.write("geometric_mesh_0d.vtk", mesh_0d)
 
     def gather_graph_edges(self, dimension, mesh_cell, tuple_id_list):
 

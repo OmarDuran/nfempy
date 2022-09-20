@@ -1,4 +1,6 @@
+
 import numpy as np
+
 from numpy import linalg as la
 
 from shapely.geometry import LineString
@@ -207,28 +209,28 @@ def examples_fiat():
     # x = SpatialCoordinate(interval)
     # # pts = CellVertices(interval)
 
-    F0 = f * u * v * w * dx
-    a, L = system(F0)
-    assert (len(a.integrals()) == 0)
-    assert (len(L.integrals()) == 0)
-
-    F1 = derivative(F0, f)
-    a, L = system(F1)
-    assert (len(a.integrals()) == 0)
-    assert (len(L.integrals()) == 0)
-
-    F2 = action(F0, f)
-    a, L = system(F2)
-    assert (len(a.integrals()) == 1)
-    assert (len(L.integrals()) == 0)
-
-    F3 = action(F2, f)
-    a, L = system(F3)
-    assert (len(L.integrals()) == 1)
-
-    cell = Cell("triangle")
-    cell = triangle
-    aka = 0
+    # F0 = f * u * v * w * dx
+    # a, L = system(F0)
+    # assert (len(a.integrals()) == 0)
+    # assert (len(L.integrals()) == 0)
+    #
+    # F1 = derivative(F0, f)
+    # a, L = system(F1)
+    # assert (len(a.integrals()) == 0)
+    # assert (len(L.integrals()) == 0)
+    #
+    # F2 = action(F0, f)
+    # a, L = system(F2)
+    # assert (len(a.integrals()) == 1)
+    # assert (len(L.integrals()) == 0)
+    #
+    # F3 = action(F2, f)
+    # a, L = system(F3)
+    # assert (len(L.integrals()) == 1)
+    #
+    # cell = Cell("triangle")
+    # cell = triangle
+    # aka = 0
 
     # from FIAT import Lagrange, quadrature, shapes
     # shape = shapes.TRIANGLE
@@ -238,17 +240,7 @@ def examples_fiat():
     # Ufs = U.function_space()
     # Ufs.tabulate(Q.get_points())
 
-def main():
-
-    # dof_permutations_tranformations()
-    # return 0
-    #
-    # examples_fiat()
-    # return 0
-
-    # polygon_polygon_intersection()
-    # return 0
-
+def domain_with_fractures():
     # Higher dimension geometry
     s = 1.0
     box_points = s * np.array([[0, 0], [1, 0], [1, 1], [0, 1]])
@@ -265,11 +257,10 @@ def main():
 
     fractures = [fracture_1]
 
-    fracture_network = fn.FractureNetwork(dimension=2,physical_tag_shift=10)
-    fracture_network.intersect_1D_fractures(fractures, render_intersection_q = False)
-    fracture_network.build_grahp(all_fixed_d_cells_q = True)
+    fracture_network = fn.FractureNetwork(dimension=2, physical_tag_shift=10)
+    fracture_network.intersect_1D_fractures(fractures, render_intersection_q=False)
+    fracture_network.build_grahp(all_fixed_d_cells_q=True)
     # fracture_network.draw_grahp()
-
 
     mesher = ConformalMesher(dimension=2)
     mesher.set_geometry_builder(g_builder)
@@ -277,7 +268,6 @@ def main():
     mesher.set_points()
     mesher.generate(1.0)
     mesher.write_mesh("gmesh.msh")
-
 
     gmesh = Mesh(dimension=2, file_name="gmesh.msh")
     gmesh.set_conformal_mesher(mesher)
@@ -294,11 +284,64 @@ def main():
     cgd1c1 = gmesh.build_graph_on_materials(1, 1)
     # gmesh.draw_graph(gd1c1)
 
-
-
     check_q = gmesh.circulate_internal_bc()
     if check_q[0]:
         print("Internal bc is closed.")
+
+    aka = 0
+
+def main():
+
+    s = 1.0
+    box_points = s * np.array([[0, 0], [1, 0], [1, 1], [0, 1]])
+    g_builder = GeometryBuilder(dimension=2)
+    g_builder.build_box_2D(box_points)
+    g_builder.build_grahp()
+
+
+    mesher = ConformalMesher(dimension=2)
+    mesher.set_geometry_builder(g_builder)
+    mesher.set_points()
+    mesher.generate(1.0)
+    mesher.write_mesh("gmesh.msh")
+
+
+    gmesh = Mesh(dimension=2, file_name="gmesh.msh")
+    gmesh.set_conformal_mesher(mesher)
+    gmesh.build_conformal_mesh()
+    gmesh.write_vtk()
+
+
+    # Create conformity
+    gd2c1 = gmesh.build_graph(2, 1)
+    gd2c2 = gmesh.build_graph(2, 2)
+
+    cells_ids = list(gd2c2.nodes())
+    vertices_ids = [id for id in cells_ids if gmesh.cells[id].dimension == 0]
+    n_vertices = len(vertices_ids)
+    k_order = 1
+
+    fields = [1]
+    n_fields = len(fields)
+
+
+    for cell in gmesh.cells:
+        if cell.dimension != 2:
+            continue
+
+        points, weights = basix.make_quadrature(basix.QuadratureType.gauss_jacobi, CellType.triangle, k_order + 1)
+        lagrange = basix.create_element(ElementFamily.P, CellType.triangle, k_order, LagrangeVariant.equispaced)
+
+        # phi_tab = lagrange.tabulate(0, points)
+        # print(phi_tab)
+        # v, np, n_dof, _ = phi_tab.shape
+        # s = (n_dof, n_dof)
+        # k_el = np.zeros(s)
+        # for i, omega in enumerate(weights):
+        #     k_el = k_el + omega * np.outer(phi_tab[0,i,:,0],phi_tab[0,i,:,0])
+
+        # lagrange.base_transformations()
+        ako = 0
 
     aka = 0
 

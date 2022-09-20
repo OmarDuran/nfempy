@@ -44,16 +44,25 @@ For now FEM hierachical basis are used to have an impression of the  of surface 
 Approximation spaces of dimension d are created on each cell. The presecen of a operator, pde or variational restriction is associated with physical tags.
 
 
-# DoF mappigns
 
-The construction of a [robuts strategy](https://dl.acm.org/doi/10.1145/3524456) for dof mappings is followed here
+# Finite element conformity
+
+For the sake of simplicity only L2-, H1- and Hdiv-conformal approximation spaces are built on a given material set identified with physical tags.
+
+* Example with H1-conformal scalar laplace
+
+
+## DoF mappigns
+
+The construction of a [robuts strategy](https://dl.acm.org/doi/10.1145/3524456) for dof mappings is followed here. However for getting a report closed we only focuse on simplexes of second order.
+
 
 # Linear solver
  linear solver are :
  
 	1. python available solvers
 	2. pypardiso
-	3. petsc4py
+	3. petsc4py: consider scipy sparse matrix converted to petsc format
 
 # Benchmarks	
 
