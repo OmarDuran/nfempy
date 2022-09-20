@@ -3,13 +3,11 @@ import sys
 import gmsh
 import numpy as np
 
-
-
 from geometry.fracture_network import FractureNetwork
 from geometry.geometry_builder import GeometryBuilder
 
 
-class Mesher:
+class ConformalMesher:
     def __init__(self, dimension):
         self.dimension = dimension
         self.geometry_builder = None

@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 from geometry.cell import Cell
 from geometry.geometry_builder import GeometryBuilder
-from mesh.mesher import Mesher
+from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
 
 import basix
@@ -268,10 +268,10 @@ def main():
 
     fracture_1 = np.array([[0.5, 0.25], [0.5, 0.75]])
     fracture_2 = np.array([[0.25, 0.5], [0.75, 0.5]])
-    fracture_3 = np.array([[0.2, 0.35], [0.85, 0.35]])
+    fracture_3 = np.array([[0.2, 0.25], [0.85, 0.25]])
     fracture_4 = np.array([[0.15, 0.15], [0.85, 0.85]])
     fracture_5 = np.array([[0.15, 0.85], [0.85, 0.15]])
-    fractures = [fracture_1, fracture_2, fracture_3, fracture_4, fracture_5]
+    fractures = [fracture_1, fracture_2]
 
     # fracture_1 = np.array([[0.5, 0.25], [0.5, 0.75]])
     # fracture_2 = np.array([[0.25, 0.5], [0.75, 0.5]])
@@ -283,17 +283,17 @@ def main():
     # fracture_network.draw_grahp()
 
 
-    mesher = Mesher(dimension=2)
+    mesher = ConformalMesher(dimension=2)
     mesher.set_geometry_builder(g_builder)
     mesher.set_fracture_network(fracture_network)
     mesher.set_points()
-    mesher.generate(0.1)
+    mesher.generate(1.0)
     mesher.write_mesh("gmesh.msh")
 
 
     gmesh = Mesh(dimension=2, file_name="gmesh.msh")
-    gmesh.set_Mesher(mesher)
-    gmesh.transfer_conformal_mesh()
+    gmesh.set_conformal_mesher(mesher)
+    gmesh.build_conformal_mesh()
 
     gd2c1 = gmesh.build_graph(2, 1)
     gd2c2 = gmesh.build_graph(2, 2)

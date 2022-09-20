@@ -3,7 +3,7 @@ import pytest
 import numpy as np
 from geometry.geometry_builder import GeometryBuilder
 import geometry.fracture_network as fn
-from mesh.mesher import Mesher
+from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
 
 fracture_tags = [[0, 1],[0, 1, 2]]
@@ -30,7 +30,7 @@ def generate_fracture_network(fractures):
     return fracture_network
 
 def generate_conformal_mesh(fracture_tags):
-    mesher = Mesher(dimension=2)
+    mesher = ConformalMesher(dimension=2)
     mesher.set_geometry_builder(generate_geometry_2d())
     fractures = []
     for tag in fracture_tags:
@@ -43,8 +43,8 @@ def generate_conformal_mesh(fracture_tags):
 
 def generate_mesh(fracture_tags):
     gmesh = Mesh(dimension=2, file_name="gmesh.msh")
-    gmesh.set_Mesher(generate_conformal_mesh(fracture_tags))
-    gmesh.transfer_conformal_mesh()
+    gmesh.set_conformal_mesher(generate_conformal_mesh(fracture_tags))
+    gmesh.build_conformal_mesh()
     gmesh.cut_conformity_on_fractures()
     return gmesh
 

@@ -3,7 +3,7 @@ import numpy as np
 import networkx as nx
 from mesh.mesh_cell import MeshCell
 from mesh.mesh_cell import barycenter
-from mesh.mesher import Mesher
+from mesh.conformal_mesher import ConformalMesher
 import copy
 
 
@@ -17,10 +17,10 @@ class Mesh:
         self.points = self.conformal_mesh.points
         self.cell_data = {}  # np.array([], dtype=int)
         self.fracture_normals = {}
-        self.Mesher = None
+        self.conformal_mesher = None
 
-    def set_Mesher(self, Mesher):
-        self.Mesher = Mesher
+    def set_conformal_mesher(self, conformal_mesher):
+        self.conformal_mesher = conformal_mesher
 
     def mesh_cell_type_index(self, name):
         types = {"vertex": 1, "line": 2, "triangle": 3, "tetra": 4}
@@ -84,7 +84,7 @@ class Mesh:
 
         return mesh_cell
 
-    def transfer_conformal_mesh(self):
+    def build_conformal_mesh(self):
 
         # preallocate cells objects
 
@@ -421,7 +421,7 @@ class Mesh:
 
         assert self.dimension == 2
 
-        fracture_network = self.Mesher.fracture_network
+        fracture_network = self.conformal_mesher.fracture_network
         graph_nodes = list(fracture_network.graph.nodes())
         geo_cells = fracture_network.cells[graph_nodes]
         i_cells = [
@@ -453,7 +453,7 @@ class Mesh:
         # this method requires
         # dictionary of fracture id's to (normal,fracture barycenter)
         self.compute_fracture_normals()
-        fracture_tags = self.Mesher.fracture_network.fracture_tags
+        fracture_tags = self.conformal_mesher.fracture_network.fracture_tags
 
         assert self.dimension == 2
 
@@ -481,7 +481,8 @@ class Mesh:
                 frac_cells_ids = [
                     id for id in cells_1d_ids if self.cells[id].material_id in fracture_tags
                 ]
-                is_bc_q = len(frac_cells_ids) == 1
+
+                is_bc_q = cell_0d.material_id == mat_id
                 if is_bc_q:
                     # boundary vertex
 
@@ -962,7 +963,7 @@ class Mesh:
 
     def next_d_m_1(self, seed_id, cell_id, cell_m_1_id, graph, closed_q):
 
-        fracture_tags = self.Mesher.fracture_network.fracture_tags
+        fracture_tags = self.conformal_mesher.fracture_network.fracture_tags
         pc = list(graph.predecessors(cell_m_1_id))
         neighs = [id for id in pc if self.cells[id].material_id in fracture_tags]
         assert len(neighs) == 2
@@ -974,20 +975,20 @@ class Mesh:
         ids = [s_id for s_id in sc if s_id != cell_m_1_id]
         assert len(ids) == 1
         if seed_id == ids[0]:
-            # print("Seed id was found: ", ids[0])
-            # print("Skin boundary is closed.")
+            print("Seed id was found: ", ids[0])
+            print("Skin boundary is closed.")
             closed_q[0] = True
         else:
-            # print("Next pair:")
-            # print("cell_id      : ", fcell_ids[0])
-            # print("cell_m_1_id  : ", ids[0])
+            print("Next pair:")
+            print("cell_id      : ", fcell_ids[0])
+            print("cell_m_1_id  : ", ids[0])
             self.next_d_m_1(seed_id, fcell_ids[0], ids[0], graph, closed_q)
 
 
     def circulate_internal_bc(self):
 
         closed_q = [False]
-        fracture_tags = self.Mesher.fracture_network.fracture_tags
+        fracture_tags = self.conformal_mesher.fracture_network.fracture_tags
         graph_e_to_cell = self.build_graph_on_materials(2, 1)
         cells_1d = [cell.id for cell in self.cells if cell.material_id == fracture_tags[0]]
         f_cells = [id for id in cells_1d if graph_e_to_cell.has_node(id)]
@@ -996,6 +997,7 @@ class Mesh:
         assert cell_1d.dimension == 1
         graph = self.build_graph_on_materials(1, 1)
         seed_id = cell_1d.cells_ids[0][0]
+
         id = seed_id
         fcell_id = cell_1d.id
         self.next_d_m_1(seed_id, fcell_id, id, graph, closed_q)
