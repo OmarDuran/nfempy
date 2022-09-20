@@ -6,7 +6,7 @@ import geometry.fracture_network as fn
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
 
-fracture_tags = [[0, 1],[0, 1, 2]]
+fracture_tags = [[0, 1],[0, 1, 2],[0, 1, 2, 3], [0, 1, 2, 3, 4]]
 
 def generate_geometry_2d():
     box_points = np.array([[0, 0], [1, 0], [1, 1], [0, 1]])
@@ -17,14 +17,14 @@ def generate_geometry_2d():
 def fracture_2d_set():
     fracture_1 = np.array([[0.5, 0.25], [0.5, 0.75]])
     fracture_2 = np.array([[0.25, 0.5], [0.75, 0.5]])
-    fracture_3 = np.array([[0.2, 0.25], [0.85, 0.25]])
+    fracture_3 = np.array([[0.2, 0.35], [0.85, 0.35]])
     fracture_4 = np.array([[0.15, 0.15], [0.85, 0.85]])
     fracture_5 = np.array([[0.15, 0.85], [0.85, 0.15]])
     fractures = [fracture_1, fracture_2, fracture_3, fracture_4, fracture_5]
     return fractures
 
 def generate_fracture_network(fractures):
-    fracture_network = fn.FractureNetwork(dimension=2)
+    fracture_network = fn.FractureNetwork(dimension=2, physical_tag_shift=10)
     fracture_network.intersect_1D_fractures(fractures)
     fracture_network.build_grahp(all_fixed_d_cells_q=True)
     return fracture_network

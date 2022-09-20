@@ -268,7 +268,7 @@ def main():
 
     fracture_1 = np.array([[0.5, 0.25], [0.5, 0.75]])
     fracture_2 = np.array([[0.25, 0.5], [0.75, 0.5]])
-    fracture_3 = np.array([[0.2, 0.25], [0.85, 0.25]])
+    fracture_3 = np.array([[0.2, 0.35], [0.85, 0.35]])
     fracture_4 = np.array([[0.15, 0.15], [0.85, 0.85]])
     fracture_5 = np.array([[0.15, 0.85], [0.85, 0.15]])
     fractures = [fracture_1, fracture_2]
