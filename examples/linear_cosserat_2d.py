@@ -18,7 +18,11 @@ from mesh.mesh import Mesh
 import basix
 from basix import ElementFamily, CellType, LagrangeVariant, LatticeType
 
+import scipy.sparse as sp
+from scipy.sparse import coo_matrix
 
+import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
 
 def polygon_polygon_intersection():
 
@@ -290,6 +294,12 @@ def domain_with_fractures():
 
     aka = 0
 
+def matrix_plot(A):
+    norm = mcolors.TwoSlopeNorm(vmin=-10.0, vcenter=0, vmax=10.0)
+    plt.matshow(A.todense(),norm=norm,cmap='RdBu_r');
+    plt.colorbar()
+    plt.show()
+
 def main():
 
     s = 1.0
@@ -310,7 +320,7 @@ def main():
     gmesh.set_conformal_mesher(mesher)
     gmesh.build_conformal_mesh()
     gmesh.write_vtk()
-
+    gmesh.write_data()
 
     # Create conformity
     gd2c1 = gmesh.build_graph(2, 1)
@@ -319,29 +329,108 @@ def main():
     cells_ids = list(gd2c2.nodes())
     vertices_ids = [id for id in cells_ids if gmesh.cells[id].dimension == 0]
     n_vertices = len(vertices_ids)
+    vertex_map = dict(zip(vertices_ids, list(range(n_vertices))))
+
     k_order = 1
 
     fields = [1]
     n_fields = len(fields)
+    n_dof_g = n_vertices*n_fields
+    rgs = (n_dof_g)
+    rg = np.zeros(rgs)
 
+    row_l = []
+    col_l = []
+    data_l = []
 
     for cell in gmesh.cells:
         if cell.dimension != 2:
             continue
 
-        points, weights = basix.make_quadrature(basix.QuadratureType.gauss_jacobi, CellType.triangle, k_order + 1)
+        points, weights = basix.make_quadrature(basix.QuadratureType.gauss_jacobi, CellType.triangle, 2 * k_order + 1)
         lagrange = basix.create_element(ElementFamily.P, CellType.triangle, k_order, LagrangeVariant.equispaced)
 
-        # phi_tab = lagrange.tabulate(0, points)
+        phi_tab = lagrange.tabulate(0, points)
         # print(phi_tab)
-        # v, np, n_dof, _ = phi_tab.shape
-        # s = (n_dof, n_dof)
-        # k_el = np.zeros(s)
-        # for i, omega in enumerate(weights):
-        #     k_el = k_el + omega * np.outer(phi_tab[0,i,:,0],phi_tab[0,i,:,0])
+        n_dof = phi_tab.shape[2]
+        js = (n_dof, n_dof)
+        rs = (n_dof)
+        j_el = np.zeros(js)
+        r_el = np.zeros(rs)
+
+        fun = lambda x, y, z: 16 * x * (1.0 - x) * y * (1.0 - y)
+
+        # evaluate mapping
+        linear_base = basix.create_element(ElementFamily.P, CellType.triangle, 1,
+                                           LagrangeVariant.equispaced)
+        g_phi_tab = linear_base.tabulate(1, points)
+        cell_points = gmesh.points[cell.node_tags]
+
+        aka = 0
+        # linear_base
+        for i, omega in enumerate(weights):
+
+            xmap = np.dot(g_phi_tab[0, i, :, 0], cell_points)
+            grad_xmap = np.dot(g_phi_tab[[1, 2], i, :, 0], cell_points)
+            g_jac, g_axes = np.linalg.qr(grad_xmap)
+            det_g_jac = np.abs(np.linalg.det(g_jac))
+
+            f_val = fun(xmap[0],xmap[1],xmap[2])
+            r_el = r_el + det_g_jac * omega * f_val * phi_tab[0, i, :, 0]
+            j_el = j_el + det_g_jac * omega * np.outer(phi_tab[0,i,:,0],phi_tab[0,i,:,0])
 
         # lagrange.base_transformations()
+
+        # scattering dof
+        dof_supports = list(gd2c2.successors(cell.id))
+        dest = np.array([vertex_map.get(dof_s) for dof_s in dof_supports])
+
+        for i, g_i in enumerate(dest):
+            rg[g_i] += r_el[i]
+            for j, g_j in enumerate(dest):
+                row_l.append(g_i)
+                col_l.append(g_j)
+                data_l.append(j_el[i,j])
+
+
         ako = 0
+
+    row = np.array(row_l)
+    col = np.array(col_l)
+    data = np.array(data_l)
+    jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
+
+    # solving ls
+    alpha = sp.linalg.spsolve(jg, rg)
+
+    # writing solution
+    for cell in gmesh.cells:
+        if cell.dimension != 2:
+            continue
+        # scattering dof
+        dof_supports = list(gd2c2.successors(cell.id))
+        dest = np.array([vertex_map.get(dof_s) for dof_s in dof_supports])
+        alpha_l = alpha[dest]
+
+        cell_type = getattr(basix.CellType, "triangle")
+        par_points = basix.geometry(cell_type)
+
+        # points = gmesh.points[cell.node_tags]
+        lagrange = basix.create_element(ElementFamily.P, CellType.triangle, k_order,
+                                        LagrangeVariant.equispaced)
+        phi_tab = lagrange.tabulate(0, par_points)
+        for i, point in enumerate(par_points):
+
+            # evaluate mapping
+            linear_base = basix.create_element(ElementFamily.P, CellType.triangle, 1,
+                                               LagrangeVariant.equispaced)
+            g_phi_tab = linear_base.tabulate(1, points)
+            cell_points = gmesh.points[cell.node_tags]
+            xmap = np.dot(g_phi_tab[0, i, :, 0], cell_points)
+            p_e = fun(xmap[0],xmap[1],xmap[2])
+            p_h = np.dot(alpha_l, phi_tab[0, i, :, 0])
+            print("p_e,p_h: ", [p_e,p_h])
+
 
     aka = 0
 

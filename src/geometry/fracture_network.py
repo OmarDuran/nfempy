@@ -21,7 +21,7 @@ class FractureNetwork:
     #   (1)-facets edges
     #   (2)-facets faces
 
-    def __init__(self, dimension, physical_tag_shift = 1, eps: float = 1.0e-12):
+    def __init__(self, dimension, physical_tag_shift=1, eps: float = 1.0e-12):
 
         self.eps = eps
         self.cells = np.array([], dtype=Cell)
