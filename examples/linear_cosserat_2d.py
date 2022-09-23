@@ -313,14 +313,14 @@ def main():
     mesher = ConformalMesher(dimension=2)
     mesher.set_geometry_builder(g_builder)
     mesher.set_points()
-    mesher.generate(0.01)
+    mesher.generate(0.1)
     mesher.write_mesh("gmesh.msh")
 
 
     gmesh = Mesh(dimension=2, file_name="gmesh.msh")
     gmesh.set_conformal_mesher(mesher)
-    gmesh.build_conformal_mesh()
-    gmesh.write_data()
+    gmesh.build_conformal_mesh() # expensive method
+    # gmesh.write_data()
     gmesh.write_vtk()
 
     # Create conformity
@@ -340,16 +340,33 @@ def main():
     rgs = (n_dof_g)
     rg = np.zeros(rgs)
 
-    row_l = []
-    col_l = []
-    data_l = []
+
+    c_size = 0
+    cell_map = {}
+    for cell in gmesh.cells:
+        if cell.dimension != 2:
+            continue
+
+        lagrange = basix.create_element(ElementFamily.P, CellType.triangle, k_order, LagrangeVariant.equispaced)
+        n_dof = 0
+        for n_entity_dofs in lagrange.num_entity_dofs:
+            n_dof = n_dof + sum(n_entity_dofs)
+        cell_map.__setitem__(cell.id, c_size)
+        c_size = c_size + n_dof*n_dof
+
+
+    row_l = [0] *  c_size
+    col_l = [0] *  c_size
+    data_l = [0] *  c_size
 
     for cell in gmesh.cells:
         if cell.dimension != 2:
             continue
 
+
         points, weights = basix.make_quadrature(basix.QuadratureType.gauss_jacobi, CellType.triangle, 2 * k_order + 1)
-        lagrange = basix.create_element(ElementFamily.P, CellType.triangle, k_order, LagrangeVariant.equispaced)
+        lagrange = basix.create_element(ElementFamily.P, CellType.triangle, k_order,
+                                        LagrangeVariant.equispaced)
 
         phi_tab = lagrange.tabulate(0, points)
         # print(phi_tab)
@@ -399,12 +416,14 @@ def main():
         dof_supports = list(gd2c2.successors(cell.id))
         dest = np.array([vertex_map.get(dof_s) for dof_s in dof_supports])
 
+        c_sequ = cell_map[cell.id]
         for i, g_i in enumerate(dest):
             rg[g_i] += r_el[i]
             for j, g_j in enumerate(dest):
-                row_l.append(g_i)
-                col_l.append(g_j)
-                data_l.append(j_el[i,j])
+                row_l[c_sequ] = g_i
+                col_l[c_sequ] = g_j
+                data_l[c_sequ] = j_el[i,j]
+                c_sequ = c_sequ + 1
 
 
         ako = 0
