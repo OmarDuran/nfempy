@@ -312,15 +312,15 @@ def main():
     mesher = ConformalMesher(dimension=2)
     mesher.set_geometry_builder(g_builder)
     mesher.set_points()
-    mesher.generate(1.0)
+    mesher.generate(0.05)
     mesher.write_mesh("gmesh.msh")
 
 
     gmesh = Mesh(dimension=2, file_name="gmesh.msh")
     gmesh.set_conformal_mesher(mesher)
     gmesh.build_conformal_mesh()
-    gmesh.write_vtk()
     gmesh.write_data()
+    gmesh.write_vtk()
 
     # Create conformity
     gd2c1 = gmesh.build_graph(2, 1)
@@ -370,17 +370,30 @@ def main():
         # linear_base
         for i, omega in enumerate(weights):
 
-            xmap = np.dot(g_phi_tab[0, i, :, 0], cell_points)
-            grad_xmap = np.dot(g_phi_tab[[1, 2], i, :, 0], cell_points)
-            g_jac, g_axes = np.linalg.qr(grad_xmap)
-            det_g_jac = np.abs(np.linalg.det(g_jac))
+
+            # QR-decomposition is not unique
+            # It's only unique up to the signs of the rows of R
+            xmap = np.dot(g_phi_tab[0, i, :, 0],cell_points)
+            grad_xmap = np.dot(g_phi_tab[[1, 2], i, :, 0],cell_points).T
+            q_axes, r_jac = np.linalg.qr(grad_xmap)
+            r_sign = np.diag(np.sign(np.diag(r_jac)), 0)
+            q_axes = np.dot(q_axes, r_sign)
+            r_jac = np.dot(r_sign, r_jac)
+
+            det_g_jac = np.linalg.det(r_jac)
+            if det_g_jac < 0.0:
+                print('Negative det jac: ', det_g_jac)
+
 
             f_val = fun(xmap[0],xmap[1],xmap[2])
             r_el = r_el + det_g_jac * omega * f_val * phi_tab[0, i, :, 0]
             j_el = j_el + det_g_jac * omega * np.outer(phi_tab[0,i,:,0],phi_tab[0,i,:,0])
 
         # lagrange.base_transformations()
-
+        b_transformations = lagrange.base_transformations()
+        e_transformations = lagrange.entity_transformations()
+        print(lagrange.dof_transformations_are_identity)
+        print(lagrange.dof_transformations_are_permutations)
         # scattering dof
         dof_supports = list(gd2c2.successors(cell.id))
         dest = np.array([vertex_map.get(dof_s) for dof_s in dof_supports])
@@ -419,14 +432,19 @@ def main():
         lagrange = basix.create_element(ElementFamily.P, CellType.triangle, k_order,
                                         LagrangeVariant.equispaced)
         phi_tab = lagrange.tabulate(0, par_points)
+
+        # dof transformations
+        aka = 0
+        # lagrange.basic_transform()
+
+        linear_base = basix.create_element(ElementFamily.P, CellType.triangle, 1,
+                                           LagrangeVariant.equispaced)
+        g_phi_tab = linear_base.tabulate(1, par_points)
         for i, point in enumerate(par_points):
 
             # evaluate mapping
-            linear_base = basix.create_element(ElementFamily.P, CellType.triangle, 1,
-                                               LagrangeVariant.equispaced)
-            g_phi_tab = linear_base.tabulate(1, points)
             cell_points = gmesh.points[cell.node_tags]
-            xmap = np.dot(g_phi_tab[0, i, :, 0], cell_points)
+            xmap = np.dot(g_phi_tab[0, i, :, 0],cell_points)
             p_e = fun(xmap[0],xmap[1],xmap[2])
             p_h = np.dot(alpha_l, phi_tab[0, i, :, 0])
             print("p_e,p_h: ", [p_e,p_h])

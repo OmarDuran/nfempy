@@ -280,8 +280,8 @@ class Mesh:
             print('Dimension data', file=file)
             print('Min entity dimension: ', min(dimensions), file=file)
             print('Min entity dimension: ', max(dimensions), file=file)
-            print('Min entity dimension with tag: ', min(dimensions_with_tag), file=file)
-            print('Min entity dimension with tag: ', max(dimensions_with_tag), file=file)
+            print('Min entity dimension with physical tag: ', min(dimensions_with_tag), file=file)
+            print('Min entity dimension with physical tag: ', max(dimensions_with_tag), file=file)
             print('', file=file)
 
             print('Point data', file=file)
