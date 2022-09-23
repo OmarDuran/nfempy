@@ -313,7 +313,7 @@ def main():
     mesher = ConformalMesher(dimension=2)
     mesher.set_geometry_builder(g_builder)
     mesher.set_points()
-    mesher.generate(0.1)
+    mesher.generate(0.05)
     mesher.write_mesh("gmesh.msh")
 
 
@@ -355,9 +355,9 @@ def main():
         c_size = c_size + n_dof*n_dof
 
 
-    row_l = [0] *  c_size
-    col_l = [0] *  c_size
-    data_l = [0] *  c_size
+    row = np.zeros((c_size), dtype=np.int64)
+    col = np.zeros((c_size), dtype=np.int64)
+    data = np.zeros((c_size), dtype=np.float64)
 
     for cell in gmesh.cells:
         if cell.dimension != 2:
@@ -420,17 +420,14 @@ def main():
         for i, g_i in enumerate(dest):
             rg[g_i] += r_el[i]
             for j, g_j in enumerate(dest):
-                row_l[c_sequ] = g_i
-                col_l[c_sequ] = g_j
-                data_l[c_sequ] = j_el[i,j]
+                row[c_sequ] = g_i
+                col[c_sequ] = g_j
+                data[c_sequ] = j_el[i,j]
                 c_sequ = c_sequ + 1
 
 
         ako = 0
 
-    row = np.array(row_l)
-    col = np.array(col_l)
-    data = np.array(data_l)
     jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
 
     # solving ls
