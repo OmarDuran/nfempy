@@ -23,6 +23,7 @@ from scipy.sparse import coo_matrix
 
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
+import meshio
 
 def polygon_polygon_intersection():
 
@@ -312,7 +313,7 @@ def main():
     mesher = ConformalMesher(dimension=2)
     mesher.set_geometry_builder(g_builder)
     mesher.set_points()
-    mesher.generate(0.05)
+    mesher.generate(0.01)
     mesher.write_mesh("gmesh.msh")
 
 
@@ -390,10 +391,10 @@ def main():
             j_el = j_el + det_g_jac * omega * np.outer(phi_tab[0,i,:,0],phi_tab[0,i,:,0])
 
         # lagrange.base_transformations()
-        b_transformations = lagrange.base_transformations()
-        e_transformations = lagrange.entity_transformations()
-        print(lagrange.dof_transformations_are_identity)
-        print(lagrange.dof_transformations_are_permutations)
+        # b_transformations = lagrange.base_transformations()
+        # e_transformations = lagrange.entity_transformations()
+        # print(lagrange.dof_transformations_are_identity)
+        # print(lagrange.dof_transformations_are_permutations)
         # scattering dof
         dof_supports = list(gd2c2.successors(cell.id))
         dest = np.array([vertex_map.get(dof_s) for dof_s in dof_supports])
@@ -416,8 +417,13 @@ def main():
     # solving ls
     alpha = sp.linalg.spsolve(jg, rg)
 
-    # writing solution
-    for cell in gmesh.cells:
+    # writing solution on mesh points
+    cell_0d_ids = [cell.id for cell in gmesh.cells if cell.dimension == 0]
+    ph_data = np.zeros(len(gmesh.points))
+    pe_data = np.zeros(len(gmesh.points))
+    for id in cell_0d_ids:
+        pr_ids = list(gd2c2.predecessors(id))
+        cell = gmesh.cells[pr_ids[0]]
         if cell.dimension != 2:
             continue
         # scattering dof
@@ -428,10 +434,12 @@ def main():
         cell_type = getattr(basix.CellType, "triangle")
         par_points = basix.geometry(cell_type)
 
-        # points = gmesh.points[cell.node_tags]
+        vertex_id = np.array([i for i, cid in enumerate(cell.cells_ids[0]) if cid == id])
         lagrange = basix.create_element(ElementFamily.P, CellType.triangle, k_order,
                                         LagrangeVariant.equispaced)
-        phi_tab = lagrange.tabulate(0, par_points)
+
+        points = par_points[vertex_id]
+        phi_tab = lagrange.tabulate(0, points)
 
         # dof transformations
         aka = 0
@@ -439,16 +447,47 @@ def main():
 
         linear_base = basix.create_element(ElementFamily.P, CellType.triangle, 1,
                                            LagrangeVariant.equispaced)
-        g_phi_tab = linear_base.tabulate(1, par_points)
-        for i, point in enumerate(par_points):
+        g_phi_tab = linear_base.tabulate(1, points)
 
-            # evaluate mapping
-            cell_points = gmesh.points[cell.node_tags]
-            xmap = np.dot(g_phi_tab[0, i, :, 0],cell_points)
-            p_e = fun(xmap[0],xmap[1],xmap[2])
-            p_h = np.dot(alpha_l, phi_tab[0, i, :, 0])
-            print("p_e,p_h: ", [p_e,p_h])
+        # evaluate mapping
+        cell_points = gmesh.points[cell.node_tags]
+        xmap = np.dot(g_phi_tab[0, 0, :, 0], cell_points)
+        p_e = fun(xmap[0], xmap[1], xmap[2])
+        p_h = np.dot(alpha_l, phi_tab[0, 0, :, 0])
+        # print("p_e,p_h: ", [p_e,p_h])
+        cell_0d = gmesh.cells[id]
+        ph_data[cell_0d.node_tags] = p_h
+        pe_data[cell_0d.node_tags] = p_e
 
+
+
+    file_name = "h1_projector.xdmf"
+
+    mesh_points = gmesh.points
+    con_2d = np.array(
+        [
+            cell.node_tags
+            for cell in gmesh.cells
+            if cell.dimension == 2 and cell.id != None
+        ]
+    )
+    cells_dict = {"triangle": con_2d}
+    p_data_dict = {"ph": ph_data, "pe": pe_data}
+
+    mesh = meshio.Mesh(
+        points= mesh_points,
+        cells = cells_dict,
+        # Optionally provide extra data on points, cells, etc.
+        point_data=p_data_dict
+    )
+    mesh.write("h1_projector.vtk")
+
+    # this depends on pip install meshio[all] which is not working on macOS
+    # time_data = [0.0]
+    # with meshio.XdmfTimeSeriesWriter(file_name) as writer:
+    #     writer.write_points_cells(mesh_points, cells_dict)
+    #     for t in time_data:
+    #         writer.write_data(t, point_data=p_data_dict)
 
     aka = 0
 
