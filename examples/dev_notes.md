@@ -51,6 +51,18 @@ For the sake of simplicity only L2-, H1- and Hdiv-conformal approximation spaces
 
 * Example with H1-conformal scalar laplace
 
+## FEM developments
+
+Current developments steps:
+
+* Projectors:
+	* H1-scalars and -vectors
+	* Hdiv-vectors and tensors
+* Test cases with
+	* R^{n} to R^{3} n in {1,2,3}
+
+Postprocess should be on cells?
+
 
 ## DoF mappigns
 

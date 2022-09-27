@@ -301,27 +301,7 @@ def matrix_plot(A):
     plt.colorbar()
     plt.show()
 
-def main():
-
-    s = 1.0
-    box_points = s * np.array([[0, 0], [1, 0], [1, 1], [0, 1]])
-    g_builder = GeometryBuilder(dimension=2)
-    g_builder.build_box_2D(box_points)
-    g_builder.build_grahp()
-
-
-    mesher = ConformalMesher(dimension=2)
-    mesher.set_geometry_builder(g_builder)
-    mesher.set_points()
-    mesher.generate(0.05)
-    mesher.write_mesh("gmesh.msh")
-
-
-    gmesh = Mesh(dimension=2, file_name="gmesh.msh")
-    gmesh.set_conformal_mesher(mesher)
-    gmesh.build_conformal_mesh() # expensive method
-    # gmesh.write_data()
-    gmesh.write_vtk()
+def h1_projector(gmesh):
 
     # Create conformity
     gd2c1 = gmesh.build_graph(2, 1)
@@ -378,16 +358,20 @@ def main():
 
         fun = lambda x, y, z: 16 * x * (1.0 - x) * y * (1.0 - y)
 
-        # evaluate mapping
+        # For a given cell compute geometrical information
+        # Evaluate mappings
         linear_base = basix.create_element(ElementFamily.P, CellType.triangle, 1,
                                            LagrangeVariant.equispaced)
         g_phi_tab = linear_base.tabulate(1, points)
         cell_points = gmesh.points[cell.node_tags]
 
-        aka = 0
-        # linear_base
-        for i, omega in enumerate(weights):
+        # Compute geometrical transformations
+        xa = []
+        Ja = []
+        detJa = []
+        invJa = []
 
+        for i, point in enumerate(points):
 
             # QR-decomposition is not unique
             # It's only unique up to the signs of the rows of R
@@ -402,10 +386,25 @@ def main():
             if det_g_jac < 0.0:
                 print('Negative det jac: ', det_g_jac)
 
+            xa.append(xmap)
+            Ja.append(r_jac)
+            detJa.append(det_g_jac)
+            invJa.append(np.linalg.inv(r_jac))
 
-            f_val = fun(xmap[0],xmap[1],xmap[2])
-            r_el = r_el + det_g_jac * omega * f_val * phi_tab[0, i, :, 0]
-            j_el = j_el + det_g_jac * omega * np.outer(phi_tab[0,i,:,0],phi_tab[0,i,:,0])
+        xa = np.array(xa)
+        Ja = np.array(Ja)
+        detJa = np.array(detJa)
+        invJa = np.array(invJa)
+
+        # map functions
+        mphi_tab = lagrange.push_forward(phi_tab[0], Ja, detJa, invJa)
+        aka = 0
+        # linear_base
+        for i, omega in enumerate(weights):
+
+            f_val = fun(xa[i,0],xa[i,1],xa[i,2])
+            r_el = r_el + detJa[i] * omega * f_val * mphi_tab[ i, :, 0]
+            j_el = j_el + detJa[i] * omega * np.outer(mphi_tab[i,:,0],mphi_tab[i,:,0])
 
         # lagrange.base_transformations()
         # b_transformations = lagrange.base_transformations()
@@ -476,9 +475,6 @@ def main():
         pe_data[cell_0d.node_tags] = p_e
 
 
-
-    file_name = "h1_projector.xdmf"
-
     mesh_points = gmesh.points
     con_2d = np.array(
         [
@@ -498,14 +494,284 @@ def main():
     )
     mesh.write("h1_projector.vtk")
 
-    # this depends on pip install meshio[all] which is not working on macOS
-    # time_data = [0.0]
-    # with meshio.XdmfTimeSeriesWriter(file_name) as writer:
-    #     writer.write_points_cells(mesh_points, cells_dict)
-    #     for t in time_data:
-    #         writer.write_data(t, point_data=p_data_dict)
+def hdiv_projector(gmesh):
 
-    aka = 0
+    # Create conformity
+    gd2c1 = gmesh.build_graph(2, 1)
+    gd2c2 = gmesh.build_graph(2, 2)
+
+    cells_ids = list(gd2c1.nodes())
+    edges_ids = [id for id in cells_ids if gmesh.cells[id].dimension == 1]
+    n_edges = len(edges_ids)
+    edge_map = dict(zip(edges_ids, list(range(n_edges))))
+
+    k_order = 1
+
+    fields = [1]
+    n_fields = len(fields)
+    n_dof_g = n_edges*n_fields
+    rgs = (n_dof_g)
+    rg = np.zeros(rgs)
+
+
+    c_size = 0
+    cell_map = {}
+    for cell in gmesh.cells:
+        if cell.dimension != 2:
+            continue
+
+        lagrange = basix.create_element(ElementFamily.P, CellType.triangle, k_order, LagrangeVariant.equispaced)
+        n_dof = 0
+        for n_entity_dofs in lagrange.num_entity_dofs:
+            n_dof = n_dof + sum(n_entity_dofs)
+        cell_map.__setitem__(cell.id, c_size)
+        c_size = c_size + n_dof*n_dof
+
+
+    row = np.zeros((c_size), dtype=np.int64)
+    col = np.zeros((c_size), dtype=np.int64)
+    data = np.zeros((c_size), dtype=np.float64)
+
+    for cell in gmesh.cells:
+        if cell.dimension != 2:
+            continue
+
+
+        # cell quadrature
+        points, weights = basix.make_quadrature(basix.QuadratureType.gauss_jacobi, CellType.triangle, 2 * k_order + 1)
+
+        lagrange = basix.create_element(ElementFamily.RT, CellType.triangle, k_order,
+                                        LagrangeVariant.equispaced)
+
+        phi_tab = lagrange.tabulate(0, points)
+        # print(phi_tab)
+        n_dof = phi_tab.shape[2]
+        js = (n_dof, n_dof)
+        rs = (n_dof)
+        j_el = np.zeros(js)
+        r_el = np.zeros(rs)
+
+        fun = lambda x, y, z: np.array([16*(1 - x)*(1 - y)*y - 16*x*(1 - y)*y,16*(1 - x)*x*(1 - y) - 16*(1 - x)*x*y, 0])
+        dfun_x = lambda x, y, z: 16*(1 - x)*(1 - y)*y - 16*x*(1 - y)*y
+        dfun_y = lambda x, y, z: 16*(1 - x)*x*(1 - y) - 16*(1 - x)*x*y
+
+        # For a given cell compute geometrical information
+        # Evaluate mappings
+        linear_base = basix.create_element(ElementFamily.P, CellType.triangle, 1,
+                                           LagrangeVariant.equispaced)
+        g_phi_tab = linear_base.tabulate(1, points)
+        cell_points = gmesh.points[cell.node_tags]
+
+        # Compute geometrical transformations
+        xa = []
+        grad_xa = []
+        Ja = []
+        detJa = []
+        invJa = []
+
+        for i, point in enumerate(points):
+
+            # QR-decomposition is not unique
+            # It's only unique up to the signs of the rows of R
+            xmap = np.dot(g_phi_tab[0, i, :, 0],cell_points)
+            grad_xmap = np.dot(g_phi_tab[[1, 2], i, :, 0],cell_points).T
+            q_axes, r_jac = np.linalg.qr(grad_xmap)
+            r_sign = np.diag(np.sign(np.diag(r_jac)), 0)
+            q_axes = np.dot(q_axes, r_sign)
+            r_jac = np.dot(r_sign, r_jac)
+
+            det_g_jac = np.linalg.det(r_jac)
+            if det_g_jac < 0.0:
+                print('Negative det jac: ', det_g_jac)
+
+
+            xa.append(xmap)
+            grad_xa.append(grad_xmap)
+            Ja.append(r_jac)
+            detJa.append(det_g_jac)
+            invJa.append(np.dot(np.linalg.inv(r_jac),q_axes.T))
+
+        xa = np.array(xa)
+        grad_xa = np.array(grad_xa)
+        Ja = np.array(Ja)
+        detJa = np.array(detJa)
+        invJa = np.array(invJa)
+
+        # map functions
+        mphi_tab = lagrange.push_forward(phi_tab[0], grad_xa, detJa, invJa)
+        aka = 0
+
+        # lagrange.base_transformations()
+        b_transformations = lagrange.base_transformations()
+        e_transformations = lagrange.entity_transformations()
+        print(lagrange.dof_transformations_are_identity)
+        print(lagrange.dof_transformations_are_permutations)
+
+        # needs to select the entities to be transformed
+        dofs = lagrange.entity_dofs[1][2]
+
+        for point in range(data.shape[1]):
+            for dim in range(data.shape[3]):
+                data[0, point, dofs, dim] = np.dot(e_transformations,
+                                                   data[0, point, dofs, dim])
+
+        # transformation = lagrange.entity_transformations()
+        # linear_base
+        for i, omega in enumerate(weights):
+
+            f_val = fun(xa[i,0],xa[i,1],xa[i,2])
+            r_el = r_el + detJa[i] * omega * np.dot(mphi_tab[ i, :, :],f_val)
+            for id in range(n_dof):
+                for jd in range(n_dof):
+                    j_el[id,jd] = j_el[id,jd] + detJa[i] * omega * np.dot(mphi_tab[i,id,:],mphi_tab[i,jd,:])
+
+            # for d in range(cell.dimension):
+            #     j_el = j_el + detJa[i] * omega * np.outer(mphi_tab[i, :, d],
+            #                                             mphi_tab[i, :, d])
+            aka = 0
+
+
+
+        # scattering dof
+        dof_supports = list(gd2c1.successors(cell.id))
+        dest = np.array([edge_map.get(dof_s) for dof_s in dof_supports])
+
+        c_sequ = cell_map[cell.id]
+        for i, g_i in enumerate(dest):
+            rg[g_i] += r_el[i]
+            for j, g_j in enumerate(dest):
+                row[c_sequ] = g_i
+                col[c_sequ] = g_j
+                data[c_sequ] = j_el[i,j]
+                c_sequ = c_sequ + 1
+
+
+        ako = 0
+
+    jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
+
+    # solving ls
+    alpha = sp.linalg.spsolve(jg, rg)
+
+    # writing solution on mesh points
+    cell_0d_ids = [cell.id for cell in gmesh.cells if cell.dimension == 0]
+    vh_data = np.zeros((len(gmesh.points),3)) # postprocess should always work in 3d
+    ve_data = np.zeros((len(gmesh.points),3)) # postprocess should always work in 3d
+    for id in cell_0d_ids:
+        pr_ids = list(gd2c2.predecessors(id))
+        cell = gmesh.cells[pr_ids[0]]
+        if cell.dimension != 2:
+            continue
+        # scattering dof
+        dof_supports = list(gd2c1.successors(cell.id))
+        dest = np.array([edge_map.get(dof_s) for dof_s in dof_supports])
+        alpha_l = alpha[dest]
+
+        cell_type = getattr(basix.CellType, "triangle")
+        par_points = basix.geometry(cell_type)
+
+        vertex_id = np.array([i for i, cid in enumerate(cell.cells_ids[0]) if cid == id])
+        lagrange = basix.create_element(ElementFamily.RT, CellType.triangle, k_order,
+                                        LagrangeVariant.equispaced)
+
+        points = par_points[vertex_id]
+        phi_tab = lagrange.tabulate(0, points)
+
+        linear_base = basix.create_element(ElementFamily.P, CellType.triangle, 1,
+                                           LagrangeVariant.equispaced)
+        g_phi_tab = linear_base.tabulate(1, points)
+        cell_points = gmesh.points[cell.node_tags]
+
+        # Compute geometrical transformations
+        xa = []
+        grad_xa = []
+        Ja = []
+        detJa = []
+        invJa = []
+
+        for i, point in enumerate(points):
+
+            # QR-decomposition is not unique
+            # It's only unique up to the signs of the rows of R
+            xmap = np.dot(g_phi_tab[0, i, :, 0], cell_points)
+            grad_xmap = np.dot(g_phi_tab[[1, 2], i, :, 0], cell_points).T
+            q_axes, r_jac = np.linalg.qr(grad_xmap)
+            r_sign = np.diag(np.sign(np.diag(r_jac)), 0)
+            q_axes = np.dot(q_axes, r_sign)
+            r_jac = np.dot(r_sign, r_jac)
+
+            det_g_jac = np.linalg.det(r_jac)
+            if det_g_jac < 0.0:
+                print('Negative det jac: ', det_g_jac)
+
+            xa.append(xmap)
+            grad_xa.append(grad_xmap)
+            Ja.append(r_jac)
+            detJa.append(det_g_jac)
+            invJa.append(np.dot(np.linalg.inv(r_jac),q_axes.T))
+
+        xa = np.array(xa)
+        grad_xa = np.array(grad_xa)
+        Ja = np.array(Ja)
+        detJa = np.array(detJa)
+        invJa = np.array(invJa)
+
+        # map functions
+        mphi_tab = lagrange.push_forward(phi_tab[0], grad_xa, detJa, invJa)
+
+        v_e = fun(xa[0,0],xa[0,1],xa[0,2])
+        v_h = np.dot(alpha_l, mphi_tab[0, :, :])
+        # print("p_e,p_h: ", [p_e,p_h])
+        cell_0d = gmesh.cells[id]
+        vh_data[cell_0d.node_tags] = v_h
+        ve_data[cell_0d.node_tags] = v_e
+
+    mesh_points = gmesh.points
+    con_2d = np.array(
+        [
+            cell.node_tags
+            for cell in gmesh.cells
+            if cell.dimension == 2 and cell.id != None
+        ]
+    )
+    cells_dict = {"triangle": con_2d}
+    p_data_dict = {"vh": vh_data, "ve": ve_data}
+
+    mesh = meshio.Mesh(
+        points= mesh_points,
+        cells = cells_dict,
+        # Optionally provide extra data on points, cells, etc.
+        point_data=p_data_dict
+    )
+    mesh.write("hdiv_projector.vtk")
+
+def main():
+
+    s = 1.0
+    box_points = s * np.array([[0, 0], [1, 0], [1, 1], [0, 1]])
+    g_builder = GeometryBuilder(dimension=2)
+    g_builder.build_box_2D(box_points)
+    g_builder.build_grahp()
+
+
+    mesher = ConformalMesher(dimension=2)
+    mesher.set_geometry_builder(g_builder)
+    mesher.set_points()
+    mesher.generate(1.0)
+    mesher.write_mesh("gmesh.msh")
+
+
+    gmesh = Mesh(dimension=2, file_name="gmesh.msh")
+    gmesh.set_conformal_mesher(mesher)
+    gmesh.build_conformal_mesh() # expensive method
+    # gmesh.write_data()
+    gmesh.write_vtk()
+
+
+    # pojectors
+    # h1_projector(gmesh)
+    hdiv_projector(gmesh)
+
 
 if __name__ == '__main__':
     main()
