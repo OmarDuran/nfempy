@@ -2,6 +2,14 @@
 Python version used for the main development is 3.9.12
 An exploratory enviroment with python 3.7 is necessary for a clean installation of FEnics and better understanding of the meshes objects
 
+## Publication plan
+
+1) md-coserrat equations, check for convergence and depart from linearized model: Mathematical Models and Methods in Applied Sciences
+2) HHO scheme for linear equations POEMS (Conference paper)
+3) md-coserrat + contact mechanics, numerical exploration and stabilization + interior point methods
+4) nonlinear md-coserrat + fluid
+
+
 ## Dependencies
 
 1. numpy
@@ -16,7 +24,13 @@ Shapely will be eliminated.
 
 # Geometry representation
 
-The geometry cover two main approaches. Fully conformal approximations spaces and broken topolgy for representing plane manifolds or fractures.
+The geometry cover two main approaches. Fully conformal approximations spaces and broken topolgy for representing plane manifolds or fractures. Simplexes are consider for demonstration. However general polytopal meshes are the goal.
+
+For the case of simplexes:
+0d-cells -> points
+1d-cells -> lines
+2d-cells -> triangles
+3d-cells -> tetrahedron
 
 
 ## Guide lines for mesh generation
@@ -61,7 +75,7 @@ Current developments steps:
 * Test cases with
 	* R^{n} to R^{3} n in {1,2,3}
 
-Postprocess should be on cells?
+Postprocess should be on cells for now.
 
 
 ## DoF mappigns
