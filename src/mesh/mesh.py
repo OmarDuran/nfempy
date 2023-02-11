@@ -279,9 +279,9 @@ class Mesh:
 
             print('Dimension data', file=file)
             print('Min entity dimension: ', min(dimensions), file=file)
-            print('Min entity dimension: ', max(dimensions), file=file)
+            print('Max entity dimension: ', max(dimensions), file=file)
             print('Min entity dimension with physical tag: ', min(dimensions_with_tag), file=file)
-            print('Min entity dimension with physical tag: ', max(dimensions_with_tag), file=file)
+            print('Max entity dimension with physical tag: ', max(dimensions_with_tag), file=file)
             print('', file=file)
 
             print('Point data', file=file)
@@ -457,7 +457,7 @@ class Mesh:
 
         tuple_id_list = []
         for cell_i in disjoint_cells:
-            gather_graph_edges(dimension - co_dimension, cell_i, tuple_id_list)
+            self.gather_graph_edges(dimension - co_dimension, cell_i, tuple_id_list)
 
         graph = nx.from_edgelist(tuple_id_list, create_using=nx.DiGraph)
         return graph

@@ -24,7 +24,7 @@ from scipy.sparse import coo_matrix
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import meshio
-
+import itertools
 
 def polygon_polygon_intersection():
 
@@ -34,14 +34,14 @@ def polygon_polygon_intersection():
     fracture_3 = np.array([[0., 0.5, -0.5], [1., 0.5, -0.5], [1., 0.5, 0.5],
      [0., 0.5, 0.5]])
 
-    # fracture_2 = np.array([[0.6, 0., 0.5], [0.6, 0., -0.5], [0.6, 1., -0.5], [0.6, 1., 0.5]])
-    # fracture_3 = np.array([[0.25, 0., 0.5], [0.914463, 0.241845, -0.207107], [0.572443, 1.18154, -0.207107],
-    #  [-0.0920201, 0.939693, 0.5]])
+    fracture_2 = np.array([[0.6, 0., 0.5], [0.6, 0., -0.5], [0.6, 1., -0.5], [0.6, 1., 0.5]])
+    fracture_3 = np.array([[0.25, 0., 0.5], [0.914463, 0.241845, -0.207107], [0.572443, 1.18154, -0.207107],
+     [-0.0920201, 0.939693, 0.5]])
 
     fractures = [fracture_1,fracture_2,fracture_3]
 
     fracture_network = fn.FractureNetwork(dimension=3)
-    # fracture_network.render_fractures(fractures)
+    fracture_network.render_fractures(fractures)
     fracture_network.intersect_2D_fractures(fractures, True)
     fracture_network.build_grahp()
     fracture_network.draw_grahp()
@@ -331,43 +331,51 @@ def h1_projector(gmesh):
     cells_ids_c2 = list(gd2c2.nodes())
     cells_ids_c1 = list(gd2c1.nodes())
 
-
+    # Collecting ids
     vertices_ids = [id for id in cells_ids_c2 if gmesh.cells[id].dimension == 0]
     n_vertices = len(vertices_ids)
-    vertex_map = dict(zip(vertices_ids, list(range(0,n_vertices))))
-
     edges_ids = [id for id in cells_ids_c1 if gmesh.cells[id].dimension == 1]
     n_edges = len(edges_ids)
-    edge_map = dict(zip(edges_ids, list(range(n_vertices,n_vertices+n_edges))))
+    faces_ids = [id for id in cells_ids_c2 if gmesh.cells[id].dimension == 2]
+    n_faces = len(faces_ids)
 
+    global_indices = np.add.accumulate([0, n_vertices, n_edges, n_faces])
+    # Computing cell mappings
+    vertex_map = dict(zip(vertices_ids, list(range(global_indices[0],global_indices[1]))))
+    edge_map = dict(zip(vertices_ids, list(range(global_indices[1],global_indices[2]))))
+    face_map = dict(zip(vertices_ids, list(range(global_indices[2],global_indices[3]))))
+
+    # polynomial order
     k_order = 1
 
     # H1 functionality
 
-    fields = [1]
-    n_fields = len(fields)
-    n_dof_g = n_vertices*n_fields + n_edges*n_fields
-    rgs = (n_dof_g)
-    rg = np.zeros(rgs)
-
-
+    # Computing cell_id -> local_size map
     c_size = 0
+    n_dof_g = 0
     cell_map = {}
     for cell in gmesh.cells:
         if cell.dimension != 2:
             continue
 
-        lagrange = basix.create_element(ElementFamily.P, CellType.triangle, k_order, LagrangeVariant.equispaced)
+        lagrange = basix.create_element(ElementFamily.P, CellType.triangle, k_order,
+                                        LagrangeVariant.equispaced)
         n_dof = 0
         for n_entity_dofs in lagrange.num_entity_dofs:
             n_dof = n_dof + sum(n_entity_dofs)
         cell_map.__setitem__(cell.id, c_size)
-        c_size = c_size + n_dof*n_dof
-
+        c_size = c_size + n_dof * n_dof
 
     row = np.zeros((c_size), dtype=np.int64)
     col = np.zeros((c_size), dtype=np.int64)
     data = np.zeros((c_size), dtype=np.float64)
+
+    fields = [1]
+    n_fields = len(fields)
+    n_dof_g = n_vertices * n_fields
+    rg = np.zeros(n_dof_g)
+
+
 
     for cell in gmesh.cells:
         if cell.dimension != 2:
@@ -441,21 +449,24 @@ def h1_projector(gmesh):
         # e_transformations = lagrange.entity_transformations()
         # print(lagrange.dof_transformations_are_identity)
         # print(lagrange.dof_transformations_are_permutations)
+
         # scattering dof
         dof_vertex_supports = list(gd2c2.successors(cell.id))
         dof_edge_supports = list(gd2c1.successors(cell.id))
         dest_vertex = np.array([vertex_map.get(dof_s) for dof_s in dof_vertex_supports])
         dest_edge = np.array([edge_map.get(dof_s) for dof_s in dof_edge_supports])
-        dest = np.concatenate((dest_vertex,dest_edge))
+        # dest = np.concatenate((dest_vertex,dest_edge))
+        dest = dest_vertex
         c_sequ = cell_map[cell.id]
-        for i, g_i in enumerate(dest):
-            rg[g_i] += r_el[i]
-            for j, g_j in enumerate(dest):
-                row[c_sequ] = g_i
-                col[c_sequ] = g_j
-                data[c_sequ] = j_el[i,j]
-                c_sequ = c_sequ + 1
 
+        # contribute rhs
+        rg[dest] += r_el
+
+        # contribute lhs
+        block_sequ = np.array(range(0, len(dest) * len(dest))) + c_sequ
+        row[block_sequ] += np.repeat(dest, len(dest))
+        col[block_sequ] += np.tile(dest, len(dest))
+        data[block_sequ] += j_el.ravel()
 
         ako = 0
 
@@ -779,6 +790,8 @@ def hdiv_projector(gmesh):
 
 def main():
 
+    # polygon_polygon_intersection()
+
     s = 1.0
     box_points = s * np.array([[0, 0], [1, 0], [1, 1], [0, 1]])
     g_builder = GeometryBuilder(dimension=2)
@@ -789,7 +802,7 @@ def main():
     mesher = ConformalMesher(dimension=2)
     mesher.set_geometry_builder(g_builder)
     mesher.set_points()
-    mesher.generate(1.0)
+    mesher.generate(0.01)
     mesher.write_mesh("gmesh.msh")
 
 
@@ -807,6 +820,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 

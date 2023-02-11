@@ -6,7 +6,8 @@ An exploratory enviroment with python 3.7 is necessary for a clean installation 
 
 1) md-coserrat equations, check for convergence and depart from linearized model: Mathematical Models and Methods in Applied Sciences
 2) HHO scheme for linear equations POEMS (Conference paper)
-3) md-coserrat + contact mechanics, numerical exploration and stabilization + interior point methods
+3) md-cosserat + contact mechanics, numerical exploration and stabilization + interior point methods
+3) md-cosserat + fluid
 4) nonlinear md-coserrat + fluid
 
 
@@ -17,10 +18,13 @@ An exploratory enviroment with python 3.7 is necessary for a clean installation 
 4. networkx
 5. meshio
 6. matplotlib
-7. fenics-basix
+7. fenics-basix (Fem basis)
 8. shapely
+9. julia : https://github.com/SciML/LinearSolve.jl (Still not smooth)
+10. pyvista: https://docs.pyvista.org/
 
 Shapely will be eliminated.
+Firs try for calling LinearSolve.jl inside python <pip install julia>
 
 # Geometry representation
 
@@ -84,9 +88,10 @@ The construction of a [robuts strategy](https://dl.acm.org/doi/10.1145/3524456) 
 
 
 # Linear solver
- linear solver are :
+In order of importance linear solver are :
  
 	1. python available solvers
+	2. Julia linear solver : https://github.com/SciML/LinearSolve.jl
 	2. pypardiso
 	3. petsc4py: consider scipy sparse matrix converted to petsc format
 
