@@ -73,6 +73,9 @@ For the sake of simplicity only L2-, H1- and Hdiv-conformal approximation spaces
 
 Current developments steps:
 
+* Homogeneous k-order and cells types
+* Only simplexes meshes for now
+
 * Projectors:
 	* H1-scalars and -vectors
 	* Hdiv-vectors and tensors

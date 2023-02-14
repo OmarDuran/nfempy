@@ -339,27 +339,24 @@ def h1_projector(gmesh):
     faces_ids = [id for id in cells_ids_c2 if gmesh.cells[id].dimension == 2]
     n_faces = len(faces_ids)
 
-    global_indices = np.add.accumulate([0, n_vertices, n_edges, n_faces])
-    # Computing cell mappings
-    vertex_map = dict(zip(vertices_ids, list(range(global_indices[0],global_indices[1]))))
-    edge_map = dict(zip(edges_ids, list(range(global_indices[1],global_indices[2]))))
-    face_map = dict(zip(faces_ids, list(range(global_indices[2],global_indices[3]))))
-
     # polynomial order
     k_order = 3
+    #
+    conformity = "h-1"
 
     # H1 functionality
 
+    # conformity needs to be defined
     # Computing cell_id -> local_size map
+    lagrange = basix.create_element(ElementFamily.P, CellType.triangle, k_order,
+                                    LagrangeVariant.equispaced)
+
     c_size = 0
     n_dof_g = 0
     cell_map = {}
     for cell in gmesh.cells:
         if cell.dimension != 2:
             continue
-
-        lagrange = basix.create_element(ElementFamily.P, CellType.triangle, k_order,
-                                        LagrangeVariant.equispaced)
         n_dof = 0
         for n_entity_dofs in lagrange.num_entity_dofs:
             n_dof = n_dof + sum(n_entity_dofs)
@@ -370,9 +367,21 @@ def h1_projector(gmesh):
     col = np.zeros((c_size), dtype=np.int64)
     data = np.zeros((c_size), dtype=np.float64)
 
-    fields = [1]
-    n_fields = len(fields)
-    n_dof_g = n_vertices * n_fields + n_edges * n_fields + n_faces * n_fields
+    n_fields = 1
+    entity_support = [n_vertices,n_edges,n_faces,0]
+    entity_dofs = [0, 0, 0, 0]
+    for dim, n_entity_dofs in enumerate(lagrange.num_entity_dofs):
+        e_dofs = int(np.mean(n_entity_dofs))
+        entity_dofs[dim] = e_dofs
+        entity_support[dim] *= e_dofs
+
+    global_indices = np.add.accumulate([0, entity_support[0], entity_support[1], entity_support[2]])
+    # Computing cell mappings
+    vertex_map = dict(zip(vertices_ids, np.split(np.array(range(global_indices[0],global_indices[1])),len(vertices_ids)) ))
+    edge_map = dict(zip(edges_ids, np.split(np.array(range(global_indices[1],global_indices[2])),len(edges_ids)) ))
+    face_map = dict(zip(faces_ids, np.split(np.array(range(global_indices[2],global_indices[3])),len(faces_ids)) ))
+
+    n_dof_g = sum(entity_support)
     rg = np.zeros(n_dof_g)
 
 
@@ -457,9 +466,9 @@ def h1_projector(gmesh):
         # scattering dof
         dof_vertex_supports = list(gd2c2.successors(cell.id))
         dof_edge_supports = list(gd2c1.successors(cell.id))
-        dest_vertex = np.array([vertex_map.get(dof_s) for dof_s in dof_vertex_supports])
-        dest_edge = np.array([edge_map.get(dof_s) for dof_s in dof_edge_supports])
-        dest_faces = np.array([face_map.get(cell.id)])
+        dest_vertex = np.array([vertex_map.get(dof_s) for dof_s in dof_vertex_supports]).ravel()
+        dest_edge = np.array([edge_map.get(dof_s) for dof_s in dof_edge_supports]).ravel()
+        dest_faces = np.array([face_map.get(cell.id)]).ravel()
         dest = np.concatenate((dest_vertex,dest_edge,dest_faces))
         # dest = dest_vertex
         c_sequ = cell_map[cell.id]
@@ -489,9 +498,14 @@ def h1_projector(gmesh):
         cell = gmesh.cells[pr_ids[0]]
         if cell.dimension != 2:
             continue
+
         # scattering dof
-        dof_supports = list(gd2c2.successors(cell.id))
-        dest = np.array([vertex_map.get(dof_s) for dof_s in dof_supports])
+        dof_vertex_supports = list(gd2c2.successors(cell.id))
+        dof_edge_supports = list(gd2c1.successors(cell.id))
+        dest_vertex = np.array([vertex_map.get(dof_s) for dof_s in dof_vertex_supports]).ravel()
+        dest_edge = np.array([edge_map.get(dof_s) for dof_s in dof_edge_supports]).ravel()
+        dest_faces = np.array([face_map.get(cell.id)]).ravel()
+        dest = np.concatenate((dest_vertex,dest_edge,dest_faces))
         alpha_l = alpha[dest]
 
         cell_type = getattr(basix.CellType, "triangle")
@@ -807,7 +821,7 @@ def main():
     mesher = ConformalMesher(dimension=2)
     mesher.set_geometry_builder(g_builder)
     mesher.set_points()
-    mesher.generate(1.0)
+    mesher.generate(0.05)
     mesher.write_mesh("gmesh.msh")
 
 
