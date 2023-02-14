@@ -396,6 +396,8 @@ def h1_projector(gmesh):
                                        LagrangeVariant.equispaced)
     geo_phi_tab = linear_base.tabulate(1, points)
 
+    fun = lambda x, y, z: 16 * x * (1.0 - x) * y * (1.0 - y)
+
     for cell in gmesh.cells:
         if cell.dimension != 2:
             continue
@@ -406,8 +408,6 @@ def h1_projector(gmesh):
         rs = (n_dof)
         j_el = np.zeros(js)
         r_el = np.zeros(rs)
-
-        fun = lambda x, y, z: 16 * x * (1.0 - x) * y * (1.0 - y)
 
         # For a given cell compute geometrical information
         # Evaluate mappings
@@ -466,9 +466,9 @@ def h1_projector(gmesh):
         # scattering dof
         dof_vertex_supports = list(gd2c2.successors(cell.id))
         dof_edge_supports = list(gd2c1.successors(cell.id))
-        dest_vertex = np.array([vertex_map.get(dof_s) for dof_s in dof_vertex_supports]).ravel()
-        dest_edge = np.array([edge_map.get(dof_s) for dof_s in dof_edge_supports]).ravel()
-        dest_faces = np.array([face_map.get(cell.id)]).ravel()
+        dest_vertex = np.array([vertex_map.get(dof_s) for dof_s in dof_vertex_supports],dtype=int).ravel()
+        dest_edge = np.array([edge_map.get(dof_s) for dof_s in dof_edge_supports],dtype=int).ravel()
+        dest_faces = np.array([face_map.get(cell.id)],dtype=int).ravel()
         dest = np.concatenate((dest_vertex,dest_edge,dest_faces))
         # dest = dest_vertex
         c_sequ = cell_map[cell.id]
@@ -489,6 +489,66 @@ def h1_projector(gmesh):
     # solving ls
     alpha = sp.linalg.spsolve(jg, rg)
 
+    # Computing L2 error
+
+    l2_error = 0.0
+    cell_2d_ids = [cell.id for cell in gmesh.cells if cell.dimension == 2]
+    for id in cell_2d_ids:
+        cell = gmesh.cells[id]
+        if cell.dimension != 2:
+            continue
+
+        # scattering dof
+        dof_vertex_supports = list(gd2c2.successors(cell.id))
+        dof_edge_supports = list(gd2c1.successors(cell.id))
+        dest_vertex = np.array([vertex_map.get(dof_s) for dof_s in dof_vertex_supports],dtype=int).ravel()
+        dest_edge = np.array([edge_map.get(dof_s) for dof_s in dof_edge_supports],dtype=int).ravel()
+        dest_faces = np.array([face_map.get(cell.id)],dtype=int).ravel()
+        dest = np.concatenate((dest_vertex,dest_edge,dest_faces))
+        alpha_l = alpha[dest]
+
+        # Compute geometrical transformations
+        xa = []
+        Ja = []
+        detJa = []
+        invJa = []
+        cell_points = gmesh.points[cell.node_tags]
+        for i, point in enumerate(points):
+
+            # QR-decomposition is not unique
+            # It's only unique up to the signs of the rows of R
+            xmap = np.dot(geo_phi_tab[0, i, :, 0], cell_points)
+            grad_xmap = np.dot(geo_phi_tab[[1, 2], i, :, 0], cell_points).T
+            q_axes, r_jac = np.linalg.qr(grad_xmap)
+            r_sign = np.diag(np.sign(np.diag(r_jac)), 0)
+            q_axes = np.dot(q_axes, r_sign)
+            r_jac = np.dot(r_sign, r_jac)
+
+            det_g_jac = np.linalg.det(r_jac)
+            if det_g_jac < 0.0:
+                print('Negative det jac: ', det_g_jac)
+
+            xa.append(xmap)
+            Ja.append(r_jac)
+            detJa.append(det_g_jac)
+            invJa.append(np.linalg.inv(r_jac))
+
+        xa = np.array(xa)
+        Ja = np.array(Ja)
+        detJa = np.array(detJa)
+        invJa = np.array(invJa)
+
+        # map functions
+        phi_tab = lagrange.push_forward(phi_hat_tab[0], Ja, detJa, invJa)
+
+        for i, pt in enumerate(points):
+            p_e = fun(xa[i,0],xa[i,1],xa[i,2])
+            p_h = np.dot(alpha_l, phi_tab[i, :, 0])
+            l2_error += detJa[i] * weights[i] * (p_h-p_e) * (p_h-p_e)
+
+
+    print("L2-error: ",np.sqrt(l2_error))
+
     # writing solution on mesh points
     cell_0d_ids = [cell.id for cell in gmesh.cells if cell.dimension == 0]
     ph_data = np.zeros(len(gmesh.points))
@@ -502,9 +562,9 @@ def h1_projector(gmesh):
         # scattering dof
         dof_vertex_supports = list(gd2c2.successors(cell.id))
         dof_edge_supports = list(gd2c1.successors(cell.id))
-        dest_vertex = np.array([vertex_map.get(dof_s) for dof_s in dof_vertex_supports]).ravel()
-        dest_edge = np.array([edge_map.get(dof_s) for dof_s in dof_edge_supports]).ravel()
-        dest_faces = np.array([face_map.get(cell.id)]).ravel()
+        dest_vertex = np.array([vertex_map.get(dof_s) for dof_s in dof_vertex_supports],dtype=int).ravel()
+        dest_edge = np.array([edge_map.get(dof_s) for dof_s in dof_edge_supports],dtype=int).ravel()
+        dest_faces = np.array([face_map.get(cell.id)],dtype=int).ravel()
         dest = np.concatenate((dest_vertex,dest_edge,dest_faces))
         alpha_l = alpha[dest]
 
@@ -811,6 +871,7 @@ def main():
 
     # polygon_polygon_intersection()
 
+    h_cell = 0.25 / 16.0
     s = 1.0
     box_points = s * np.array([[0, 0], [1, 0], [1, 1], [0, 1]])
     g_builder = GeometryBuilder(dimension=2)
@@ -821,7 +882,7 @@ def main():
     mesher = ConformalMesher(dimension=2)
     mesher.set_geometry_builder(g_builder)
     mesher.set_points()
-    mesher.generate(0.05)
+    mesher.generate(h_cell)
     mesher.write_mesh("gmesh.msh")
 
 
@@ -831,7 +892,7 @@ def main():
     # gmesh.write_data()
     gmesh.write_vtk()
 
-
+    print("h-size: ", h_cell)
     # pojectors
     h1_projector(gmesh)
     # hdiv_projector(gmesh)
