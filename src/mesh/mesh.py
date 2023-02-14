@@ -271,35 +271,52 @@ class Mesh:
         meshio.write("conf_geometric_mesh_0d.vtk", mesh_0d)
 
     def write_data(self, file_name="gmesh.txt"):
-        with open(file_name, 'w') as file:
+        with open(file_name, "w") as file:
 
             dimensions = [cell.dimension for cell in self.cells]
-            dimensions_with_tag = [cell.dimension for cell in self.cells if
-                                   cell.material_id is not None]
+            dimensions_with_tag = [
+                cell.dimension for cell in self.cells if cell.material_id is not None
+            ]
 
-            print('Dimension data', file=file)
-            print('Min entity dimension: ', min(dimensions), file=file)
-            print('Max entity dimension: ', max(dimensions), file=file)
-            print('Min entity dimension with physical tag: ', min(dimensions_with_tag), file=file)
-            print('Max entity dimension with physical tag: ', max(dimensions_with_tag), file=file)
-            print('', file=file)
+            print("Dimension data", file=file)
+            print("Min entity dimension: ", min(dimensions), file=file)
+            print("Max entity dimension: ", max(dimensions), file=file)
+            print(
+                "Min entity dimension with physical tag: ",
+                min(dimensions_with_tag),
+                file=file,
+            )
+            print(
+                "Max entity dimension with physical tag: ",
+                max(dimensions_with_tag),
+                file=file,
+            )
+            print("", file=file)
 
-            print('Point data', file=file)
+            print("Point data", file=file)
+            print("n_points: ", len(self.points), file=file)
             for i, point in enumerate(self.points):
-                print("tag: ", i, ' ', point, file=file)
+                print("tag: ", i, " ", *point, sep=" ", file=file)
 
-            print('', file=file)
-            print('Cell data', file=file)
-            print('', file=file)
+            print("", file=file)
+            print("Cell data", file=file)
+            print("n_cells: ", len(self.cells), file=file)
             for cell in self.cells:
-                print("Entity type: ", cell.type, file=file)
-                print("Entity dimension: ", cell.dimension, file=file)
-                print("Entity tag: ", cell.id, file=file)
-                print("Physical tag: ", cell.material_id, file=file)
-                print("node tags: ", cell.node_tags, file=file)
+                print("Entity_type: ", cell.type, file=file)
+                print("Dimension: ", cell.dimension, file=file)
+                print("Tag: ", cell.id, file=file)
+                print("Physical_tag: ", cell.material_id, file=file)
+                print("node_tags: ", *cell.node_tags, sep=" ", file=file)
                 for dim, cells_ids_dim in enumerate(cell.cells_ids):
-                    print('Entities of dimension', dim, ': ', cells_ids_dim, file=file)
-                print('', file=file)
+                    print(
+                        "Entities of dimension",
+                        dim,
+                        ": ",
+                        *cells_ids_dim,
+                        sep=" ",
+                        file=file
+                    )
+                print("", file=file)
 
         file.close()
 

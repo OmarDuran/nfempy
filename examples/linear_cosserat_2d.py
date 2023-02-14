@@ -342,11 +342,11 @@ def h1_projector(gmesh):
     global_indices = np.add.accumulate([0, n_vertices, n_edges, n_faces])
     # Computing cell mappings
     vertex_map = dict(zip(vertices_ids, list(range(global_indices[0],global_indices[1]))))
-    edge_map = dict(zip(vertices_ids, list(range(global_indices[1],global_indices[2]))))
-    face_map = dict(zip(vertices_ids, list(range(global_indices[2],global_indices[3]))))
+    edge_map = dict(zip(edges_ids, list(range(global_indices[1],global_indices[2]))))
+    face_map = dict(zip(faces_ids, list(range(global_indices[2],global_indices[3]))))
 
     # polynomial order
-    k_order = 1
+    k_order = 3
 
     # H1 functionality
 
@@ -372,23 +372,27 @@ def h1_projector(gmesh):
 
     fields = [1]
     n_fields = len(fields)
-    n_dof_g = n_vertices * n_fields
+    n_dof_g = n_vertices * n_fields + n_edges * n_fields + n_faces * n_fields
     rg = np.zeros(n_dof_g)
 
 
+    # Fixed parametric basis and data
+    points, weights = basix.make_quadrature(basix.QuadratureType.gauss_jacobi,
+                                            CellType.triangle, 2 * k_order + 1)
+    lagrange = basix.create_element(ElementFamily.P, CellType.triangle, k_order,
+                                    LagrangeVariant.equispaced)
+    phi_hat_tab = lagrange.tabulate(1, points)
+
+    linear_base = basix.create_element(ElementFamily.P, CellType.triangle, 1,
+                                       LagrangeVariant.equispaced)
+    geo_phi_tab = linear_base.tabulate(1, points)
 
     for cell in gmesh.cells:
         if cell.dimension != 2:
             continue
 
-
-        points, weights = basix.make_quadrature(basix.QuadratureType.gauss_jacobi, CellType.triangle, 2 * k_order + 1)
-        lagrange = basix.create_element(ElementFamily.P, CellType.triangle, k_order,
-                                        LagrangeVariant.equispaced)
-
-        phi_tab = lagrange.tabulate(1, points)
         # print(phi_tab)
-        n_dof = phi_tab.shape[2]
+        n_dof = phi_hat_tab.shape[2]
         js = (n_dof, n_dof)
         rs = (n_dof)
         j_el = np.zeros(js)
@@ -398,9 +402,9 @@ def h1_projector(gmesh):
 
         # For a given cell compute geometrical information
         # Evaluate mappings
-        linear_base = basix.create_element(ElementFamily.P, CellType.triangle, 1,
-                                           LagrangeVariant.equispaced)
-        g_phi_tab = linear_base.tabulate(1, points)
+        # linear_base = basix.create_element(ElementFamily.P, CellType.triangle, 1,
+        #                                    LagrangeVariant.equispaced)
+        # g_phi_tab = linear_base.tabulate(1, points)
         cell_points = gmesh.points[cell.node_tags]
 
         # Compute geometrical transformations
@@ -413,8 +417,8 @@ def h1_projector(gmesh):
 
             # QR-decomposition is not unique
             # It's only unique up to the signs of the rows of R
-            xmap = np.dot(g_phi_tab[0, i, :, 0],cell_points)
-            grad_xmap = np.dot(g_phi_tab[[1, 2], i, :, 0],cell_points).T
+            xmap = np.dot(geo_phi_tab[0, i, :, 0],cell_points)
+            grad_xmap = np.dot(geo_phi_tab[[1, 2], i, :, 0],cell_points).T
             q_axes, r_jac = np.linalg.qr(grad_xmap)
             r_sign = np.diag(np.sign(np.diag(r_jac)), 0)
             q_axes = np.dot(q_axes, r_sign)
@@ -435,14 +439,14 @@ def h1_projector(gmesh):
         invJa = np.array(invJa)
 
         # map functions
-        mphi_tab = lagrange.push_forward(phi_tab[0], Ja, detJa, invJa)
+        phi_tab = lagrange.push_forward(phi_hat_tab[0], Ja, detJa, invJa)
         aka = 0
         # linear_base
         for i, omega in enumerate(weights):
 
             f_val = fun(xa[i,0],xa[i,1],xa[i,2])
-            r_el = r_el + detJa[i] * omega * f_val * mphi_tab[ i, :, 0]
-            j_el = j_el + detJa[i] * omega * np.outer(mphi_tab[i,:,0],mphi_tab[i,:,0])
+            r_el = r_el + detJa[i] * omega * f_val * phi_tab[ i, :, 0]
+            j_el = j_el + detJa[i] * omega * np.outer(phi_tab[i,:,0],phi_tab[i,:,0])
 
         # lagrange.base_transformations()
         # b_transformations = lagrange.base_transformations()
@@ -455,8 +459,9 @@ def h1_projector(gmesh):
         dof_edge_supports = list(gd2c1.successors(cell.id))
         dest_vertex = np.array([vertex_map.get(dof_s) for dof_s in dof_vertex_supports])
         dest_edge = np.array([edge_map.get(dof_s) for dof_s in dof_edge_supports])
-        # dest = np.concatenate((dest_vertex,dest_edge))
-        dest = dest_vertex
+        dest_faces = np.array([face_map.get(cell.id)])
+        dest = np.concatenate((dest_vertex,dest_edge,dest_faces))
+        # dest = dest_vertex
         c_sequ = cell_map[cell.id]
 
         # contribute rhs
@@ -548,7 +553,7 @@ def hdiv_projector(gmesh):
     n_edges = len(edges_ids)
     edge_map = dict(zip(edges_ids, list(range(n_edges))))
 
-    k_order = 2
+    k_order = 3
 
     fields = [1]
     n_fields = len(fields)
@@ -802,7 +807,7 @@ def main():
     mesher = ConformalMesher(dimension=2)
     mesher.set_geometry_builder(g_builder)
     mesher.set_points()
-    mesher.generate(0.01)
+    mesher.generate(1.0)
     mesher.write_mesh("gmesh.msh")
 
 
