@@ -321,6 +321,26 @@ class DoFMap:
         types = {'l-2': 0, 'h-1': 1, 'h-div': 2, 'h-curl': 3}
         return types[dimension]
 
+def permute_edges(element):
+
+    indices = np.array([], dtype=int)
+    rindices = np.array([], dtype=int)
+    e_perms = np.array([1, 2, 0])
+    e_rperms = np.array([2, 0, 1])
+    # e_perms = np.array([0, 1, 2])
+    # e_rperms = np.array([0, 1, 2])
+    for dim , entity_dof in enumerate(element.entity_dofs):
+        if dim == 1:
+            entity_dof_r = [entity_dof[i] for i in e_rperms]
+            entity_dof = [entity_dof[i] for i in e_perms]
+            indices = np.append(indices,np.array(entity_dof, dtype=int))
+            rindices = np.append(rindices, np.array(entity_dof_r, dtype=int))
+        else:
+            indices = np.append(indices, np.array(entity_dof, dtype=int))
+            rindices = np.append(rindices, np.array(entity_dof, dtype=int))
+    return (indices.ravel(),rindices.ravel())
+
+
 def h1_projector(gmesh):
 
     # Create conformity
@@ -343,13 +363,14 @@ def h1_projector(gmesh):
     k_order = 3
     #
     conformity = "h-1"
+    b_variant = LagrangeVariant.gll_centroid
 
     # H1 functionality
 
     # conformity needs to be defined
     # Computing cell_id -> local_size map
     lagrange = basix.create_element(ElementFamily.P, CellType.triangle, k_order,
-                                    LagrangeVariant.equispaced)
+                                    b_variant)
 
     c_size = 0
     n_dof_g = 0
@@ -377,27 +398,37 @@ def h1_projector(gmesh):
 
     global_indices = np.add.accumulate([0, entity_support[0], entity_support[1], entity_support[2]])
     # Computing cell mappings
-    vertex_map = dict(zip(vertices_ids, np.split(np.array(range(global_indices[0],global_indices[1])),len(vertices_ids)) ))
-    edge_map = dict(zip(edges_ids, np.split(np.array(range(global_indices[1],global_indices[2])),len(edges_ids)) ))
-    face_map = dict(zip(faces_ids, np.split(np.array(range(global_indices[2],global_indices[3])),len(faces_ids)) ))
+    vertex_map = dict(zip(vertices_ids, np.split(np.array(range(global_indices[0],global_indices[1])),len(vertices_ids))))
+    edge_map = dict(zip(edges_ids, np.split(np.array(range(global_indices[1],global_indices[2])),len(edges_ids))))
+    face_map = dict(zip(faces_ids, np.split(np.array(range(global_indices[2],global_indices[3])),len(faces_ids))))
+
+    lagrange.base_transformations()
+    b_transformations = lagrange.base_transformations()
+    e_transformations = lagrange.entity_transformations()
+    print(lagrange.dof_transformations_are_identity)
+    print(lagrange.dof_transformations_are_permutations)
 
     n_dof_g = sum(entity_support)
     rg = np.zeros(n_dof_g)
-
+    print("n_dof: ", n_dof_g)
 
     # Fixed parametric basis and data
     points, weights = basix.make_quadrature(basix.QuadratureType.gauss_jacobi,
-                                            CellType.triangle, 2 * k_order + 1)
+                                            CellType.triangle, 2 * k_order + 2)
     lagrange = basix.create_element(ElementFamily.P, CellType.triangle, k_order,
-                                    LagrangeVariant.equispaced)
+                                    b_variant)
     phi_hat_tab = lagrange.tabulate(1, points)
 
     linear_base = basix.create_element(ElementFamily.P, CellType.triangle, 1,
                                        LagrangeVariant.equispaced)
     geo_phi_tab = linear_base.tabulate(1, points)
 
+    # permute functions
+    perms = permute_edges(lagrange)
+
     fun = lambda x, y, z: 16 * x * (1.0 - x) * y * (1.0 - y)
 
+    print("B: Assemble : ", n_dof_g)
     for cell in gmesh.cells:
         if cell.dimension != 2:
             continue
@@ -457,19 +488,13 @@ def h1_projector(gmesh):
             r_el = r_el + detJa[i] * omega * f_val * phi_tab[ i, :, 0]
             j_el = j_el + detJa[i] * omega * np.outer(phi_tab[i,:,0],phi_tab[i,:,0])
 
-        # lagrange.base_transformations()
-        # b_transformations = lagrange.base_transformations()
-        # e_transformations = lagrange.entity_transformations()
-        # print(lagrange.dof_transformations_are_identity)
-        # print(lagrange.dof_transformations_are_permutations)
-
         # scattering dof
         dof_vertex_supports = list(gd2c2.successors(cell.id))
         dof_edge_supports = list(gd2c1.successors(cell.id))
         dest_vertex = np.array([vertex_map.get(dof_s) for dof_s in dof_vertex_supports],dtype=int).ravel()
         dest_edge = np.array([edge_map.get(dof_s) for dof_s in dof_edge_supports],dtype=int).ravel()
         dest_faces = np.array([face_map.get(cell.id)],dtype=int).ravel()
-        dest = np.concatenate((dest_vertex,dest_edge,dest_faces))
+        dest = np.concatenate((dest_vertex,dest_edge,dest_faces))[perms[0]]
         # dest = dest_vertex
         c_sequ = cell_map[cell.id]
 
@@ -485,9 +510,12 @@ def h1_projector(gmesh):
         ako = 0
 
     jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
+    print("E: Assemble : ", n_dof_g)
 
     # solving ls
+    print("B: Solving : ", n_dof_g)
     alpha = sp.linalg.spsolve(jg, rg)
+    print("E: Solving : ", n_dof_g)
 
     # Computing L2 error
 
@@ -504,7 +532,7 @@ def h1_projector(gmesh):
         dest_vertex = np.array([vertex_map.get(dof_s) for dof_s in dof_vertex_supports],dtype=int).ravel()
         dest_edge = np.array([edge_map.get(dof_s) for dof_s in dof_edge_supports],dtype=int).ravel()
         dest_faces = np.array([face_map.get(cell.id)],dtype=int).ravel()
-        dest = np.concatenate((dest_vertex,dest_edge,dest_faces))
+        dest = np.concatenate((dest_vertex,dest_edge,dest_faces))[perms[0]]
         alpha_l = alpha[dest]
 
         # Compute geometrical transformations
@@ -565,7 +593,7 @@ def h1_projector(gmesh):
         dest_vertex = np.array([vertex_map.get(dof_s) for dof_s in dof_vertex_supports],dtype=int).ravel()
         dest_edge = np.array([edge_map.get(dof_s) for dof_s in dof_edge_supports],dtype=int).ravel()
         dest_faces = np.array([face_map.get(cell.id)],dtype=int).ravel()
-        dest = np.concatenate((dest_vertex,dest_edge,dest_faces))
+        dest = np.concatenate((dest_vertex,dest_edge,dest_faces))[perms[0]]
         alpha_l = alpha[dest]
 
         cell_type = getattr(basix.CellType, "triangle")
@@ -573,7 +601,7 @@ def h1_projector(gmesh):
 
         vertex_id = np.array([i for i, cid in enumerate(cell.cells_ids[0]) if cid == id])
         lagrange = basix.create_element(ElementFamily.P, CellType.triangle, k_order,
-                                        LagrangeVariant.equispaced)
+                                        b_variant)
 
         points = par_points[vertex_id]
         phi_tab = lagrange.tabulate(0, points)
@@ -871,7 +899,7 @@ def main():
 
     # polygon_polygon_intersection()
 
-    h_cell = 0.25 / 16.0
+    h_cell = 0.25 / 1.0
     s = 1.0
     box_points = s * np.array([[0, 0], [1, 0], [1, 1], [0, 1]])
     g_builder = GeometryBuilder(dimension=2)
