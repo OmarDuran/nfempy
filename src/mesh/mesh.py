@@ -107,6 +107,8 @@ class Mesh:
         elif cell_block.dim == 1:
             # 0d cells
             for node_tags, p_tag in zip(cell_block.data, physical):
+                # Ensures that all edges are validated
+                node_tags = self.validate_entity(node_tags)
                 cells_0d = []
                 for node_tag in node_tags:
                     type_index = self.mesh_cell_type_index("vertex")
@@ -141,17 +143,18 @@ class Mesh:
                 # 1d cells
                 loop = [i for i in range(len(node_tags))]
                 loop.append(loop[0])
-                connectivities = np.array(
+                connectivity = np.array(
                     [[loop[index], loop[index + 1]] for index in range(len(loop) - 1)]
                 )
 
                 cells_1d = []
-                for con in connectivities:
+                for con in connectivity:
+                    tags_v = self.validate_entity(node_tags[con])
+                    perm = np.argsort(node_tags[con])
                     type_index = self.mesh_cell_type_index("line")
                     mesh_cell = MeshCell(1)
-                    mesh_cell.set_node_tags(node_tags[con])
-                    mesh_cell.set_cells_ids(0, np.array(cells_0d)[con])
-                    tags_v = self.validate_entity(node_tags[con])
+                    mesh_cell.set_node_tags(node_tags[con][perm])
+                    mesh_cell.set_cells_ids(0, np.array(cells_0d)[con][perm])
                     mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v)
                     cells_1d.append(mesh_cell.id)
 

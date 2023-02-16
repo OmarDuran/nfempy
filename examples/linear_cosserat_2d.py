@@ -340,6 +340,15 @@ def permute_edges(element):
             rindices = np.append(rindices, np.array(entity_dof, dtype=int))
     return (indices.ravel(),rindices.ravel())
 
+def validate_orientation(gmesh, cell):
+    connectiviy = np.array([[0, 1], [1, 2], [0, 2]])
+    orientation = [False,False,False]
+    for i, con in enumerate(connectiviy):
+        edge = cell.node_tags[con]
+        v_edge = gmesh.cells[cell.cells_ids[1][i]].node_tags
+        if np.any(edge == v_edge):
+            orientation[i] = True
+    return orientation
 
 def h1_projector(gmesh):
 
@@ -360,7 +369,7 @@ def h1_projector(gmesh):
     n_faces = len(faces_ids)
 
     # polynomial order
-    k_order = 3
+    k_order = 1
     #
     conformity = "h-1"
     b_variant = LagrangeVariant.gll_centroid
@@ -480,6 +489,21 @@ def h1_projector(gmesh):
 
         # map functions
         phi_tab = lagrange.push_forward(phi_hat_tab[0], Ja, detJa, invJa)
+
+        # triangle ref connectivity
+        if not lagrange.dof_transformations_are_identity:
+            oriented_q =  validate_orientation(gmesh,cell)
+            for index, check in enumerate(oriented_q):
+                if check:
+                    continue
+                transformation = lagrange.entity_transformations()["interval"][0]
+                dofs = lagrange.entity_dofs[1][index]
+                for point in range(phi_tab.shape[0]):
+                    for dim in range(phi_tab.shape[2]):
+                        phi_tab[point, dofs, dim] = np.dot(transformation,phi_tab[point, dofs, dim])
+
+
+
         aka = 0
         # linear_base
         for i, omega in enumerate(weights):
@@ -569,6 +593,18 @@ def h1_projector(gmesh):
         # map functions
         phi_tab = lagrange.push_forward(phi_hat_tab[0], Ja, detJa, invJa)
 
+        # triangle ref connectivity
+        if not lagrange.dof_transformations_are_identity:
+            oriented_q =  validate_orientation(gmesh,cell)
+            for index, check in enumerate(oriented_q):
+                if check:
+                    continue
+                transformation = lagrange.entity_transformations()["interval"][0]
+                dofs = lagrange.entity_dofs[1][index]
+                for point in range(phi_tab.shape[0]):
+                    for dim in range(phi_tab.shape[2]):
+                        phi_tab[point, dofs, dim] = np.dot(transformation,phi_tab[point, dofs, dim])
+
         for i, pt in enumerate(points):
             p_e = fun(xa[i,0],xa[i,1],xa[i,2])
             p_h = np.dot(alpha_l, phi_tab[i, :, 0])
@@ -606,9 +642,17 @@ def h1_projector(gmesh):
         points = par_points[vertex_id]
         phi_tab = lagrange.tabulate(0, points)
 
-        # dof transformations
-        aka = 0
-        # lagrange.basic_transform()
+        # triangle ref connectivity
+        if not lagrange.dof_transformations_are_identity:
+            oriented_q =  validate_orientation(gmesh,cell)
+            for index, check in enumerate(oriented_q):
+                if check:
+                    continue
+                transformation = lagrange.entity_transformations()["interval"][0]
+                dofs = lagrange.entity_dofs[1][index]
+                for point in range(phi_tab.shape[0]):
+                    for dim in range(phi_tab.shape[2]):
+                        phi_tab[point, dofs, dim] = np.dot(transformation,phi_tab[point, dofs, dim])
 
         linear_base = basix.create_element(ElementFamily.P, CellType.triangle, 1,
                                            LagrangeVariant.equispaced)
@@ -899,7 +943,7 @@ def main():
 
     # polygon_polygon_intersection()
 
-    h_cell = 0.25 / 1.0
+    h_cell = 0.25 / 16.0
     s = 1.0
     box_points = s * np.array([[0, 0], [1, 0], [1, 1], [0, 1]])
     g_builder = GeometryBuilder(dimension=2)
