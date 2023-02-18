@@ -25,6 +25,7 @@ import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import meshio
 import itertools
+import time
 
 def polygon_polygon_intersection():
 
@@ -331,29 +332,36 @@ def permute_edges(element):
     # e_rperms = np.array([0, 1, 2])
     for dim , entity_dof in enumerate(element.entity_dofs):
         if dim == 1:
+            for i, chunk in enumerate(entity_dof):
+                if i == 2:
+                    chunk.reverse()
             entity_dof_r = [entity_dof[i] for i in e_rperms]
             entity_dof = [entity_dof[i] for i in e_perms]
-            indices = np.append(indices,np.array(entity_dof, dtype=int))
             rindices = np.append(rindices, np.array(entity_dof_r, dtype=int))
+            indices = np.append(indices,np.array(entity_dof, dtype=int))
+
         else:
-            indices = np.append(indices, np.array(entity_dof, dtype=int))
             rindices = np.append(rindices, np.array(entity_dof, dtype=int))
+            indices = np.append(indices, np.array(entity_dof, dtype=int))
     return (indices.ravel(),rindices.ravel())
 
 def validate_orientation(gmesh, cell):
-    connectiviy = np.array([[0, 1], [1, 2], [0, 2]])
+    connectiviy = np.array([[0, 1], [1, 2], [2, 0]])
+    e_perms = np.array([1, 2, 0])
     orientation = [False,False,False]
     for i, con in enumerate(connectiviy):
         edge = cell.node_tags[con]
         v_edge = gmesh.cells[cell.cells_ids[1][i]].node_tags
         if np.any(edge == v_edge):
             orientation[i] = True
+    orientation = [orientation[i] for i in e_perms]
     return orientation
 
 def h1_projector(gmesh):
 
     # Create conformity
 
+    st = time.time()
     gd2c2 = gmesh.build_graph(2, 2)
     gd2c1 = gmesh.build_graph(2, 1)
 
@@ -369,7 +377,7 @@ def h1_projector(gmesh):
     n_faces = len(faces_ids)
 
     # polynomial order
-    k_order = 1
+    k_order = 3
     #
     conformity = "h-1"
     b_variant = LagrangeVariant.gll_centroid
@@ -435,9 +443,14 @@ def h1_projector(gmesh):
     # permute functions
     perms = permute_edges(lagrange)
 
-    fun = lambda x, y, z: 16 * x * (1.0 - x) * y * (1.0 - y)
+    # fun = lambda x, y, z: 16 * x * (1.0 - x) * y * (1.0 - y)
+    # fun = lambda x, y, z: x * (1.0 - x) * x + y * (1.0 - y) * y
+    fun = lambda x, y, z: x * (1.0 - x) * x + y * (1.0 - y) * y
+    et = time.time()
+    elapsed_time = et - st
+    print('Preprocessing time:', elapsed_time, 'seconds')
 
-    print("B: Assemble : ", n_dof_g)
+    st = time.time()
     for cell in gmesh.cells:
         if cell.dimension != 2:
             continue
@@ -503,8 +516,6 @@ def h1_projector(gmesh):
                         phi_tab[point, dofs, dim] = np.dot(transformation,phi_tab[point, dofs, dim])
 
 
-
-        aka = 0
         # linear_base
         for i, omega in enumerate(weights):
 
@@ -534,12 +545,16 @@ def h1_projector(gmesh):
         ako = 0
 
     jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
-    print("E: Assemble : ", n_dof_g)
+    et = time.time()
+    elapsed_time = et - st
+    print('Assembly time:', elapsed_time, 'seconds')
 
     # solving ls
-    print("B: Solving : ", n_dof_g)
+    st = time.time()
     alpha = sp.linalg.spsolve(jg, rg)
-    print("E: Solving : ", n_dof_g)
+    et = time.time()
+    elapsed_time = et - st
+    print('Linear solver time:', elapsed_time, 'seconds')
 
     # Computing L2 error
 
@@ -650,9 +665,9 @@ def h1_projector(gmesh):
                     continue
                 transformation = lagrange.entity_transformations()["interval"][0]
                 dofs = lagrange.entity_dofs[1][index]
-                for point in range(phi_tab.shape[0]):
-                    for dim in range(phi_tab.shape[2]):
-                        phi_tab[point, dofs, dim] = np.dot(transformation,phi_tab[point, dofs, dim])
+                for point in range(phi_tab.shape[1]):
+                    for dim in range(phi_tab.shape[3]):
+                        phi_tab[0, point, dofs, dim] = np.dot(transformation,phi_tab[0, point, dofs, dim])
 
         linear_base = basix.create_element(ElementFamily.P, CellType.triangle, 1,
                                            LagrangeVariant.equispaced)
