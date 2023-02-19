@@ -328,8 +328,6 @@ def permute_edges(element):
     rindices = np.array([], dtype=int)
     e_perms = np.array([1, 2, 0])
     e_rperms = np.array([2, 0, 1])
-    # e_perms = np.array([0, 1, 2])
-    # e_rperms = np.array([0, 1, 2])
     for dim , entity_dof in enumerate(element.entity_dofs):
         if dim == 1:
             for i, chunk in enumerate(entity_dof):
@@ -958,7 +956,7 @@ def main():
 
     # polygon_polygon_intersection()
 
-    h_cell = 0.25 / 16.0
+    h_cell = 0.25 / 4.0
     s = 1.0
     box_points = s * np.array([[0, 0], [1, 0], [1, 1], [0, 1]])
     g_builder = GeometryBuilder(dimension=2)
