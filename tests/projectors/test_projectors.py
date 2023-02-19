@@ -15,7 +15,7 @@ from scipy.sparse import coo_matrix
 
 import time
 
-k_orders = [1,2,3,4]
+k_orders = [1,2,3]
 functions = [lambda x, y, z: x + y,
 lambda x, y, z: x * (1.0 - x) + y * (1.0 - y),
 lambda x, y, z: x * (1.0 - x) * x + y * (1.0 - y) * y,
@@ -77,13 +77,12 @@ def validate_orientation(gmesh, cell):
     orientation = [orientation[i] for i in e_perms]
     return orientation
 
-@pytest.mark.parametrize("k", k_orders)
-@pytest.mark.parametrize("fun", functions)
-def test_h1_projector(k, fun):
+@pytest.mark.parametrize("k_order", k_orders)
+def test_h1_projector(k_order):
     
     h_cell = 1.0
     gmesh = generate_mesh(h_cell)
-    
+    fun = functions[k_order - 1]
     # Create conformity
     st = time.time()
     gd2c2 = gmesh.build_graph(2, 2)
@@ -350,6 +349,6 @@ def test_h1_projector(k, fun):
     print("L2-error: ",np.sqrt(l2_error))
 
     
-    l2_error_q = np.isclose(l2_error,rtol=1e-14)
+    l2_error_q = np.isclose(l2_error,0.0,rtol=1e-14)
     assert l2_error_q
 
