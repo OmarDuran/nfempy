@@ -15,11 +15,12 @@ from scipy.sparse import coo_matrix
 
 import time
 
-k_orders = [1,2,3]
+k_orders = [1,2,3,4,5]
 functions = [lambda x, y, z: x + y,
 lambda x, y, z: x * (1.0 - x) + y * (1.0 - y),
-lambda x, y, z: x * (1.0 - x) * x + y * (1.0 - y) * y,
-lambda x, y, z: x * (1.0 - x) * x * x + y * (1.0 - y) * y * y]
+lambda x, y, z: (x**2) * (1.0 - x) + (y**2) * (1.0 - y),
+lambda x, y, z: (x**3) * (1.0 - x) + (y**3) * (1.0 - y),
+lambda x, y, z: (x**4) * (1.0 - x) + (y**4) * (1.0 - y)]
 
 def generate_geometry_2d():
     box_points = np.array([[0, 0], [1, 0], [1, 1], [0, 1]])
@@ -80,7 +81,7 @@ def validate_orientation(gmesh, cell):
 @pytest.mark.parametrize("k_order", k_orders)
 def test_h1_projector(k_order):
     
-    h_cell = 1.0
+    h_cell = 0.5
     gmesh = generate_mesh(h_cell)
     fun = functions[k_order - 1]
     # Create conformity
@@ -99,9 +100,6 @@ def test_h1_projector(k_order):
     faces_ids = [id for id in cells_ids_c2 if gmesh.cells[id].dimension == 2]
     n_faces = len(faces_ids)
 
-    # polynomial order
-    k_order = 3
-    #
     conformity = "h-1"
     b_variant = LagrangeVariant.gll_centroid
 
