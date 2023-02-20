@@ -41,7 +41,7 @@ def generate_mesh(h_cell):
     conformal_mesh = generate_conformal_mesh(h_cell)
     gmesh = Mesh(dimension=2, file_name="gmesh.msh")
     gmesh.set_conformal_mesher(conformal_mesh)
-    gmesh.build_conformal_mesh()
+    gmesh.build_conformal_mesh_II()
     gmesh.write_vtk()
     return gmesh
 
@@ -66,7 +66,7 @@ def permute_edges(element):
             indices = np.append(indices, np.array(entity_dof, dtype=int))
     return (indices.ravel(),rindices.ravel())
 
-def validate_orientation(gmesh, cell):
+def     validate_orientation(gmesh, cell):
     connectiviy = np.array([[0, 1], [1, 2], [2, 0]])
     e_perms = np.array([1, 2, 0])
     orientation = [False,False,False]

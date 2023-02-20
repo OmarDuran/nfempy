@@ -19,6 +19,12 @@ class Mesh:
         self.fracture_normals = {}
         self.conformal_mesher = None
 
+        self.entities_0d = {}
+        self.entities_1d = {}
+        self.entities_2d = {}
+        self.entities_3d = {}
+
+
     def set_conformal_mesher(self, conformal_mesher):
         self.conformal_mesher = conformal_mesher
 
@@ -100,9 +106,15 @@ class Mesh:
             for node_tags, p_tag in zip(cell_block.data, physical):
                 mesh_cell = MeshCell(0)
                 mesh_cell.set_material_id(p_tag)
-                mesh_cell.set_node_tags(node_tags)
-                tags_v = self.validate_entity(node_tags)
-                mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v)
+                # mesh_cell.set_node_tags(node_tags)
+                # tags_v = self.validate_entity(node_tags)
+                # mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v)
+
+                mesh_cell = MeshCell(0)
+                mesh_cell.set_node_tags(np.array([node_tags]))
+                mesh_cell.id = self.entities_0d[node_tags]
+                self.cells[mesh_cell.id] = mesh_cell
+
 
         elif cell_block.dim == 1:
             # 0d cells
@@ -114,8 +126,8 @@ class Mesh:
                     type_index = self.mesh_cell_type_index("vertex")
                     mesh_cell = MeshCell(0)
                     mesh_cell.set_node_tags(np.array([node_tag]))
-                    tag_v = self.validate_entity(np.array([node_tag]))
-                    mesh_cell = self.insert_cell_data(mesh_cell, type_index, tag_v)
+                    mesh_cell.id = self.entities_0d[node_tag]
+                    self.cells[mesh_cell.id] = mesh_cell
                     cells_0d.append(mesh_cell.id)
 
                 # 1d cells
@@ -124,8 +136,9 @@ class Mesh:
                 mesh_cell.set_material_id(p_tag)
                 mesh_cell.set_node_tags(node_tags)
                 mesh_cell.set_cells_ids(0, np.array(cells_0d))
-                tags_v = self.validate_entity(node_tags)
-                mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v)
+                mesh_cell.id = self.entities_1d[tuple(node_tags)]
+                self.cells[mesh_cell.id] = mesh_cell
+
         elif cell_block.dim == 2:
 
             for node_tags, p_tag in zip(cell_block.data, physical):
@@ -136,8 +149,8 @@ class Mesh:
                     type_index = self.mesh_cell_type_index("vertex")
                     mesh_cell = MeshCell(0)
                     mesh_cell.set_node_tags(np.array([node_tag]))
-                    tag_v = self.validate_entity(np.array([node_tag]))
-                    mesh_cell = self.insert_cell_data(mesh_cell, type_index, tag_v)
+                    mesh_cell.id = self.entities_0d[node_tag]
+                    self.cells[mesh_cell.id] = mesh_cell
                     cells_0d.append(mesh_cell.id)
 
                 # 1d cells
@@ -152,10 +165,17 @@ class Mesh:
                     tags_v = self.validate_entity(node_tags[con])
                     perm = np.argsort(node_tags[con])
                     type_index = self.mesh_cell_type_index("line")
+                    # mesh_cell = MeshCell(1)
+                    # mesh_cell.set_node_tags(node_tags[con][perm])
+                    # mesh_cell.set_cells_ids(0, np.array(cells_0d)[con][perm])
+                    # mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v)
+                    # cells_1d.append(mesh_cell.id)
+
                     mesh_cell = MeshCell(1)
                     mesh_cell.set_node_tags(node_tags[con][perm])
                     mesh_cell.set_cells_ids(0, np.array(cells_0d)[con][perm])
-                    mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v)
+                    mesh_cell.id = self.entities_1d[tuple(node_tags[con][perm])]
+                    self.cells[mesh_cell.id] = mesh_cell
                     cells_1d.append(mesh_cell.id)
 
                 # 2d cells
@@ -165,8 +185,52 @@ class Mesh:
                 mesh_cell.set_node_tags(node_tags)
                 mesh_cell.set_cells_ids(0, np.array(cells_0d))
                 mesh_cell.set_cells_ids(1, np.array(cells_1d))
-                tags_v = self.validate_entity(node_tags)
-                mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v)
+                mesh_cell.id = self.entities_2d[tuple(np.sort(node_tags))]
+                self.cells[mesh_cell.id] = mesh_cell
+
+    def build_conformal_mesh_II(self):
+
+
+        # fill node_id to vertices
+        vid = 0
+        for i, point in enumerate(self.conformal_mesh.points):
+            self.entities_0d.__setitem__(i,vid)
+            vid += 1
+
+        # fill node_id to edges
+        eid = np.max([*self.entities_0d.values()]) + 1
+        for nodes in self.conformal_mesh.get_cells_type("triangle"):
+            nodes_ext = np.append(nodes,nodes[0])
+            edges = [tuple(np.sort([nodes_ext[i], nodes_ext[i + 1]])) for i, _ in enumerate(nodes, 0)]
+            for edge in edges:
+                key_exist_q = self.entities_1d.get(edge, None)
+                if key_exist_q is None:
+                    self.entities_1d.__setitem__(edge, eid)
+                    eid += 1
+
+        fid = np.max([*self.entities_1d.values()]) + 1
+        for i, nodes in enumerate(self.conformal_mesh.get_cells_type("triangle")):
+            face = tuple(np.sort(nodes))
+            key_exist_q = self.entities_2d.get(face, None)
+            if key_exist_q is None:
+                self.entities_2d.__setitem__(face, fid)
+                fid += 1
+
+        n_cells = len(self.entities_0d) + len(self.entities_1d) + len(self.entities_2d) + len(self.entities_3d)
+        self.cells = np.empty((n_cells,), dtype=MeshCell)
+
+        cells = self.conformal_mesh.cells
+        physical_tag = self.conformal_mesh.cell_data["gmsh:physical"]
+        for cell_block, physical in zip(cells, physical_tag):
+            self.insert_simplex_cell_from_block(cell_block, physical)
+
+        self.clean_up_entity_maps()
+
+    def clean_up_entity_maps(self):
+        self.entities_0d.clear()
+        self.entities_1d.clear()
+        self.entities_2d.clear()
+        self.entities_3d.clear()
 
     def create_simplex_cell(self, dimension, node_tags, p_tag, sign):
 

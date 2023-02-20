@@ -26,6 +26,7 @@ import matplotlib.pyplot as plt
 import meshio
 import itertools
 import time
+import sys
 
 def polygon_polygon_intersection():
 
@@ -375,7 +376,7 @@ def h1_projector(gmesh):
     n_faces = len(faces_ids)
 
     # polynomial order
-    k_order = 4
+    k_order = 2
     #
     conformity = "h-1"
     b_variant = LagrangeVariant.gll_centroid
@@ -442,9 +443,9 @@ def h1_projector(gmesh):
     perms = permute_edges(lagrange)
 
     # fun = lambda x, y, z: 16 * x * (1.0 - x) * y * (1.0 - y)
+    fun = lambda x, y, z: x * (1.0 - x) + y * (1.0 - y)
     # fun = lambda x, y, z: x * (1.0 - x) * x + y * (1.0 - y) * y
-    # fun = lambda x, y, z: x * (1.0 - x) * x + y * (1.0 - y) * y
-    fun = lambda x, y, z: x * (1.0 - x) * x * x + y * (1.0 - y) * y * y
+    # fun = lambda x, y, z: x * (1.0 - x) * x * x + y * (1.0 - y) * y * y
     et = time.time()
     elapsed_time = et - st
     print('Preprocessing time:', elapsed_time, 'seconds')
@@ -956,8 +957,7 @@ def hdiv_projector(gmesh):
 def main():
 
     # polygon_polygon_intersection()
-
-    h_cell = 1.0 / 1.0
+    h_cell = 1.0 / (32.0)
     s = 1.0
     box_points = s * np.array([[0, 0], [1, 0], [1, 1], [0, 1]])
     g_builder = GeometryBuilder(dimension=2)
@@ -974,7 +974,7 @@ def main():
 
     gmesh = Mesh(dimension=2, file_name="gmesh.msh")
     gmesh.set_conformal_mesher(mesher)
-    gmesh.build_conformal_mesh() # expensive method
+    gmesh.build_conformal_mesh_II() # expensive method
     # gmesh.write_data()
     gmesh.write_vtk()
 
