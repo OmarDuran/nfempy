@@ -97,6 +97,45 @@ class Mesh:
         for cell_block, physical in zip(cells, physical_tag):
             self.insert_simplex_cell_from_block(cell_block, physical)
 
+    def insert_vertex_cell(self,node_tag, physical_tag = None):
+        cell_id = self.entities_0d[node_tag]
+        cell_absent_q = self.cells[cell_id] is None
+        if cell_absent_q:
+            mesh_cell = MeshCell(0)
+            mesh_cell.set_material_id(physical_tag)
+            mesh_cell.set_node_tags(np.array([node_tag]))
+            mesh_cell.id = cell_id
+            self.cells[mesh_cell.id] = mesh_cell
+        if physical_tag is not None:
+            self.cells[cell_id].set_material_id(physical_tag)
+        return cell_id
+
+    def insert_line_cell(self,node_tags,physical_tag = None):
+        cell_id = self.entities_1d[tuple(node_tags)]
+        cell_absent_q = self.cells[cell_id] is None
+        if cell_absent_q:
+            mesh_cell = MeshCell(1)
+            mesh_cell.set_material_id(physical_tag)
+            mesh_cell.set_node_tags(node_tags)
+            mesh_cell.id = cell_id
+            self.cells[mesh_cell.id] = mesh_cell
+        if physical_tag is not None:
+            self.cells[cell_id].set_material_id(physical_tag)
+        return cell_id
+
+    def insert_polygonal_cell(self,node_tags,physical_tag = None):
+        cell_id = self.entities_2d[tuple(np.sort(node_tags))]
+        cell_absent_q = self.cells[cell_id] is None
+        if cell_absent_q:
+            mesh_cell = MeshCell(2)
+            mesh_cell.set_material_id(physical_tag)
+            mesh_cell.set_node_tags(node_tags)
+            mesh_cell.id = cell_id
+            self.cells[mesh_cell.id] = mesh_cell
+        if physical_tag is not None:
+            self.cells[cell_id].set_material_id(physical_tag)
+        return cell_id
+
     def insert_simplex_cell_from_block(self, cell_block, physical):
 
         assert self.dimension == 2
@@ -104,89 +143,49 @@ class Mesh:
         if cell_block.dim == 0:
             type_index = self.mesh_cell_type_index(cell_block.type)
             for node_tags, p_tag in zip(cell_block.data, physical):
-                mesh_cell = MeshCell(0)
-                mesh_cell.set_material_id(p_tag)
-                # mesh_cell.set_node_tags(node_tags)
-                # tags_v = self.validate_entity(node_tags)
-                # mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v)
-
-                mesh_cell = MeshCell(0)
-                mesh_cell.set_node_tags(np.array([node_tags]))
-                mesh_cell.id = self.entities_0d[node_tags]
-                self.cells[mesh_cell.id] = mesh_cell
-
+                self.insert_vertex_cell(node_tags[0],p_tag)
 
         elif cell_block.dim == 1:
             # 0d cells
             for node_tags, p_tag in zip(cell_block.data, physical):
                 # Ensures that all edges are validated
                 node_tags = self.validate_entity(node_tags)
-                cells_0d = []
+                vertex_ids = []
                 for node_tag in node_tags:
-                    type_index = self.mesh_cell_type_index("vertex")
-                    mesh_cell = MeshCell(0)
-                    mesh_cell.set_node_tags(np.array([node_tag]))
-                    mesh_cell.id = self.entities_0d[node_tag]
-                    self.cells[mesh_cell.id] = mesh_cell
-                    cells_0d.append(mesh_cell.id)
+                    cell_id = self.insert_vertex_cell(node_tag)
+                    vertex_ids.append(cell_id)
 
                 # 1d cells
-                type_index = self.mesh_cell_type_index(cell_block.type)
-                mesh_cell = MeshCell(1)
-                mesh_cell.set_material_id(p_tag)
-                mesh_cell.set_node_tags(node_tags)
-                mesh_cell.set_cells_ids(0, np.array(cells_0d))
-                mesh_cell.id = self.entities_1d[tuple(node_tags)]
-                self.cells[mesh_cell.id] = mesh_cell
+                cell_id = self.insert_line_cell(node_tags, p_tag)
+                self.cells[cell_id].set_cells_ids(0, np.array(vertex_ids))
 
         elif cell_block.dim == 2:
 
             for node_tags, p_tag in zip(cell_block.data, physical):
 
-                # 0d cells
-                cells_0d = []
+                # vertex
+                vertex_ids = []
                 for node_tag in node_tags:
-                    type_index = self.mesh_cell_type_index("vertex")
-                    mesh_cell = MeshCell(0)
-                    mesh_cell.set_node_tags(np.array([node_tag]))
-                    mesh_cell.id = self.entities_0d[node_tag]
-                    self.cells[mesh_cell.id] = mesh_cell
-                    cells_0d.append(mesh_cell.id)
+                    cell_id = self.insert_vertex_cell(node_tag)
+                    vertex_ids.append(cell_id)
 
-                # 1d cells
+                # line loop
                 loop = [i for i in range(len(node_tags))]
                 loop.append(loop[0])
                 connectivity = np.array(
                     [[loop[index], loop[index + 1]] for index in range(len(loop) - 1)]
                 )
 
-                cells_1d = []
+                line_ids = []
                 for con in connectivity:
-                    tags_v = self.validate_entity(node_tags[con])
                     perm = np.argsort(node_tags[con])
-                    type_index = self.mesh_cell_type_index("line")
-                    # mesh_cell = MeshCell(1)
-                    # mesh_cell.set_node_tags(node_tags[con][perm])
-                    # mesh_cell.set_cells_ids(0, np.array(cells_0d)[con][perm])
-                    # mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v)
-                    # cells_1d.append(mesh_cell.id)
+                    cell_id = self.insert_line_cell(node_tags[con][perm])
+                    line_ids.append(cell_id)
 
-                    mesh_cell = MeshCell(1)
-                    mesh_cell.set_node_tags(node_tags[con][perm])
-                    mesh_cell.set_cells_ids(0, np.array(cells_0d)[con][perm])
-                    mesh_cell.id = self.entities_1d[tuple(node_tags[con][perm])]
-                    self.cells[mesh_cell.id] = mesh_cell
-                    cells_1d.append(mesh_cell.id)
-
-                # 2d cells
-                type_index = self.mesh_cell_type_index(cell_block.type)
-                mesh_cell = MeshCell(2)
-                mesh_cell.set_material_id(p_tag)
-                mesh_cell.set_node_tags(node_tags)
-                mesh_cell.set_cells_ids(0, np.array(cells_0d))
-                mesh_cell.set_cells_ids(1, np.array(cells_1d))
-                mesh_cell.id = self.entities_2d[tuple(np.sort(node_tags))]
-                self.cells[mesh_cell.id] = mesh_cell
+                # polygonal cells
+                cell_id = self.insert_polygonal_cell(node_tags, p_tag)
+                self.cells[cell_id].set_cells_ids(0, np.array(vertex_ids))
+                self.cells[cell_id].set_cells_ids(1, np.array(line_ids))
 
     def build_conformal_mesh_II(self):
 
@@ -584,6 +583,18 @@ class Mesh:
             n = np.array([tau[1], -tau[0]])
             xc = barycenter(cell_points)
             self.fracture_normals[geo_1_cell.physical_tag] = (n, xc)
+
+    def cut_conformity_on_fractures_mds_ec(self):
+
+        assert self.dimension == 2
+        # dictionary of fracture id's to (normal,fracture barycenter)
+        self.compute_fracture_normals()
+
+        fracture_tags = self.conformal_mesher.fracture_network.fracture_tags
+        ec = self.conformal_mesh.cells
+
+
+
 
     def cut_conformity_on_fractures(self):
 

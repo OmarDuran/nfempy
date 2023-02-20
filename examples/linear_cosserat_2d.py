@@ -954,31 +954,70 @@ def hdiv_projector(gmesh):
     )
     mesh.write("hdiv_projector.vtk")
 
-def main():
+def generate_mesh():
 
-    # polygon_polygon_intersection()
-    h_cell = 1.0 / (32.0)
+    # higher dimension domain geometry
     s = 1.0
     box_points = s * np.array([[0, 0], [1, 0], [1, 1], [0, 1]])
     g_builder = GeometryBuilder(dimension=2)
     g_builder.build_box_2D(box_points)
     g_builder.build_grahp()
 
+    gmesh = None
+    fractures_q = True
+    if fractures_q:
+        # polygon_polygon_intersection()
+        h_cell = 1.0 / (1.0)
+        fracture_tags = [0]
+        fracture_1 = np.array([[0.5, 0.25], [0.5, 0.75]])
+        fracture_2 = np.array([[0.25, 0.5], [0.75, 0.5]])
+        fracture_3 = np.array([[0.2, 0.35], [0.85, 0.35]])
+        fracture_4 = np.array([[0.15, 0.15], [0.85, 0.85]])
+        fracture_5 = np.array([[0.15, 0.85], [0.85, 0.15]])
+        disjoint_fractures = [fracture_1, fracture_2, fracture_3, fracture_4, fracture_5]
 
-    mesher = ConformalMesher(dimension=2)
-    mesher.set_geometry_builder(g_builder)
-    mesher.set_points()
-    mesher.generate(h_cell)
-    mesher.write_mesh("gmesh.msh")
+        mesher = ConformalMesher(dimension=2)
+        mesher.set_geometry_builder(g_builder)
+        fractures = []
+        for tag in fracture_tags:
+            fractures.append(disjoint_fractures[tag])
+        fracture_network = fn.FractureNetwork(dimension=2, physical_tag_shift=10)
+        fracture_network.intersect_1D_fractures(fractures)
+        fracture_network.build_grahp(all_fixed_d_cells_q=True)
+        mesher.set_fracture_network(fracture_network)
+        mesher.set_points()
+        mesher.generate(h_cell)
+        mesher.write_mesh("gmesh.msh")
 
+        gmesh = Mesh(dimension=2, file_name="gmesh.msh")
+        gmesh.set_conformal_mesher(mesher)
+        gmesh.cut_conformity_on_fractures_mds_ec()
+        gmesh.build_conformal_mesh_II()
 
-    gmesh = Mesh(dimension=2, file_name="gmesh.msh")
-    gmesh.set_conformal_mesher(mesher)
-    gmesh.build_conformal_mesh_II() # expensive method
-    # gmesh.write_data()
-    gmesh.write_vtk()
+        # gmesh.write_data()
+        gmesh.write_vtk()
+        print("h-size: ", h_cell)
+    else:
+        # polygon_polygon_intersection()
+        h_cell = 1.0 / (1.0)
+        mesher = ConformalMesher(dimension=2)
+        mesher.set_geometry_builder(g_builder)
+        mesher.set_points()
+        mesher.generate(h_cell)
+        mesher.write_mesh("gmesh.msh")
 
-    print("h-size: ", h_cell)
+        gmesh = Mesh(dimension=2, file_name="gmesh.msh")
+        gmesh.set_conformal_mesher(mesher)
+        gmesh.build_conformal_mesh_II()
+        # gmesh.write_data()
+        gmesh.write_vtk()
+        print("h-size: ", h_cell)
+
+    return gmesh
+
+def main():
+
+    gmesh = generate_mesh()
     # pojectors
     h1_projector(gmesh)
     # hdiv_projector(gmesh)
