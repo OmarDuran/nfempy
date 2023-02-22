@@ -109,6 +109,7 @@ class Mesh:
         cell_absent_q = self.cells[cell_id] is None
         if cell_absent_q:
             self.cells[cell_id] = self.create_cell(0,np.array([node_tag]), cell_id, physical_tag)
+            self.cells[cell_id].set_sub_cells_ids(0, np.array([node_tag]))
         if physical_tag is not None:
             self.cells[cell_id].set_material_id(physical_tag)
         return cell_id
@@ -125,6 +126,7 @@ class Mesh:
             self.cells[cell_id] = self.create_cell(1, node_tags, cell_id,
                                                    physical_tag)
             self.cells[cell_id].set_sub_cells_ids(0, np.array(vertex_ids))
+            self.cells[cell_id].set_sub_cells_ids(1, np.array([cell_id]))
         if physical_tag is not None:
             self.cells[cell_id].set_material_id(physical_tag)
         return cell_id
@@ -156,6 +158,7 @@ class Mesh:
 
             self.cells[cell_id].set_sub_cells_ids(0, np.array(vertex_ids))
             self.cells[cell_id].set_sub_cells_ids(1, np.array(edge_ids))
+            self.cells[cell_id].set_sub_cells_ids(2, np.array([cell_id]))
         if physical_tag is not None:
             self.cells[cell_id].set_material_id(physical_tag)
         return cell_id
@@ -585,7 +588,109 @@ class Mesh:
         self.compute_fracture_normals()
 
         fracture_tags = self.conformal_mesher.fracture_network.fracture_tags
-        ec = self.conformal_mesh.cells
+        for data in self.fracture_normals.items():
+
+            gd2c2 = self.build_graph(2, 2)
+            gd2c1 = self.build_graph(2, 1)
+            gd1c1 = self.build_graph(1, 1)
+
+            mat_id, (n, f_xc) = data
+            f_cells = [
+                cell
+                for cell in self.cells
+                if (cell.id is not None)
+                and cell.material_id == mat_id
+                and cell.dimension == self.dimension - 1
+            ]
+
+            faces = []
+            for edge in f_cells:
+                faces = faces + list(gd2c1.predecessors(edge.id))
+
+            # edges duplication
+            cells_n = []
+            cells_p = []
+            for face_id in faces:
+                face = self.cells[face_id]
+                cell_xc = barycenter(self.points[face.node_tags])[[0, 1]]
+                positive_q = np.dot(cell_xc - f_xc, n) > 0.0
+                if positive_q:
+                    cells_p.append(face_id)
+                else:
+                    cells_n.append(face_id)
+
+            max_cell_id = len(self.cells)
+            new_cell_ids = np.array(list(range(0, 2 * len(f_cells)))) + max_cell_id
+            [new_cell_ids_p, new_cell_ids_n] = np.split(new_cell_ids, 2)
+
+            map_edge_p = {}
+            for i, cell_id in enumerate(new_cell_ids_p):
+                mesh_cell = copy.copy(f_cells[i])
+                mesh_cell.id = cell_id
+                self.cells = np.append(self.cells, mesh_cell)
+                map_edge_p[f_cells[i].id] = cell_id
+
+            map_edge_n = {}
+            for i, cell_id in enumerate(new_cell_ids_n):
+                mesh_cell = copy.copy(f_cells[i])
+                mesh_cell.id = cell_id
+                self.cells = np.append(self.cells, mesh_cell)
+                map_edge_n[f_cells[i].id] = cell_id
+
+
+            for cell_p_id, cell_n_id  in zip(cells_p,cells_n):
+                self.update_entity_with_dimension(1, cell_p_id, map_edge_p)
+                self.update_entity_with_dimension(1, cell_n_id, map_edge_n)
+
+            # vertices duplication
+            vertices = np.unique(np.array([vertex for cell in f_cells for vertex in cell.sub_cells_ids[0]]))
+            vertices = [vertex for vertex in vertices if self.cells[vertex].material_id != mat_id]
+            if len(vertices) == 0:
+                continue
+
+            faces = []
+            for vertex in vertices:
+                faces = faces + list(gd2c2.predecessors(vertex))
+            faces = np.unique(faces)
+            cells_n = []
+            cells_p = []
+            for face_id in faces:
+                face = self.cells[face_id]
+                cell_xc = barycenter(self.points[face.node_tags])[[0, 1]]
+                positive_q = np.dot(cell_xc - f_xc, n) > 0.0
+                if positive_q:
+                    cells_p.append(face_id)
+                else:
+                    cells_n.append(face_id)
+            max_node_id = len(self.points)
+            new_nodes = np.array([self.points[self.cells[vertex].node_tags[0]] for vertex in vertices])
+            self.points = np.vstack((self.points, new_nodes))
+            self.points = np.vstack((self.points, new_nodes))
+            new_node_tags = np.array(list(range(0, 2 * len(new_nodes)))) + max_node_id
+
+            max_cell_id = len(self.cells)
+            new_cell_ids = np.array(list(range(0, 2 * len(new_nodes)))) + max_cell_id
+            [new_cell_ids_p, new_cell_ids_n] = np.split(new_cell_ids, 2)
+
+            map_vertex_p = {}
+            for i, cell_id in enumerate(new_cell_ids_p):
+                mesh_cell = self.create_cell(0, np.array([new_node_tags[i]]), cell_id, mat_id)
+                mesh_cell.set_sub_cells_ids(0,np.array([new_node_tags[i]]))
+                self.cells = np.append(self.cells,mesh_cell)
+                map_vertex_p[vertices[i]] = cell_id
+
+            map_vertex_n = {}
+            for i, cell_id in enumerate(new_cell_ids_n):
+                mesh_cell = self.create_cell(0, np.array([new_node_tags[i]]), cell_id, mat_id)
+                mesh_cell.set_sub_cells_ids(0,np.array([new_node_tags[i]]))
+                self.cells = np.append(self.cells,mesh_cell)
+                map_vertex_n[vertices[i]] = cell_id
+
+            for cell_p_id, cell_n_id  in zip(cells_p,cells_n):
+                self.update_entity_with_dimension(0, cell_p_id, map_vertex_p)
+                self.update_entity_with_dimension(0, cell_n_id, map_vertex_n)
+
+
 
 
 
@@ -845,6 +950,21 @@ class Mesh:
             )
 
         return duplicated_ids
+
+    def update_entity_with_dimension(
+        self, dim, cell_id, entity_map_ids
+    ):
+        cell = self.cells[cell_id]
+        for i, sub_cell_id in enumerate(cell.sub_cells_ids[dim]):
+            position = entity_map_ids.get(sub_cell_id, None)
+            if position is not None:
+                cell.sub_cells_ids[dim][i] = entity_map_ids[sub_cell_id]
+        if cell.dimension > dim+1:
+            for sub_cell_id in cell.sub_cells_ids[dim+1]:
+                self.update_entity_with_dimension(dim,sub_cell_id,entity_map_ids)
+
+
+
 
     def update_entity_on_dimension(
         self, dim, cell, duplicated_ids, invalidate_old_q=False
@@ -1170,7 +1290,7 @@ class Mesh:
         cell_1d = self.cells[f_cells[0]]
         assert cell_1d.dimension == 1
         graph = self.build_graph_on_materials(1, 1)
-        seed_id = cell_1d.cells_ids[0][0]
+        seed_id = cell_1d.sub_cells_ids[0][0]
 
         id = seed_id
         fcell_id = cell_1d.id

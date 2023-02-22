@@ -444,8 +444,8 @@ def h1_projector(gmesh):
 
     # fun = lambda x, y, z: 16 * x * (1.0 - x) * y * (1.0 - y)
     # fun = lambda x, y, z: x + y
-    # fun = lambda x, y, z: x * (1.0 - x) + y * (1.0 - y)
-    fun = lambda x, y, z: x * (1.0 - x) * x + y * (1.0 - y) * y
+    fun = lambda x, y, z: x * (1.0 - x) + y * (1.0 - y)
+    # fun = lambda x, y, z: x * (1.0 - x) * x + y * (1.0 - y) * y
     # fun = lambda x, y, z: x * (1.0 - x) * x * x + y * (1.0 - y) * y * y
     et = time.time()
     elapsed_time = et - st
@@ -634,6 +634,8 @@ def h1_projector(gmesh):
     ph_data = np.zeros(len(gmesh.points))
     pe_data = np.zeros(len(gmesh.points))
     for id in cell_0d_ids:
+        if not gd2c2.has_node(id):
+            continue
         pr_ids = list(gd2c2.predecessors(id))
         cell = gmesh.cells[pr_ids[0]]
         if cell.dimension != 2:
@@ -965,12 +967,12 @@ def generate_mesh():
     g_builder.build_grahp()
 
     gmesh = None
-    fractures_q = False
+    fractures_q = True
     if fractures_q:
         # polygon_polygon_intersection()
-        h_cell = 1.0 / (3.0)
+        h_cell = 1.0 / (2.0)
         fracture_tags = [0]
-        fracture_1 = np.array([[0.5, 0.25], [0.5, 0.75]])
+        fracture_1 = np.array([[0.5, 0.2], [0.5, 0.8]])
         fracture_2 = np.array([[0.25, 0.5], [0.75, 0.5]])
         fracture_3 = np.array([[0.2, 0.35], [0.85, 0.35]])
         fracture_4 = np.array([[0.15, 0.15], [0.85, 0.85]])
@@ -992,11 +994,13 @@ def generate_mesh():
 
         gmesh = Mesh(dimension=2, file_name="gmesh.msh")
         gmesh.set_conformal_mesher(mesher)
-        gmesh.cut_conformity_on_fractures_mds_ec()
         gmesh.build_conformal_mesh_II()
+        gmesh.cut_conformity_on_fractures_mds_ec()
+
 
         gmesh.write_data()
         gmesh.write_vtk()
+        gmesh.circulate_internal_bc()
         print("h-size: ", h_cell)
     else:
         # polygon_polygon_intersection()

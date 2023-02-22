@@ -17,7 +17,7 @@ class MeshCell:
         self.material_id = None
         self.node_tags = np.array([], dtype=int)
         self.perm = np.array([], dtype=int)
-        data = [np.array([], dtype=int) for i in range(dimension)]
+        data = [np.array([], dtype=int) for i in range(dimension+1)]
         self.sub_cells_ids = data
 
     def set_id(self, id):
@@ -40,7 +40,7 @@ class MeshCell:
         return self.node_tags
 
     def set_sub_cells_ids(self, dim, cells_ids):
-        assert self.dimension > dim
+        assert self.dimension >= dim
         self.sub_cells_ids[dim] = cells_ids
 
     # def update_codimension_1_cell(self, index, d_m_1_cell):
