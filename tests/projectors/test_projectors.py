@@ -72,7 +72,7 @@ def     validate_orientation(gmesh, cell):
     orientation = [False,False,False]
     for i, con in enumerate(connectiviy):
         edge = cell.node_tags[con]
-        v_edge = gmesh.cells[cell.cells_ids[1][i]].node_tags
+        v_edge = gmesh.cells[cell.sub_cells_ids[1][i]].node_tags
         if np.any(edge == v_edge):
             orientation[i] = True
     orientation = [orientation[i] for i in e_perms]

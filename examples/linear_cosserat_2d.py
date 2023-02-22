@@ -350,7 +350,7 @@ def validate_orientation(gmesh, cell):
     orientation = [False,False,False]
     for i, con in enumerate(connectiviy):
         edge = cell.node_tags[con]
-        v_edge = gmesh.cells[cell.cells_ids[1][i]].node_tags
+        v_edge = gmesh.cells[cell.sub_cells_ids[1][i]].node_tags
         if np.any(edge == v_edge):
             orientation[i] = True
     orientation = [orientation[i] for i in e_perms]
@@ -376,7 +376,7 @@ def h1_projector(gmesh):
     n_faces = len(faces_ids)
 
     # polynomial order
-    k_order = 2
+    k_order = 3
     #
     conformity = "h-1"
     b_variant = LagrangeVariant.gll_centroid
@@ -430,7 +430,7 @@ def h1_projector(gmesh):
 
     # Fixed parametric basis and data
     points, weights = basix.make_quadrature(basix.QuadratureType.gauss_jacobi,
-                                            CellType.triangle, 2 * k_order + 2)
+                                            CellType.triangle, 2 * k_order + 1)
     lagrange = basix.create_element(ElementFamily.P, CellType.triangle, k_order,
                                     b_variant)
     phi_hat_tab = lagrange.tabulate(1, points)
@@ -443,8 +443,9 @@ def h1_projector(gmesh):
     perms = permute_edges(lagrange)
 
     # fun = lambda x, y, z: 16 * x * (1.0 - x) * y * (1.0 - y)
-    fun = lambda x, y, z: x * (1.0 - x) + y * (1.0 - y)
-    # fun = lambda x, y, z: x * (1.0 - x) * x + y * (1.0 - y) * y
+    # fun = lambda x, y, z: x + y
+    # fun = lambda x, y, z: x * (1.0 - x) + y * (1.0 - y)
+    fun = lambda x, y, z: x * (1.0 - x) * x + y * (1.0 - y) * y
     # fun = lambda x, y, z: x * (1.0 - x) * x * x + y * (1.0 - y) * y * y
     et = time.time()
     elapsed_time = et - st
@@ -629,7 +630,7 @@ def h1_projector(gmesh):
     print("L2-error: ",np.sqrt(l2_error))
 
     # writing solution on mesh points
-    cell_0d_ids = [cell.id for cell in gmesh.cells if cell.dimension == 0]
+    cell_0d_ids = [cell.node_tags[0] for cell in gmesh.cells if cell.dimension == 0]
     ph_data = np.zeros(len(gmesh.points))
     pe_data = np.zeros(len(gmesh.points))
     for id in cell_0d_ids:
@@ -650,7 +651,7 @@ def h1_projector(gmesh):
         cell_type = getattr(basix.CellType, "triangle")
         par_points = basix.geometry(cell_type)
 
-        vertex_id = np.array([i for i, cid in enumerate(cell.cells_ids[0]) if cid == id])
+        vertex_id = np.array([i for i, cid in enumerate(cell.node_tags) if cid == id])
         lagrange = basix.create_element(ElementFamily.P, CellType.triangle, k_order,
                                         b_variant)
 
@@ -964,10 +965,10 @@ def generate_mesh():
     g_builder.build_grahp()
 
     gmesh = None
-    fractures_q = True
+    fractures_q = False
     if fractures_q:
         # polygon_polygon_intersection()
-        h_cell = 1.0 / (1.0)
+        h_cell = 1.0 / (3.0)
         fracture_tags = [0]
         fracture_1 = np.array([[0.5, 0.25], [0.5, 0.75]])
         fracture_2 = np.array([[0.25, 0.5], [0.75, 0.5]])
@@ -994,7 +995,7 @@ def generate_mesh():
         gmesh.cut_conformity_on_fractures_mds_ec()
         gmesh.build_conformal_mesh_II()
 
-        # gmesh.write_data()
+        gmesh.write_data()
         gmesh.write_vtk()
         print("h-size: ", h_cell)
     else:
@@ -1009,7 +1010,7 @@ def generate_mesh():
         gmesh = Mesh(dimension=2, file_name="gmesh.msh")
         gmesh.set_conformal_mesher(mesher)
         gmesh.build_conformal_mesh_II()
-        # gmesh.write_data()
+        gmesh.write_data()
         gmesh.write_vtk()
         print("h-size: ", h_cell)
 
