@@ -970,8 +970,8 @@ def generate_mesh():
     fractures_q = True
     if fractures_q:
         # polygon_polygon_intersection()
-        h_cell = 0.1
-        fracture_tags = [0, 1, 3, 4]
+        h_cell = 0.025
+        fracture_tags = [0, 1, 2, 3, 4]
         fracture_1 = np.array([[0.5, 0.2], [0.5, 0.8]])
         fracture_2 = np.array([[0.25, 0.5], [0.75, 0.5]])
         fracture_3 = np.array([[0.2, 0.35], [0.85, 0.35]])
@@ -985,7 +985,7 @@ def generate_mesh():
         for tag in fracture_tags:
             fractures.append(disjoint_fractures[tag])
         fracture_network = fn.FractureNetwork(dimension=2, physical_tag_shift=10)
-        fracture_network.intersect_1D_fractures(fractures)
+        fracture_network.intersect_1D_fractures(fractures, render_intersection_q = False)
         fracture_network.build_grahp(all_fixed_d_cells_q=True)
         mesher.set_fracture_network(fracture_network)
         mesher.set_points()
@@ -996,14 +996,13 @@ def generate_mesh():
         gmesh.set_conformal_mesher(mesher)
         gmesh.build_conformal_mesh_II()
         map_fracs_edge = gmesh.cut_conformity_on_fractures_mds_ec()
-        gmesh.write_data()
-        # factor = 0.025
-        # gmesh.apply_visual_opening(map_fracs_edge, factor)
+        factor = 0.025
+        gmesh.apply_visual_opening(map_fracs_edge, factor)
 
 
         gmesh.write_data()
         gmesh.write_vtk()
-        gmesh.circulate_internal_bc()
+        print("Skin boundary is closed Q:", gmesh.circulate_internal_bc())
         print("h-size: ", h_cell)
     else:
         # polygon_polygon_intersection()

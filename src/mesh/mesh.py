@@ -693,8 +693,10 @@ class Mesh:
             for i, cell_id_pair in enumerate(zip(new_cell_ids_p,new_cell_ids_n)):
                 map_fracs_edge[f_cells[i].id] = cell_id_pair
 
-            for cell_p_id, cell_n_id  in zip(cells_p,cells_n):
+            for cell_p_id  in cells_p:
                 self.update_entity_with_dimension(1, cell_p_id, map_edge_p)
+
+            for cell_n_id  in cells_n:
                 self.update_entity_with_dimension(1, cell_n_id, map_edge_n)
 
             # vertices duplication
@@ -758,17 +760,21 @@ class Mesh:
                 map_node_n[old_node_tag] = new_node_tags_n[i]
 
             # update nodes and vertex
-            for cell_p_id, cell_n_id  in zip(cells_p,cells_n):
+            for cell_p_id  in cells_p:
                 self.update_entity_with_dimension(0, cell_p_id, map_vertex_p)
-                self.update_entity_with_dimension(0, cell_n_id, map_vertex_n)
                 self.update_nodes_ids(cell_p_id, map_node_p)
+
+            for cell_n_id  in cells_n:
+                self.update_entity_with_dimension(0, cell_n_id, map_vertex_n)
                 self.update_nodes_ids(cell_n_id, map_node_n)
 
             # update nodes and vertex on duplicated edges
-            for cell_p_id, cell_n_id  in zip(map_edge_p.values(),map_edge_n.values()):
+            for cell_p_id  in map_edge_p.values():
                 self.update_entity_with_dimension(0, cell_p_id, map_vertex_p)
-                self.update_entity_with_dimension(0, cell_n_id, map_vertex_n)
                 self.update_nodes_ids(cell_p_id, map_node_p)
+
+            for cell_n_id  in map_edge_n.values():
+                self.update_entity_with_dimension(0, cell_n_id, map_vertex_n)
                 self.update_nodes_ids(cell_n_id, map_node_n)
 
         return map_fracs_edge
@@ -1358,13 +1364,13 @@ class Mesh:
         ids = [s_id for s_id in sc if s_id != cell_m_1_id]
         assert len(ids) == 1
         if seed_id == ids[0]:
-            print("Seed id was found: ", ids[0])
-            print("Skin boundary is closed.")
+            # print("Seed id was found: ", ids[0])
+            # print("Skin boundary is closed.")
             closed_q[0] = True
         else:
-            print("Next pair:")
-            print("cell_id      : ", fcell_ids[0])
-            print("cell_m_1_id  : ", ids[0])
+            # print("Next pair:")
+            # print("cell_id      : ", fcell_ids[0])
+            # print("cell_m_1_id  : ", ids[0])
             self.next_d_m_1(seed_id, fcell_ids[0], ids[0], graph, closed_q)
 
     def circulate_internal_bc(self):
