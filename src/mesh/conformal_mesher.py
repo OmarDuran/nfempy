@@ -134,9 +134,7 @@ class ConformalMesher:
         gmsh.finalize()
         if self.fracture_network is not None:
             max_point_id = -len(self.geometry_builder.points)
-            # max_cell_id = -len(self.geometry_builder.cells)
             self.fracture_network.shift_point_ids(max_point_id)
-            # self.fracture_network.shift_cell_ids(max_cell_id)
 
     def generate(self, lc):
         gmsh.initialize()
@@ -144,18 +142,29 @@ class ConformalMesher:
         n_points = len(self.points)
         for tag, point in enumerate(self.points):
             gmsh.model.geo.addPoint(point[0], point[1], 0, self.lc, tag + 1)
+            # gmsh.model.geo.addPoint(point[0], point[1], 0, tag + 1)
 
         self.add_domain_descritpion()
 
         if self.fracture_network is not None:
+            gmsh.model.geo.synchronize()
             self.add_fracture_network_description()
-
+            gmsh.model.geo.synchronize()
             # embed entities
             gmsh.model.mesh.embed(0, self.tags_0d, 2, self.tags_2d[0])
             gmsh.model.mesh.embed(1, self.tags_1d, 2, self.tags_2d[0])
+
+
+            numNodes = 10
+            for tag_1d in self.tags_1d:
+                gmsh.model.geo.mesh.setTransfiniteCurve(tag_1d, numNodes, "Progression")
+
+
+
 
         gmsh.model.geo.synchronize()
         gmsh.model.mesh.generate(2)
 
         # if "-nopopup" not in sys.argv:
         #     gmsh.fltk.run()
+        # aka = 0

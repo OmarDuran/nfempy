@@ -970,8 +970,8 @@ def generate_mesh():
     fractures_q = True
     if fractures_q:
         # polygon_polygon_intersection()
-        h_cell = 1.0 / (2.0)
-        fracture_tags = [0]
+        h_cell = 0.1
+        fracture_tags = [0, 1, 3, 4]
         fracture_1 = np.array([[0.5, 0.2], [0.5, 0.8]])
         fracture_2 = np.array([[0.25, 0.5], [0.75, 0.5]])
         fracture_3 = np.array([[0.2, 0.35], [0.85, 0.35]])
@@ -995,7 +995,10 @@ def generate_mesh():
         gmesh = Mesh(dimension=2, file_name="gmesh.msh")
         gmesh.set_conformal_mesher(mesher)
         gmesh.build_conformal_mesh_II()
-        gmesh.cut_conformity_on_fractures_mds_ec()
+        map_fracs_edge = gmesh.cut_conformity_on_fractures_mds_ec()
+        gmesh.write_data()
+        # factor = 0.025
+        # gmesh.apply_visual_opening(map_fracs_edge, factor)
 
 
         gmesh.write_data()
