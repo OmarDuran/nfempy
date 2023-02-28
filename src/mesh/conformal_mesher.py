@@ -157,7 +157,7 @@ class ConformalMesher:
 
             numNodes = 10
             for tag_1d in self.tags_1d:
-                gmsh.model.geo.mesh.setTransfiniteCurve(tag_1d, numNodes, "Progression")
+                gmsh.model.geo.mesh.setTransfiniteCurve(tag_1d, numNodes, "Bump", coef=0.1)
 
 
 

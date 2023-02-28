@@ -444,8 +444,8 @@ def h1_projector(gmesh):
 
     # fun = lambda x, y, z: 16 * x * (1.0 - x) * y * (1.0 - y)
     # fun = lambda x, y, z: x + y
-    fun = lambda x, y, z: x * (1.0 - x) + y * (1.0 - y)
-    # fun = lambda x, y, z: x * (1.0 - x) * x + y * (1.0 - y) * y
+    # fun = lambda x, y, z: x * (1.0 - x) + y * (1.0 - y)
+    fun = lambda x, y, z: x * (1.0 - x) * x + y * (1.0 - y) * y
     # fun = lambda x, y, z: x * (1.0 - x) * x * x + y * (1.0 - y) * y * y
     et = time.time()
     elapsed_time = et - st
@@ -633,10 +633,12 @@ def h1_projector(gmesh):
     cell_0d_ids = [cell.node_tags[0] for cell in gmesh.cells if cell.dimension == 0]
     ph_data = np.zeros(len(gmesh.points))
     pe_data = np.zeros(len(gmesh.points))
-    for id in cell_0d_ids:
+    for id in list(vertex_map.keys()):
         if not gd2c2.has_node(id):
             continue
+
         pr_ids = list(gd2c2.predecessors(id))
+        # pr_ids = [id for id in pr_ids if gmesh.cells[id].dimension == 2]
         cell = gmesh.cells[pr_ids[0]]
         if cell.dimension != 2:
             continue
@@ -653,11 +655,12 @@ def h1_projector(gmesh):
         cell_type = getattr(basix.CellType, "triangle")
         par_points = basix.geometry(cell_type)
 
-        vertex_id = np.array([i for i, cid in enumerate(cell.node_tags) if cid == id])
+        target_node_id = gmesh.cells[id].node_tags[0]
+        par_point_id = np.array([i for i, node_id in enumerate(cell.node_tags) if node_id == target_node_id])
         lagrange = basix.create_element(ElementFamily.P, CellType.triangle, k_order,
                                         b_variant)
 
-        points = par_points[vertex_id]
+        points = par_points[par_point_id]
         phi_tab = lagrange.tabulate(0, points)
 
         # triangle ref connectivity
@@ -683,8 +686,8 @@ def h1_projector(gmesh):
         p_h = np.dot(alpha_l, phi_tab[0, 0, :, 0])
         # print("p_e,p_h: ", [p_e,p_h])
         cell_0d = gmesh.cells[id]
-        ph_data[cell_0d.node_tags] = p_h
-        pe_data[cell_0d.node_tags] = p_e
+        ph_data[target_node_id] = p_h
+        pe_data[target_node_id] = p_e
 
 
     mesh_points = gmesh.points
@@ -970,14 +973,15 @@ def generate_mesh():
     fractures_q = True
     if fractures_q:
         # polygon_polygon_intersection()
-        h_cell = 0.025
-        fracture_tags = [0, 1, 2, 3, 4]
+        h_cell = 0.1
+        fracture_tags = [0,1,2,3,4,5]
         fracture_1 = np.array([[0.5, 0.2], [0.5, 0.8]])
         fracture_2 = np.array([[0.25, 0.5], [0.75, 0.5]])
         fracture_3 = np.array([[0.2, 0.35], [0.85, 0.35]])
         fracture_4 = np.array([[0.15, 0.15], [0.85, 0.85]])
         fracture_5 = np.array([[0.15, 0.85], [0.85, 0.15]])
-        disjoint_fractures = [fracture_1, fracture_2, fracture_3, fracture_4, fracture_5]
+        fracture_6 = np.array([[0.22, 0.62], [0.92, 0.22]])
+        disjoint_fractures = [fracture_1, fracture_2, fracture_3, fracture_4, fracture_5, fracture_6]
 
         mesher = ConformalMesher(dimension=2)
         mesher.set_geometry_builder(g_builder)
@@ -996,13 +1000,13 @@ def generate_mesh():
         gmesh.set_conformal_mesher(mesher)
         gmesh.build_conformal_mesh_II()
         map_fracs_edge = gmesh.cut_conformity_on_fractures_mds_ec()
-        factor = 0.025
-        gmesh.apply_visual_opening(map_fracs_edge, factor)
+        # factor = 0.025
+        # gmesh.apply_visual_opening(map_fracs_edge, factor)
 
 
         gmesh.write_data()
         gmesh.write_vtk()
-        print("Skin boundary is closed Q:", gmesh.circulate_internal_bc())
+        # print("Skin boundary is closed Q:", gmesh.circulate_internal_bc())
         print("h-size: ", h_cell)
     else:
         # polygon_polygon_intersection()
