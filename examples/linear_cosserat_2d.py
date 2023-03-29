@@ -477,7 +477,7 @@ def h1_projector(gmesh):
     n_faces = len(faces_ids)
 
     # polynomial order
-    k_order = 3
+    k_order = 2
     #
     conformity = "h-1"
     b_variant = LagrangeVariant.gll_centroid
@@ -531,8 +531,8 @@ def h1_projector(gmesh):
 
     # fun = lambda x, y, z: 16 * x * (1.0 - x) * y * (1.0 - y)
     # fun = lambda x, y, z: x + y
-    # fun = lambda x, y, z: x * (1.0 - x) + y * (1.0 - y)
-    fun = lambda x, y, z: x * (1.0 - x) * x + y * (1.0 - y) * y
+    fun = lambda x, y, z: x * (1.0 - x) + y * (1.0 - y)
+    # fun = lambda x, y, z: x * (1.0 - x) * x + y * (1.0 - y) * y
     # fun = lambda x, y, z: x * (1.0 - x) * x * x + y * (1.0 - y) * y * y
     et = time.time()
     elapsed_time = et - st
@@ -990,7 +990,7 @@ def generate_mesh():
     fractures_q = True
     if fractures_q:
         # polygon_polygon_intersection()
-        h_cell = 0.0125
+        h_cell = 0.0025
         fracture_tags = [0]
         fracture_1 = np.array([[0.5, 0.2], [0.5, 0.8]])
         fracture_1 = np.array([[0.5, 0.4], [0.5, 0.6]])
@@ -1022,7 +1022,7 @@ def generate_mesh():
         # gmesh.apply_visual_opening(map_fracs_edge, factor)
 
 
-        gmesh.write_data()
+        # gmesh.write_data()
         gmesh.write_vtk()
         # print("Skin boundary is closed Q:", gmesh.circulate_internal_bc())
         print("h-size: ", h_cell)
