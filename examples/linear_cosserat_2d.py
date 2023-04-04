@@ -336,6 +336,7 @@ class FiniteElement:
         self.quadrature = None
         self.mapping = None
         self.phi = None
+        self.dof_ordering = None
         self._build_structures()
 
     def _build_structures(self):
@@ -347,6 +348,8 @@ class FiniteElement:
         self.quadrature = basix.make_quadrature(basix.QuadratureType.gauss_jacobi, cell_type, 2 * k_order + 1)
         points = self.quadrature[0]
         self._evaluate_basis(points)
+        self.dof_ordering = self._dof_premutations()
+
 
     def _element_family(self):
         families = {"Lagrange": ElementFamily.P, "BDM": ElementFamily.BDM,
@@ -359,6 +362,60 @@ class FiniteElement:
         element_types = {0: CellType.point, 1: CellType.interval, 2: CellType.triangle, 3: CellType.tetrahedron}
         dimension = self.cell.dimension
         return element_types[dimension]
+
+    def _dof_premutations(self):
+        # this permutation is because basix uses different entity ordering.
+        if self.cell.dimension == 0:
+            return self._dof_perm_point()
+        elif self.cell.dimension == 1:
+            return self._dof_perm_interval()
+        elif self.cell.dimension == 2:
+            return self._dof_perm_triangle()
+        elif self.cell.dimension == 3:
+            return self._dof_perm_triangle()
+
+    def _dof_perm_point(self):
+        indices = np.array([0], dtype=int)
+        return indices
+
+    def _dof_perm_interval(self):
+        indices = np.array([], dtype=int)
+        for dim, entity_dof in enumerate(self.basis_generator.entity_dofs):
+            indices = np.append(indices, np.array(entity_dof, dtype=int))
+        return indices.ravel()
+
+    def _dof_perm_triangle(self):
+        indices = np.array([], dtype=int)
+        e_perms = np.array([1, 2, 0])
+        for dim, entity_dof in enumerate(self.basis_generator.entity_dofs):
+            if dim == 1:
+                for i, chunk in enumerate(entity_dof):
+                    if i == 2:
+                        chunk.reverse()
+                entity_dof = [entity_dof[i] for i in e_perms]
+                indices = np.append(indices, np.array(entity_dof, dtype=int))
+
+            else:
+                indices = np.append(indices, np.array(entity_dof, dtype=int))
+        return indices.ravel()
+
+    def _dof_perm_tetrahedron(self):
+
+        raise ValueError("ERROR: perm_tetrahedron is not implemented.")
+
+        indices = np.array([], dtype=int)
+        e_perms = np.array([1, 2, 0])
+        for dim, entity_dof in enumerate(self.basis_generator.entity_dofs):
+            if dim == 1:
+                for i, chunk in enumerate(entity_dof):
+                    if i == 2:
+                        chunk.reverse()
+                entity_dof = [entity_dof[i] for i in e_perms]
+                indices = np.append(indices, np.array(entity_dof, dtype=int))
+
+            else:
+                indices = np.append(indices, np.array(entity_dof, dtype=int))
+        return indices.ravel()
 
     def _compute_mapping(self, points):
         cell_points = self.mesh.points[self.cell.node_tags]
@@ -435,26 +492,26 @@ class FiniteElement:
 
 
 
-def permute_edges(element):
-
-    indices = np.array([], dtype=int)
-    rindices = np.array([], dtype=int)
-    e_perms = np.array([1, 2, 0])
-    e_rperms = np.array([2, 0, 1])
-    for dim, entity_dof in enumerate(element.entity_dofs):
-        if dim == 1:
-            for i, chunk in enumerate(entity_dof):
-                if i == 2:
-                    chunk.reverse()
-            entity_dof_r = [entity_dof[i] for i in e_rperms]
-            entity_dof = [entity_dof[i] for i in e_perms]
-            rindices = np.append(rindices, np.array(entity_dof_r, dtype=int))
-            indices = np.append(indices, np.array(entity_dof, dtype=int))
-
-        else:
-            rindices = np.append(rindices, np.array(entity_dof, dtype=int))
-            indices = np.append(indices, np.array(entity_dof, dtype=int))
-    return (indices.ravel(), rindices.ravel())
+# def permute_edges(element):
+#
+#     indices = np.array([], dtype=int)
+#     rindices = np.array([], dtype=int)
+#     e_perms = np.array([1, 2, 0])
+#     e_rperms = np.array([2, 0, 1])
+#     for dim, entity_dof in enumerate(element.entity_dofs):
+#         if dim == 1:
+#             for i, chunk in enumerate(entity_dof):
+#                 if i == 2:
+#                     chunk.reverse()
+#             entity_dof_r = [entity_dof[i] for i in e_rperms]
+#             entity_dof = [entity_dof[i] for i in e_perms]
+#             rindices = np.append(rindices, np.array(entity_dof_r, dtype=int))
+#             indices = np.append(indices, np.array(entity_dof, dtype=int))
+#
+#         else:
+#             rindices = np.append(rindices, np.array(entity_dof, dtype=int))
+#             indices = np.append(indices, np.array(entity_dof, dtype=int))
+#     return (indices.ravel(), rindices.ravel())
 
 def h1_projector(gmesh):
 
@@ -475,7 +532,7 @@ def h1_projector(gmesh):
     n_faces = len(faces_ids)
 
     # polynomial order
-    k_order = 2
+    k_order = 3
     #
     conformity = "h-1"
     b_variant = LagrangeVariant.gll_centroid
@@ -511,6 +568,7 @@ def h1_projector(gmesh):
         entity_dofs[dim] = e_dofs
         entity_support[dim] *= e_dofs
 
+    # Enumerates DoF
     global_indices = np.add.accumulate([0, entity_support[0], entity_support[1], entity_support[2]])
     # Computing cell mappings
     vertex_map = dict(zip(vertices_ids, np.split(np.array(range(global_indices[0],global_indices[1])),len(vertices_ids))))
@@ -524,13 +582,11 @@ def h1_projector(gmesh):
 
     lagrange = basix.create_element(ElementFamily.P, CellType.triangle, k_order,
                                     b_variant)
-    # permute functions
-    perms = permute_edges(lagrange)
 
     # fun = lambda x, y, z: 16 * x * (1.0 - x) * y * (1.0 - y)
     # fun = lambda x, y, z: x + y
-    fun = lambda x, y, z: x * (1.0 - x) + y * (1.0 - y)
-    # fun = lambda x, y, z: x * (1.0 - x) * x + y * (1.0 - y) * y
+    # fun = lambda x, y, z: x * (1.0 - x) + y * (1.0 - y)
+    fun = lambda x, y, z: x * (1.0 - x) * x + y * (1.0 - y) * y
     # fun = lambda x, y, z: x * (1.0 - x) * x * x + y * (1.0 - y) * y * y
     et = time.time()
     elapsed_time = et - st
@@ -550,7 +606,7 @@ def h1_projector(gmesh):
     elapsed_time = et - st
     print('Search in grahps  time:', elapsed_time, 'seconds')
 
-    def scatter_el_data(element, fun, gd2c2, gd2c1, perms, cell_map, row, col, data ):
+    def scatter_el_data(element, fun, gd2c2, gd2c1, cell_map, row, col, data ):
 
         cell = element.cell
         phi_tab = element.phi
@@ -578,8 +634,8 @@ def h1_projector(gmesh):
         dest_edge = np.array([edge_map.get(dof_s) for dof_s in dof_edge_supports],
                              dtype=int).ravel()
         dest_faces = np.array([face_map.get(cell.id)], dtype=int).ravel()
-        dest = np.concatenate((dest_vertex, dest_edge, dest_faces))[perms[0]]
-        # dest = dest_vertex
+        dest = np.concatenate((dest_vertex, dest_edge, dest_faces))[element.dof_ordering]
+
         c_sequ = cell_map[cell.id]
 
         # contribute rhs
@@ -592,7 +648,7 @@ def h1_projector(gmesh):
         data[block_sequ] += j_el.ravel()
 
     aka = 0
-    [scatter_el_data(element, fun, gd2c2, gd2c1, perms, cell_map, row, col, data) for element in elements]
+    [scatter_el_data(element, fun, gd2c2, gd2c1, cell_map, row, col, data) for element in elements]
 
 
     jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
@@ -609,7 +665,7 @@ def h1_projector(gmesh):
 
     # Computing L2 error
 
-    def compute_l2_error(element, gd2c2, gd2c1, perms):
+    def compute_l2_error(element, gd2c2, gd2c1):
         l2_error = 0.0
         cell = element.cell
         # scattering dof
@@ -620,7 +676,7 @@ def h1_projector(gmesh):
         dest_edge = np.array([edge_map.get(dof_s) for dof_s in dof_edge_supports],
                              dtype=int).ravel()
         dest_faces = np.array([face_map.get(cell.id)], dtype=int).ravel()
-        dest = np.concatenate((dest_vertex, dest_edge, dest_faces))[perms[0]]
+        dest = np.concatenate((dest_vertex, dest_edge, dest_faces))[element.dof_ordering]
         alpha_l = alpha[dest]
 
         (x, jac, det_jac, inv_jac) = element.mapping
@@ -634,7 +690,7 @@ def h1_projector(gmesh):
         return l2_error
 
     st = time.time()
-    error_vec = [compute_l2_error(element, gd2c2, gd2c1, perms) for element in elements]
+    error_vec = [compute_l2_error(element, gd2c2, gd2c1) for element in elements]
     et = time.time()
     elapsed_time = et - st
     print('L2-error time:', elapsed_time, 'seconds')
@@ -661,14 +717,13 @@ def h1_projector(gmesh):
 
         element = cellid_to_element[pr_ids[0]]
 
-
         # scattering dof
         dof_vertex_supports = list(gd2c2.successors(cell.id))
         dof_edge_supports = list(gd2c1.successors(cell.id))
         dest_vertex = np.array([vertex_map.get(dof_s) for dof_s in dof_vertex_supports],dtype=int).ravel()
         dest_edge = np.array([edge_map.get(dof_s) for dof_s in dof_edge_supports],dtype=int).ravel()
         dest_faces = np.array([face_map.get(cell.id)],dtype=int).ravel()
-        dest = np.concatenate((dest_vertex,dest_edge,dest_faces))[perms[0]]
+        dest = np.concatenate((dest_vertex,dest_edge,dest_faces))[element.dof_ordering]
         alpha_l = alpha[dest]
 
         cell_type = getattr(basix.CellType, "triangle")
