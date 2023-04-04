@@ -345,8 +345,8 @@ class FiniteElement:
         k_order = self.k_order
         self.basis_generator = basix.create_element(family, cell_type, k_order, b_variant)
         self.quadrature = basix.make_quadrature(basix.QuadratureType.gauss_jacobi, cell_type, 2 * k_order + 1)
-        self._compute_mapping()
-        self._compute_basis()
+        points = self.quadrature[0]
+        self._evaluate_basis(points)
 
     def _element_family(self):
         families = {"Lagrange": ElementFamily.P, "BDM": ElementFamily.BDM,
@@ -360,11 +360,11 @@ class FiniteElement:
         dimension = self.cell.dimension
         return element_types[dimension]
 
-    def _compute_mapping(self):
+    def _compute_mapping(self, points):
         cell_points = self.mesh.points[self.cell.node_tags]
         cell_type = self._element_type()
         linear_element = basix.create_element(ElementFamily.P, cell_type, 1, LagrangeVariant.equispaced)
-        points, weights = self.quadrature
+        # points, weights = self.quadrature
         phi = linear_element.tabulate(1, points)
 
         # Compute geometrical transformations
@@ -411,9 +411,8 @@ class FiniteElement:
         orientation = [orientation[i] for i in e_perms]
         return orientation
 
-    def _compute_basis(self):
-
-        points, weights = self.quadrature
+    def _evaluate_basis(self, points):
+        self._compute_mapping(points)
         phi_hat_tab = self.basis_generator.tabulate(1, points)
 
         # map functions
@@ -460,7 +459,6 @@ def permute_edges(element):
 def h1_projector(gmesh):
 
     # Create conformity
-
     st = time.time()
     gd2c2 = gmesh.build_graph(2, 2)
     gd2c1 = gmesh.build_graph(2, 1)
@@ -547,7 +545,7 @@ def h1_projector(gmesh):
     st = time.time()
 
     st = time.time()
-    xd = [(gd2c2.successors(faces_ids[0]),gd2c1.successors(faces_ids[0])) for i in range(100000)]
+    xd = [(gd2c2.successors(faces_ids[0]),gd2c1.successors(faces_ids[0])) for i in range(10)]
     et = time.time()
     elapsed_time = et - st
     print('Search in grahps  time:', elapsed_time, 'seconds')
@@ -644,8 +642,9 @@ def h1_projector(gmesh):
     l2_error = functools.reduce(lambda x, y: x + y, error_vec)
     print("L2-error: ",np.sqrt(l2_error))
 
-    return
+    # return
 
+    cellid_to_element = dict(zip(faces_ids, elements))
     # writing solution on mesh points
     cell_0d_ids = [cell.node_tags[0] for cell in gmesh.cells if cell.dimension == 0]
     ph_data = np.zeros(len(gmesh.points))
@@ -659,6 +658,9 @@ def h1_projector(gmesh):
         cell = gmesh.cells[pr_ids[0]]
         if cell.dimension != 2:
             continue
+
+        element = cellid_to_element[pr_ids[0]]
+
 
         # scattering dof
         dof_vertex_supports = list(gd2c2.successors(cell.id))
@@ -674,35 +676,15 @@ def h1_projector(gmesh):
 
         target_node_id = gmesh.cells[id].node_tags[0]
         par_point_id = np.array([i for i, node_id in enumerate(cell.node_tags) if node_id == target_node_id])
-        lagrange = basix.create_element(ElementFamily.P, CellType.triangle, k_order,
-                                        b_variant)
 
         points = par_points[par_point_id]
-        phi_tab = lagrange.tabulate(0, points)
-
-        # triangle ref connectivity
-        if not lagrange.dof_transformations_are_identity:
-            oriented_q =  validate_orientation(gmesh,cell)
-            for index, check in enumerate(oriented_q):
-                if check:
-                    continue
-                transformation = lagrange.entity_transformations()["interval"][0]
-                dofs = lagrange.entity_dofs[1][index]
-                for point in range(phi_tab.shape[1]):
-                    for dim in range(phi_tab.shape[3]):
-                        phi_tab[0, point, dofs, dim] = np.dot(transformation,phi_tab[0, point, dofs, dim])
-
-        linear_base = basix.create_element(ElementFamily.P, CellType.triangle, 1,
-                                           LagrangeVariant.equispaced)
-        g_phi_tab = linear_base.tabulate(1, points)
 
         # evaluate mapping
-        cell_points = gmesh.points[cell.node_tags]
-        xmap = np.dot(g_phi_tab[0, 0, :, 0], cell_points)
-        p_e = fun(xmap[0], xmap[1], xmap[2])
-        p_h = np.dot(alpha_l, phi_tab[0, 0, :, 0])
-        # print("p_e,p_h: ", [p_e,p_h])
-        cell_0d = gmesh.cells[id]
+        element._evaluate_basis(points)
+        phi_tab = element.phi
+        (x, jac, det_jac, inv_jac) = element.mapping
+        p_e = fun(x[0,0], x[0,1], x[0,2])
+        p_h = np.dot(alpha_l, phi_tab[0, :, 0])
         ph_data[target_node_id] = p_h
         pe_data[target_node_id] = p_e
 
@@ -990,7 +972,7 @@ def generate_mesh():
     fractures_q = True
     if fractures_q:
         # polygon_polygon_intersection()
-        h_cell = 0.0025
+        h_cell = 0.25
         fracture_tags = [0]
         fracture_1 = np.array([[0.5, 0.2], [0.5, 0.8]])
         fracture_1 = np.array([[0.5, 0.4], [0.5, 0.6]])
