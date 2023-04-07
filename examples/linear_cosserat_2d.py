@@ -19,6 +19,7 @@ from mesh.mesh import Mesh
 import basix
 from basix import ElementFamily, CellType, LagrangeVariant, LatticeType
 import functools
+from functools import partial
 
 import scipy.sparse as sp
 from scipy.sparse import coo_matrix
@@ -27,6 +28,8 @@ import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import meshio
 import itertools
+
+
 import time
 import sys
 
@@ -307,49 +310,33 @@ def matrix_plot(A):
     plt.show()
 
 
-class DoFMap:
-    def __init__(self, mesh, conformity):
-        self.mesh = mesh
-        self.conformity_type = self.conformity_type(conformity)
-        self.vertex_map = {}
-        self.edge_map = {}
-        self.face_map = {}
-        self.volume_map = {}
-
-    def build_h1_dof_maps(self):
-        gdc1 = self.mesh.build_graph(2, 1)
-        gdc2 = self.mesh.build_graph(2, 2)
-
-    @staticmethod
-    def conformity_type(dimension):
-        types = {'l-2': 0, 'h-1': 1, 'h-div': 2, 'h-curl': 3}
-        return types[dimension]
-
 class FiniteElement:
 
-    def __init__(self, mesh, cell, k_order, family):
+    def __init__(self, id, mesh, k_order, family):
         self.mesh = mesh
-        self.cell = cell
+        self.cell = mesh.cells[id]
         self.k_order = k_order
         self.family = family
+        self.basis_variant = None
         self.basis_generator = None
+        self.dof_ordering = None
         self.quadrature = None
         self.mapping = None
         self.phi = None
-        self.dof_ordering = None
         self._build_structures()
 
     def _build_structures(self):
         family = self._element_family()
-        b_variant = LagrangeVariant.gll_centroid
+        b_variant = self._element_variant()
         cell_type = self._element_type()
         k_order = self.k_order
         self.basis_generator = basix.create_element(family, cell_type, k_order, b_variant)
-        self.quadrature = basix.make_quadrature(basix.QuadratureType.gauss_jacobi, cell_type, 2 * k_order + 1)
-        points = self.quadrature[0]
-        self._evaluate_basis(points)
         self.dof_ordering = self._dof_premutations()
+        self.quadrature = basix.make_quadrature(basix.QuadratureType.gauss_jacobi, cell_type, 2 * k_order + 1)
+        self.evaluate_basis(self.quadrature[0],True)
 
+    def _element_variant(self):
+        return LagrangeVariant.gll_centroid
 
     def _element_family(self):
         families = {"Lagrange": ElementFamily.P, "BDM": ElementFamily.BDM,
@@ -417,13 +404,13 @@ class FiniteElement:
                 indices = np.append(indices, np.array(entity_dof, dtype=int))
         return indices.ravel()
 
-    def _compute_mapping(self, points):
+    def compute_mapping(self, points, storage = False):
         cell_points = self.mesh.points[self.cell.node_tags]
         cell_type = self._element_type()
         linear_element = basix.create_element(ElementFamily.P, cell_type, 1, LagrangeVariant.equispaced)
         # points, weights = self.quadrature
         phi = linear_element.tabulate(1, points)
-
+        dim = self.cell.dimension
         # Compute geometrical transformations
         x = []
         jac = []
@@ -435,26 +422,32 @@ class FiniteElement:
             # QR-decomposition is not unique
             # It's only unique up to the signs of the rows of R
             xmap = np.dot(phi[0, i, :, 0], cell_points)
-            grad_xmap = np.dot(phi[[1, 2], i, :, 0], cell_points).T
+            grad_xmap = np.dot(phi[list(range(1,dim+1)), i, :, 0], cell_points).T
             q_axes, r_jac = np.linalg.qr(grad_xmap)
+            det_g_jac = np.linalg.det(r_jac)
+            # if np.linalg.det(r_jac) < 0.0:
+            #     print('Negative det jac: ', np.linalg.det(r_jac))
+
+            # only for H1
             r_sign = np.diag(np.sign(np.diag(r_jac)), 0)
             q_axes = np.dot(q_axes, r_sign)
             r_jac = np.dot(r_sign, r_jac)
-
             det_g_jac = np.linalg.det(r_jac)
             if det_g_jac < 0.0:
                 print('Negative det jac: ', det_g_jac)
 
             x.append(xmap)
-            jac.append(r_jac)
+            jac.append(grad_xmap)
             det_jac.append(det_g_jac)
-            inv_jac.append(np.linalg.inv(r_jac))
+            inv_jac.append(np.dot(np.linalg.inv(r_jac),q_axes.T))
 
         x = np.array(x)
         jac = np.array(jac)
         det_jac = np.array(det_jac)
         inv_jac = np.array(inv_jac)
-        self.mapping = (x,jac,det_jac,inv_jac)
+        if storage:
+            self.mapping = (x,jac,det_jac,inv_jac)
+        return (x,jac,det_jac,inv_jac)
 
     def _validate_orientation(self):
         connectiviy = np.array([[0, 1], [1, 2], [2, 0]])
@@ -463,22 +456,22 @@ class FiniteElement:
         for i, con in enumerate(connectiviy):
             edge = self.cell.node_tags[con]
             v_edge = self.mesh.cells[self.cell.sub_cells_ids[1][i]].node_tags
-            if np.any(edge == v_edge):
+            if np.any(edge == v_edge) or i == 2:
                 orientation[i] = True
         orientation = [orientation[i] for i in e_perms]
+        # orientation = [True for i in e_perms]
         return orientation
 
-    def _evaluate_basis(self, points):
-        self._compute_mapping(points)
-        phi_hat_tab = self.basis_generator.tabulate(1, points)
+    def evaluate_basis(self, points, storage = False):
 
+        (x, jac, det_jac, inv_jac) = self.compute_mapping(points, storage)
         # map functions
-        (x, jac, det_jac, inv_jac) = self.mapping
+        phi_hat_tab = self.basis_generator.tabulate(1, points)
         phi_tab = self.basis_generator.push_forward(phi_hat_tab[0], jac, det_jac, inv_jac)
 
         # triangle ref connectivity
         if not self.basis_generator.dof_transformations_are_identity:
-            oriented_q =  self._validate_orientation()
+            oriented_q = self._validate_orientation()
             for index, check in enumerate(oriented_q):
                 if check:
                     continue
@@ -488,70 +481,89 @@ class FiniteElement:
                     for dim in range(phi_tab.shape[2]):
                         phi_tab[point, dofs, dim] = np.dot(transformation,phi_tab[point, dofs, dim])
 
-        self.phi = phi_tab
+        if storage:
+            self.phi = phi_tab
+        return phi_tab
 
+class DoFMap:
+    def __init__(self, mesh, conformity):
+        self.mesh = mesh
+        self.conformity_type = self.conformity_type(conformity)
+        self.vertex_map = {}
+        self.edge_map = {}
+        self.face_map = {}
+        self.volume_map = {}
 
+    def build_entity_maps(self):
+        dim = self.mesh.dimension
+        self.d2_cd1_map = self.mesh.build_graph(dim, dim-1)
+        self.d2_cd2_map = self.mesh.build_graph(dim, dim)
 
-# def permute_edges(element):
-#
-#     indices = np.array([], dtype=int)
-#     rindices = np.array([], dtype=int)
-#     e_perms = np.array([1, 2, 0])
-#     e_rperms = np.array([2, 0, 1])
-#     for dim, entity_dof in enumerate(element.entity_dofs):
-#         if dim == 1:
-#             for i, chunk in enumerate(entity_dof):
-#                 if i == 2:
-#                     chunk.reverse()
-#             entity_dof_r = [entity_dof[i] for i in e_rperms]
-#             entity_dof = [entity_dof[i] for i in e_perms]
-#             rindices = np.append(rindices, np.array(entity_dof_r, dtype=int))
-#             indices = np.append(indices, np.array(entity_dof, dtype=int))
-#
-#         else:
-#             rindices = np.append(rindices, np.array(entity_dof, dtype=int))
-#             indices = np.append(indices, np.array(entity_dof, dtype=int))
-#     return (indices.ravel(), rindices.ravel())
+    @staticmethod
+    def conformity_type(dimension):
+        types = {'l-2': 0, 'h-1': 1, 'h-div': 2, 'h-curl': 3}
+        return types[dimension]
 
 def h1_projector(gmesh):
 
-    # Create conformity
-    st = time.time()
-    gd2c2 = gmesh.build_graph(2, 2)
-    gd2c1 = gmesh.build_graph(2, 1)
-
-    cells_ids_c2 = list(gd2c2.nodes())
-    cells_ids_c1 = list(gd2c1.nodes())
-
-    # Collecting ids
-    vertices_ids = [id for id in cells_ids_c2 if gmesh.cells[id].dimension == 0]
-    n_vertices = len(vertices_ids)
-    edges_ids = [id for id in cells_ids_c1 if gmesh.cells[id].dimension == 1]
-    n_edges = len(edges_ids)
-    faces_ids = [id for id in cells_ids_c2 if gmesh.cells[id].dimension == 2]
-    n_faces = len(faces_ids)
-
     # polynomial order
     k_order = 3
-    #
+
+    # Create conformity
+    st = time.time()
+    # Entities by codimension
+    # https://defelement.com/ciarlet.html
+    dim = gmesh.dimension
+    # collect maps
+    codimension_maps = []
+    for d in range(dim):
+        codimension_maps.append(gmesh.build_graph(dim, dim-d))
+    gd2c2 = codimension_maps[0]
+    gd2c1 = codimension_maps[1]
+
+    # Collecting ids
+    entities_ids = {}
+    for d in range(dim):
+        entities_ids[d] = [id for id in list(codimension_maps[d].nodes()) if gmesh.cells[id].dimension == d]
+    entities_ids[dim] = [id for id in list(codimension_maps[dim-1].nodes()) if gmesh.cells[id].dimension == dim]
+
+    vertices_ids = entities_ids[0]
+    edges_ids = entities_ids[1]
+    faces_ids = entities_ids[2]
+    n_vertices = len(vertices_ids)
+    n_edges = len(edges_ids)
+    n_faces = len(faces_ids)
+
+    et = time.time()
+    elapsed_time = et - st
+    print('Preprocessing I time:', elapsed_time, 'seconds')
+
+    st = time.time()
+    elements = list(map(partial(FiniteElement, mesh=gmesh, k_order=k_order, family="Lagrange"),faces_ids))
+    et = time.time()
+    elapsed_time = et - st
+    n_d_cells = len(elements)
+    print('Number of processed elements:', n_d_cells)
+    print('Element construction time:', elapsed_time, 'seconds')
+
+
+    st = time.time()
     conformity = "h-1"
-    b_variant = LagrangeVariant.gll_centroid
 
     # H1 functionality
 
     # conformity needs to be defined
     # Computing cell_id -> local_size map
-    lagrange = basix.create_element(ElementFamily.P, CellType.triangle, k_order,
-                                    b_variant)
 
+    # Assembler
+    # Triplets data
     c_size = 0
     n_dof_g = 0
     cell_map = {}
-    for cell in gmesh.cells:
-        if cell.dimension != 2:
-            continue
+    for element in elements:
+        cell = element.cell
         n_dof = 0
-        for n_entity_dofs in lagrange.num_entity_dofs:
+        for n_entity_dofs in element.basis_generator.num_entity_dofs:
             n_dof = n_dof + sum(n_entity_dofs)
         cell_map.__setitem__(cell.id, c_size)
         c_size = c_size + n_dof * n_dof
@@ -561,15 +573,18 @@ def h1_projector(gmesh):
     data = np.zeros((c_size), dtype=np.float64)
 
     n_fields = 1
-    entity_support = [n_vertices,n_edges,n_faces,0]
+    b_variant = LagrangeVariant.gll_centroid
+    ref_element = basix.create_element(ElementFamily.P, CellType.triangle, k_order, b_variant)
+    entity_support = [n_vertices,n_edges,n_faces]
     entity_dofs = [0, 0, 0, 0]
-    for dim, n_entity_dofs in enumerate(lagrange.num_entity_dofs):
+    for dim, n_entity_dofs in enumerate(ref_element.num_entity_dofs):
         e_dofs = int(np.mean(n_entity_dofs))
         entity_dofs[dim] = e_dofs
         entity_support[dim] *= e_dofs
 
     # Enumerates DoF
-    global_indices = np.add.accumulate([0, entity_support[0], entity_support[1], entity_support[2]])
+    dof_indices = np.array([0, entity_support[0], entity_support[1], entity_support[2]])
+    global_indices = np.add.accumulate(dof_indices)
     # Computing cell mappings
     vertex_map = dict(zip(vertices_ids, np.split(np.array(range(global_indices[0],global_indices[1])),len(vertices_ids))))
     edge_map = dict(zip(edges_ids, np.split(np.array(range(global_indices[1],global_indices[2])),len(edges_ids))))
@@ -585,18 +600,14 @@ def h1_projector(gmesh):
 
     # fun = lambda x, y, z: 16 * x * (1.0 - x) * y * (1.0 - y)
     # fun = lambda x, y, z: x + y
-    # fun = lambda x, y, z: x * (1.0 - x) + y * (1.0 - y)
-    fun = lambda x, y, z: x * (1.0 - x) * x + y * (1.0 - y) * y
+    fun = lambda x, y, z: x * (1.0 - x) + y * (1.0 - y)
+    # fun = lambda x, y, z: x * (1.0 - x) * x + y * (1.0 - y) * y
     # fun = lambda x, y, z: x * (1.0 - x) * x * x + y * (1.0 - y) * y * y
+    # fun = lambda x, y, z: x * (1.0 - x) * x * x * x + y * (1.0 - y) * y * y * y
     et = time.time()
     elapsed_time = et - st
-    print('Preprocessing time:', elapsed_time, 'seconds')
+    print('Preprocessing II time:', elapsed_time, 'seconds')
 
-    st = time.time()
-    elements = [FiniteElement(gmesh, gmesh.cells[id], k_order, "Lagrange") for id in faces_ids]
-    et = time.time()
-    elapsed_time = et - st
-    print('Element construction time:', elapsed_time, 'seconds')
 
     st = time.time()
 
@@ -608,8 +619,12 @@ def h1_projector(gmesh):
 
     def scatter_el_data(element, fun, gd2c2, gd2c1, cell_map, row, col, data ):
 
-        cell = element.cell
+        # compute basis
+        points, weights = element.quadrature
         phi_tab = element.phi
+        (x, jac, det_jac, inv_jac) = element.mapping
+
+        cell = element.cell
 
         n_dof = element.phi.shape[2]
         js = (n_dof, n_dof)
@@ -618,8 +633,6 @@ def h1_projector(gmesh):
         r_el = np.zeros(rs)
 
         # linear_base
-        (x, jac, det_jac, inv_jac) = element.mapping
-        points, weights = element.quadrature
         for i, omega in enumerate(weights):
             f_val = fun(x[i, 0], x[i, 1], x[i, 2])
             r_el = r_el + det_jac[i] * omega * f_val * phi_tab[i, :, 0]
@@ -664,7 +677,6 @@ def h1_projector(gmesh):
     print('Linear solver time:', elapsed_time, 'seconds')
 
     # Computing L2 error
-
     def compute_l2_error(element, gd2c2, gd2c1):
         l2_error = 0.0
         cell = element.cell
@@ -698,8 +710,9 @@ def h1_projector(gmesh):
     l2_error = functools.reduce(lambda x, y: x + y, error_vec)
     print("L2-error: ",np.sqrt(l2_error))
 
-    # return
 
+    # post-process solution
+    st = time.time()
     cellid_to_element = dict(zip(faces_ids, elements))
     # writing solution on mesh points
     cell_0d_ids = [cell.node_tags[0] for cell in gmesh.cells if cell.dimension == 0]
@@ -735,9 +748,8 @@ def h1_projector(gmesh):
         points = par_points[par_point_id]
 
         # evaluate mapping
-        element._evaluate_basis(points)
-        phi_tab = element.phi
-        (x, jac, det_jac, inv_jac) = element.mapping
+        (x, jac, det_jac, inv_jac) = element.compute_mapping(points)
+        phi_tab = element.evaluate_basis(points)
         p_e = fun(x[0,0], x[0,1], x[0,2])
         p_h = np.dot(alpha_l, phi_tab[0, :, 0])
         ph_data[target_node_id] = p_h
@@ -762,238 +774,284 @@ def h1_projector(gmesh):
         point_data=p_data_dict
     )
     mesh.write("h1_projector.vtk")
+    et = time.time()
+    elapsed_time = et - st
+    print('Post-processing time:', elapsed_time, 'seconds')
 
 def hdiv_projector(gmesh):
 
+
+    # polynomial order
+    k_order = 1
+
     # Create conformity
-    gd2c1 = gmesh.build_graph(2, 1)
-    gd2c2 = gmesh.build_graph(2, 2)
+    st = time.time()
+    # Entities by codimension
+    # https://defelement.com/ciarlet.html
+    dim = gmesh.dimension
+    # collect maps
+    codimension_maps = []
+    for d in range(dim):
+        codimension_maps.append(gmesh.build_graph(dim, dim-d))
+    gd2c2 = codimension_maps[0]
+    gd2c1 = codimension_maps[1]
 
-    cells_ids = list(gd2c1.nodes())
-    edges_ids = [id for id in cells_ids if gmesh.cells[id].dimension == 1]
+    # Collecting ids
+    entities_ids = {}
+    for d in range(dim):
+        entities_ids[d] = [id for id in list(codimension_maps[d].nodes()) if gmesh.cells[id].dimension == d]
+    entities_ids[dim] = [id for id in list(codimension_maps[dim-1].nodes()) if gmesh.cells[id].dimension == dim]
+
+    vertices_ids = entities_ids[0]
+    edges_ids = entities_ids[1]
+    faces_ids = entities_ids[2]
+    n_vertices = len(vertices_ids)
     n_edges = len(edges_ids)
-    edge_map = dict(zip(edges_ids, list(range(n_edges))))
+    n_faces = len(faces_ids)
 
-    k_order = 3
+    et = time.time()
+    elapsed_time = et - st
+    print('Preprocessing I time:', elapsed_time, 'seconds')
 
-    fields = [1]
-    n_fields = len(fields)
-    n_dof_g = n_edges*n_fields
-    rgs = (n_dof_g)
-    rg = np.zeros(rgs)
+    st = time.time()
+    elements = list(map(partial(FiniteElement, mesh=gmesh, k_order=k_order, family="BDM"),faces_ids))
+    et = time.time()
+    elapsed_time = et - st
+    n_d_cells = len(elements)
+    print('Number of processed elements:', n_d_cells)
+    print('Element construction time:', elapsed_time, 'seconds')
 
+    # print("cell id: ", elements[0].cell.id)
+    # r_par = np.array([[0.0, 1 / 3]])
+    # r_phi = elements[0].evaluate_basis(r_par)
+    # print("r_phi: ", r_phi)
+    # print("cell id: ", elements[1].cell.id)
+    # l_par = np.array([[1 / 2, 1 / 2]])
+    # l_phi = elements[1].evaluate_basis(l_par)
+    # print("l_phi: ", l_phi)
 
+    st = time.time()
+    conformity = "h-div"
+
+    # H1 functionality
+
+    # conformity needs to be defined
+    # Computing cell_id -> local_size map
+
+    # Assembler
+    # Triplets data
     c_size = 0
+    n_dof_g = 0
     cell_map = {}
-    for cell in gmesh.cells:
-        if cell.dimension != 2:
-            continue
-
-        lagrange = basix.create_element(ElementFamily.P, CellType.triangle, k_order, LagrangeVariant.equispaced)
+    for element in elements:
+        cell = element.cell
         n_dof = 0
-        for n_entity_dofs in lagrange.num_entity_dofs:
+        for n_entity_dofs in element.basis_generator.num_entity_dofs:
             n_dof = n_dof + sum(n_entity_dofs)
         cell_map.__setitem__(cell.id, c_size)
-        c_size = c_size + n_dof*n_dof
-
+        c_size = c_size + n_dof * n_dof
 
     row = np.zeros((c_size), dtype=np.int64)
     col = np.zeros((c_size), dtype=np.int64)
     data = np.zeros((c_size), dtype=np.float64)
 
-    for cell in gmesh.cells:
-        if cell.dimension != 2:
-            continue
+    n_fields = 1
+    b_variant = LagrangeVariant.gll_centroid
+    ref_element = basix.create_element(ElementFamily.BDM, CellType.triangle, k_order, b_variant)
+    # print("RT-element transformations_are_identity: ", ref_element.dof_transformations_are_identity)
+    # print("RT-element transformations_are_permutations: ", ref_element.dof_transformations_are_permutations)
+    # print("RT-element entity transformations:", ref_element.entity_transformations)
+    entity_support = [n_vertices,n_edges,n_faces]
+    entity_dofs = [0, 0, 0, 0]
+    for dim, n_entity_dofs in enumerate(ref_element.num_entity_dofs):
+        e_dofs = int(np.mean(n_entity_dofs))
+        entity_dofs[dim] = e_dofs
+        entity_support[dim] *= e_dofs
+
+    # Enumerates DoF
+    dof_indices = np.array([0, entity_support[0], entity_support[1], entity_support[2]])
+    global_indices = np.add.accumulate(dof_indices)
+    # Computing cell mappings
+    vertex_map = dict(zip(vertices_ids, np.split(np.array(range(global_indices[0],global_indices[1])),len(vertices_ids))))
+    edge_map = dict(zip(edges_ids, np.split(np.array(range(global_indices[1],global_indices[2])),len(edges_ids))))
+    face_map = dict(zip(faces_ids, np.split(np.array(range(global_indices[2],global_indices[3])),len(faces_ids))))
 
 
-        # cell quadrature
-        points, weights = basix.make_quadrature(basix.QuadratureType.gauss_jacobi, CellType.triangle, 2 * k_order + 1)
+    n_dof_g = sum(entity_support)
+    rg = np.zeros(n_dof_g)
+    print("n_dof: ", n_dof_g)
 
-        lagrange = basix.create_element(ElementFamily.RT, CellType.triangle, k_order,
-                                        LagrangeVariant.equispaced)
+    lagrange = basix.create_element(ElementFamily.BDM, CellType.triangle, k_order,
+                                    b_variant)
 
-        phi_tab = lagrange.tabulate(0, points)
-        # print(phi_tab)
-        n_dof = phi_tab.shape[2]
+    fun = lambda x, y, z: np.array([y, -x, 0])
+    fun = lambda x, y, z: np.array([x*y*x, (1-x) * y, 0])
+    # fun = lambda x, y, z: np.array([0.5, -0.5, 0])
+    et = time.time()
+    elapsed_time = et - st
+    print('Preprocessing II time:', elapsed_time, 'seconds')
+
+
+    st = time.time()
+
+    st = time.time()
+    xd = [(gd2c2.successors(faces_ids[0]),gd2c1.successors(faces_ids[0])) for i in range(10)]
+    et = time.time()
+    elapsed_time = et - st
+    print('Search in grahps  time:', elapsed_time, 'seconds')
+
+    def scatter_el_data(element, fun, gd2c2, gd2c1, cell_map, row, col, data ):
+
+        # compute basis
+        points, weights = element.quadrature
+        phi_tab = element.phi
+        (x, jac, det_jac, inv_jac) = element.mapping
+
+        cell = element.cell
+
+        n_dof = element.phi.shape[1]
         js = (n_dof, n_dof)
         rs = (n_dof)
         j_el = np.zeros(js)
         r_el = np.zeros(rs)
 
-        fun = lambda x, y, z: np.array([16*(1 - x)*(1 - y)*y - 16*x*(1 - y)*y,16*(1 - x)*x*(1 - y) - 16*(1 - x)*x*y, 0])
-        dfun_x = lambda x, y, z: 16*(1 - x)*(1 - y)*y - 16*x*(1 - y)*y
-        dfun_y = lambda x, y, z: 16*(1 - x)*x*(1 - y) - 16*(1 - x)*x*y
-
-        # For a given cell compute geometrical information
-        # Evaluate mappings
-        linear_base = basix.create_element(ElementFamily.P, CellType.triangle, 1,
-                                           LagrangeVariant.equispaced)
-        g_phi_tab = linear_base.tabulate(1, points)
-        cell_points = gmesh.points[cell.node_tags]
-
-        # Compute geometrical transformations
-        xa = []
-        grad_xa = []
-        Ja = []
-        detJa = []
-        invJa = []
-
-        for i, point in enumerate(points):
-
-            # QR-decomposition is not unique
-            # It's only unique up to the signs of the rows of R
-            xmap = np.dot(g_phi_tab[0, i, :, 0],cell_points)
-            grad_xmap = np.dot(g_phi_tab[[1, 2], i, :, 0],cell_points).T
-            q_axes, r_jac = np.linalg.qr(grad_xmap)
-            r_sign = np.diag(np.sign(np.diag(r_jac)), 0)
-            q_axes = np.dot(q_axes, r_sign)
-            r_jac = np.dot(r_sign, r_jac)
-
-            det_g_jac = np.linalg.det(r_jac)
-            if det_g_jac < 0.0:
-                print('Negative det jac: ', det_g_jac)
-
-
-            xa.append(xmap)
-            grad_xa.append(grad_xmap)
-            Ja.append(r_jac)
-            detJa.append(det_g_jac)
-            invJa.append(np.dot(np.linalg.inv(r_jac),q_axes.T))
-
-        xa = np.array(xa)
-        grad_xa = np.array(grad_xa)
-        Ja = np.array(Ja)
-        detJa = np.array(detJa)
-        invJa = np.array(invJa)
-
-        # map functions
-        mphi_tab = lagrange.push_forward(phi_tab[0], grad_xa, detJa, invJa)
-        aka = 0
-
-        # lagrange.base_transformations()
-        b_transformations = lagrange.base_transformations()
-        e_transformations = lagrange.entity_transformations()
-        print(lagrange.dof_transformations_are_identity)
-        print(lagrange.dof_transformations_are_permutations)
-
-        # needs to select the entities to be transformed
-        dofs = lagrange.entity_dofs[1][2]
-
-        for point in range(data.shape[1]):
-            for dim in range(data.shape[3]):
-                data[0, point, dofs, dim] = np.dot(e_transformations,
-                                                   data[0, point, dofs, dim])
-
-        # transformation = lagrange.entity_transformations()
         # linear_base
         for i, omega in enumerate(weights):
+            f_val = fun(x[i, 0], x[i, 1], x[i, 2])
+            r_el = r_el + det_jac[i] * omega * phi_tab[i, :, :]@f_val
+            for d in range(3):
+                j_el = j_el + det_jac[i] * omega * np.outer(phi_tab[i, :, d],
+                                                        phi_tab[i, :, d])
 
-            f_val = fun(xa[i,0],xa[i,1],xa[i,2])
-            r_el = r_el + detJa[i] * omega * np.dot(mphi_tab[ i, :, :],f_val)
-            for id in range(n_dof):
-                for jd in range(n_dof):
-                    j_el[id,jd] = j_el[id,jd] + detJa[i] * omega * np.dot(mphi_tab[i,id,:],mphi_tab[i,jd,:])
-
-            # for d in range(cell.dimension):
-            #     j_el = j_el + detJa[i] * omega * np.outer(mphi_tab[i, :, d],
-            #                                             mphi_tab[i, :, d])
+        # check local projection
+        check_proj_q = False
+        if check_proj_q:
+            l2_error = 0.0
+            al = np.linalg.solve(j_el, r_el)
+            for i, pt in enumerate(points):
+                u_e = fun(x[i, 0], x[i, 1], x[i, 2])
+                u_h = np.dot(al, phi_tab[i, :, :])
+                l2_error += det_jac[i] * weights[i] * np.dot(u_h - u_e , u_h - u_e)
             aka = 0
 
-
-
         # scattering dof
-        dof_supports = list(gd2c1.successors(cell.id))
-        dest = np.array([edge_map.get(dof_s) for dof_s in dof_supports])
+        dof_vertex_supports = list(gd2c2.successors(cell.id))
+        dof_edge_supports = list(gd2c1.successors(cell.id))
+        dest_vertex = np.array([vertex_map.get(dof_s) for dof_s in dof_vertex_supports],
+                               dtype=int).ravel()
+        dest_edge = np.array([edge_map.get(dof_s) for dof_s in dof_edge_supports],
+                             dtype=int).ravel()
+        dest_faces = np.array([face_map.get(cell.id)], dtype=int).ravel()
+        dest = np.concatenate((dest_vertex, dest_edge, dest_faces))[element.dof_ordering]
 
         c_sequ = cell_map[cell.id]
-        for i, g_i in enumerate(dest):
-            rg[g_i] += r_el[i]
-            for j, g_j in enumerate(dest):
-                row[c_sequ] = g_i
-                col[c_sequ] = g_j
-                data[c_sequ] = j_el[i,j]
-                c_sequ = c_sequ + 1
 
+        # contribute rhs
+        rg[dest] += r_el
 
-        ako = 0
+        # contribute lhs
+        block_sequ = np.array(range(0, len(dest) * len(dest))) + c_sequ
+        row[block_sequ] += np.repeat(dest, len(dest))
+        col[block_sequ] += np.tile(dest, len(dest))
+        data[block_sequ] += j_el.ravel()
+
+    aka = 0
+    [scatter_el_data(element, fun, gd2c2, gd2c1, cell_map, row, col, data) for element in elements]
+
 
     jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
+    et = time.time()
+    elapsed_time = et - st
+    print('Assembly time:', elapsed_time, 'seconds')
 
     # solving ls
+    st = time.time()
     alpha = sp.linalg.spsolve(jg, rg)
+    et = time.time()
+    elapsed_time = et - st
+    print('Linear solver time:', elapsed_time, 'seconds')
 
+    # Computing L2 error
+    def compute_l2_error(element, gd2c2, gd2c1):
+        l2_error = 0.0
+        cell = element.cell
+        # scattering dof
+        dof_vertex_supports = list(gd2c2.successors(cell.id))
+        dof_edge_supports = list(gd2c1.successors(cell.id))
+        dest_vertex = np.array([vertex_map.get(dof_s) for dof_s in dof_vertex_supports],
+                               dtype=int).ravel()
+        dest_edge = np.array([edge_map.get(dof_s) for dof_s in dof_edge_supports],
+                             dtype=int).ravel()
+        dest_faces = np.array([face_map.get(cell.id)], dtype=int).ravel()
+        dest = np.concatenate((dest_vertex, dest_edge, dest_faces))[element.dof_ordering]
+        alpha_l = alpha[dest]
+
+        (x, jac, det_jac, inv_jac) = element.mapping
+        points, weights = element.quadrature
+        phi_tab = element.phi
+        for i, pt in enumerate(points):
+            u_e = fun(x[i, 0], x[i, 1], x[i, 2])
+            u_h = np.dot(alpha_l, phi_tab[i, :, :])
+            l2_error += det_jac[i] * weights[i] * np.dot((u_h - u_e) , (u_h - u_e))
+
+        return l2_error
+
+    st = time.time()
+    error_vec = [compute_l2_error(element, gd2c2, gd2c1) for element in elements]
+    et = time.time()
+    elapsed_time = et - st
+    print('L2-error time:', elapsed_time, 'seconds')
+
+    l2_error = functools.reduce(lambda x, y: x + y, error_vec)
+    print("L2-error: ",np.sqrt(l2_error))
+
+
+    # post-process solution
+    st = time.time()
+    cellid_to_element = dict(zip(faces_ids, elements))
     # writing solution on mesh points
-    cell_0d_ids = [cell.id for cell in gmesh.cells if cell.dimension == 0]
-    vh_data = np.zeros((len(gmesh.points),3)) # postprocess should always work in 3d
-    ve_data = np.zeros((len(gmesh.points),3)) # postprocess should always work in 3d
-    for id in cell_0d_ids:
+    # cell_0d_ids = [cell.node_tags[0] for cell in gmesh.cells if cell.dimension == 0]
+    uh_data = np.zeros((len(gmesh.points),3))
+    ue_data = np.zeros((len(gmesh.points),3))
+    for id in list(vertex_map.keys()):
+        if not gd2c2.has_node(id):
+            continue
+
         pr_ids = list(gd2c2.predecessors(id))
+        # pr_ids = [id for id in pr_ids if gmesh.cells[id].dimension == 2]
         cell = gmesh.cells[pr_ids[0]]
         if cell.dimension != 2:
             continue
+
+        element = cellid_to_element[pr_ids[0]]
+
         # scattering dof
-        dof_supports = list(gd2c1.successors(cell.id))
-        dest = np.array([edge_map.get(dof_s) for dof_s in dof_supports])
+        dof_vertex_supports = list(gd2c2.successors(cell.id))
+        dof_edge_supports = list(gd2c1.successors(cell.id))
+        dest_vertex = np.array([vertex_map.get(dof_s) for dof_s in dof_vertex_supports],dtype=int).ravel()
+        dest_edge = np.array([edge_map.get(dof_s) for dof_s in dof_edge_supports],dtype=int).ravel()
+        dest_faces = np.array([face_map.get(cell.id)],dtype=int).ravel()
+        dest = np.concatenate((dest_vertex,dest_edge,dest_faces))[element.dof_ordering]
         alpha_l = alpha[dest]
 
         cell_type = getattr(basix.CellType, "triangle")
         par_points = basix.geometry(cell_type)
 
-        vertex_id = np.array([i for i, cid in enumerate(cell.cells_ids[0]) if cid == id])
-        lagrange = basix.create_element(ElementFamily.RT, CellType.triangle, k_order,
-                                        LagrangeVariant.equispaced)
+        target_node_id = gmesh.cells[id].node_tags[0]
+        par_point_id = np.array([i for i, node_id in enumerate(cell.node_tags) if node_id == target_node_id])
 
-        points = par_points[vertex_id]
-        phi_tab = lagrange.tabulate(0, points)
+        points = par_points[par_point_id]
+        # points = np.array([np.mean(par_points,axis=0)])
 
-        linear_base = basix.create_element(ElementFamily.P, CellType.triangle, 1,
-                                           LagrangeVariant.equispaced)
-        g_phi_tab = linear_base.tabulate(1, points)
-        cell_points = gmesh.points[cell.node_tags]
+        # evaluate mapping
+        (x, jac, det_jac, inv_jac) = element.compute_mapping(points)
+        phi_tab = element.evaluate_basis(points)
+        u_e = fun(x[0,0], x[0,1], x[0,2])
+        u_h = np.dot(alpha_l, phi_tab[0, :, :])
+        # aka = 0
+        ue_data[target_node_id] = u_e
+        uh_data[target_node_id] = u_h
 
-        # Compute geometrical transformations
-        xa = []
-        grad_xa = []
-        Ja = []
-        detJa = []
-        invJa = []
-
-        for i, point in enumerate(points):
-
-            # QR-decomposition is not unique
-            # It's only unique up to the signs of the rows of R
-            xmap = np.dot(g_phi_tab[0, i, :, 0], cell_points)
-            grad_xmap = np.dot(g_phi_tab[[1, 2], i, :, 0], cell_points).T
-            q_axes, r_jac = np.linalg.qr(grad_xmap)
-            r_sign = np.diag(np.sign(np.diag(r_jac)), 0)
-            q_axes = np.dot(q_axes, r_sign)
-            r_jac = np.dot(r_sign, r_jac)
-
-            det_g_jac = np.linalg.det(r_jac)
-            if det_g_jac < 0.0:
-                print('Negative det jac: ', det_g_jac)
-
-            xa.append(xmap)
-            grad_xa.append(grad_xmap)
-            Ja.append(r_jac)
-            detJa.append(det_g_jac)
-            invJa.append(np.dot(np.linalg.inv(r_jac),q_axes.T))
-
-        xa = np.array(xa)
-        grad_xa = np.array(grad_xa)
-        Ja = np.array(Ja)
-        detJa = np.array(detJa)
-        invJa = np.array(invJa)
-
-        # map functions
-        mphi_tab = lagrange.push_forward(phi_tab[0], grad_xa, detJa, invJa)
-
-        v_e = fun(xa[0,0],xa[0,1],xa[0,2])
-        v_h = np.dot(alpha_l, mphi_tab[0, :, :])
-        # print("p_e,p_h: ", [p_e,p_h])
-        cell_0d = gmesh.cells[id]
-        vh_data[cell_0d.node_tags] = v_h
-        ve_data[cell_0d.node_tags] = v_e
 
     mesh_points = gmesh.points
     con_2d = np.array(
@@ -1004,15 +1062,19 @@ def hdiv_projector(gmesh):
         ]
     )
     cells_dict = {"triangle": con_2d}
-    p_data_dict = {"vh": vh_data, "ve": ve_data}
+    u_data_dict = {"uh": uh_data, "ue": ue_data}
 
     mesh = meshio.Mesh(
         points= mesh_points,
         cells = cells_dict,
         # Optionally provide extra data on points, cells, etc.
-        point_data=p_data_dict
+        point_data=u_data_dict
     )
     mesh.write("hdiv_projector.vtk")
+    et = time.time()
+    elapsed_time = et - st
+    print('Post-processing time:', elapsed_time, 'seconds')
+
 
 def generate_mesh():
 
@@ -1027,7 +1089,7 @@ def generate_mesh():
     fractures_q = True
     if fractures_q:
         # polygon_polygon_intersection()
-        h_cell = 0.25
+        h_cell = 0.05
         fracture_tags = [0]
         fracture_1 = np.array([[0.5, 0.2], [0.5, 0.8]])
         fracture_1 = np.array([[0.5, 0.4], [0.5, 0.6]])
@@ -1046,7 +1108,7 @@ def generate_mesh():
         fracture_network = fn.FractureNetwork(dimension=2, physical_tag_shift=10)
         fracture_network.intersect_1D_fractures(fractures, render_intersection_q = False)
         fracture_network.build_grahp(all_fixed_d_cells_q=True)
-        mesher.set_fracture_network(fracture_network)
+        # mesher.set_fracture_network(fracture_network)
         mesher.set_points()
         mesher.generate(h_cell)
         mesher.write_mesh("gmesh.msh")
@@ -1054,12 +1116,12 @@ def generate_mesh():
         gmesh = Mesh(dimension=2, file_name="gmesh.msh")
         gmesh.set_conformal_mesher(mesher)
         gmesh.build_conformal_mesh_II()
-        map_fracs_edge = gmesh.cut_conformity_on_fractures_mds_ec()
+        # map_fracs_edge = gmesh.cut_conformity_on_fractures_mds_ec()
         # factor = 0.025
         # gmesh.apply_visual_opening(map_fracs_edge, factor)
 
 
-        # gmesh.write_data()
+        gmesh.write_data()
         gmesh.write_vtk()
         # print("Skin boundary is closed Q:", gmesh.circulate_internal_bc())
         print("h-size: ", h_cell)
@@ -1086,8 +1148,8 @@ def main():
 
     gmesh = generate_mesh()
     # pojectors
-    h1_projector(gmesh)
-    # hdiv_projector(gmesh)
+    # h1_projector(gmesh)
+    hdiv_projector(gmesh)
 
 
 if __name__ == '__main__':
