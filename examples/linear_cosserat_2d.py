@@ -25,7 +25,8 @@ import scipy.sparse as sp
 from scipy.sparse import coo_matrix
 
 import matplotlib.colors as mcolors
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plot
 import meshio
 import itertools
 
@@ -332,7 +333,7 @@ class FiniteElement:
         k_order = self.k_order
         self.basis_generator = basix.create_element(family, cell_type, k_order, b_variant)
         self.dof_ordering = self._dof_premutations()
-        self.quadrature = basix.make_quadrature(basix.QuadratureType.gauss_jacobi, cell_type, 2 * k_order + 1)
+        self.quadrature = basix.make_quadrature(basix.QuadratureType.gauss_jacobi, cell_type, 2 * k_order + 2)
         self.evaluate_basis(self.quadrature[0],True)
 
     def _element_variant(self):
@@ -341,7 +342,7 @@ class FiniteElement:
     def _element_family(self):
         families = {"Lagrange": ElementFamily.P, "BDM": ElementFamily.BDM,
                     "RT": ElementFamily.RT, "N1E": ElementFamily.N1E,
-                    "N2E": ElementFamily.N1E, "Bubble": ElementFamily.bubble}
+                    "N2E": ElementFamily.N1E}
         family = self.family
         return families[family]
 
@@ -376,9 +377,9 @@ class FiniteElement:
         e_perms = np.array([1, 2, 0])
         for dim, entity_dof in enumerate(self.basis_generator.entity_dofs):
             if dim == 1:
-                for i, chunk in enumerate(entity_dof):
-                    if i == 2:
-                        chunk.reverse()
+                # for i, chunk in enumerate(entity_dof):
+                #     if i == 2:
+                #         chunk.reverse()
                 entity_dof = [entity_dof[i] for i in e_perms]
                 indices = np.append(indices, np.array(entity_dof, dtype=int))
 
@@ -420,21 +421,19 @@ class FiniteElement:
         for i, point in enumerate(points):
 
             # QR-decomposition is not unique
-            # It's only unique up to the signs of the rows of R
             xmap = np.dot(phi[0, i, :, 0], cell_points)
             grad_xmap = np.dot(phi[list(range(1,dim+1)), i, :, 0], cell_points).T
             q_axes, r_jac = np.linalg.qr(grad_xmap)
             det_g_jac = np.linalg.det(r_jac)
-            # if np.linalg.det(r_jac) < 0.0:
-            #     print('Negative det jac: ', np.linalg.det(r_jac))
 
-            # only for H1
+            # It's only unique up to the signs of the rows of R
             r_sign = np.diag(np.sign(np.diag(r_jac)), 0)
             q_axes = np.dot(q_axes, r_sign)
             r_jac = np.dot(r_sign, r_jac)
             det_g_jac = np.linalg.det(r_jac)
             if det_g_jac < 0.0:
                 print('Negative det jac: ', det_g_jac)
+
 
             x.append(xmap)
             jac.append(grad_xmap)
@@ -456,10 +455,9 @@ class FiniteElement:
         for i, con in enumerate(connectiviy):
             edge = self.cell.node_tags[con]
             v_edge = self.mesh.cells[self.cell.sub_cells_ids[1][i]].node_tags
-            if np.any(edge == v_edge) or i == 2:
+            if np.any(edge == v_edge):
                 orientation[i] = True
         orientation = [orientation[i] for i in e_perms]
-        # orientation = [True for i in e_perms]
         return orientation
 
     def evaluate_basis(self, points, storage = False):
@@ -469,13 +467,29 @@ class FiniteElement:
         phi_hat_tab = self.basis_generator.tabulate(1, points)
         phi_tab = self.basis_generator.push_forward(phi_hat_tab[0], jac, det_jac, inv_jac)
 
+        # make functions outward
+        if not self.basis_generator.dof_transformations_are_identity:
+            n_dof = int(np.mean(self.basis_generator.num_entity_dofs[1]))
+            for index in [0,2]:
+                # transformation = -1 * np.identity(n_dof)
+                transformation = self.basis_generator.entity_transformations()["interval"][0]
+                dofs = self.basis_generator.entity_dofs[1][index]
+                for point in range(phi_tab.shape[0]):
+                    for dim in range(phi_tab.shape[2]):
+                        phi_tab[point, dofs, dim] = np.dot(transformation,
+                                                           phi_tab[point, dofs, dim])
+
         # triangle ref connectivity
         if not self.basis_generator.dof_transformations_are_identity:
             oriented_q = self._validate_orientation()
             for index, check in enumerate(oriented_q):
+                # check = True
                 if check:
                     continue
+                # H1
                 transformation = self.basis_generator.entity_transformations()["interval"][0]
+                # Hdiv
+                # transformation = -1 * np.identity(n_dof)
                 dofs = self.basis_generator.entity_dofs[1][index]
                 for point in range(phi_tab.shape[0]):
                     for dim in range(phi_tab.shape[2]):
@@ -778,11 +792,21 @@ def h1_projector(gmesh):
     elapsed_time = et - st
     print('Post-processing time:', elapsed_time, 'seconds')
 
+def matrix_plot(J, sparse_q = True):
+
+    if sparse_q:
+        plot.matshow(J.todense())
+    else:
+        plot.matshow(J)
+    plot.colorbar(orientation="vertical")
+    plot.set_cmap("seismic")
+    plot.show()
+
 def hdiv_projector(gmesh):
 
 
     # polynomial order
-    k_order = 1
+    k_order = 2
 
     # Create conformity
     st = time.time()
@@ -814,7 +838,7 @@ def hdiv_projector(gmesh):
     print('Preprocessing I time:', elapsed_time, 'seconds')
 
     st = time.time()
-    elements = list(map(partial(FiniteElement, mesh=gmesh, k_order=k_order, family="BDM"),faces_ids))
+    elements = list(map(partial(FiniteElement, mesh=gmesh, k_order=k_order, family="RT"),faces_ids))
     et = time.time()
     elapsed_time = et - st
     n_d_cells = len(elements)
@@ -857,10 +881,8 @@ def hdiv_projector(gmesh):
 
     n_fields = 1
     b_variant = LagrangeVariant.gll_centroid
-    ref_element = basix.create_element(ElementFamily.BDM, CellType.triangle, k_order, b_variant)
-    # print("RT-element transformations_are_identity: ", ref_element.dof_transformations_are_identity)
-    # print("RT-element transformations_are_permutations: ", ref_element.dof_transformations_are_permutations)
-    # print("RT-element entity transformations:", ref_element.entity_transformations)
+    ref_element = basix.create_element(ElementFamily.RT, CellType.triangle, k_order, b_variant)
+
     entity_support = [n_vertices,n_edges,n_faces]
     entity_dofs = [0, 0, 0, 0]
     for dim, n_entity_dofs in enumerate(ref_element.num_entity_dofs):
@@ -881,12 +903,8 @@ def hdiv_projector(gmesh):
     rg = np.zeros(n_dof_g)
     print("n_dof: ", n_dof_g)
 
-    lagrange = basix.create_element(ElementFamily.BDM, CellType.triangle, k_order,
-                                    b_variant)
-
-    fun = lambda x, y, z: np.array([y, -x, 0])
-    fun = lambda x, y, z: np.array([x*y*x, (1-x) * y, 0])
-    # fun = lambda x, y, z: np.array([0.5, -0.5, 0])
+    # fun = lambda x, y, z: np.array([y, -x, 0])
+    fun = lambda x, y, z: np.array([x*(1-x), y*(1-y), 0])
     et = time.time()
     elapsed_time = et - st
     print('Preprocessing II time:', elapsed_time, 'seconds')
@@ -899,8 +917,7 @@ def hdiv_projector(gmesh):
     et = time.time()
     elapsed_time = et - st
     print('Search in grahps  time:', elapsed_time, 'seconds')
-
-    def scatter_el_data(element, fun, gd2c2, gd2c1, cell_map, row, col, data ):
+    def scatter_el_data(element, fun, gd2c2, gd2c1, cell_map, row, col, data):
 
         # compute basis
         points, weights = element.quadrature
@@ -923,17 +940,6 @@ def hdiv_projector(gmesh):
                 j_el = j_el + det_jac[i] * omega * np.outer(phi_tab[i, :, d],
                                                         phi_tab[i, :, d])
 
-        # check local projection
-        check_proj_q = False
-        if check_proj_q:
-            l2_error = 0.0
-            al = np.linalg.solve(j_el, r_el)
-            for i, pt in enumerate(points):
-                u_e = fun(x[i, 0], x[i, 1], x[i, 2])
-                u_h = np.dot(al, phi_tab[i, :, :])
-                l2_error += det_jac[i] * weights[i] * np.dot(u_h - u_e , u_h - u_e)
-            aka = 0
-
         # scattering dof
         dof_vertex_supports = list(gd2c2.successors(cell.id))
         dof_edge_supports = list(gd2c1.successors(cell.id))
@@ -945,6 +951,17 @@ def hdiv_projector(gmesh):
         dest = np.concatenate((dest_vertex, dest_edge, dest_faces))[element.dof_ordering]
 
         c_sequ = cell_map[cell.id]
+
+        # check local projection
+        check_proj_q = False
+        if check_proj_q:
+            l2_error = 0.0
+            al = np.linalg.solve(j_el, r_el)
+            for i, pt in enumerate(points):
+                u_e = fun(x[i, 0], x[i, 1], x[i, 2])
+                u_h = np.dot(al, phi_tab[i, :, :])
+                l2_error += det_jac[i] * weights[i] * np.dot(u_h - u_e , u_h - u_e)
+            aka = 0
 
         # contribute rhs
         rg[dest] += r_el
@@ -992,7 +1009,7 @@ def hdiv_projector(gmesh):
         for i, pt in enumerate(points):
             u_e = fun(x[i, 0], x[i, 1], x[i, 2])
             u_h = np.dot(alpha_l, phi_tab[i, :, :])
-            l2_error += det_jac[i] * weights[i] * np.dot((u_h - u_e) , (u_h - u_e))
+            l2_error += det_jac[i]  * weights[i] * np.dot((u_h - u_e) , (u_h - u_e))
 
         return l2_error
 
@@ -1089,7 +1106,7 @@ def generate_mesh():
     fractures_q = True
     if fractures_q:
         # polygon_polygon_intersection()
-        h_cell = 0.05
+        h_cell = 1.0/16.0
         fracture_tags = [0]
         fracture_1 = np.array([[0.5, 0.2], [0.5, 0.8]])
         fracture_1 = np.array([[0.5, 0.4], [0.5, 0.6]])
