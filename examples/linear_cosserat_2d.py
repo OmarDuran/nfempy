@@ -477,7 +477,6 @@ class FiniteElement:
         if not self.basis_generator.dof_transformations_are_identity:
             n_dof = int(np.mean(self.basis_generator.num_entity_dofs[1]))
             for index in [0,2]:
-                # transformation = -1 * np.identity(n_dof)
                 transformation = self.basis_generator.entity_transformations()["interval"][0]
                 dofs = self.basis_generator.entity_dofs[1][index]
                 for point in range(phi_tab.shape[0]):
@@ -489,13 +488,9 @@ class FiniteElement:
         if not self.basis_generator.dof_transformations_are_identity:
             oriented_q = self._validate_orientation()
             for index, check in enumerate(oriented_q):
-                # check = True
                 if check:
                     continue
-                # H1
                 transformation = self.basis_generator.entity_transformations()["interval"][0]
-                # Hdiv
-                # transformation = -1 * np.identity(n_dof)
                 dofs = self.basis_generator.entity_dofs[1][index]
                 for point in range(phi_tab.shape[0]):
                     for dim in range(phi_tab.shape[2]):
@@ -620,8 +615,8 @@ def h1_projector(gmesh):
 
     # fun = lambda x, y, z: 16 * x * (1.0 - x) * y * (1.0 - y)
     # fun = lambda x, y, z: x + y
-    fun = lambda x, y, z: x * (1.0 - x) + y * (1.0 - y)
-    # fun = lambda x, y, z: x * (1.0 - x) * x + y * (1.0 - y) * y
+    # fun = lambda x, y, z: x * (1.0 - x) + y * (1.0 - y)
+    fun = lambda x, y, z: x * (1.0 - x) * x + y * (1.0 - y) * y
     # fun = lambda x, y, z: x * (1.0 - x) * x * x + y * (1.0 - y) * y * y
     # fun = lambda x, y, z: x * (1.0 - x) * x * x * x + y * (1.0 - y) * y * y * y
     et = time.time()
@@ -630,13 +625,12 @@ def h1_projector(gmesh):
 
 
     st = time.time()
-
-    st = time.time()
     xd = [(gd2c2.successors(faces_ids[0]),gd2c1.successors(faces_ids[0])) for i in range(10)]
     et = time.time()
     elapsed_time = et - st
     print('Search in grahps  time:', elapsed_time, 'seconds')
 
+    st = time.time()
     def scatter_el_data(element, fun, gd2c2, gd2c1, cell_map, row, col, data ):
 
         # compute basis
@@ -902,14 +896,13 @@ def hdiv_projector(gmesh):
     elapsed_time = et - st
     print('Preprocessing II time:', elapsed_time, 'seconds')
 
-
-    st = time.time()
-
     st = time.time()
     xd = [(gd2c2.successors(faces_ids[0]),gd2c1.successors(faces_ids[0])) for i in range(10)]
     et = time.time()
     elapsed_time = et - st
     print('Search in grahps  time:', elapsed_time, 'seconds')
+
+    st = time.time()
     def scatter_el_data(element, fun, gd2c2, gd2c1, cell_map, row, col, data):
 
         # compute basis
@@ -1099,8 +1092,8 @@ def generate_mesh():
     fractures_q = True
     if fractures_q:
         # polygon_polygon_intersection()
-        h_cell = 1.0/64.0
-        fracture_tags = [0]
+        h_cell = 1.0/16.0
+        fracture_tags = [0,1,2,3,4,5]
         fracture_1 = np.array([[0.5, 0.2], [0.5, 0.8]])
         fracture_1 = np.array([[0.5, 0.4], [0.5, 0.6]])
         fracture_2 = np.array([[0.25, 0.5], [0.75, 0.5]])
@@ -1118,7 +1111,7 @@ def generate_mesh():
         fracture_network = fn.FractureNetwork(dimension=2, physical_tag_shift=10)
         fracture_network.intersect_1D_fractures(fractures, render_intersection_q = False)
         fracture_network.build_grahp(all_fixed_d_cells_q=True)
-        # mesher.set_fracture_network(fracture_network)
+        mesher.set_fracture_network(fracture_network)
         mesher.set_points()
         mesher.generate(h_cell)
         mesher.write_mesh("gmesh.msh")
@@ -1158,7 +1151,7 @@ def main():
 
     gmesh = generate_mesh()
     # pojectors
-    # h1_projector(gmesh)
+    h1_projector(gmesh)
     hdiv_projector(gmesh)
 
 

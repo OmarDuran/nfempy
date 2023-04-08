@@ -142,7 +142,6 @@ class ConformalMesher:
         n_points = len(self.points)
         for tag, point in enumerate(self.points):
             gmsh.model.geo.addPoint(point[0], point[1], 0, self.lc, tag + 1)
-            # gmsh.model.geo.addPoint(point[0], point[1], 0, tag + 1)
 
         self.add_domain_descritpion()
 
@@ -155,9 +154,9 @@ class ConformalMesher:
             gmsh.model.mesh.embed(1, self.tags_1d, 2, self.tags_2d[0])
 
 
-            numNodes = 5
+            numNodes = 20
             for tag_1d in self.tags_1d:
-                gmsh.model.geo.mesh.setTransfiniteCurve(tag_1d, numNodes, "Bump", coef=0.1)
+                gmsh.model.geo.mesh.setTransfiniteCurve(tag_1d, numNodes, "Bump", coef=0.25)
 
 
 
