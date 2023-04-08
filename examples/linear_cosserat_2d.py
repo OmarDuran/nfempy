@@ -313,10 +313,11 @@ def matrix_plot(A):
 
 class FiniteElement:
 
-    def __init__(self, id, mesh, k_order, family):
+    def __init__(self, id, mesh, k_order, family, int_order = 0):
         self.mesh = mesh
         self.cell = mesh.cells[id]
         self.k_order = k_order
+        self.int_order = int_order
         self.family = family
         self.basis_variant = None
         self.basis_generator = None
@@ -327,14 +328,19 @@ class FiniteElement:
         self._build_structures()
 
     def _build_structures(self):
+        self._set_integration_order()
         family = self._element_family()
         b_variant = self._element_variant()
         cell_type = self._element_type()
-        k_order = self.k_order
-        self.basis_generator = basix.create_element(family, cell_type, k_order, b_variant)
+        self.basis_generator = basix.create_element(family, cell_type, self.k_order, b_variant)
         self.dof_ordering = self._dof_premutations()
-        self.quadrature = basix.make_quadrature(basix.QuadratureType.gauss_jacobi, cell_type, 2 * k_order + 2)
+        self.quadrature = basix.make_quadrature(basix.QuadratureType.gauss_jacobi, cell_type, self.int_order)
         self.evaluate_basis(self.quadrature[0],True)
+
+    def _set_integration_order(self):
+        if self.int_order == 0:
+            self.int_order = 2 * self.k_order + 1
+
 
     def _element_variant(self):
         return LagrangeVariant.gll_centroid
@@ -806,7 +812,7 @@ def hdiv_projector(gmesh):
 
 
     # polynomial order
-    k_order = 2
+    k_order = 4
 
     # Create conformity
     st = time.time()
@@ -838,29 +844,16 @@ def hdiv_projector(gmesh):
     print('Preprocessing I time:', elapsed_time, 'seconds')
 
     st = time.time()
-    elements = list(map(partial(FiniteElement, mesh=gmesh, k_order=k_order, family="RT"),faces_ids))
+    elements = list(map(partial(FiniteElement, mesh=gmesh, k_order=k_order, family="BDM"),faces_ids))
     et = time.time()
     elapsed_time = et - st
     n_d_cells = len(elements)
     print('Number of processed elements:', n_d_cells)
     print('Element construction time:', elapsed_time, 'seconds')
 
-    # print("cell id: ", elements[0].cell.id)
-    # r_par = np.array([[0.0, 1 / 3]])
-    # r_phi = elements[0].evaluate_basis(r_par)
-    # print("r_phi: ", r_phi)
-    # print("cell id: ", elements[1].cell.id)
-    # l_par = np.array([[1 / 2, 1 / 2]])
-    # l_phi = elements[1].evaluate_basis(l_par)
-    # print("l_phi: ", l_phi)
-
     st = time.time()
     conformity = "h-div"
 
-    # H1 functionality
-
-    # conformity needs to be defined
-    # Computing cell_id -> local_size map
 
     # Assembler
     # Triplets data
@@ -881,7 +874,7 @@ def hdiv_projector(gmesh):
 
     n_fields = 1
     b_variant = LagrangeVariant.gll_centroid
-    ref_element = basix.create_element(ElementFamily.RT, CellType.triangle, k_order, b_variant)
+    ref_element = basix.create_element(ElementFamily.BDM, CellType.triangle, k_order, b_variant)
 
     entity_support = [n_vertices,n_edges,n_faces]
     entity_dofs = [0, 0, 0, 0]
@@ -904,7 +897,7 @@ def hdiv_projector(gmesh):
     print("n_dof: ", n_dof_g)
 
     # fun = lambda x, y, z: np.array([y, -x, 0])
-    fun = lambda x, y, z: np.array([x*(1-x), y*(1-y), 0])
+    fun = lambda x, y, z: np.array([y*(1-y)*y*y, -x*(1-x)*x*x, 0])
     et = time.time()
     elapsed_time = et - st
     print('Preprocessing II time:', elapsed_time, 'seconds')
@@ -1106,7 +1099,7 @@ def generate_mesh():
     fractures_q = True
     if fractures_q:
         # polygon_polygon_intersection()
-        h_cell = 1.0/16.0
+        h_cell = 1.0/64.0
         fracture_tags = [0]
         fracture_1 = np.array([[0.5, 0.2], [0.5, 0.8]])
         fracture_1 = np.array([[0.5, 0.4], [0.5, 0.6]])
