@@ -313,7 +313,7 @@ def matrix_plot(A):
 
 class FiniteElement:
 
-    def __init__(self, id, mesh, k_order, family, int_order = 0):
+    def __init__(self, id, mesh, k_order, family, discontinuous = False, int_order = 0):
         self.mesh = mesh
         self.cell = mesh.cells[id]
         self.k_order = k_order
