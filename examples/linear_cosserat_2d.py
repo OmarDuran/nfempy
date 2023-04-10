@@ -20,7 +20,7 @@ from basix import ElementFamily, CellType, LagrangeVariant, LatticeType
 import functools
 from functools import partial
 from itertools import permutations
-from functools import reduce  # Valid in Python 2.6+, required in Python 3
+from functools import reduce
 
 # import operator
 
@@ -449,16 +449,15 @@ class FiniteElement:
         phi = linear_element.tabulate(1, points)
         dim = self.cell.dimension
         # Compute geometrical transformations
-        x = []
-        jac = []
         det_jac = []
         inv_jac = []
 
-        for i, point in enumerate(points):
+        x = phi[0, :, :, 0] @ cell_points
+        jac = np.rollaxis(phi[list(range(1, dim + 1)), :, :, 0], 1) @ cell_points
+        jac = np.transpose(jac, (0, 2, 1))
 
+        def compute_det_and_pseudo_inverse(grad_xmap):
             # QR-decomposition is not unique
-            xmap = np.dot(phi[0, i, :, 0], cell_points)
-            grad_xmap = np.dot(phi[list(range(1, dim + 1)), i, :, 0], cell_points).T
             q_axes, r_jac = np.linalg.qr(grad_xmap)
             det_g_jac = np.linalg.det(r_jac)
 
@@ -469,16 +468,22 @@ class FiniteElement:
             det_g_jac = np.linalg.det(r_jac)
             if det_g_jac < 0.0:
                 print("Negative det jac: ", det_g_jac)
+            inv_g_jac = np.dot(np.linalg.inv(r_jac), q_axes.T)
+            return det_g_jac, inv_g_jac
 
-            x.append(xmap)
-            jac.append(grad_xmap)
-            det_jac.append(det_g_jac)
-            inv_jac.append(np.dot(np.linalg.inv(r_jac), q_axes.T))
-
-        x = np.array(x)
-        jac = np.array(jac)
+        map_result = list(map(compute_det_and_pseudo_inverse, jac))
+        det_jac, inv_jac = zip(*map_result)
         det_jac = np.array(det_jac)
         inv_jac = np.array(inv_jac)
+
+        # for grad_xmap in jac:
+        #
+        #     det_g_jac, inv_g_jac =  compute_det_and_pseudo_inverse(grad_xmap)
+        #     det_jac.append(det_g_jac)
+        #     inv_jac.append(inv_g_jac)
+
+        # det_jac = np.array(det_jac)
+        # inv_jac = np.array(inv_jac)
         if storage:
             self.mapping = (x, jac, det_jac, inv_jac)
         return (x, jac, det_jac, inv_jac)
@@ -505,11 +510,13 @@ class FiniteElement:
                     "interval"
                 ][0]
                 dofs = self.basis_generator.entity_dofs[1][index]
-                for point in range(phi_tab.shape[0]):
-                    for dim in range(phi_tab.shape[2]):
-                        phi_tab[point, dofs, dim] = np.dot(
-                            transformation, phi_tab[point, dofs, dim]
-                        )
+                for dim in range(phi_tab.shape[2]):
+                    phi_tab[:, dofs, dim] = phi_tab[:, dofs, dim] @ transformation.T
+                # for point in range(phi_tab.shape[0]):
+                #     for dim in range(phi_tab.shape[2]):
+                #         phi_tab[point, dofs, dim] = np.dot(
+                #             transformation, phi_tab[point, dofs, dim]
+                #         )
 
         # triangle ref connectivity
         if not self.basis_generator.dof_transformations_are_identity:
@@ -521,11 +528,13 @@ class FiniteElement:
                     "interval"
                 ][0]
                 dofs = self.basis_generator.entity_dofs[1][index]
-                for point in range(phi_tab.shape[0]):
-                    for dim in range(phi_tab.shape[2]):
-                        phi_tab[point, dofs, dim] = np.dot(
-                            transformation, phi_tab[point, dofs, dim]
-                        )
+                for dim in range(phi_tab.shape[2]):
+                    phi_tab[:, dofs, dim] = phi_tab[:, dofs, dim] @ transformation.T
+                # for point in range(phi_tab.shape[0]):
+                #     for dim in range(phi_tab.shape[2]):
+                #         phi_tab[point, dofs, dim] = np.dot(
+                #             transformation, phi_tab[point, dofs, dim]
+                #         )
         return phi_tab
 
     def _validate_edge_orientation_3d(self):
@@ -612,21 +621,6 @@ class FiniteElement:
 
     def _permute_and_transform_basis_3d(self, phi_tab):
 
-        # make functions outward
-        # if not self.basis_generator.dof_transformations_are_identity:
-        #     n_dof = int(np.mean(self.basis_generator.num_entity_dofs[2]))
-        #     for index in [1, 3]:
-        #         rotate_t, reflect_t = self.basis_generator.entity_transformations()[
-        #             "triangle"
-        #         ]
-        #         transformation = reflect_t
-        #         dofs = self.basis_generator.entity_dofs[2][index]
-        #         for point in range(phi_tab.shape[0]):
-        #             for dim in range(phi_tab.shape[2]):
-        #                 phi_tab[point, dofs, dim] = np.dot(
-        #                     transformation, phi_tab[point, dofs, dim]
-        #                 )
-
         if not self.basis_generator.dof_transformations_are_identity:
             oriented_q, rot_data, ref_data = self._validate_face_orientation_3d()
             for index, check in enumerate(oriented_q):
@@ -643,11 +637,8 @@ class FiniteElement:
                     transformation = reflect_t @ transformation
 
                 dofs = self.basis_generator.entity_dofs[2][index]
-                for point in range(phi_tab.shape[0]):
-                    for dim in range(phi_tab.shape[2]):
-                        phi_tab[point, dofs, dim] = np.dot(
-                            transformation, phi_tab[point, dofs, dim]
-                        )
+                for dim in range(phi_tab.shape[2]):
+                    phi_tab[:, dofs, dim] = phi_tab[:, dofs, dim] @ transformation.T
 
             # reflect edge orientation
             oriented_q = self._validate_edge_orientation_3d()
@@ -656,11 +647,9 @@ class FiniteElement:
                     continue
                 reflect_t = self.basis_generator.entity_transformations()["interval"][0]
                 dofs = self.basis_generator.entity_dofs[1][index]
-                for point in range(phi_tab.shape[0]):
-                    for dim in range(phi_tab.shape[2]):
-                        phi_tab[point, dofs, dim] = np.dot(
-                            reflect_t, phi_tab[point, dofs, dim]
-                        )
+                for dim in range(phi_tab.shape[2]):
+                    phi_tab[:, dofs, dim] = phi_tab[:, dofs, dim] @ reflect_t.T
+
         return phi_tab
 
     def _permute_and_transform_basis(self, phi_tab):
@@ -1718,7 +1707,7 @@ def l2_projector(gmesh):
 def h1_projector_3d(gmesh):
 
     # polynomial order
-    k_order = 5
+    k_order = 4
 
     # Create conformity
     st = time.time()
@@ -2089,26 +2078,26 @@ def generate_mesh():
     # higher dimension domain geometry
     s = 1.0
 
-    # box_points = s * np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
-    # g_builder = GeometryBuilder(dimension=2)
-    # g_builder.build_box_2D(box_points)
-    # g_builder.build_grahp()
-
-    box_points = s * np.array(
-        [
-            [0, 0, 0],
-            [1, 0, 0],
-            [1, 1, 0],
-            [0, 1, 0],
-            [0, 0, 1],
-            [1, 0, 1],
-            [1, 1, 1],
-            [0, 1, 1],
-        ]
-    )
-    g_builder = GeometryBuilder(dimension=3)
-    g_builder.build_box(box_points)
+    box_points = s * np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
+    g_builder = GeometryBuilder(dimension=2)
+    g_builder.build_box_2D(box_points)
     g_builder.build_grahp()
+
+    # box_points = s * np.array(
+    #     [
+    #         [0, 0, 0],
+    #         [1, 0, 0],
+    #         [1, 1, 0],
+    #         [0, 1, 0],
+    #         [0, 0, 1],
+    #         [1, 0, 1],
+    #         [1, 1, 1],
+    #         [0, 1, 1],
+    #     ]
+    # )
+    # g_builder = GeometryBuilder(dimension=3)
+    # g_builder.build_box(box_points)
+    # g_builder.build_grahp()
 
     gmesh = None
     fractures_q = False
@@ -2158,14 +2147,14 @@ def generate_mesh():
         print("h-size: ", h_cell)
     else:
         # polygon_polygon_intersection()
-        h_cell = 1.0 / (1.0)
-        mesher = ConformalMesher(dimension=3)
+        h_cell = 1.0 / (32.0)
+        mesher = ConformalMesher(dimension=2)
         mesher.set_geometry_builder(g_builder)
         mesher.set_points()
         mesher.generate(h_cell)
         mesher.write_mesh("gmesh.msh")
 
-        gmesh = Mesh(dimension=3, file_name="gmesh.msh")
+        gmesh = Mesh(dimension=2, file_name="gmesh.msh")
         gmesh.set_conformal_mesher(mesher)
         gmesh.build_conformal_mesh_II()
 
@@ -2180,11 +2169,11 @@ def main():
 
     gmesh = generate_mesh()
     # pojectors
-    # h1_projector(gmesh)
-    # hdiv_projector(gmesh)
-    # l2_projector(gmesh)
+    h1_projector(gmesh)
+    hdiv_projector(gmesh)
+    l2_projector(gmesh)
 
-    h1_projector_3d(gmesh)
+    # h1_projector_3d(gmesh)
 
 
 if __name__ == "__main__":
