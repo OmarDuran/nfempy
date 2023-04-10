@@ -8,7 +8,7 @@ class GeometryBuilder:
     def __init__(self, dimension):
         self.dimension = dimension
         self.cells = np.array([], dtype=GeometryCell)
-        self.points = np.empty((0, dimension), dtype=float)
+        self.points = np.empty((0, 3), dtype=float)
 
     def set_boundary(self, vertices, connectivity, material_id):
         self.vertices = vertices
@@ -49,8 +49,8 @@ class GeometryBuilder:
             ]
 
         tuple_id_list = []
-        for cell_1d in disjoint_cells:
-            self.gather_graph_edges(cell_1d, tuple_id_list)
+        for cell in disjoint_cells:
+            self.gather_graph_edges(cell, tuple_id_list)
 
         self.graph = nx.from_edgelist(tuple_id_list, create_using=nx.DiGraph)
 
@@ -68,7 +68,9 @@ class GeometryBuilder:
             self.points, np.array([point for point in box_points]), axis=0
         )
         loop = [i for i in range(len(box_points))]
-        self.cells = np.append(self.cells, np.array([GeometryCell(0, index) for index in loop]))
+        self.cells = np.append(
+            self.cells, np.array([GeometryCell(0, index) for index in loop])
+        )
 
         loop.append(loop[0])
         connectivities = np.array(
@@ -90,85 +92,96 @@ class GeometryBuilder:
         self.cells = np.append(self.cells, surface)
         self.build_grahp()
 
-    def build_box(cells, box_points):
+    def build_box(self, box_points):
 
-        cells = np.append(
-            cells, np.array([GeometryCell(0, i) for i, point in enumerate(box_points)])
+        self.points = np.append(
+            self.points, np.array([point for point in box_points]), axis=0
+        )
+
+        self.cells = np.append(
+            self.cells,
+            np.array([GeometryCell(0, i) for i, point in enumerate(box_points)]),
         )
 
         edge = GeometryCell(1, 8)
-        edge.boundary_cells = cells[[0, 1]]
-        cells = np.append(cells, edge)
+        edge.boundary_cells = self.cells[[0, 1]]
+        self.cells = np.append(self.cells, edge)
 
         edge = GeometryCell(1, 9)
-        edge.boundary_cells = cells[[1, 2]]
-        cells = np.append(cells, edge)
+        edge.boundary_cells = self.cells[[1, 2]]
+        self.cells = np.append(self.cells, edge)
 
         edge = GeometryCell(1, 10)
-        edge.boundary_cells = cells[[2, 3]]
-        cells = np.append(cells, edge)
+        edge.boundary_cells = self.cells[[2, 3]]
+        self.cells = np.append(self.cells, edge)
 
         edge = GeometryCell(1, 11)
-        edge.boundary_cells = cells[[3, 0]]
-        cells = np.append(cells, edge)
+        edge.boundary_cells = self.cells[[3, 0]]
+        self.cells = np.append(self.cells, edge)
 
         edge = GeometryCell(1, 12)
-        edge.boundary_cells = cells[[4, 5]]
-        cells = np.append(cells, edge)
+        edge.boundary_cells = self.cells[[4, 5]]
+        self.cells = np.append(self.cells, edge)
 
         edge = GeometryCell(1, 13)
-        edge.boundary_cells = cells[[5, 6]]
-        cells = np.append(cells, edge)
+        edge.boundary_cells = self.cells[[5, 6]]
+        self.cells = np.append(self.cells, edge)
 
         edge = GeometryCell(1, 14)
-        edge.boundary_cells = cells[[6, 7]]
-        cells = np.append(cells, edge)
+        edge.boundary_cells = self.cells[[6, 7]]
+        self.cells = np.append(self.cells, edge)
 
         edge = GeometryCell(1, 15)
-        edge.boundary_cells = cells[[7, 4]]
-        cells = np.append(cells, edge)
+        edge.boundary_cells = self.cells[[7, 4]]
+        self.cells = np.append(self.cells, edge)
 
         edge = GeometryCell(1, 16)
-        edge.boundary_cells = cells[[0, 4]]
-        cells = np.append(cells, edge)
+        edge.boundary_cells = self.cells[[0, 4]]
+        self.cells = np.append(self.cells, edge)
 
         edge = GeometryCell(1, 17)
-        edge.boundary_cells = cells[[1, 5]]
-        cells = np.append(cells, edge)
+        edge.boundary_cells = self.cells[[1, 5]]
+        self.cells = np.append(self.cells, edge)
 
         edge = GeometryCell(1, 18)
-        edge.boundary_cells = cells[[2, 6]]
-        cells = np.append(cells, edge)
+        edge.boundary_cells = self.cells[[2, 6]]
+        self.cells = np.append(self.cells, edge)
 
         edge = GeometryCell(1, 19)
-        edge.boundary_cells = cells[[3, 7]]
-        cells = np.append(cells, edge)
+        edge.boundary_cells = self.cells[[3, 7]]
+        self.cells = np.append(self.cells, edge)
 
         surface = GeometryCell(2, 20)
-        surface.boundary_cells = cells[[8, 17, 12, 16]]
-        cells = np.append(cells, surface)
+        surface.boundary_cells = self.cells[[8, 17, 12, 16]]
+        surface.boundary_loop = np.array([8, 17, -12, -16])
+        self.cells = np.append(self.cells, surface)
 
         surface = GeometryCell(2, 21)
-        surface.boundary_cells = cells[[9, 18, 13, 17]]
-        cells = np.append(cells, surface)
+        surface.boundary_cells = self.cells[[9, 18, 13, 17]]
+        surface.boundary_loop = np.array([9, 18, -13, -17])
+        self.cells = np.append(self.cells, surface)
 
         surface = GeometryCell(2, 22)
-        surface.boundary_cells = cells[[10, 13, 14, 19]]
-        cells = np.append(cells, surface)
+        surface.boundary_cells = self.cells[[10, 19, 14, 18]]
+        surface.boundary_loop = np.array([10, 19, -14, -18])
+        self.cells = np.append(self.cells, surface)
 
         surface = GeometryCell(2, 23)
-        surface.boundary_cells = cells[[11, 16, 15, 19]]
-        cells = np.append(cells, surface)
+        surface.boundary_cells = self.cells[[11, 16, 15, 19]]
+        surface.boundary_loop = np.array([11, 16, -15, -19])
+        self.cells = np.append(self.cells, surface)
 
         surface = GeometryCell(2, 24)
-        surface.boundary_cells = cells[[8, 9, 10, 11]]
-        cells = np.append(cells, surface)
+        surface.boundary_cells = self.cells[[8, 9, 10, 11]]
+        surface.boundary_loop = np.array([8, 9, 10, 11])
+        self.cells = np.append(self.cells, surface)
 
         surface = GeometryCell(2, 25)
-        surface.boundary_cells = cells[[12, 13, 14, 15]]
-        cells = np.append(cells, surface)
+        surface.boundary_cells = self.cells[[12, 13, 14, 15]]
+        surface.boundary_loop = np.array([12, 13, 14, 15])
+        self.cells = np.append(self.cells, surface)
 
         volume = GeometryCell(3, 26)
-        volume.boundary_cells = cells[[20, 21, 22, 23, 24, 25]]
-        cells = np.append(cells, volume)
-        return cells
+        volume.boundary_cells = self.cells[[20, 21, 22, 23, 24, 25]]
+        self.cells = np.append(self.cells, volume)
+        self.build_grahp()

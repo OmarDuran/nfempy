@@ -56,7 +56,9 @@ class FractureNetwork:
             point_id = len(self.points)
             self.points = np.append(self.points, [point], axis=0)
             cell_id = len(self.cells)
-            vertex = GeometryCell(0, cell_id, point_id=point_id, physical_tag=physical_tag)
+            vertex = GeometryCell(
+                0, cell_id, point_id=point_id, physical_tag=physical_tag
+            )
             self.cells = np.append(self.cells, vertex)
         else:
             target_point_id = index[0][0]
@@ -72,7 +74,9 @@ class FractureNetwork:
             self.points, np.array([point for point in fracture]), axis=0
         )
         loop = [i + cell_id for i in range(len(fracture))]
-        self.cells = np.append(self.cells, np.array([GeometryCell(0, index) for index in loop]))
+        self.cells = np.append(
+            self.cells, np.array([GeometryCell(0, index) for index in loop])
+        )
 
         loop.append(loop[0])
         connectivities = np.array(
@@ -218,7 +222,9 @@ class FractureNetwork:
             physical_tag = self.fracture_tags[f_i]
             bc_cells = np.array([], dtype=GeometryCell)
             for point in fracture:
-                vertex = GeometryCell(0, cell_id, point_id=point_id, physical_tag=physical_tag)
+                vertex = GeometryCell(
+                    0, cell_id, point_id=point_id, physical_tag=physical_tag
+                )
                 self.cells = np.append(self.cells, np.array(vertex))
                 point_id = point_id + 1
                 points.append(point)

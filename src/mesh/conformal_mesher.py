@@ -17,6 +17,7 @@ class ConformalMesher:
         self.tags_0d = None
         self.tags_1d = None
         self.tags_2d = None
+        self.tags_3d = None
 
     def set_geometry_builder(self, geometry_builder):
         self.geometry_builder = geometry_builder
@@ -36,8 +37,51 @@ class ConformalMesher:
         self.fracture_network.shift_cell_ids(max_cell_id)
 
     def add_domain_descritpion(self):
+        if self.dimension == 2:
+            self.add_domain_2d_descritpion()
+        elif self.dimension == 3:
+            self.add_domain_3d_descritpion()
+        else:
+            raise ValueError("Dimension not implemented yet, ", self.dimension)
 
-        assert self.dimension == 2
+    def add_domain_3d_descritpion(self):
+
+        # add domain cells
+        graph_nodes = list(self.geometry_builder.graph.nodes())
+        geo_cells = self.geometry_builder.cells[graph_nodes]
+        geo_1_cells = [cell for cell in geo_cells if cell.dimension == 1]
+        geo_2_cells = [cell for cell in geo_cells if cell.dimension == 2]
+        geo_3_cells = [cell for cell in geo_cells if cell.dimension == 3]
+
+        for geo_1_cell in geo_1_cells:
+            b = geo_1_cell.boundary_cells[0].point_id + 1
+            e = geo_1_cell.boundary_cells[1].point_id + 1
+            print("cell id: ", geo_1_cell.id)
+            gmsh.model.geo.addLine(b, e, geo_1_cell.id)
+
+        gmsh.model.geo.synchronize()
+
+        self.tags_3d = []
+        self.tags_2d = []
+        for geo_3_cell in geo_3_cells:
+            for geo_2_cell in geo_3_cell.boundary_cells:
+                tags = list(geo_2_cell.boundary_loop)
+                gmsh.model.geo.addCurveLoop(tags, geo_2_cell.id)
+                gmsh.model.geo.addPlaneSurface([geo_2_cell.id], geo_2_cell.id)
+                self.tags_2d.append(geo_2_cell.id)
+            gmsh.model.geo.addSurfaceLoop(self.tags_2d, geo_3_cell.id)
+            gmsh.model.geo.addVolume([geo_3_cell.id], geo_3_cell.id)
+            self.tags_3d.append(geo_3_cell.id)
+
+        gmsh.model.geo.synchronize()
+
+        # add physical tags
+        for geo_2_cell in geo_2_cells:
+            gmsh.model.addPhysicalGroup(2, [geo_2_cell.id], geo_2_cell.id)
+
+        gmsh.model.addPhysicalGroup(3, self.tags_3d, self.tags_3d[0])
+
+    def add_domain_2d_descritpion(self):
 
         # add domain cells
         graph_nodes = list(self.geometry_builder.graph.nodes())
@@ -141,11 +185,14 @@ class ConformalMesher:
         self.lc = lc
         n_points = len(self.points)
         for tag, point in enumerate(self.points):
-            gmsh.model.geo.addPoint(point[0], point[1], 0, self.lc, tag + 1)
+            gmsh.model.geo.addPoint(point[0], point[1], point[2], self.lc, tag + 1)
 
         self.add_domain_descritpion()
 
         if self.fracture_network is not None:
+
+            assert self.dimension == 2
+
             gmsh.model.geo.synchronize()
             self.add_fracture_network_description()
             gmsh.model.geo.synchronize()
@@ -153,16 +200,14 @@ class ConformalMesher:
             gmsh.model.mesh.embed(0, self.tags_0d, 2, self.tags_2d[0])
             gmsh.model.mesh.embed(1, self.tags_1d, 2, self.tags_2d[0])
 
-
             numNodes = 20
             for tag_1d in self.tags_1d:
-                gmsh.model.geo.mesh.setTransfiniteCurve(tag_1d, numNodes, "Bump", coef=0.25)
-
-
-
+                gmsh.model.geo.mesh.setTransfiniteCurve(
+                    tag_1d, numNodes, "Bump", coef=0.25
+                )
 
         gmsh.model.geo.synchronize()
-        gmsh.model.mesh.generate(2)
+        gmsh.model.mesh.generate(self.dimension)
 
         # if "-nopopup" not in sys.argv:
         #     gmsh.fltk.run()

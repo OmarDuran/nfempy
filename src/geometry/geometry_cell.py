@@ -16,6 +16,7 @@ class GeometryCell:
         self.id = id
         self.physical_tag = physical_tag
         self.boundary_cells = np.array([], dtype=GeometryCell)
+        self.boundary_loop = np.array([], dtype=int)
         self.immersed_cells = np.array([], dtype=GeometryCell)
         self.point_id = None
 
@@ -25,4 +26,3 @@ class GeometryCell:
                 self.point_id = id
             else:
                 self.point_id = point_id
-

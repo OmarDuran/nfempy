@@ -7,25 +7,48 @@ def barycenter(points):
     xc = np.mean(points, axis=0)
     return xc
 
-def x_rotation(vector,theta):
-    R = np.array([[1,0,0],[0,np.cos(theta),-np.sin(theta)],[0, np.sin(theta), np.cos(theta)]])
-    return np.dot(R,vector)
 
-def y_rotation(vector,theta):
-    R = np.array([[np.cos(theta),0,np.sin(theta)],[0,1,0],[-np.sin(theta), 0, np.cos(theta)]])
-    return np.dot(R,vector)
+def x_rotation(vector, theta):
+    R = np.array(
+        [
+            [1, 0, 0],
+            [0, np.cos(theta), -np.sin(theta)],
+            [0, np.sin(theta), np.cos(theta)],
+        ]
+    )
+    return np.dot(R, vector)
 
-def z_rotation(vector,theta):
-    R = np.array([[np.cos(theta), -np.sin(theta),0],[np.sin(theta), np.cos(theta),0],[0,0,1]])
-    return np.dot(R,vector)
+
+def y_rotation(vector, theta):
+    R = np.array(
+        [
+            [np.cos(theta), 0, np.sin(theta)],
+            [0, 1, 0],
+            [-np.sin(theta), 0, np.cos(theta)],
+        ]
+    )
+    return np.dot(R, vector)
+
+
+def z_rotation(vector, theta):
+    R = np.array(
+        [
+            [np.cos(theta), -np.sin(theta), 0],
+            [np.sin(theta), np.cos(theta), 0],
+            [0, 0, 1],
+        ]
+    )
+    return np.dot(R, vector)
+
 
 def rotate_vector(vector, theta, axis=2):
     if axis == 0:
-        return x_rotation(vector,theta)
+        return x_rotation(vector, theta)
     if axis == 1:
-        return y_rotation(vector,theta)
+        return y_rotation(vector, theta)
     if axis == 2:
-        return z_rotation(vector,theta)
+        return z_rotation(vector, theta)
+
 
 # class MeshCell(abc.ABC):
 class MeshCell:
@@ -36,7 +59,7 @@ class MeshCell:
         self.material_id = None
         self.node_tags = np.array([], dtype=int)
         self.perm = np.array([], dtype=int)
-        data = [np.array([], dtype=int) for i in range(dimension+1)]
+        data = [np.array([], dtype=int) for i in range(dimension + 1)]
         self.sub_cells_ids = data
 
     def set_id(self, id):
