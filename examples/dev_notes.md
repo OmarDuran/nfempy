@@ -4,11 +4,11 @@ An exploratory enviroment with python 3.7 is necessary for a clean installation 
 
 ## Publication plan
 
-1) md-coserrat equations, check for convergence and depart from linearized model: Mathematical Models and Methods in Applied Sciences
-2) HHO scheme for linear equations POEMS (Conference paper)
-3) md-cosserat + contact mechanics, numerical exploration and stabilization + interior point methods
-3) md-cosserat + fluid
-4) nonlinear md-coserrat + fluid
+1. md-coserrat equations, check for convergence and depart from linearized model: Mathematical Models and Methods in Applied Sciences
+2. HHO scheme for linear equations POEMS (Conference paper)
+3. md-cosserat + fluid
+4. md-cosserat + contact mechanics, numerical exploration and stabilization + interior point methods
+5. nonlinear md-coserrat
 
 
 ## Dependencies
@@ -111,5 +111,46 @@ In order of importance linear solver are :
 	2. pypardiso
 	3. petsc4py: consider scipy sparse matrix converted to petsc format
 
-# Benchmarks	
+# RoadMap
+
+The main structure of the proyect
+### PreProcessor:
+	- mesh market -> class MeshMarket
+
+### Geometry:
+	- geometry_entity -> class geometry_entity (gen)
+	- several geometry descriptions
+	- geometry mapping
+		- Linear from P1, nonlinear
+
+### Mesh: 
+	Mesh -> class Mesh
+	Mesh Entity -> mesh_entity (men):
+	Conformal Mesher -> class ConformalMesher
+	
+
+### Topology:
+	- mesh_topology -> class MeshTopology
+	- entity_orientation-> class EOrientation
+	- entity_permutation-> class EPermutation
+	- entity_topology
+
+### FEBasis:
+	- FiniteElement -> class FiniteElement
+	- BasisPermutation -> class with only static methods
+
+
+### FESpaces:
+	- DoFMap
+	- FESpace: Mesh, MeshTopology, DoFMap
+	- FESpaces: Mesh, MeshTopology, list(FESpace), DoFMap
+
+### FEForms:
+	- L2, H1, Hdiv and Hcurl proyectors
+	- Assembler:
+	- LinearSolver:
+	- L2-error
+
+### PostProcessor:
+	- 	
 
