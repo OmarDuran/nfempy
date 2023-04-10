@@ -26,6 +26,7 @@ from functools import reduce
 
 import scipy.sparse as sp
 from scipy.sparse import coo_matrix
+import pypardiso as sp_solver
 
 import matplotlib.colors as mcolors
 
@@ -448,10 +449,8 @@ class FiniteElement:
         # points, weights = self.quadrature
         phi = linear_element.tabulate(1, points)
         dim = self.cell.dimension
-        # Compute geometrical transformations
-        det_jac = []
-        inv_jac = []
 
+        # Compute geometrical transformations
         x = phi[0, :, :, 0] @ cell_points
         jac = np.rollaxis(phi[list(range(1, dim + 1)), :, :, 0], 1) @ cell_points
         jac = np.transpose(jac, (0, 2, 1))
@@ -476,14 +475,6 @@ class FiniteElement:
         det_jac = np.array(det_jac)
         inv_jac = np.array(inv_jac)
 
-        # for grad_xmap in jac:
-        #
-        #     det_g_jac, inv_g_jac =  compute_det_and_pseudo_inverse(grad_xmap)
-        #     det_jac.append(det_g_jac)
-        #     inv_jac.append(inv_g_jac)
-
-        # det_jac = np.array(det_jac)
-        # inv_jac = np.array(inv_jac)
         if storage:
             self.mapping = (x, jac, det_jac, inv_jac)
         return (x, jac, det_jac, inv_jac)
@@ -504,7 +495,7 @@ class FiniteElement:
 
         # make functions outward
         if not self.basis_generator.dof_transformations_are_identity:
-            n_dof = int(np.mean(self.basis_generator.num_entity_dofs[1]))
+            # n_dof = int(np.mean(self.basis_generator.num_entity_dofs[1]))
             for index in [0, 2]:
                 transformation = self.basis_generator.entity_transformations()[
                     "interval"
@@ -512,11 +503,6 @@ class FiniteElement:
                 dofs = self.basis_generator.entity_dofs[1][index]
                 for dim in range(phi_tab.shape[2]):
                     phi_tab[:, dofs, dim] = phi_tab[:, dofs, dim] @ transformation.T
-                # for point in range(phi_tab.shape[0]):
-                #     for dim in range(phi_tab.shape[2]):
-                #         phi_tab[point, dofs, dim] = np.dot(
-                #             transformation, phi_tab[point, dofs, dim]
-                #         )
 
         # triangle ref connectivity
         if not self.basis_generator.dof_transformations_are_identity:
@@ -530,11 +516,6 @@ class FiniteElement:
                 dofs = self.basis_generator.entity_dofs[1][index]
                 for dim in range(phi_tab.shape[2]):
                     phi_tab[:, dofs, dim] = phi_tab[:, dofs, dim] @ transformation.T
-                # for point in range(phi_tab.shape[0]):
-                #     for dim in range(phi_tab.shape[2]):
-                #         phi_tab[point, dofs, dim] = np.dot(
-                #             transformation, phi_tab[point, dofs, dim]
-                #         )
         return phi_tab
 
     def _validate_edge_orientation_3d(self):
@@ -1845,8 +1826,8 @@ def h1_projector_3d(gmesh):
     # fun = lambda x, y, z: 16 * x * (1.0 - x) * y * (1.0 - y)
     # fun = lambda x, y, z: x + y + z
     # fun = lambda x, y, z: x * (1.0 - x) + y * (1.0 - y)
-    fun = lambda x, y, z: x * (1.0 - x) * x + y * (1.0 - y) * y
-    # fun = lambda x, y, z: x * (1.0 - x) * x * x + y * (1.0 - y) * y * y
+    # fun = lambda x, y, z: x * (1.0 - x) * x + y * (1.0 - y) * y
+    fun = lambda x, y, z: x * (1.0 - x) * x * x + y * (1.0 - y) * y * y
     # fun = lambda x, y, z: x * (1.0 - x) * x * x * x + y * (1.0 - y) * y * y * y
     et = time.time()
     elapsed_time = et - st
@@ -1862,10 +1843,8 @@ def h1_projector_3d(gmesh):
     print("Search in grahps  time:", elapsed_time, "seconds")
 
     st = time.time()
-    alpha_p = np.zeros(n_dof_g)
-
     def scatter_el_data(
-        element, fun, gd3c3, gd3c2, gd3c1, cell_map, row, col, data, alpha_p
+        element, fun, gd3c3, gd3c2, gd3c1, cell_map, row, col, data
     ):
 
         # compute basis
@@ -1910,11 +1889,10 @@ def h1_projector_3d(gmesh):
         c_sequ = cell_map[cell.id]
 
         # check local projection
-        check_proj_q = True
+        check_proj_q = False
         if check_proj_q:
             l2_error = 0.0
             alpha_l = np.linalg.solve(j_el, r_el)
-            alpha_p[dest] = alpha_l
             for i, pt in enumerate(points):
                 p_e = fun(x[i, 0], x[i, 1], x[i, 2])
                 p_h = np.dot(alpha_l, phi_tab[i, :, 0])
@@ -1933,7 +1911,7 @@ def h1_projector_3d(gmesh):
     aka = 0
     [
         scatter_el_data(
-            element, fun, gd3c3, gd3c2, gd3c1, cell_map, row, col, data, alpha_p
+            element, fun, gd3c3, gd3c2, gd3c1, cell_map, row, col, data
         )
         for element in elements
     ]
@@ -1950,8 +1928,6 @@ def h1_projector_3d(gmesh):
     elapsed_time = et - st
     print("Linear solver time:", elapsed_time, "seconds")
 
-    # print("alpha_p: ",alpha_p)
-    # print("alpha  : ", alpha)
     # Computing L2 error
     def compute_l2_error(element, gd3c3, gd3c2, gd3c1):
         l2_error = 0.0
@@ -2006,7 +1982,7 @@ def h1_projector_3d(gmesh):
             continue
 
         pr_ids = list(gd3c3.predecessors(id))
-        # pr_ids = [id for id in pr_ids if gmesh.cells[id].dimension == 2]
+
         cell = gmesh.cells[pr_ids[0]]
         if cell.dimension != 3:
             continue
@@ -2072,9 +2048,728 @@ def h1_projector_3d(gmesh):
     elapsed_time = et - st
     print("Post-processing time:", elapsed_time, "seconds")
 
+def hdiv_projector_3d(gmesh):
+
+    # polynomial order
+    k_order = 2
+
+    # Create conformity
+    st = time.time()
+    # Entities by codimension
+    # https://defelement.com/ciarlet.html
+    dim = gmesh.dimension
+    # collect maps
+    codimension_maps = []
+    for d in range(dim):
+        codimension_maps.append(gmesh.build_graph(dim, dim - d))
+    gd3c3 = codimension_maps[0]
+    gd3c2 = codimension_maps[1]
+    gd3c1 = codimension_maps[2]
+
+    # Collecting ids
+    entities_ids = {}
+    for d in range(dim):
+        entities_ids[d] = [
+            id
+            for id in list(codimension_maps[d].nodes())
+            if gmesh.cells[id].dimension == d
+        ]
+    entities_ids[dim] = [
+        id
+        for id in list(codimension_maps[dim - 1].nodes())
+        if gmesh.cells[id].dimension == dim
+    ]
+
+    vertices_ids = entities_ids[0]
+    edges_ids = entities_ids[1]
+    faces_ids = entities_ids[2]
+    volumes_ids = entities_ids[3]
+    n_vertices = len(vertices_ids)
+    n_edges = len(edges_ids)
+    n_faces = len(faces_ids)
+    n_volumes = len(volumes_ids)
+
+    et = time.time()
+    elapsed_time = et - st
+    print("Preprocessing I time:", elapsed_time, "seconds")
+
+    st = time.time()
+    elements = list(
+        map(
+            partial(FiniteElement, mesh=gmesh, k_order=k_order, family="BDM"), volumes_ids
+        )
+    )
+    et = time.time()
+    elapsed_time = et - st
+    n_d_cells = len(elements)
+    print("Number of processed elements:", n_d_cells)
+    print("Element construction time:", elapsed_time, "seconds")
+
+    st = time.time()
+    conformity = "h-div"
+
+    # Assembler
+    # Triplets data
+    c_size = 0
+    n_dof_g = 0
+    cell_map = {}
+    for element in elements:
+        cell = element.cell
+        n_dof = 0
+        for n_entity_dofs in element.basis_generator.num_entity_dofs:
+            n_dof = n_dof + sum(n_entity_dofs)
+        cell_map.__setitem__(cell.id, c_size)
+        c_size = c_size + n_dof * n_dof
+
+    row = np.zeros((c_size), dtype=np.int64)
+    col = np.zeros((c_size), dtype=np.int64)
+    data = np.zeros((c_size), dtype=np.float64)
+
+    n_fields = 1
+    b_variant = LagrangeVariant.gll_centroid
+    ref_element = basix.create_element(
+        ElementFamily.BDM, CellType.tetrahedron, k_order, b_variant
+    )
+
+    entity_support = [n_vertices, n_edges, n_faces, n_volumes]
+    entity_dofs = [0, 0, 0, 0]
+    for dim, n_entity_dofs in enumerate(ref_element.num_entity_dofs):
+        e_dofs = int(np.mean(n_entity_dofs))
+        entity_dofs[dim] = e_dofs
+        entity_support[dim] *= e_dofs
+
+    # Enumerates DoF
+    dof_indices = np.array(
+        [0, entity_support[0], entity_support[1], entity_support[2], entity_support[3]]
+    )
+    global_indices = np.add.accumulate(dof_indices)
+    # Computing cell mappings
+    vertex_map = dict(
+        zip(
+            vertices_ids,
+            np.split(
+                np.array(range(global_indices[0], global_indices[1])), len(vertices_ids)
+            ),
+        )
+    )
+    edge_map = dict(
+        zip(
+            edges_ids,
+            np.split(
+                np.array(range(global_indices[1], global_indices[2])), len(edges_ids)
+            ),
+        )
+    )
+    face_map = dict(
+        zip(
+            faces_ids,
+            np.split(
+                np.array(range(global_indices[2], global_indices[3])), len(faces_ids)
+            ),
+        )
+    )
+
+    volume_map = dict(
+        zip(
+            volumes_ids,
+            np.split(
+                np.array(range(global_indices[3], global_indices[4])), len(volumes_ids)
+            ),
+        )
+    )
+
+    n_dof_g = sum(entity_support)
+    rg = np.zeros(n_dof_g)
+    print("n_dof: ", n_dof_g)
+
+    # fun = lambda x, y, z: np.array([0.5, -0.5, -0.5])
+    # fun = lambda x, y, z: np.array([y, -x, -z])
+    fun = lambda x, y, z: np.array([y * (1 - y), -x * (1 - x), -z * (1 - z)])
+    # fun = lambda x, y, z: np.array([y * (1 - y) * y * y, -x * (1 - x) * x * x, -z*(1-z)*z*z])
+    et = time.time()
+    elapsed_time = et - st
+    print("Preprocessing II time:", elapsed_time, "seconds")
+
+    st = time.time()
+    xd = [
+        (gd3c3.successors(volumes_ids[0]), gd3c2.successors(volumes_ids[0]))
+        for i in range(10)
+    ]
+    et = time.time()
+    elapsed_time = et - st
+    print("Search in grahps  time:", elapsed_time, "seconds")
+
+    st = time.time()
+
+    def scatter_el_data(element, fun, gd3c3, gd3c2, gd3c1, cell_map, row, col, data):
+
+        # compute basis
+        points, weights = element.quadrature
+        phi_tab = element.phi
+        (x, jac, det_jac, inv_jac) = element.mapping
+
+        cell = element.cell
+
+        n_dof = element.phi.shape[1]
+        js = (n_dof, n_dof)
+        rs = n_dof
+        j_el = np.zeros(js)
+        r_el = np.zeros(rs)
+
+        # linear_base
+        for i, omega in enumerate(weights):
+            f_val = fun(x[i, 0], x[i, 1], x[i, 2])
+            r_el = r_el + det_jac[i] * omega * phi_tab[i, :, :] @ f_val
+            for d in range(3):
+                j_el = j_el + det_jac[i] * omega * np.outer(
+                    phi_tab[i, :, d], phi_tab[i, :, d]
+                )
+
+        # scattering dof
+        dof_vertex_supports = list(gd3c3.successors(cell.id))
+        dof_edge_supports = list(gd3c2.successors(cell.id))
+        dof_face_supports = list(gd3c1.successors(cell.id))
+        dest_vertex = np.array(
+            [vertex_map.get(dof_s) for dof_s in dof_vertex_supports], dtype=int
+        ).ravel()
+        dest_edge = np.array(
+            [edge_map.get(dof_s) for dof_s in dof_edge_supports], dtype=int
+        ).ravel()
+        dest_face = np.array(
+            [face_map.get(dof_s) for dof_s in dof_face_supports], dtype=int
+        ).ravel()
+        dest_volumes = np.array([volume_map.get(cell.id)], dtype=int).ravel()
+        dest = np.concatenate((dest_vertex, dest_edge, dest_face, dest_volumes))[
+            element.dof_ordering
+        ]
+
+        c_sequ = cell_map[cell.id]
+
+        # check local projection
+        check_proj_q = True
+        if check_proj_q:
+            l2_error = 0.0
+            al = np.linalg.solve(j_el, r_el)
+            for i, pt in enumerate(points):
+                u_e = fun(x[i, 0], x[i, 1], x[i, 2])
+                u_h = np.dot(al, phi_tab[i, :, :])
+                l2_error += det_jac[i] * weights[i] * np.dot(u_h - u_e, u_h - u_e)
+            aka = 0
+
+        # contribute rhs
+        rg[dest] += r_el
+
+        # contribute lhs
+        block_sequ = np.array(range(0, len(dest) * len(dest))) + c_sequ
+        row[block_sequ] += np.repeat(dest, len(dest))
+        col[block_sequ] += np.tile(dest, len(dest))
+        data[block_sequ] += j_el.ravel()
+
+    [
+        scatter_el_data(element, fun, gd3c3, gd3c2, gd3c1, cell_map, row, col, data)
+        for element in elements
+    ]
+
+    jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
+    et = time.time()
+    elapsed_time = et - st
+    print("Assembly time:", elapsed_time, "seconds")
+
+    # solving ls
+    st = time.time()
+    # alpha = sp.linalg.spsolve(jg, rg)
+    alpha = sp_solver.spsolve(jg, rg)
+    et = time.time()
+    elapsed_time = et - st
+    print("Linear solver time:", elapsed_time, "seconds")
+
+    # Computing L2 error
+    def compute_l2_error(element, gd3c3, gd3c2, gd3c1):
+        l2_error = 0.0
+        cell = element.cell
+        # scattering dof
+        dof_vertex_supports = list(gd3c3.successors(cell.id))
+        dof_edge_supports = list(gd3c2.successors(cell.id))
+        dof_face_supports = list(gd3c1.successors(cell.id))
+        dest_vertex = np.array(
+            [vertex_map.get(dof_s) for dof_s in dof_vertex_supports], dtype=int
+        ).ravel()
+        dest_edge = np.array(
+            [edge_map.get(dof_s) for dof_s in dof_edge_supports], dtype=int
+        ).ravel()
+        dest_face = np.array(
+            [face_map.get(dof_s) for dof_s in dof_face_supports], dtype=int
+        ).ravel()
+        dest_volumes = np.array([volume_map.get(cell.id)], dtype=int).ravel()
+        dest = np.concatenate((dest_vertex, dest_edge, dest_face, dest_volumes))[
+            element.dof_ordering
+        ]
+        alpha_l = alpha[dest]
+
+        (x, jac, det_jac, inv_jac) = element.mapping
+        points, weights = element.quadrature
+        phi_tab = element.phi
+        for i, pt in enumerate(points):
+            u_e = fun(x[i, 0], x[i, 1], x[i, 2])
+            u_h = np.dot(alpha_l, phi_tab[i, :, :])
+            l2_error += det_jac[i] * weights[i] * np.dot((u_h - u_e), (u_h - u_e))
+
+        return l2_error
+
+    st = time.time()
+    error_vec = [compute_l2_error(element, gd3c3, gd3c2, gd3c1) for element in elements]
+    et = time.time()
+    elapsed_time = et - st
+    print("L2-error time:", elapsed_time, "seconds")
+
+    l2_error = functools.reduce(lambda x, y: x + y, error_vec)
+    print("L2-error: ", np.sqrt(l2_error))
+    assert np.isclose(np.sqrt(l2_error), 0.0, atol=1.0e-14)
+
+    # post-process solution
+    st = time.time()
+    cellid_to_element = dict(zip(volumes_ids, elements))
+    # writing solution on mesh points
+    uh_data = np.zeros((len(gmesh.points), 3))
+    ue_data = np.zeros((len(gmesh.points), 3))
+    for id in list(vertex_map.keys()):
+        if not gd3c3.has_node(id):
+            continue
+
+        pr_ids = list(gd3c3.predecessors(id))
+
+        cell = gmesh.cells[pr_ids[0]]
+        if cell.dimension != 3:
+            continue
+
+
+        element = cellid_to_element[pr_ids[0]]
+
+        # scattering dof
+        dof_vertex_supports = list(gd3c3.successors(cell.id))
+        dof_edge_supports = list(gd3c2.successors(cell.id))
+        dof_face_supports = list(gd3c1.successors(cell.id))
+        dest_vertex = np.array(
+            [vertex_map.get(dof_s) for dof_s in dof_vertex_supports], dtype=int
+        ).ravel()
+        dest_edge = np.array(
+            [edge_map.get(dof_s) for dof_s in dof_edge_supports], dtype=int
+        ).ravel()
+        dest_face = np.array(
+            [face_map.get(dof_s) for dof_s in dof_face_supports], dtype=int
+        ).ravel()
+        dest_volumes = np.array([volume_map.get(cell.id)], dtype=int).ravel()
+        dest = np.concatenate((dest_vertex, dest_edge, dest_face, dest_volumes))[
+            element.dof_ordering
+        ]
+        alpha_l = alpha[dest]
+
+        cell_type = getattr(basix.CellType, "tetrahedron")
+        par_points = basix.geometry(cell_type)
+
+        target_node_id = gmesh.cells[id].node_tags[0]
+        par_point_id = np.array(
+            [i for i, node_id in enumerate(cell.node_tags) if node_id == target_node_id]
+        )
+
+        points = par_points[par_point_id]
+        # points = np.array([np.mean(par_points,axis=0)])
+
+        # evaluate mapping
+        (x, jac, det_jac, inv_jac) = element.compute_mapping(points)
+        phi_tab = element.evaluate_basis(points)
+        u_e = fun(x[0, 0], x[0, 1], x[0, 2])
+        u_h = np.dot(alpha_l, phi_tab[0, :, :])
+        # aka = 0
+        ue_data[target_node_id] = u_e
+        uh_data[target_node_id] = u_h
+
+    mesh_points = gmesh.points
+    con_3d = np.array(
+        [
+            cell.node_tags
+            for cell in gmesh.cells
+            if cell.dimension == 3 and cell.id != None and cell.material_id != None
+        ]
+    )
+    cells_dict = {"tetra": con_3d}
+    u_data_dict = {"uh": uh_data, "ue": ue_data}
+
+    mesh = meshio.Mesh(
+        points=mesh_points,
+        cells=cells_dict,
+        # Optionally provide extra data on points, cells, etc.
+        point_data=u_data_dict,
+    )
+    mesh.write("hdiv_projector_3d.vtk")
+    et = time.time()
+    elapsed_time = et - st
+    print("Post-processing time:", elapsed_time, "seconds")
+
+def l2_projector_3d(gmesh):
+
+    # polynomial order
+    k_order = 4
+
+    # Create conformity
+    st = time.time()
+    # Entities by codimension
+    # https://defelement.com/ciarlet.html
+    dim = gmesh.dimension
+    # collect maps
+    codimension_maps = []
+    for d in range(dim):
+        codimension_maps.append(gmesh.build_graph(dim, dim - d))
+    gd3c3 = codimension_maps[0]
+    gd3c2 = codimension_maps[1]
+    gd3c1 = codimension_maps[2]
+
+    # Collecting ids
+    entities_ids = {}
+    for d in range(dim):
+        entities_ids[d] = [
+            id
+            for id in list(codimension_maps[d].nodes())
+            if gmesh.cells[id].dimension == d
+        ]
+    entities_ids[dim] = [
+        id
+        for id in list(codimension_maps[dim - 1].nodes())
+        if gmesh.cells[id].dimension == dim
+    ]
+
+    vertices_ids = entities_ids[0]
+    edges_ids = entities_ids[1]
+    faces_ids = entities_ids[2]
+    volumes_ids = entities_ids[3]
+    n_vertices = len(vertices_ids)
+    n_edges = len(edges_ids)
+    n_faces = len(faces_ids)
+    n_volumes = len(volumes_ids)
+
+    et = time.time()
+    elapsed_time = et - st
+    print("Preprocessing I time:", elapsed_time, "seconds")
+    st = time.time()
+    elements = list(
+        map(
+            partial(FiniteElement, mesh=gmesh, k_order=k_order, family="Lagrange", discontinuous = True),
+            volumes_ids,
+        )
+    )
+    et = time.time()
+    elapsed_time = et - st
+    n_d_cells = len(elements)
+    print("Number of processed elements:", n_d_cells)
+    print("Element construction time:", elapsed_time, "seconds")
+
+    st = time.time()
+    conformity = "l-2"
+
+    # L2 functionality
+
+    # conformity needs to be defined
+    # Computing cell_id -> local_size map
+
+    # Assembler
+    # Triplets data
+    c_size = 0
+    n_dof_g = 0
+    cell_map = {}
+    for element in elements:
+        cell = element.cell
+        n_dof = 0
+        for n_entity_dofs in element.basis_generator.num_entity_dofs:
+            n_dof = n_dof + sum(n_entity_dofs)
+        cell_map.__setitem__(cell.id, c_size)
+        c_size = c_size + n_dof * n_dof
+
+    row = np.zeros((c_size), dtype=np.int64)
+    col = np.zeros((c_size), dtype=np.int64)
+    data = np.zeros((c_size), dtype=np.float64)
+
+    n_fields = 1
+    b_variant = LagrangeVariant.gll_centroid
+    ref_element = basix.create_element(
+        ElementFamily.P, CellType.tetrahedron, k_order, b_variant, True
+    )
+    entity_support = [n_vertices, n_edges, n_faces, n_volumes]
+    entity_dofs = [0, 0, 0, 0]
+    for dim, n_entity_dofs in enumerate(ref_element.num_entity_dofs):
+        e_dofs = int(np.mean(n_entity_dofs))
+        entity_dofs[dim] = e_dofs
+        entity_support[dim] *= e_dofs
+
+    # Enumerates DoF
+    dof_indices = np.array(
+        [0, entity_support[0], entity_support[1], entity_support[2], entity_support[3]]
+    )
+    global_indices = np.add.accumulate(dof_indices)
+    # Computing cell mappings
+    vertex_map = dict(
+        zip(
+            vertices_ids,
+            np.split(
+                np.array(range(global_indices[0], global_indices[1])), len(vertices_ids)
+            ),
+        )
+    )
+    edge_map = dict(
+        zip(
+            edges_ids,
+            np.split(
+                np.array(range(global_indices[1], global_indices[2])), len(edges_ids)
+            ),
+        )
+    )
+    face_map = dict(
+        zip(
+            faces_ids,
+            np.split(
+                np.array(range(global_indices[2], global_indices[3])), len(faces_ids)
+            ),
+        )
+    )
+
+    volume_map = dict(
+        zip(
+            volumes_ids,
+            np.split(
+                np.array(range(global_indices[3], global_indices[4])), len(volumes_ids)
+            ),
+        )
+    )
+
+    n_dof_g = sum(entity_support)
+    rg = np.zeros(n_dof_g)
+    print("n_dof: ", n_dof_g)
+
+    # fun = lambda x, y, z: 16 * x * (1.0 - x) * y * (1.0 - y)
+    # fun = lambda x, y, z: x + y + z
+    # fun = lambda x, y, z: x * (1.0 - x) + y * (1.0 - y)
+    # fun = lambda x, y, z: x * (1.0 - x) * x + y * (1.0 - y) * y
+    fun = lambda x, y, z: x * (1.0 - x) * x * x + y * (1.0 - y) * y * y
+    # fun = lambda x, y, z: x * (1.0 - x) * x * x * x + y * (1.0 - y) * y * y * y
+    et = time.time()
+    elapsed_time = et - st
+    print("Preprocessing II time:", elapsed_time, "seconds")
+
+    st = time.time()
+    xd = [
+        (gd3c3.successors(volumes_ids[0]), gd3c2.successors(volumes_ids[0]))
+        for i in range(10)
+    ]
+    et = time.time()
+    elapsed_time = et - st
+    print("Search in grahps  time:", elapsed_time, "seconds")
+
+    st = time.time()
+    def scatter_el_data(
+        element, fun, gd3c3, gd3c2, gd3c1, cell_map, row, col, data
+    ):
+
+        # compute basis
+        points, weights = element.quadrature
+        phi_tab = element.phi
+        (x, jac, det_jac, inv_jac) = element.mapping
+
+        cell = element.cell
+
+        n_dof = element.phi.shape[1]
+        js = (n_dof, n_dof)
+        rs = n_dof
+        j_el = np.zeros(js)
+        r_el = np.zeros(rs)
+
+        # linear_base
+        for i, omega in enumerate(weights):
+            f_val = fun(x[i, 0], x[i, 1], x[i, 2])
+            r_el = r_el + det_jac[i] * omega * f_val * phi_tab[i, :, 0]
+            j_el = j_el + det_jac[i] * omega * np.outer(
+                phi_tab[i, :, 0], phi_tab[i, :, 0]
+            )
+
+        # scattering dof
+        dof_vertex_supports = list(gd3c3.successors(cell.id))
+        dof_edge_supports = list(gd3c2.successors(cell.id))
+        dof_face_supports = list(gd3c1.successors(cell.id))
+        dest_vertex = np.array(
+            [vertex_map.get(dof_s) for dof_s in dof_vertex_supports], dtype=int
+        ).ravel()
+        dest_edge = np.array(
+            [edge_map.get(dof_s) for dof_s in dof_edge_supports], dtype=int
+        ).ravel()
+        dest_face = np.array(
+            [face_map.get(dof_s) for dof_s in dof_face_supports], dtype=int
+        ).ravel()
+        dest_volumes = np.array([volume_map.get(cell.id)], dtype=int).ravel()
+        dest = np.concatenate((dest_vertex, dest_edge, dest_face, dest_volumes))[
+            element.dof_ordering
+        ]
+
+        c_sequ = cell_map[cell.id]
+
+        # check local projection
+        check_proj_q = False
+        if check_proj_q:
+            l2_error = 0.0
+            alpha_l = np.linalg.solve(j_el, r_el)
+            for i, pt in enumerate(points):
+                p_e = fun(x[i, 0], x[i, 1], x[i, 2])
+                p_h = np.dot(alpha_l, phi_tab[i, :, 0])
+                l2_error += det_jac[i] * weights[i] * (p_h - p_e) * (p_h - p_e)
+
+        # contribute rhs
+        rg[dest] += r_el
+
+        # contribute lhs
+        block_sequ = np.array(range(0, len(dest) * len(dest))) + c_sequ
+        row[block_sequ] += np.repeat(dest, len(dest))
+        col[block_sequ] += np.tile(dest, len(dest))
+        data[block_sequ] += j_el.ravel()
+
+    [
+        scatter_el_data(
+            element, fun, gd3c3, gd3c2, gd3c1, cell_map, row, col, data
+        )
+        for element in elements
+    ]
+
+    jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
+    et = time.time()
+    elapsed_time = et - st
+    print("Assembly time:", elapsed_time, "seconds")
+
+    # solving ls
+    st = time.time()
+    alpha = sp.linalg.spsolve(jg, rg)
+    et = time.time()
+    elapsed_time = et - st
+    print("Linear solver time:", elapsed_time, "seconds")
+
+    # Computing L2 error
+    def compute_l2_error(element, gd3c3, gd3c2, gd3c1):
+        l2_error = 0.0
+        cell = element.cell
+        # scattering dof
+        dof_vertex_supports = list(gd3c3.successors(cell.id))
+        dof_edge_supports = list(gd3c2.successors(cell.id))
+        dof_face_supports = list(gd3c1.successors(cell.id))
+        dest_vertex = np.array(
+            [vertex_map.get(dof_s) for dof_s in dof_vertex_supports], dtype=int
+        ).ravel()
+        dest_edge = np.array(
+            [edge_map.get(dof_s) for dof_s in dof_edge_supports], dtype=int
+        ).ravel()
+        dest_face = np.array(
+            [face_map.get(dof_s) for dof_s in dof_face_supports], dtype=int
+        ).ravel()
+        dest_volumes = np.array([volume_map.get(cell.id)], dtype=int).ravel()
+        dest = np.concatenate((dest_vertex, dest_edge, dest_face, dest_volumes))[
+            element.dof_ordering
+        ]
+        alpha_l = alpha[dest]
+
+        (x, jac, det_jac, inv_jac) = element.mapping
+        points, weights = element.quadrature
+        phi_tab = element.phi
+        for i, pt in enumerate(points):
+            p_e = fun(x[i, 0], x[i, 1], x[i, 2])
+            p_h = np.dot(alpha_l, phi_tab[i, :, 0])
+            l2_error += det_jac[i] * weights[i] * (p_h - p_e) * (p_h - p_e)
+
+        return l2_error
+
+    st = time.time()
+    error_vec = [compute_l2_error(element, gd3c3, gd3c2, gd3c1) for element in elements]
+    et = time.time()
+    elapsed_time = et - st
+    print("L2-error time:", elapsed_time, "seconds")
+
+    l2_error = functools.reduce(lambda x, y: x + y, error_vec)
+    print("L2-error: ", np.sqrt(l2_error))
+    assert np.isclose(np.sqrt(l2_error), 0.0, atol=1.0e-14)
+
+    # post-process solution
+    st = time.time()
+    cellid_to_element = dict(zip(volumes_ids, elements))
+    # writing solution on mesh points
+    ph_data = np.zeros(len(gmesh.points))
+    pe_data = np.zeros(len(gmesh.points))
+    for id in list(vertex_map.keys()):
+        if not gd3c3.has_node(id):
+            continue
+
+        pr_ids = list(gd3c3.predecessors(id))
+
+        cell = gmesh.cells[pr_ids[0]]
+        if cell.dimension != 3:
+            continue
+
+        element = cellid_to_element[pr_ids[0]]
+
+        # scattering dof
+        dof_vertex_supports = list(gd3c3.successors(cell.id))
+        dof_edge_supports = list(gd3c2.successors(cell.id))
+        dof_face_supports = list(gd3c1.successors(cell.id))
+        dest_vertex = np.array(
+            [vertex_map.get(dof_s) for dof_s in dof_vertex_supports], dtype=int
+        ).ravel()
+        dest_edge = np.array(
+            [edge_map.get(dof_s) for dof_s in dof_edge_supports], dtype=int
+        ).ravel()
+        dest_face = np.array(
+            [face_map.get(dof_s) for dof_s in dof_face_supports], dtype=int
+        ).ravel()
+        dest_volumes = np.array([volume_map.get(cell.id)], dtype=int).ravel()
+        dest = np.concatenate((dest_vertex, dest_edge, dest_face, dest_volumes))[
+            element.dof_ordering
+        ]
+        alpha_l = alpha[dest]
+
+        cell_type = getattr(basix.CellType, "tetrahedron")
+        par_points = basix.geometry(cell_type)
+
+        target_node_id = gmesh.cells[id].node_tags[0]
+        par_point_id = np.array(
+            [i for i, node_id in enumerate(cell.node_tags) if node_id == target_node_id]
+        )
+
+        points = par_points[par_point_id]
+
+        # evaluate mapping
+        (x, jac, det_jac, inv_jac) = element.compute_mapping(points)
+        phi_tab = element.evaluate_basis(points)
+        p_e = fun(x[0, 0], x[0, 1], x[0, 2])
+        p_h = np.dot(alpha_l, phi_tab[0, :, 0])
+        ph_data[target_node_id] = p_h
+        pe_data[target_node_id] = p_e
+
+    mesh_points = gmesh.points
+    con_3d = np.array(
+        [
+            cell.node_tags
+            for cell in gmesh.cells
+            if cell.dimension == 3 and cell.id != None and cell.material_id != None
+        ]
+    )
+    cells_dict = {"tetra": con_3d}
+    p_data_dict = {"ph": ph_data, "pe": pe_data}
+
+    mesh = meshio.Mesh(
+        points=mesh_points,
+        cells=cells_dict,
+        # Optionally provide extra data on points, cells, etc.
+        point_data=p_data_dict,
+    )
+    mesh.write("l2_projector_3d.vtk")
+    et = time.time()
+    elapsed_time = et - st
+    print("Post-processing time:", elapsed_time, "seconds")
 
 def generate_mesh():
 
+    h_cell = 1.0 / (8.0)
     # higher dimension domain geometry
     s = 1.0
 
@@ -2083,27 +2778,11 @@ def generate_mesh():
     g_builder.build_box_2D(box_points)
     g_builder.build_grahp()
 
-    # box_points = s * np.array(
-    #     [
-    #         [0, 0, 0],
-    #         [1, 0, 0],
-    #         [1, 1, 0],
-    #         [0, 1, 0],
-    #         [0, 0, 1],
-    #         [1, 0, 1],
-    #         [1, 1, 1],
-    #         [0, 1, 1],
-    #     ]
-    # )
-    # g_builder = GeometryBuilder(dimension=3)
-    # g_builder.build_box(box_points)
-    # g_builder.build_grahp()
-
     gmesh = None
     fractures_q = False
     if fractures_q:
         # polygon_polygon_intersection()
-        h_cell = 1.0 / 4.0
+        # h_cell = 1.0 / 4.0
         fracture_tags = [0, 1, 2, 3, 4, 5]
         fracture_1 = np.array([[0.5, 0.2], [0.5, 0.8]])
         fracture_1 = np.array([[0.5, 0.4], [0.5, 0.6]])
@@ -2147,7 +2826,7 @@ def generate_mesh():
         print("h-size: ", h_cell)
     else:
         # polygon_polygon_intersection()
-        h_cell = 1.0 / (32.0)
+
         mesher = ConformalMesher(dimension=2)
         mesher.set_geometry_builder(g_builder)
         mesher.set_points()
@@ -2158,22 +2837,64 @@ def generate_mesh():
         gmesh.set_conformal_mesher(mesher)
         gmesh.build_conformal_mesh_II()
 
-        gmesh.write_data()
+        # gmesh.write_data()
         gmesh.write_vtk()
         print("h-size: ", h_cell)
 
     return gmesh
 
+def generate_mesh_3d():
+
+    h_cell = 1.0 / (4.0)
+
+    # higher dimension domain geometry
+    s = 1.0
+
+    box_points = s * np.array(
+        [
+            [0, 0, 0],
+            [1, 0, 0],
+            [1, 1, 0],
+            [0, 1, 0],
+            [0, 0, 1],
+            [1, 0, 1],
+            [1, 1, 1],
+            [0, 1, 1],
+        ]
+    )
+    g_builder = GeometryBuilder(dimension=3)
+    g_builder.build_box(box_points)
+    g_builder.build_grahp()
+
+    mesher = ConformalMesher(dimension=3)
+    mesher.set_geometry_builder(g_builder)
+    mesher.set_points()
+    mesher.generate(h_cell)
+    mesher.write_mesh("gmesh.msh")
+
+    gmesh = Mesh(dimension=3, file_name="gmesh.msh")
+    gmesh.set_conformal_mesher(mesher)
+    gmesh.build_conformal_mesh_II()
+
+    # gmesh.write_data()
+    gmesh.write_vtk()
+    print("h-size: ", h_cell)
+
+
+    return gmesh
 
 def main():
 
-    gmesh = generate_mesh()
-    # pojectors
-    h1_projector(gmesh)
-    hdiv_projector(gmesh)
-    l2_projector(gmesh)
+    # gmesh = generate_mesh()
+    # # pojectors
+    # h1_projector(gmesh)
+    # hdiv_projector(gmesh)
+    # l2_projector(gmesh)
 
-    # h1_projector_3d(gmesh)
+    gmesh_3d = generate_mesh_3d()
+    h1_projector_3d(gmesh_3d)
+    hdiv_projector_3d(gmesh_3d)
+    l2_projector_3d(gmesh_3d)
 
 
 if __name__ == "__main__":
