@@ -1,7 +1,7 @@
 from mesh.mesh import Mesh
 
-class MeshTopology:
 
+class MeshTopology:
     def __init__(self, mesh):
         self.mesh = mesh
         self.entity_maps = []
@@ -11,12 +11,12 @@ class MeshTopology:
 
     def _build_entity_maps(self):
         dim = self.mesh.dimension
-        for d in range(dim+1):
+        for d in range(dim + 1):
             self.entity_maps.append(self.mesh.build_graph(dim, dim - d))
 
     def _build_entity_ids(self):
         dim = self.mesh.dimension
-        for d in range(dim+1):
+        for d in range(dim + 1):
             self.entity_ids[d] = [
                 id
                 for id in list(self.entity_maps[d].nodes())

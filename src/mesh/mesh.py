@@ -1,11 +1,11 @@
-import meshio
-import numpy as np
-import networkx as nx
-from mesh.mesh_cell import MeshCell
-from mesh.mesh_cell import barycenter
-from mesh.mesh_cell import rotate_vector
-from mesh.conformal_mesher import ConformalMesher
 import copy
+
+import meshio
+import networkx as nx
+import numpy as np
+
+from mesh.conformal_mesher import ConformalMesher
+from mesh.mesh_cell import MeshCell, barycenter, rotate_vector
 
 
 class Mesh:

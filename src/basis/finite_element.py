@@ -1,9 +1,9 @@
-
-import numpy as np
+from itertools import permutations
 
 import basix
-from basix import ElementFamily, CellType, LagrangeVariant
-from itertools import permutations
+import numpy as np
+from basix import CellType, ElementFamily, LagrangeVariant
+
 
 class FiniteElement:
     def __init__(self, id, mesh, k_order, family, discontinuous=False, int_order=0):

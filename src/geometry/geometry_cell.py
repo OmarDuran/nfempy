@@ -1,5 +1,6 @@
 import numpy as np
 
+
 # Topology for Geometric Design
 # It is required to find a better reference
 # https://www.maruf.ca/files/caadoc/CAATobTechArticles/TopoConcepts.htm#Manifold
