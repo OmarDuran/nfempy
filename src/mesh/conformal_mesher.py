@@ -37,12 +37,64 @@ class ConformalMesher:
         self.fracture_network.shift_cell_ids(max_cell_id)
 
     def add_domain_descritpion(self):
-        if self.dimension == 2:
+        if self.dimension == 1:
+            self.add_domain_1d_descritpion()
+        elif self.dimension == 2:
             self.add_domain_2d_descritpion()
         elif self.dimension == 3:
             self.add_domain_3d_descritpion()
         else:
             raise ValueError("Dimension not implemented yet, ", self.dimension)
+
+    def add_domain_1d_descritpion(self):
+
+        # add domain cells
+        graph_nodes = list(self.geometry_builder.graph.nodes())
+        geo_cells = self.geometry_builder.cells[graph_nodes]
+        geo_0_cells = [cell for cell in geo_cells if cell.dimension == 0]
+        geo_1_cells = [cell for cell in geo_cells if cell.dimension == 1]
+
+        self.tags_1d = []
+        for geo_1_cell in geo_1_cells:
+            b = geo_1_cell.boundary_cells[0].point_id + 1
+            e = geo_1_cell.boundary_cells[1].point_id + 1
+            gmsh.model.geo.addLine(b, e, geo_1_cell.id)
+            self.tags_1d.append(geo_1_cell.id)
+
+        gmsh.model.geo.synchronize()
+
+        # add physical tags
+        for geo_0_cell in geo_0_cells:
+            gmsh.model.addPhysicalGroup(0, [geo_0_cell.id + 1], geo_0_cell.id + 1)
+
+        gmsh.model.addPhysicalGroup(1, self.tags_1d, self.tags_1d[0] + 1)
+
+    def add_domain_2d_descritpion(self):
+
+        # add domain cells
+        graph_nodes = list(self.geometry_builder.graph.nodes())
+        geo_cells = self.geometry_builder.cells[graph_nodes]
+        geo_1_cells = [cell for cell in geo_cells if cell.dimension == 1]
+        geo_2_cells = [cell for cell in geo_cells if cell.dimension == 2]
+
+        self.tags_2d = []
+        for geo_2_cell in geo_2_cells:
+            for cell_i in geo_2_cell.boundary_cells:
+                b = cell_i.boundary_cells[0].point_id + 1
+                e = cell_i.boundary_cells[1].point_id + 1
+                gmsh.model.geo.addLine(b, e, cell_i.id)
+            tags = [cell.id for cell in geo_2_cell.boundary_cells]
+            gmsh.model.geo.addCurveLoop(tags, geo_2_cell.id)
+            gmsh.model.geo.addPlaneSurface([geo_2_cell.id], geo_2_cell.id)
+            self.tags_2d.append(geo_2_cell.id)
+
+        gmsh.model.geo.synchronize()
+
+        # add physical tags
+        for geo_1_cell in geo_1_cells:
+            gmsh.model.addPhysicalGroup(1, [geo_1_cell.id], geo_1_cell.id)
+
+        gmsh.model.addPhysicalGroup(2, self.tags_2d, self.tags_2d[0])
 
     def add_domain_3d_descritpion(self):
 
@@ -80,33 +132,6 @@ class ConformalMesher:
             gmsh.model.addPhysicalGroup(2, [geo_2_cell.id], geo_2_cell.id)
 
         gmsh.model.addPhysicalGroup(3, self.tags_3d, self.tags_3d[0])
-
-    def add_domain_2d_descritpion(self):
-
-        # add domain cells
-        graph_nodes = list(self.geometry_builder.graph.nodes())
-        geo_cells = self.geometry_builder.cells[graph_nodes]
-        geo_1_cells = [cell for cell in geo_cells if cell.dimension == 1]
-        geo_2_cells = [cell for cell in geo_cells if cell.dimension == 2]
-
-        self.tags_2d = []
-        for geo_2_cell in geo_2_cells:
-            for cell_i in geo_2_cell.boundary_cells:
-                b = cell_i.boundary_cells[0].point_id + 1
-                e = cell_i.boundary_cells[1].point_id + 1
-                gmsh.model.geo.addLine(b, e, cell_i.id)
-            tags = [cell.id for cell in geo_2_cell.boundary_cells]
-            gmsh.model.geo.addCurveLoop(tags, geo_2_cell.id)
-            gmsh.model.geo.addPlaneSurface([geo_2_cell.id], geo_2_cell.id)
-            self.tags_2d.append(geo_2_cell.id)
-
-        gmsh.model.geo.synchronize()
-
-        # add physical tags
-        for geo_1_cell in geo_1_cells:
-            gmsh.model.addPhysicalGroup(1, [geo_1_cell.id], geo_1_cell.id)
-
-        gmsh.model.addPhysicalGroup(2, self.tags_2d, self.tags_2d[0])
 
     def add_fracture_network_description(self):
 

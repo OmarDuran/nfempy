@@ -321,7 +321,7 @@ class Mesh:
                 face_id += 1
 
         # fill volume to volume_id from existing tetrahedral
-        volume_id = np.max([*self.entities_2d.values()]) + 1
+        volume_id = np.max([*self.entities_2d.values()]) + 1 if len(self.entities_2d) != 0 else 0
         for nodes in tetra_data:
             volume = tuple(np.sort(nodes))
             key_exist_q = self.entities_3d.get(volume, None)

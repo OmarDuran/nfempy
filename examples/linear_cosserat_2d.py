@@ -341,9 +341,9 @@ def h1_projector(gmesh):
     # polynomial order
     dim = gmesh.dimension
     conformity = "h-1"
-    discontinuous = False
+    discontinuous = True
     k_order = 5
-    family = "BDM"
+    family = "Lagrange"
     element_type = FiniteElement.type_by_dimension(dim)
     basis_family = FiniteElement.basis_family(family)
     basis_variant = FiniteElement.basis_variant()
@@ -354,12 +354,7 @@ def h1_projector(gmesh):
     # fun = lambda x, y, z: x * (1.0 - x) + y * (1.0 - y)
     # fun = lambda x, y, z: x * (1.0 - x) * x + y * (1.0 - y) * y
     # fun = lambda x, y, z: x * (1.0 - x) * x * x + y * (1.0 - y) * y * y
-    # fun = lambda x, y, z: x * (1.0 - x) * x * x * x + y * (1.0 - y) * y * y * y
-
-    # vectorial
-    # fun = lambda x, y, z: np.array([y, -x, -z])
-    fun = lambda x, y, z: np.array([y * (1 - y), -x * (1 - x), -z * (1 - z)])
-    # fun = lambda x, y, z: np.array([y * (1 - y) * y * y, -x * (1 - x) * x * x, -z*(1-z)*z*z])
+    fun = lambda x, y, z: x * (1.0 - x) * x * x * x + y * (1.0 - y) * y * y * y
 
 
     st = time.time()
@@ -801,7 +796,7 @@ def hdiv_projector(gmesh):
     print("Post-processing time:", elapsed_time, "seconds")
 
 
-def generate_mesh():
+def generate_mesh_2d():
 
     h_cell = 1.0 / (4.0)
     # higher dimension domain geometry
@@ -917,14 +912,45 @@ def generate_mesh_3d():
 
     return gmesh
 
+def generate_mesh_1d():
+
+    h_cell = 1.0 / (128.0)
+
+    # higher dimension domain geometry
+    s = 1.0
+
+    box_points = s * np.array([[0, 0, 0], [1, 0, 0]])
+    g_builder = GeometryBuilder(dimension=1)
+    g_builder.build_box_1D(box_points)
+    g_builder.build_grahp()
+
+    mesher = ConformalMesher(dimension=1)
+    mesher.set_geometry_builder(g_builder)
+    mesher.set_points()
+    mesher.generate(h_cell)
+    mesher.write_mesh("gmesh.msh")
+
+    gmesh = Mesh(dimension=1, file_name="gmesh.msh")
+    gmesh.set_conformal_mesher(mesher)
+    gmesh.build_conformal_mesh_II()
+
+    # gmesh.write_data()
+    gmesh.write_vtk()
+    print("h-size: ", h_cell)
+
+
+    return gmesh
+
 def main():
 
-    gmesh = generate_mesh()
+    # gmesh_3d = generate_mesh_3d()
+    # gmesh_2d = generate_mesh_2d()
+    gmesh_1d = generate_mesh_1d()
 
     # # pojectors
-    gmesh_3d = generate_mesh_3d()
-    # h1_projector(gmesh)
-    hdiv_projector(gmesh_3d)
+
+    h1_projector(gmesh_1d)
+    # hdiv_projector(gmesh_1d)
 
     # l2_projector(gmesh)
 

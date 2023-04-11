@@ -62,6 +62,24 @@ class GeometryBuilder:
             node_color="skyblue",
         )
 
+    def build_box_1D(self, box_points):
+
+        self.points = np.append(
+            self.points, np.array([point for point in box_points]), axis=0
+        )
+        loop = [i for i in range(len(box_points))]
+        self.cells = np.append(
+            self.cells, np.array([GeometryCell(0, index) for index in loop])
+        )
+
+        cell_id = len(box_points)
+        vertex_indices = [0, 1]
+        vertex_indices = np.array(vertex_indices)
+        line = GeometryCell(1, cell_id)
+        line.boundary_cells = self.cells[vertex_indices]
+        self.cells = np.append(self.cells, line)
+        self.build_grahp()
+
     def build_box_2D(self, box_points):
 
         self.points = np.append(
