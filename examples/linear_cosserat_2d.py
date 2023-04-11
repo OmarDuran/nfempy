@@ -74,210 +74,6 @@ def polygon_polygon_intersection():
     fracture_network.draw_grahp()
     ika = 0
 
-
-def dof_permutations_tranformations():
-
-    # Degree 2 Lagrange element
-    # =========================
-    #
-    # We create a degree 2 Lagrange element on a triangle, then print the
-    # values of the attributes `dof_transformations_are_identity` and
-    # `dof_transformations_are_permutations`.
-    #
-    # The value of `dof_transformations_are_identity` is False: this tells
-    # us that permutations or transformations are needed for this element.
-    #
-    # The value of `dof_transformations_are_permutations` is True: this
-    # tells us that for this element, all the corrections we need to apply
-    # permutations. This is the simpler case, and means we make the
-    # orientation corrections by applying permutations when creating the
-    # DOF map.
-
-    lagrange = basix.create_element(
-        ElementFamily.P, CellType.triangle, 2, LagrangeVariant.equispaced
-    )
-    print(lagrange.dof_transformations_are_identity)
-    print(lagrange.dof_transformations_are_permutations)
-
-    # We can apply permutations by using the matrices returned by the
-    # method `base_transformations`. This method will return one matrix
-    # for each edge of the cell (for 2D and 3D cells), and two matrices
-    # for each face of the cell (for 3D cells). These describe the effect
-    # of reversing the edge or reflecting and rotating the face.
-    #
-    # For this element, we know that the base transformations will be
-    # permutation matrices.
-
-    print(lagrange.base_transformations())
-
-    # The matrices returned by `base_transformations` are quite large, and
-    # are equal to the identity matrix except for a small block of the
-    # matrix. It is often easier and more efficient to use the matrices
-    # returned by the method `entity_transformations` instead.
-    #
-    # `entity_transformations` returns a dictionary that maps the type
-    # of entity (`"interval"`, `"triangle"`, `"quadrilateral"`) to a
-    # matrix describing the effect of permuting that entity on the DOFs
-    # on that entity.
-    #
-    # For this element, we see that this method returns one matrix for
-    # an interval: this matrix reverses the order of the four DOFs
-    # associated with that edge.
-
-    print(lagrange.entity_transformations())
-
-    # In orders to work out which DOFs are associated with each edge,
-    # we use the attribute `entity_dofs`. For example, the following can
-    # be used to see which DOF numbers are associated with edge (dim 1)
-    # number 2:
-
-    print(lagrange.entity_dofs[1][2])
-
-    # Degree 2 Lagrange element
-    # =========================
-    #
-    # For a degree 2 Lagrange element, no permutations or transformations
-    # are needed. We can verify this by checking that
-    # `dof_transformations_are_identity` is `True`. To confirm that the
-    # transformations are identity matrices, we also print the base
-    # transformations.
-
-    lagrange_degree_2 = basix.create_element(
-        ElementFamily.P, CellType.triangle, 2, LagrangeVariant.equispaced
-    )
-    print(lagrange_degree_2.dof_transformations_are_identity)
-    print(lagrange_degree_2.base_transformations())
-
-    # Degree 2 Nédélec element
-    # ========================
-    #
-    # For a degree 2 Nédélec (first kind) element on a tetrahedron, the
-    # corrections are not all permutations, so both
-    # `dof_transformations_are_identity` and
-    # `dof_transformations_are_permutations` are `False`.
-
-    nedelec = basix.create_element(ElementFamily.N1E, CellType.tetrahedron, 2)
-    print(nedelec.dof_transformations_are_identity)
-    print(nedelec.dof_transformations_are_permutations)
-
-    # For this element, `entity_transformations` returns a dictionary
-    # with two entries: a matrix for an interval that describes
-    # the effect of reversing the edge; and an array of two matrices
-    # for a triangle. The first matrix for the triangle describes
-    # the effect of rotating the triangle. The second matrix describes
-    # the effect of reflecting the triangle.
-    #
-    # For this element, the matrix describing the effect of rotating
-    # the triangle is
-    #
-    # .. math::
-    #    \left(\begin{array}{cc}-1&-1\\1&0\end{array}\right).
-    #
-    # This is not a permutation, so this must be applied when assembling
-    # a form and cannot be applied to the DOF numbering in the DOF map.
-
-    print(nedelec.entity_transformations())
-
-    # To demonstrate how these transformations can be used, we create a
-    # lattice of points where we will tabulate the element.
-
-    points = basix.create_lattice(CellType.tetrahedron, 3, LatticeType.equispaced, True)
-
-    # If (for example) the direction of edge 2 in the physical cell does
-    # not match its direction on the reference, then we need to adjust the
-    # tabulated data.
-    #
-    # As the cell sub-entity that we are correcting is an interval, we
-    # get the `"interval"` item from the entity transformations dictionary.
-    # We use `entity_dofs[1][2]` (1 is the dimension of an edge, 2 is the
-    # index of the edge we are reversing) to find out which dofs are on
-    # our edge.
-    #
-    # To adjust the tabulated data, we loop over each point in the lattice
-    # and over the value size. For each of these values, we apply the
-    # transformation matrix to the relevant DOFs.
-
-    data = nedelec.tabulate(0, points)
-
-    transformation = nedelec.entity_transformations()["interval"][0]
-    dofs = nedelec.entity_dofs[1][2]
-
-    for point in range(data.shape[1]):
-        for dim in range(data.shape[3]):
-            data[0, point, dofs, dim] = np.dot(
-                transformation, data[0, point, dofs, dim]
-            )
-
-    print(data)
-
-
-def examples_fiat():
-
-    points, weights = basix.make_quadrature(
-        basix.QuadratureType.gauss_jacobi, CellType.triangle, 3
-    )
-
-    lagrange = basix.create_element(
-        ElementFamily.P, CellType.triangle, 3, LagrangeVariant.equispaced
-    )
-
-    lagrange.base_transformations()
-    aka = 0
-
-    # element = FiniteElement("Lagrange", triangle, 2)
-    #
-    # u = TrialFunction(element)
-    # v = TestFunction(element)
-    #
-    # x = SpatialCoordinate(triangle)
-    # d_x = x[0] - 0.5
-    # d_y = x[1] - 0.5
-    # f = 10.0 * exp(-(d_x * d_x + d_y * d_y) / 0.02)
-    # g = sin(5.0 * x[0])
-    #
-    # a = inner(grad(u), grad(v)) * dx
-    # L = f * v * dx + g * v * ds
-
-    # V = FiniteElement("CG", interval, 1)
-    # v = TestFunction(V)
-    # u = TrialFunction(V)
-    # w = Argument(V, 2)  # This was 0, not sure why
-    # f = Coefficient(V)
-    # x = SpatialCoordinate(interval)
-    # # pts = CellVertices(interval)
-
-    # F0 = f * u * v * w * dx
-    # a, L = system(F0)
-    # assert (len(a.integrals()) == 0)
-    # assert (len(L.integrals()) == 0)
-    #
-    # F1 = derivative(F0, f)
-    # a, L = system(F1)
-    # assert (len(a.integrals()) == 0)
-    # assert (len(L.integrals()) == 0)
-    #
-    # F2 = action(F0, f)
-    # a, L = system(F2)
-    # assert (len(a.integrals()) == 1)
-    # assert (len(L.integrals()) == 0)
-    #
-    # F3 = action(F2, f)
-    # a, L = system(F3)
-    # assert (len(L.integrals()) == 1)
-    #
-    # cell = Cell("triangle")
-    # cell = triangle
-    # aka = 0
-
-    # from FIAT import Lagrange, quadrature, shapes
-    # shape = shapes.TRIANGLE
-    # degree = 2
-    # U = Lagrange.Lagrange(shape, degree)
-    # Q = quadrature.make_quadrature(shape, 2)
-    # Ufs = U.function_space()
-    # Ufs.tabulate(Q.get_points())
-
-
 def domain_with_fractures():
     # Higher dimension geometry
     s = 1.0
@@ -578,15 +374,15 @@ def hdiv_projector(gmesh):
     conformity = "h-div"
     discontinuous = False
     k_order = 3
-    family = "BDM"
+    family = "N1E"
     element_type = FiniteElement.type_by_dimension(dim)
     basis_family = FiniteElement.basis_family(family)
     basis_variant = FiniteElement.basis_variant()
 
     # vectorial
     # fun = lambda x, y, z: np.array([y, -x, -z])
-    # fun = lambda x, y, z: np.array([y * (1 - y), -x * (1 - x), -z * (1 - z)])
-    fun = lambda x, y, z: np.array([y * (1 - y) *y, -x * (1 - x) *x, -z * (1 - z)* z])
+    fun = lambda x, y, z: np.array([y * (1 - y), -x * (1 - x), -z * (1 - z)])
+    # fun = lambda x, y, z: np.array([y * (1 - y) *y, -x * (1 - x) *x, -z * (1 - z)* z])
     # fun = lambda x, y, z: np.array([y * (1 - y) * y * y, -x * (1 - x) * x * x, -z*(1-z)*z*z])
 
 
@@ -874,7 +670,7 @@ def generate_mesh_2d():
 
 def generate_mesh_3d():
 
-    h_cell = 1.0 / (4.0)
+    h_cell = 1.0 / (1.0)
 
     # higher dimension domain geometry
     s = 1.0
@@ -943,21 +739,14 @@ def generate_mesh_1d():
 
 def main():
 
-    # gmesh_3d = generate_mesh_3d()
+    gmesh_3d = generate_mesh_3d()
     # gmesh_2d = generate_mesh_2d()
-    gmesh_1d = generate_mesh_1d()
+    # gmesh_1d = generate_mesh_1d()
 
     # # pojectors
 
-    h1_projector(gmesh_1d)
-    # hdiv_projector(gmesh_1d)
-
-    # l2_projector(gmesh)
-
-    # gmesh_3d = generate_mesh_3d()
-    # h1_projector_3d(gmesh_3d)
-    # hdiv_projector_3d(gmesh_3d)
-    # l2_projector_3d(gmesh_3d)
+    # h1_projector(gmesh_2d)
+    hdiv_projector(gmesh_3d)
 
 
 if __name__ == "__main__":

@@ -9,17 +9,17 @@ from mesh.mesh import Mesh
 fracture_tags = [[0], [0, 1],[0, 1, 2],[0, 1, 2, 3], [0, 1, 2, 3, 4]]
 
 def generate_geometry_2d():
-    box_points = np.array([[0, 0], [1, 0], [1, 1], [0, 1]])
+    box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
     g_builder = GeometryBuilder(dimension=2)
     g_builder.build_box_2D(box_points)
     return g_builder
 
 def fracture_2d_set():
-    fracture_1 = np.array([[0.5, 0.25], [0.5, 0.75]])
-    fracture_2 = np.array([[0.25, 0.5], [0.75, 0.5]])
-    fracture_3 = np.array([[0.2, 0.35], [0.85, 0.35]])
-    fracture_4 = np.array([[0.15, 0.15], [0.85, 0.85]])
-    fracture_5 = np.array([[0.15, 0.85], [0.85, 0.15]])
+    fracture_1 = np.array([[0.5, 0.25, 0], [0.5, 0.75, 0]])
+    fracture_2 = np.array([[0.25, 0.5, 0], [0.75, 0.5, 0]])
+    fracture_3 = np.array([[0.2, 0.35, 0], [0.85, 0.35, 0]])
+    fracture_4 = np.array([[0.15, 0.15, 0], [0.85, 0.85, 0]])
+    fracture_5 = np.array([[0.15, 0.85, 0], [0.85, 0.15, 0]])
     fractures = [fracture_1, fracture_2, fracture_3, fracture_4, fracture_5]
     return fractures
 
