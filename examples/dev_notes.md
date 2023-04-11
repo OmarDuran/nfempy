@@ -135,7 +135,7 @@ The main structure of the proyect
 	- entity_permutation-> class EPermutation
 	- entity_topology
 
-### FEBasis:
+### FiniteElement:
 	- FiniteElement -> class FiniteElement
 	- BasisPermutation -> class with only static methods
 
