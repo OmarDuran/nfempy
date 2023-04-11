@@ -647,6 +647,8 @@ class Mesh:
             mesh_cell_list = mesh_cell.sub_cells_ids[1]
         elif dimension == 2:
             mesh_cell_list = mesh_cell.sub_cells_ids[2]
+        elif dimension == 3:
+            mesh_cell_list = mesh_cell.sub_cells_ids[3]
         else:
             raise ValueError("Dimension not available: ", dimension)
 

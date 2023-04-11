@@ -124,7 +124,7 @@ The main structure of the proyect
 		- Linear from P1, nonlinear
 
 ### Mesh: 
-	Mesh -> class Mesh
+	Mesh -> class Mesh: The mesh needs a user defined physical_tag_map
 	Mesh Entity -> mesh_entity (men):
 	Conformal Mesher -> class ConformalMesher
 	
