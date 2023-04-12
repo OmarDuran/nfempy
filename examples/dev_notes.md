@@ -144,6 +144,7 @@ The main structure of the proyect
 	- DoFMap
 	- FESpace: Mesh, MeshTopology, DoFMap
 	- FESpaces: Mesh, MeshTopology, list(FESpace), DoFMap
+	- Field
 
 ### FEForms:
 	- L2, H1, Hdiv and Hcurl proyectors
@@ -152,5 +153,23 @@ The main structure of the proyect
 	- L2-error
 
 ### PostProcessor:
-	- 	
+
+#### Field:
+	From cases:
+	* (1) scalar H1/L2-conforming functions
+	* (2) vector Hdiv-conforming functions
+	* (3) vector Hcurl-conforming functions
+	One can notice that
+	* (4) From (1) vector, tensor H1/L2-conforming functions
+	* (5) From (2) tensor Hdiv-conforming functions
+	* (6) From (3) tensor Hcurl-conforming functions
+	To unify variables of the kind (1), (2), (3), (4), (5), and (6) the notion of a field should be introduced. 
+	A field is a physical quantity, represented by a scalar, vector, or tensor, that has a value for each point in space and time. 
+	The abstraction of a field in the context of FE approximations should include:
+	* Conformity: [H1, Hcurl, Hdiv] x discontinuous, with discontinuous = [False, True]
+	* List of elements: list(FiniteElement)
+	* DoFMap
+	* The number of subfields: 0 < n_components represents number of repeated instances of cases (1), (2) and (3)
+	* k_order: polynomial order of approximation
+
 

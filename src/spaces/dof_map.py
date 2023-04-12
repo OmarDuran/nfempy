@@ -22,10 +22,10 @@ class DoFMap:
         self.volume_map = {}
         self.n_dof = 0
 
-    def build_entity_maps(self, n_dof_shift=0):
+    def build_entity_maps(self, n_components = 1, n_dof_shift = 0):
 
         dim = self.mesh_topology.mesh.dimension
-        n_fields = 1
+
         vertex_ids = []
         edge_ids = []
         face_ids = []
@@ -54,7 +54,7 @@ class DoFMap:
         entity_support = [n_vertices, n_edges, n_faces, n_volumes]
         for dim, n_entity_dofs in enumerate(self.ref_element.num_entity_dofs):
             e_dofs = int(np.mean(n_entity_dofs))
-            entity_support[dim] *= e_dofs * n_fields
+            entity_support[dim] *= e_dofs * n_components
 
         # Enumerates DoF
         dof_indices = np.array(
