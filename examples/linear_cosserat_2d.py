@@ -141,7 +141,7 @@ def h1_vec_projector(gmesh):
     dim = gmesh.dimension
     conformity = "h-1"
     discontinuous = False
-    k_order = 2
+    k_order = 3
     family = "Lagrange"
     element_type = FiniteElement.type_by_dimension(dim)
     basis_family = FiniteElement.basis_family(family)
@@ -628,14 +628,62 @@ def hdiv_projector(gmesh):
     elapsed_time = et - st
     print("Post-processing time:", elapsed_time, "seconds")
 
+def generate_mesh_1d():
 
-def generate_mesh_2d():
+    h_cell = 1.0 / (8.0)
 
-    h_cell = 1.0 / (1.0)
+    theta_x = 0.0 * (np.pi/180)
+    theta_y = 0.0 * (np.pi/180)
+    theta_z = -45.0 * (np.pi/180)
+    rotation_x = np.array(
+        [[1, 0, 0],[0, np.cos(theta_x), -np.sin(theta_x)],[0,np.sin(theta_x), np.cos(theta_x)]])
+    rotation_y = np.array(
+        [[np.cos(theta_y), 0 , -np.sin(theta_y)], [0, 1, 0],[np.sin(theta_y), 0, np.cos(theta_y)]])
+    rotation_z = np.array([[np.cos(theta_z),-np.sin(theta_z),0],[np.sin(theta_z),np.cos(theta_z),0],[0,0,1]])
+
     # higher dimension domain geometry
     s = 1.0
 
+    box_points = s * np.array([[0, 0, 0], [1, 0, 0]])
+    box_points = box_points @ rotation_x @ rotation_y @ rotation_z
+    g_builder = GeometryBuilder(dimension=1)
+    g_builder.build_box_1D(box_points)
+    g_builder.build_grahp()
+
+    mesher = ConformalMesher(dimension=1)
+    mesher.set_geometry_builder(g_builder)
+    mesher.set_points()
+    mesher.generate(h_cell)
+    mesher.write_mesh("gmesh.msh")
+
+    gmesh = Mesh(dimension=1, file_name="gmesh.msh")
+    gmesh.set_conformal_mesher(mesher)
+    gmesh.build_conformal_mesh_II()
+
+    # gmesh.write_data()
+    gmesh.write_vtk()
+    print("h-size: ", h_cell)
+
+
+    return gmesh
+
+def generate_mesh_2d():
+
+    h_cell = 1.0 / (8.0)
+    # higher dimension domain geometry
+    s = 1.0
+
+    theta_x = 0.0 * (np.pi/180)
+    theta_y = 0.0 * (np.pi/180)
+    theta_z = 0.0 * (np.pi/180)
+    rotation_x = np.array(
+        [[1, 0, 0],[0, np.cos(theta_x), -np.sin(theta_x)],[0,np.sin(theta_x), np.cos(theta_x)]])
+    rotation_y = np.array(
+        [[np.cos(theta_y), 0 , -np.sin(theta_y)], [0, 1, 0],[np.sin(theta_y), 0, np.cos(theta_y)]])
+    rotation_z = np.array([[np.cos(theta_z),-np.sin(theta_z),0],[np.sin(theta_z),np.cos(theta_z),0],[0,0,1]])
+
     box_points = s * np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
+    box_points = box_points @ rotation_x @ rotation_y @ rotation_z
     g_builder = GeometryBuilder(dimension=2)
     g_builder.build_box_2D(box_points)
     g_builder.build_grahp()
@@ -707,8 +755,16 @@ def generate_mesh_2d():
 
 def generate_mesh_3d():
 
-    h_cell = 1.0 / (20.0)
+    h_cell = 1.0 / (1.0)
 
+    theta_x = 0.0 * (np.pi/180)
+    theta_y = 0.0 * (np.pi/180)
+    theta_z = 0.0 * (np.pi/180)
+    rotation_x = np.array(
+        [[1, 0, 0],[0, np.cos(theta_x), -np.sin(theta_x)],[0,np.sin(theta_x), np.cos(theta_x)]])
+    rotation_y = np.array(
+        [[np.cos(theta_y), 0 , -np.sin(theta_y)], [0, 1, 0],[np.sin(theta_y), 0, np.cos(theta_y)]])
+    rotation_z = np.array([[np.cos(theta_z),-np.sin(theta_z),0],[np.sin(theta_z),np.cos(theta_z),0],[0,0,1]])
     # higher dimension domain geometry
     s = 1.0
 
@@ -724,6 +780,8 @@ def generate_mesh_3d():
             [0, 1, 1],
         ]
     )
+    box_points = box_points @ rotation_x @ rotation_y @ rotation_z
+
     g_builder = GeometryBuilder(dimension=3)
     g_builder.build_box(box_points)
     g_builder.build_grahp()
@@ -745,44 +803,15 @@ def generate_mesh_3d():
 
     return gmesh
 
-def generate_mesh_1d():
-
-    h_cell = 1.0 / (16.0)
-
-    # higher dimension domain geometry
-    s = 1.0
-
-    box_points = s * np.array([[0, 1, 0], [1, 0, 0]])
-    g_builder = GeometryBuilder(dimension=1)
-    g_builder.build_box_1D(box_points)
-    g_builder.build_grahp()
-
-    mesher = ConformalMesher(dimension=1)
-    mesher.set_geometry_builder(g_builder)
-    mesher.set_points()
-    mesher.generate(h_cell)
-    mesher.write_mesh("gmesh.msh")
-
-    gmesh = Mesh(dimension=1, file_name="gmesh.msh")
-    gmesh.set_conformal_mesher(mesher)
-    gmesh.build_conformal_mesh_II()
-
-    # gmesh.write_data()
-    gmesh.write_vtk()
-    print("h-size: ", h_cell)
-
-
-    return gmesh
-
 def main():
 
     gmesh_3d = generate_mesh_3d()
-    # gmesh_2d = generate_mesh_2d()
-    # gmesh_1d = generate_mesh_1d()
+    gmesh_2d = generate_mesh_2d()
+    gmesh_1d = generate_mesh_1d()
 
     # # pojectors
 
-    h1_vec_projector(gmesh_3d)
+    h1_vec_projector(gmesh_1d)
     # hdiv_projector(gmesh_3d)
 
 
