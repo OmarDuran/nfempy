@@ -21,10 +21,16 @@ class DoFMap:
         self.face_map = {}
         self.volume_map = {}
         self.n_dof = 0
+        self.dimension = self.mesh_topology.mesh.dimension
+
+    def set_topological_dimension(self, dimension):
+        if self.mesh_topology.mesh.dimension < dimension:
+            raise ValueError("DoFMap:: max dimension available is " % self.mesh_topology.mesh.dimension)
+        self.dimension = dimension
 
     def build_entity_maps(self, n_components = 1, n_dof_shift = 0):
 
-        dim = self.mesh_topology.mesh.dimension
+        dim = self.dimension
 
         vertex_ids = []
         edge_ids = []
@@ -32,17 +38,17 @@ class DoFMap:
         volume_ids = []
 
         if dim == 1:
-            vertex_ids = self.mesh_topology.entities_by_codimension(1)
-            edge_ids = self.mesh_topology.entities_by_codimension(0)
+            vertex_ids = self.mesh_topology.entities_by_dimension(0)
+            edge_ids = self.mesh_topology.entities_by_dimension(1)
         elif dim == 2:
-            vertex_ids = self.mesh_topology.entities_by_codimension(2)
-            edge_ids = self.mesh_topology.entities_by_codimension(1)
-            face_ids = self.mesh_topology.entities_by_codimension(0)
+            vertex_ids = self.mesh_topology.entities_by_dimension(0)
+            edge_ids = self.mesh_topology.entities_by_dimension(1)
+            face_ids = self.mesh_topology.entities_by_dimension(2)
         elif dim == 3:
-            vertex_ids = self.mesh_topology.entities_by_codimension(3)
-            edge_ids = self.mesh_topology.entities_by_codimension(2)
-            face_ids = self.mesh_topology.entities_by_codimension(1)
-            volume_ids = self.mesh_topology.entities_by_codimension(0)
+            vertex_ids = self.mesh_topology.entities_by_dimension(0)
+            edge_ids = self.mesh_topology.entities_by_dimension(1)
+            face_ids = self.mesh_topology.entities_by_dimension(2)
+            volume_ids = self.mesh_topology.entities_by_dimension(3)
         else:
             raise ValueError("Case not implemented for dimension: " % dim)
 
@@ -119,7 +125,7 @@ class DoFMap:
 
     def destination_indices(self, cell_id):
 
-        dim = self.mesh_topology.mesh.dimension
+        dim = self.dimension
         entity_maps = [self.vertex_map, self.edge_map, self.face_map, self.volume_map]
         dest_by_dim = []
         for d in range(dim + 1):

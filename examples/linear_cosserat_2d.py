@@ -17,6 +17,7 @@ from mesh.mesh import Mesh
 from topology.mesh_topology import MeshTopology
 from basis.finite_element import FiniteElement
 from spaces.dof_map import DoFMap
+from spaces.field import Field
 
 import basix
 import functools
@@ -132,20 +133,27 @@ def matrix_plot(A):
     plt.colorbar()
     plt.show()
 
-
 def h1_vec_projector(gmesh):
 
     # FESpace: data
     # polynomial order
     n_components = 3
     dim = gmesh.dimension
-    conformity = "h-1"
     discontinuous = False
     k_order = 3
     family = "Lagrange"
-    element_type = FiniteElement.type_by_dimension(dim)
-    basis_family = FiniteElement.basis_family(family)
-    basis_variant = FiniteElement.basis_variant()
+
+    st = time.time()
+
+    # mesh_topology = MeshTopology(gmesh,3)
+
+    et = time.time()
+    elapsed_time = et - st
+    print("MeshTopology construction time:", elapsed_time, "seconds")
+
+    u_field = Field(dim,n_components,family,k_order,gmesh)
+    u_field.build_dof_map()
+    u_field.build_elements()
 
     # vectorial
     # fun = lambda x, y, z: np.array([y, -x, -z])
@@ -157,35 +165,12 @@ def h1_vec_projector(gmesh):
 
 
     st = time.time()
-    # Entities by codimension
-    # https://defelement.com/ciarlet.html
-    mesh_topology = MeshTopology(gmesh)
-    cell_ids = mesh_topology.entities_by_codimension(0)
-
-    et = time.time()
-    elapsed_time = et - st
-    print("Preprocessing I time:", elapsed_time, "seconds")
-
-    st = time.time()
-    elements = list(
-        map(
-            partial(FiniteElement, mesh=gmesh, k_order=k_order, family=family, discontinuous=discontinuous),
-            cell_ids,
-        )
-    )
-    et = time.time()
-    elapsed_time = et - st
-    n_d_cells = len(elements)
-    print("Number of processed elements:", n_d_cells)
-    print("Element construction time:", elapsed_time, "seconds")
-
-    st = time.time()
     # Assembler
     # Triplets data
     c_size = 0
     n_dof_g = 0
     cell_map = {}
-    for element in elements:
+    for element in u_field.elements:
         cell = element.cell
         n_dof = 0
         for n_entity_dofs in element.basis_generator.num_entity_dofs:
@@ -197,11 +182,7 @@ def h1_vec_projector(gmesh):
     col = np.zeros((c_size), dtype=np.int64)
     data = np.zeros((c_size), dtype=np.float64)
 
-    # DoF map for a variable supported on the element type
-    dof_map = DoFMap(mesh_topology,basis_family,element_type,k_order,basis_variant,discontinuous=discontinuous)
-    dof_map.build_entity_maps(n_components = n_components)
-    n_dof_g = dof_map.dof_number()
-
+    n_dof_g = u_field.dof_map.dof_number()
     rg = np.zeros(n_dof_g)
     print("n_dof: ", n_dof_g)
 
@@ -210,15 +191,16 @@ def h1_vec_projector(gmesh):
     print("Preprocessing II time:", elapsed_time, "seconds")
 
     st = time.time()
-    def scatter_el_data(element, fun, n_components, dof_map, cell_map, row, col, data):
+    def scatter_el_data(element, fun, u_field, cell_map, row, col, data):
 
+        n_components = u_field.n_comp
         cell = element.cell
         points, weights = element.quadrature
         phi_tab = element.phi
         (x, jac, det_jac, inv_jac) = element.mapping
 
         # destination indexes
-        dest = dof_map.destination_indices(cell.id)
+        dest = u_field.dof_map.destination_indices(cell.id)
         dest = np.array(np.split(dest,len(element.dof_ordering)))[element.dof_ordering].ravel()
 
         n_phi = element.phi.shape[1]
@@ -248,15 +230,6 @@ def h1_vec_projector(gmesh):
         # scattering data
         c_sequ = cell_map[cell.id]
 
-        local_projection_q = False
-        if local_projection_q:
-            alpha_l = np.linalg.solve(j_el,r_el)
-            l2_error = 0.0
-            for i, pt in enumerate(points):
-                p_e = fun(x[i, 0], x[i, 1], x[i, 2])
-                p_h = np.dot(alpha_l, phi_tab[i, :, 0])
-                l2_error += det_jac[i] * weights[i] * (p_h - p_e) * (p_h - p_e)
-            aka = 0
         # contribute rhs
         rg[dest] += r_el
 
@@ -267,8 +240,8 @@ def h1_vec_projector(gmesh):
         data[block_sequ] += j_el.ravel()
 
     [
-        scatter_el_data(element, fun, n_components, dof_map, cell_map, row, col, data)
-        for element in elements
+        scatter_el_data(element, fun, u_field, cell_map, row, col, data)
+        for element in u_field.elements
     ]
 
     jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
@@ -285,11 +258,12 @@ def h1_vec_projector(gmesh):
     print("Linear solver time:", elapsed_time, "seconds")
 
     # Computing L2 error
-    def compute_l2_error(element, n_components, dof_map):
+    def compute_l2_error(element, u_field):
         l2_error = 0.0
+        n_components = u_field.n_comp
         cell = element.cell
         # scattering dof
-        dest = dof_map.destination_indices(cell.id)
+        dest = u_field.dof_map.destination_indices(cell.id)
         dest = np.array(np.split(dest,len(element.dof_ordering)))[element.dof_ordering].ravel()
         alpha_l = alpha[dest]
 
@@ -306,7 +280,7 @@ def h1_vec_projector(gmesh):
         return l2_error
 
     st = time.time()
-    error_vec = [compute_l2_error(element, n_components, dof_map) for element in elements]
+    error_vec = [compute_l2_error(element, u_field) for element in u_field.elements]
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
@@ -317,30 +291,29 @@ def h1_vec_projector(gmesh):
 
     # post-process solution
     st = time.time()
-    cellid_to_element = dict(zip(cell_ids, elements))
+    cellid_to_element = dict(zip(u_field.element_ids, u_field.elements))
     # writing solution on mesh points
-    ph_data = np.zeros((len(gmesh.points),n_components))
-    pe_data = np.zeros((len(gmesh.points),n_components))
-    vertices = mesh_topology.entities_dimension(0)
-    cell_vertex_map = mesh_topology.entity_map_by_dimension(0)
+    vertices = u_field.mesh_topology.entities_by_dimension(0)
+    fh_data = np.zeros((len(gmesh.points),n_components))
+    fe_data = np.zeros((len(gmesh.points),n_components))
+    cell_vertex_map = u_field.mesh_topology.entity_map_by_dimension(0)
     for id in vertices:
         if not cell_vertex_map.has_node(id):
             continue
 
         pr_ids = list(cell_vertex_map.predecessors(id))
-        # pr_ids = [id for id in pr_ids if gmesh.cells[id].dimension == 2]
         cell = gmesh.cells[pr_ids[0]]
-        if cell.dimension != gmesh.dimension:
+        if cell.dimension != u_field.dimension:
             continue
 
         element = cellid_to_element[pr_ids[0]]
 
         # scattering dof
-        dest = dof_map.destination_indices(cell.id)
+        dest = u_field.dof_map.destination_indices(cell.id)
         dest = np.array(np.split(dest,len(element.dof_ordering)))[element.dof_ordering].ravel()
         alpha_l = alpha[dest]
 
-        par_points = basix.geometry(element_type)
+        par_points = basix.geometry(u_field.element_type)
 
         target_node_id = gmesh.cells[id].node_tags[0]
         par_point_id = np.array(
@@ -353,23 +326,22 @@ def h1_vec_projector(gmesh):
         (x, jac, det_jac, inv_jac) = element.compute_mapping(points)
         phi_tab = element.evaluate_basis(points)
         n_phi = phi_tab.shape[1]
-        p_e = fun(x[:, 0], x[:, 1], x[:, 2])
+        f_e = fun(x[:, 0], x[:, 1], x[:, 2])
         alpha_star = np.array(np.split(alpha_l, n_phi))
-        p_h = (phi_tab[:, :, 0] @ alpha_star).T
-        ph_data[target_node_id] = p_h.ravel()
-        pe_data[target_node_id] = p_e.ravel()
+        f_h = (phi_tab[:, :, 0] @ alpha_star).T
+        fh_data[target_node_id] = f_h.ravel()
+        fe_data[target_node_id] = f_e.ravel()
 
     mesh_points = gmesh.points
     con_d = np.array(
         [
-            cell.node_tags
-            for cell in gmesh.cells
-            if cell.dimension == gmesh.dimension and cell.id != None and cell.material_id != None
+            element.cell.node_tags
+            for element in u_field.elements
         ]
     )
     meshio_cell_types = { 0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
-    cells_dict = {meshio_cell_types[gmesh.dimension]: con_d}
-    p_data_dict = {"ph": ph_data, "pe": pe_data}
+    cells_dict = {meshio_cell_types[u_field.dimension]: con_d}
+    p_data_dict = {"f_h": fh_data, "f_exact": fe_data}
 
     mesh = meshio.Mesh(
         points=mesh_points,
@@ -747,7 +719,7 @@ def generate_mesh_2d():
 
 def generate_mesh_3d():
 
-    h_cell = 1.0 / (1.0)
+    h_cell = 1.0 / (2.0)
 
     theta_x = 0.0 * (np.pi/180)
     theta_y = 0.0 * (np.pi/180)
@@ -798,8 +770,8 @@ def generate_mesh_3d():
 def main():
 
     gmesh_3d = generate_mesh_3d()
-    gmesh_2d = generate_mesh_2d()
-    gmesh_1d = generate_mesh_1d()
+    # gmesh_2d = generate_mesh_2d()
+    # gmesh_1d = generate_mesh_1d()
 
     # # pojectors
 
