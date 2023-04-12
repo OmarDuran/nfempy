@@ -228,30 +228,22 @@ def h1_vec_projector(gmesh):
         j_el = np.zeros(js)
         r_el = np.zeros(rs)
 
-        # Vectorization for residual
-        n_pt = len(weights)
+        # Partial local vectorization
         f_val_star = fun(x[:, 0], x[:, 1], x[:, 2])
-        field_phi_star = np.repeat(phi_tab[:, :, 0], n_components, axis=1)
-        r_el_c = np.sum(np.tile(det_jac * weights * f_val_star, (n_components, 1)) @ field_phi_star, axis=0)
+        phi_s_star = (det_jac * weights * phi_tab[:, :, 0].T)
 
-        # linear_base
-        for i, omega in enumerate(weights):
-            f_val = fun(x[i, 0], x[i, 1], x[i, 2])
-            for c in range(n_components):
-                b = c
-                e = (c + 1) * (n_phi - 1) * n_components + 1
-                r_el[b:e:n_components] += f_val[c] * det_jac[i] * omega * phi_tab[i, :, 0]
-
+        # local blocks
         indices = np.array(np.split(np.array(range(n_phi * n_components)), n_phi)).T
         jac_block = np.zeros((n_phi, n_phi))
         for i, omega in enumerate(weights):
             phi_star = phi_tab[i, :, 0]
             jac_block = jac_block + det_jac[i] * omega * np.outer(phi_star, phi_star)
 
-        for i in range(n_components):
-            b = i
-            e = (i+1)*(n_phi - 1) * n_components + 1
-            j_el[b:e:n_components,b:e:n_components] += jac_block
+        for c in range(n_components):
+            b = c
+            e = (c + 1) * (n_phi - 1) * n_components + 1
+            r_el[b:e:n_components] += phi_s_star @ f_val_star[c]
+            j_el[b:e:n_components, b:e:n_components] += jac_block
 
         # scattering data
         c_sequ = cell_map[cell.id]
@@ -630,10 +622,10 @@ def hdiv_projector(gmesh):
 
 def generate_mesh_1d():
 
-    h_cell = 1.0 / (8.0)
+    h_cell = 1.0 / (1.0)
 
     theta_x = 0.0 * (np.pi/180)
-    theta_y = 0.0 * (np.pi/180)
+    theta_y = -45.0 * (np.pi/180)
     theta_z = -45.0 * (np.pi/180)
     rotation_x = np.array(
         [[1, 0, 0],[0, np.cos(theta_x), -np.sin(theta_x)],[0,np.sin(theta_x), np.cos(theta_x)]])
@@ -811,7 +803,7 @@ def main():
 
     # # pojectors
 
-    h1_vec_projector(gmesh_1d)
+    h1_vec_projector(gmesh_3d)
     # hdiv_projector(gmesh_3d)
 
 
