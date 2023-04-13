@@ -6,12 +6,14 @@ from basix import CellType, ElementFamily, LagrangeVariant
 
 
 class FiniteElement:
-    def __init__(self, id, mesh, k_order, family, discontinuous=False, int_order=0):
+    def __init__(
+        self, id, mesh, k_order, family, discontinuous=False, integration_oder=0
+    ):
         self.mesh = mesh
         self.cell = mesh.cells[id]
         self.k_order = k_order
         self.discontinuous = discontinuous
-        self.int_order = int_order
+        self.integration_oder = integration_oder
         self.family = family
         self.variant = None
         self.basis_generator = None
@@ -29,13 +31,32 @@ class FiniteElement:
         self.variant = self.basis_variant()
 
         self._set_integration_order()
-        self.basis_generator = basix.create_element(
-            element_family, cell_type, self.k_order, self.variant, self.discontinuous
-        )
-        self.dof_ordering = self._dof_premutations()
-        self.quadrature = basix.make_quadrature(
-            basix.QuadratureType.gauss_jacobi, cell_type, self.int_order
-        )
+        if self.cell.dimension == 0:
+            # Can only create order 0 Lagrange on a point
+            self.k_order = 0
+            self.family = "Lagrange"
+            element_family = self.basis_family(self.family)
+            self.basis_generator = basix.create_element(
+                element_family,
+                cell_type,
+                self.k_order,
+                self.variant,
+                self.discontinuous,
+            )
+            self.dof_ordering = self._dof_premutations()
+            self.quadrature = (np.array([1.0]), np.array([1.0]))
+        else:
+            self.basis_generator = basix.create_element(
+                element_family,
+                cell_type,
+                self.k_order,
+                self.variant,
+                self.discontinuous,
+            )
+            self.dof_ordering = self._dof_premutations()
+            self.quadrature = basix.make_quadrature(
+                basix.QuadratureType.gauss_jacobi, cell_type, self.integration_oder
+            )
         self.evaluate_basis(self.quadrature[0], True)
 
     @staticmethod
@@ -64,8 +85,8 @@ class FiniteElement:
         return element_types[dimension]
 
     def _set_integration_order(self):
-        if self.int_order == 0:
-            self.int_order = 2 * self.k_order + 1
+        if self.integration_oder == 0:
+            self.integration_oder = 2 * self.k_order + 1
 
     def _dof_premutations(self):
         # this permutation is because basix uses different entity ordering.
@@ -117,6 +138,14 @@ class FiniteElement:
 
     def compute_mapping(self, points, storage=False):
         cell_points = self.mesh.points[self.cell.node_tags]
+
+        if self.cell.dimension == 0:
+            x = cell_points
+            jac = det_jac = inv_jac = np.array([1.0])
+            if storage:
+                self.mapping = (x, jac, det_jac, inv_jac)
+            return (x, jac, det_jac, inv_jac)
+
         cell_type = self.type_by_dimension(self.cell.dimension)
         linear_element = basix.create_element(
             ElementFamily.P, cell_type, 1, LagrangeVariant.equispaced
@@ -319,12 +348,20 @@ class FiniteElement:
     def evaluate_basis(self, points, storage=False):
 
         (x, jac, det_jac, inv_jac) = self.compute_mapping(points, storage)
+
+        if self.cell.dimension == 0:
+            phi_tab = np.ones((1, 1, 1))
+            if storage:
+                self.phi = phi_tab
+            return phi_tab
+
         # map functions
         phi_hat_tab = self.basis_generator.tabulate(1, points)
         phi_tab = self.basis_generator.push_forward(
             phi_hat_tab[0], jac, det_jac, inv_jac
         )
         phi_tab = self._permute_and_transform_basis(phi_tab)
+
         if storage:
             self.phi = phi_tab
         return phi_tab

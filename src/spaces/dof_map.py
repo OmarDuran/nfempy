@@ -25,10 +25,13 @@ class DoFMap:
 
     def set_topological_dimension(self, dimension):
         if self.mesh_topology.mesh.dimension < dimension:
-            raise ValueError("DoFMap:: max dimension available is " % self.mesh_topology.mesh.dimension)
+            raise ValueError(
+                "DoFMap:: max dimension available is "
+                % self.mesh_topology.mesh.dimension
+            )
         self.dimension = dimension
 
-    def build_entity_maps(self, n_components = 1, n_dof_shift = 0):
+    def build_entity_maps(self, n_components=1, n_dof_shift=0):
 
         dim = self.dimension
 
@@ -37,7 +40,9 @@ class DoFMap:
         face_ids = []
         volume_ids = []
 
-        if dim == 1:
+        if dim == 0:
+            vertex_ids = self.mesh_topology.entities_by_dimension(0)
+        elif dim == 1:
             vertex_ids = self.mesh_topology.entities_by_dimension(0)
             edge_ids = self.mesh_topology.entities_by_dimension(1)
         elif dim == 2:

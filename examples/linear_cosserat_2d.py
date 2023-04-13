@@ -17,7 +17,7 @@ from mesh.mesh import Mesh
 from topology.mesh_topology import MeshTopology
 from basis.finite_element import FiniteElement
 from spaces.dof_map import DoFMap
-from spaces.field import Field
+from spaces.discrete_field import DiscreteField
 
 import basix
 import functools
@@ -139,26 +139,18 @@ def h1_vec_projector(gmesh):
     # polynomial order
     n_components = 3
     dim = gmesh.dimension
-    discontinuous = False
-    k_order = 3
+    discontinuous = True
+    k_order = 2
     family = "Lagrange"
 
-    st = time.time()
-
-    # mesh_topology = MeshTopology(gmesh,3)
-
-    et = time.time()
-    elapsed_time = et - st
-    print("MeshTopology construction time:", elapsed_time, "seconds")
-
-    u_field = Field(dim,n_components,family,k_order,gmesh)
-    u_field.build_dof_map()
+    u_field = DiscreteField(dim,n_components,family,k_order,gmesh, integration_oder = 4)
+    u_field.make_discontinuous()
+    u_field.build_dof_map(only_on_physical_tags=False)
     u_field.build_elements()
 
-    # vectorial
+    #  n-components field
     # fun = lambda x, y, z: np.array([y, -x, -z])
-    # fun = lambda x, y, z: np.array([y * (1 - y), -x * (1 - x), -z * (1 - z)])
-    fun = lambda x, y, z: np.array([y, -x, z])
+    fun = lambda x, y, z: np.array([y * (1 - y), -x * (1 - x), -z * (1 - z)])
     # fun = lambda x, y, z: np.array([y * (1 - y) *y, -x * (1 - x) *x, -z * (1 - z)* z])
     # fun = lambda x, y, z: np.array([y * (1 - y) * y * y, -x * (1 - x) * x * x, -z*(1-z)*z*z])
     # fun = lambda x, y, z: np.array([-y/(x*x+y*y + 1 ), +x/(x*x+y*y + 1), z/(x*x+y*y + 1)])
@@ -223,7 +215,7 @@ def h1_vec_projector(gmesh):
 
         for c in range(n_components):
             b = c
-            e = (c + 1) * (n_phi - 1) * n_components + 1
+            e = (c + 1) * n_phi * n_components + 1
             r_el[b:e:n_components] += phi_s_star @ f_val_star[c]
             j_el[b:e:n_components, b:e:n_components] += jac_block
 
@@ -320,7 +312,10 @@ def h1_vec_projector(gmesh):
             [i for i, node_id in enumerate(cell.node_tags) if node_id == target_node_id]
         )
 
-        points = par_points[par_point_id]
+        points = gmesh.points[target_node_id]
+        if u_field.dimension != 0:
+            points = par_points[par_point_id]
+
 
         # evaluate mapping
         (x, jac, det_jac, inv_jac) = element.compute_mapping(points)
@@ -594,7 +589,7 @@ def hdiv_projector(gmesh):
 
 def generate_mesh_1d():
 
-    h_cell = 1.0 / (1.0)
+    h_cell = 1.0 / (16.0)
 
     theta_x = 0.0 * (np.pi/180)
     theta_y = -45.0 * (np.pi/180)
@@ -719,7 +714,7 @@ def generate_mesh_2d():
 
 def generate_mesh_3d():
 
-    h_cell = 1.0 / (2.0)
+    h_cell = 1.0 / (8.0)
 
     theta_x = 0.0 * (np.pi/180)
     theta_y = 0.0 * (np.pi/180)
@@ -769,13 +764,13 @@ def generate_mesh_3d():
 
 def main():
 
-    gmesh_3d = generate_mesh_3d()
-    # gmesh_2d = generate_mesh_2d()
+    # gmesh_3d = generate_mesh_3d()
+    gmesh_2d = generate_mesh_2d()
     # gmesh_1d = generate_mesh_1d()
 
     # # pojectors
 
-    h1_vec_projector(gmesh_3d)
+    h1_vec_projector(gmesh_2d)
     # hdiv_projector(gmesh_3d)
 
 

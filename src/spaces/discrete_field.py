@@ -1,24 +1,21 @@
-
 import time
-from topology.mesh_topology import MeshTopology
-from basis.finite_element import FiniteElement
-from spaces.dof_map import DoFMap
 from functools import partial
 
-class Field:
+from basis.finite_element import FiniteElement
+from spaces.dof_map import DoFMap
+from topology.mesh_topology import MeshTopology
 
+
+class DiscreteField:
+    # The discrete variable representation
     def __init__(
-            self,
-            dimension,
-            n_components,
-            family,
-            k_order,
-            mesh
+        self, dimension, n_components, family, k_order, mesh, integration_oder=0
     ):
         self.dimension = dimension
         self.n_comp = n_components
         self.family = family
         self.k_order = k_order
+        self.integration_oder = integration_oder
         self.name = "unnamed"
         self.mesh_topology = MeshTopology(mesh, dimension)
         self.discontinuous = False
@@ -33,7 +30,7 @@ class Field:
     def make_discontinuous(self):
         self.discontinuous = True
 
-    def build_dof_map(self, only_on_physical_tags = True):
+    def build_dof_map(self, only_on_physical_tags=True):
         st = time.time()
         if only_on_physical_tags:
             self.mesh_topology.build_data_on_physical_tags()
@@ -43,8 +40,17 @@ class Field:
         self.element_type = FiniteElement.type_by_dimension(self.dimension)
         basis_family = FiniteElement.basis_family(self.family)
         basis_variant = FiniteElement.basis_variant()
-        self.dof_map = DoFMap(self.mesh_topology, basis_family, self.element_type, self.k_order,
-                         basis_variant, discontinuous=self.discontinuous)
+        if self.dimension == 0:
+            basis_family = FiniteElement.basis_family("Lagrange")
+            self.k_order = 0
+        self.dof_map = DoFMap(
+            self.mesh_topology,
+            basis_family,
+            self.element_type,
+            self.k_order,
+            basis_variant,
+            discontinuous=self.discontinuous,
+        )
         self.dof_map.set_topological_dimension(self.dimension)
         self.dof_map.build_entity_maps(n_components=self.n_comp)
         self.n_dof = self.dof_map.dof_number()
@@ -58,12 +64,20 @@ class Field:
         self.element_ids = self.mesh_topology.entities_by_dimension(self.dimension)
         if self.physical_tag_filter:
             mesh = self.mesh_topology.mesh
-            self.element_ids = [id for id in self.element_ids if mesh.cells[id].material_id != None]
+            self.element_ids = [
+                id for id in self.element_ids if mesh.cells[id].material_id != None
+            ]
 
         self.elements = list(
             map(
-                partial(FiniteElement, mesh=self.mesh_topology.mesh, k_order=self.k_order, family=self.family,
-                        discontinuous=self.discontinuous),
+                partial(
+                    FiniteElement,
+                    mesh=self.mesh_topology.mesh,
+                    k_order=self.k_order,
+                    family=self.family,
+                    discontinuous=self.discontinuous,
+                    integration_oder=self.integration_oder,
+                ),
                 self.element_ids,
             )
         )

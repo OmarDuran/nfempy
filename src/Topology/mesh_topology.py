@@ -7,7 +7,10 @@ class MeshTopology:
     def __init__(self, mesh, dimension):
 
         if mesh.dimension < dimension:
-            raise ValueError("MeshTopology:: max dimension available in the mesh is %r" % mesh.dimension)
+            raise ValueError(
+                "MeshTopology:: max dimension available in the mesh is %r"
+                % mesh.dimension
+            )
 
         self.mesh = mesh
         self.dimension = dimension
@@ -58,5 +61,7 @@ class MeshTopology:
 
     def entities_by_dimension(self, dimension):
         if self.dimension < dimension:
-            raise ValueError("MeshTopology:: max dimension available is %r" % self.dimension)
+            raise ValueError(
+                "MeshTopology:: max dimension available is %r" % self.dimension
+            )
         return self.entity_ids[dimension]

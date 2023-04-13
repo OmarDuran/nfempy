@@ -154,7 +154,7 @@ The main structure of the proyect
 
 ### PostProcessor:
 
-#### Field:
+#### Discrete Field:
 	From cases:
 	* (1) scalar H1/L2-conforming functions
 	* (2) vector Hdiv-conforming functions
