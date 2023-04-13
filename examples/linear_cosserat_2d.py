@@ -140,12 +140,12 @@ def h1_vec_projector(gmesh):
     n_components = 3
     dim = gmesh.dimension
     discontinuous = True
-    k_order = 2
+    k_order = 1
     family = "Lagrange"
 
-    u_field = DiscreteField(dim,n_components,family,k_order,gmesh, integration_oder = 4)
+    u_field = DiscreteField(dim,n_components,family,k_order,gmesh)
     u_field.make_discontinuous()
-    u_field.build_dof_map(only_on_physical_tags=False)
+    u_field.build_dof_map()
     u_field.build_elements()
 
     #  n-components field
@@ -714,7 +714,7 @@ def generate_mesh_2d():
 
 def generate_mesh_3d():
 
-    h_cell = 1.0 / (8.0)
+    h_cell = 1.0 / (32.0)
 
     theta_x = 0.0 * (np.pi/180)
     theta_y = 0.0 * (np.pi/180)
@@ -764,13 +764,13 @@ def generate_mesh_3d():
 
 def main():
 
-    # gmesh_3d = generate_mesh_3d()
-    gmesh_2d = generate_mesh_2d()
+    gmesh_3d = generate_mesh_3d()
+    # gmesh_2d = generate_mesh_2d()
     # gmesh_1d = generate_mesh_1d()
 
     # # pojectors
 
-    h1_vec_projector(gmesh_2d)
+    h1_vec_projector(gmesh_3d)
     # hdiv_projector(gmesh_3d)
 
 
