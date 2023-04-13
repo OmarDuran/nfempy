@@ -133,7 +133,7 @@ def matrix_plot(A):
     plt.colorbar()
     plt.show()
 
-def h1_vec_projector(gmesh):
+def h1_gen_projector(gmesh):
 
     # FESpace: data
     # polynomial order
@@ -361,49 +361,27 @@ def matrix_plot(J, sparse_q=True):
     plot.show()
 
 
-def hdiv_projector(gmesh):
+def hdiv_gen_projector(gmesh):
 
     # FESpace: data
     # polynomial order
+    n_components = 1
     dim = gmesh.dimension
-    conformity = "h-div"
-    discontinuous = False
-    k_order = 1
-    family = "N2E"
-    element_type = FiniteElement.type_by_dimension(dim)
-    basis_family = FiniteElement.basis_family(family)
-    basis_variant = FiniteElement.basis_variant()
+    discontinuous = True
+    k_order = 2
+    family = "RT"
 
-    # vectorial
-    # fun = lambda x, y, z: np.array([y, -x, -z])
+    u_field = DiscreteField(dim,n_components,family,k_order,gmesh)
+    # u_field.make_discontinuous()
+    u_field.build_dof_map()
+    u_field.build_elements()
+
+    # n-components tensor field
+    fun = lambda x, y, z: np.array([[y, -x, -z]])
     # fun = lambda x, y, z: np.array([y * (1 - y), -x * (1 - x), -z * (1 - z)])
     # fun = lambda x, y, z: np.array([y * (1 - y) *y, -x * (1 - x) *x, -z * (1 - z)* z])
     # fun = lambda x, y, z: np.array([y * (1 - y) * y * y, -x * (1 - x) * x * x, -z*(1-z)*z*z])
-    fun = lambda x, y, z: np.array([-y/(x*x+y*y + 1 ), +x/(x*x+y*y + 1), z/(x*x+y*y + 1)])
-
-
-    st = time.time()
-    # Entities by codimension
-    # https://defelement.com/ciarlet.html
-    mesh_topology = MeshTopology(gmesh)
-    cell_ids = mesh_topology.entities_by_codimension(0)
-
-    et = time.time()
-    elapsed_time = et - st
-    print("Preprocessing I time:", elapsed_time, "seconds")
-
-    st = time.time()
-    elements = list(
-        map(
-            partial(FiniteElement, mesh=gmesh, k_order=k_order, family=family, discontinuous=discontinuous),
-            cell_ids,
-        )
-    )
-    et = time.time()
-    elapsed_time = et - st
-    n_d_cells = len(elements)
-    print("Number of processed elements:", n_d_cells)
-    print("Element construction time:", elapsed_time, "seconds")
+    # fun = lambda x, y, z: np.array([-y/(x*x+y*y + 1 ), +x/(x*x+y*y + 1), z/(x*x+y*y + 1)])
 
     st = time.time()
     # Assembler
@@ -411,11 +389,11 @@ def hdiv_projector(gmesh):
     c_size = 0
     n_dof_g = 0
     cell_map = {}
-    for element in elements:
+    for element in u_field.elements:
         cell = element.cell
         n_dof = 0
         for n_entity_dofs in element.basis_generator.num_entity_dofs:
-            n_dof = n_dof + sum(n_entity_dofs)
+            n_dof = n_dof + sum(n_entity_dofs) * n_components
         cell_map.__setitem__(cell.id, c_size)
         c_size = c_size + n_dof * n_dof
 
@@ -423,11 +401,7 @@ def hdiv_projector(gmesh):
     col = np.zeros((c_size), dtype=np.int64)
     data = np.zeros((c_size), dtype=np.float64)
 
-    # DoF map for a variable supported on the element type
-    dof_map = DoFMap(mesh_topology,basis_family,element_type,k_order,basis_variant,discontinuous=discontinuous)
-    dof_map.build_entity_maps()
-    n_dof_g = dof_map.dof_number()
-
+    n_dof_g = u_field.dof_map.dof_number()
     rg = np.zeros(n_dof_g)
     print("n_dof: ", n_dof_g)
 
@@ -437,32 +411,54 @@ def hdiv_projector(gmesh):
 
     st = time.time()
 
-    def scatter_el_data(element, fun, dof_map, cell_map, row, col, data):
+    def scatter_el_data(element, fun, u_field, cell_map, row, col, data):
 
+        n_components = u_field.n_comp
         cell = element.cell
         points, weights = element.quadrature
         phi_tab = element.phi
         (x, jac, det_jac, inv_jac) = element.mapping
 
-        n_dof = element.phi.shape[1]
+        # destination indexes
+        dest = u_field.dof_map.destination_indices(cell.id)
+        dest = np.array(np.split(dest,len(element.dof_ordering)))[element.dof_ordering].ravel()
+
+        n_phi = element.phi.shape[1]
+        n_dof = n_phi * n_components
         js = (n_dof, n_dof)
         rs = n_dof
         j_el = np.zeros(js)
         r_el = np.zeros(rs)
 
+        f_val_star = fun(x[:, 0], x[:, 1], x[:, 2])
+        for d in range(u_field.dimension):
+            phi_s_star = (det_jac * weights * phi_tab[:, :, d].T)
+
+            # local blocks
+            indices = np.array(np.split(np.array(range(n_phi * n_components)), n_phi)).T
+            jac_block = np.zeros((n_phi, n_phi))
+            for i, omega in enumerate(weights):
+                phi_star = phi_tab[i, :, d]
+                jac_block = jac_block + det_jac[i] * omega * np.outer(phi_star, phi_star)
+
+            for c in range(n_components):
+                b = c
+                e = (c + 1) * n_phi * n_components + 1
+                r_el[b:e:n_components] += phi_s_star @ f_val_star[c,d]
+                j_el[b:e:n_components, b:e:n_components] += jac_block
+
         # linear_base
+        j_el_c = np.zeros(js)
+        r_el_c = np.zeros(rs)
         for i, omega in enumerate(weights):
             f_val = fun(x[i, 0], x[i, 1], x[i, 2])
-            r_el = r_el + det_jac[i] * omega * phi_tab[i, :, :] @ f_val
+            r_el_c = r_el + det_jac[i] * omega * phi_tab[i, :, :] @ f_val[0]
             for d in range(3):
-                j_el = j_el + det_jac[i] * omega * np.outer(
+                j_el_c = j_el + det_jac[i] * omega * np.outer(
                     phi_tab[i, :, d], phi_tab[i, :, d]
                 )
 
         # scattering dof
-        dest = dof_map.destination_indices(cell.id)
-        dest = dest[element.dof_ordering]
-
         c_sequ = cell_map[cell.id]
 
         # contribute rhs
@@ -475,8 +471,8 @@ def hdiv_projector(gmesh):
         data[block_sequ] += j_el.ravel()
 
     [
-        scatter_el_data(element, fun, dof_map, cell_map, row, col, data)
-        for element in elements
+        scatter_el_data(element, fun, u_field, cell_map, row, col, data)
+        for element in u_field.elements
     ]
 
     jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
@@ -492,26 +488,27 @@ def hdiv_projector(gmesh):
     print("Linear solver time:", elapsed_time, "seconds")
 
     # Computing L2 error
-    def compute_l2_error(element, dof_map):
+    def compute_l2_error(element, u_field):
         l2_error = 0.0
+        n_components = u_field.n_comp
         cell = element.cell
         # scattering dof
-        dest = dof_map.destination_indices(cell.id)
-        dest = dest[element.dof_ordering]
+        dest = u_field.dof_map.destination_indices(cell.id)
+        dest = np.array(np.split(dest,len(element.dof_ordering)))[element.dof_ordering].ravel()
         alpha_l = alpha[dest]
 
         (x, jac, det_jac, inv_jac) = element.mapping
         points, weights = element.quadrature
         phi_tab = element.phi
         for i, pt in enumerate(points):
-            u_e = fun(x[i, 0], x[i, 1], x[i, 2])
+            u_e = fun(x[i, 0], x[i, 1], x[i, 2])[0]
             u_h = np.dot(alpha_l, phi_tab[i, :, :])
             l2_error += det_jac[i] * weights[i] * np.dot((u_h - u_e), (u_h - u_e))
 
         return l2_error
 
     st = time.time()
-    error_vec = [compute_l2_error(element, dof_map) for element in elements]
+    error_vec = [compute_l2_error(element, u_field) for element in u_field.elements]
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
@@ -524,36 +521,38 @@ def hdiv_projector(gmesh):
     # writing solution on mesh points
 
     st = time.time()
-    cellid_to_element = dict(zip(cell_ids, elements))
+    cellid_to_element = dict(zip(u_field.element_ids, u_field.elements))
     uh_data = np.zeros((len(gmesh.points), 3))
     ue_data = np.zeros((len(gmesh.points), 3))
 
-    vertices = mesh_topology.entities_dimension(0)
-    cell_vertex_map = mesh_topology.entity_map_by_dimension(0)
+    vertices = u_field.mesh_topology.entities_by_dimension(0)
+    cell_vertex_map = u_field.mesh_topology.entity_map_by_dimension(0)
     for id in vertices:
         if not cell_vertex_map.has_node(id):
             continue
 
         pr_ids = list(cell_vertex_map.predecessors(id))
         cell = gmesh.cells[pr_ids[0]]
-        if cell.dimension != gmesh.dimension:
+        if cell.dimension != u_field.dimension:
             continue
 
         element = cellid_to_element[pr_ids[0]]
 
         # scattering dof
-        dest = dof_map.destination_indices(cell.id)
-        dest = dest[element.dof_ordering]
+        dest = u_field.dof_map.destination_indices(cell.id)
+        dest = np.array(np.split(dest,len(element.dof_ordering)))[element.dof_ordering].ravel()
         alpha_l = alpha[dest]
 
-        par_points = basix.geometry(element_type)
+        par_points = basix.geometry(u_field.element_type)
 
         target_node_id = gmesh.cells[id].node_tags[0]
         par_point_id = np.array(
             [i for i, node_id in enumerate(cell.node_tags) if node_id == target_node_id]
         )
 
-        points = par_points[par_point_id]
+        points = gmesh.points[target_node_id]
+        if u_field.dimension != 0:
+            points = par_points[par_point_id]
 
         # evaluate mapping
         (x, jac, det_jac, inv_jac) = element.compute_mapping(points)
@@ -567,13 +566,12 @@ def hdiv_projector(gmesh):
     mesh_points = gmesh.points
     con_d = np.array(
         [
-            cell.node_tags
-            for cell in gmesh.cells
-            if cell.dimension == gmesh.dimension and cell.id != None and cell.material_id != None
+            element.cell.node_tags
+            for element in u_field.elements
         ]
     )
     meshio_cell_types = { 0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
-    cells_dict = {meshio_cell_types[gmesh.dimension]: con_d}
+    cells_dict = {meshio_cell_types[u_field.dimension]: con_d}
     u_data_dict = {"uh": uh_data, "ue": ue_data}
 
     mesh = meshio.Mesh(
@@ -764,14 +762,14 @@ def generate_mesh_3d():
 
 def main():
 
-    gmesh_3d = generate_mesh_3d()
-    # gmesh_2d = generate_mesh_2d()
+    # gmesh_3d = generate_mesh_3d()
+    gmesh_2d = generate_mesh_2d()
     # gmesh_1d = generate_mesh_1d()
 
     # # pojectors
 
-    h1_vec_projector(gmesh_3d)
-    # hdiv_projector(gmesh_3d)
+    # h1_gen_projector(gmesh_2d)
+    hdiv_gen_projector(gmesh_2d)
 
 
 if __name__ == "__main__":
