@@ -159,7 +159,7 @@ def test_h1_projector(k_order):
                 cell = element.cell
                 points, weights = element.quadrature
                 phi_tab = element.phi
-                (x, jac, det_jac, inv_jac) = element.mapping
+                (x, jac, det_jac, inv_jac, _) = element.mapping
 
                 n_dof = element.phi.shape[2]
                 js = (n_dof, n_dof)
@@ -207,7 +207,7 @@ def test_h1_projector(k_order):
                 dest = dest[element.dof_ordering]
                 alpha_l = alpha[dest]
 
-                (x, jac, det_jac, inv_jac) = element.mapping
+                (x, jac, det_jac, inv_jac, _) = element.mapping
                 points, weights = element.quadrature
                 phi_tab = element.phi
                 for i, pt in enumerate(points):
@@ -232,8 +232,8 @@ def test_hdiv_hcurl_projector(k_order):
 
     discontinuous = True
     # FESpace: data
-    for family in ["RT", "BDM"]:
-        if family in ["RT", "N1E", "N2E"]:
+    for family in ["RT", "BDM", "N1E", "N2E"]:
+        if family in ["RT", "N1E"]:
             k_order = k_order + 1
         for dim in [2, 3]:
 
@@ -296,7 +296,7 @@ def test_hdiv_hcurl_projector(k_order):
                 cell = element.cell
                 points, weights = element.quadrature
                 phi_tab = element.phi
-                (x, jac, det_jac, inv_jac) = element.mapping
+                (x, jac, det_jac, inv_jac, _) = element.mapping
 
                 n_dof = element.phi.shape[1]
                 js = (n_dof, n_dof)
@@ -345,7 +345,7 @@ def test_hdiv_hcurl_projector(k_order):
                 dest = dest[element.dof_ordering]
                 alpha_l = alpha[dest]
 
-                (x, jac, det_jac, inv_jac) = element.mapping
+                (x, jac, det_jac, inv_jac, _) = element.mapping
                 points, weights = element.quadrature
                 phi_tab = element.phi
                 for i, pt in enumerate(points):
