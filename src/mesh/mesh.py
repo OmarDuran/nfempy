@@ -117,7 +117,7 @@ class Mesh:
         return cell_id
 
     def insert_edge(self, node_tags, physical_tag=None):
-        cell_id = self.entities_1d[tuple(node_tags)]
+        cell_id = self.entities_1d[tuple(np.sort(node_tags))]
         cell_absent_q = self.cells[cell_id] is None
         if cell_absent_q:
             vertex_ids = []
@@ -140,17 +140,20 @@ class Mesh:
             # vertex id
             vertex_ids = [self.entities_0d[node] for node in node_tags]
 
-            # line loop
-            loop = [i for i in range(len(node_tags))]
-            loop.append(loop[0])
-            connectivity = np.array(
-                [[loop[index], loop[index + 1]] for index in range(len(loop) - 1)]
-            )
+            edge_0 = node_tags[np.array([1, 2])]
+            edge_1 = node_tags[np.array([0, 2])]
+            edge_2 = node_tags[np.array([0, 1])]
+            edges = [edge_0, edge_1, edge_2]
+            # # line loop
+            # loop = [i for i in range(len(node_tags))]
+            # loop.append(loop[0])
+            # connectivity = np.array(
+            #     [[loop[index], loop[index + 1]] for index in range(len(loop) - 1)]
+            # )
 
             edge_ids = []
-            for con in connectivity:
-                perm = np.argsort(node_tags[con])
-                edge_id = self.insert_edge(node_tags[con][perm])
+            for edge in edges:
+                edge_id = self.insert_edge(edge)
                 edge_ids.append(edge_id)
 
             # polygonal cells
@@ -179,12 +182,19 @@ class Mesh:
             # edge_4 = np.sort([node_tags[2], node_tags[3]])
             # edge_5 = np.sort([node_tags[1], node_tags[3]])
 
-            edge_0 = np.sort([node_tags[2], node_tags[3]])
-            edge_1 = np.sort([node_tags[1], node_tags[3]])
-            edge_2 = np.sort([node_tags[1], node_tags[2]])
-            edge_3 = np.sort([node_tags[0], node_tags[3]])
-            edge_4 = np.sort([node_tags[0], node_tags[2]])
-            edge_5 = np.sort([node_tags[0], node_tags[1]])
+            # edge_0 = np.sort([node_tags[2], node_tags[3]])
+            # edge_1 = np.sort([node_tags[1], node_tags[3]])
+            # edge_2 = np.sort([node_tags[1], node_tags[2]])
+            # edge_3 = np.sort([node_tags[0], node_tags[3]])
+            # edge_4 = np.sort([node_tags[0], node_tags[2]])
+            # edge_5 = np.sort([node_tags[0], node_tags[1]])
+
+            edge_0 = [node_tags[2], node_tags[3]]
+            edge_1 = [node_tags[1], node_tags[3]]
+            edge_2 = [node_tags[1], node_tags[2]]
+            edge_3 = [node_tags[0], node_tags[3]]
+            edge_4 = [node_tags[0], node_tags[2]]
+            edge_5 = [node_tags[0], node_tags[1]]
             edges = [edge_0, edge_1, edge_2, edge_3, edge_4, edge_5]
 
             edge_ids = []
@@ -252,13 +262,13 @@ class Mesh:
         edge_id = np.max([*self.entities_0d.values()]) + 1
         for nodes in tetra_data:
 
-            # https://gmsh.info/doc/texinfo/gmsh.html#Node-ordering
-            edge_0 = tuple(np.sort([nodes[0], nodes[1]]))
-            edge_1 = tuple(np.sort([nodes[1], nodes[2]]))
-            edge_2 = tuple(np.sort([nodes[2], nodes[0]]))
-            edge_3 = tuple(np.sort([nodes[0], nodes[3]]))
-            edge_4 = tuple(np.sort([nodes[2], nodes[3]]))
-            edge_5 = tuple(np.sort([nodes[1], nodes[3]]))
+            # # https://gmsh.info/doc/texinfo/gmsh.html#Node-ordering
+            # edge_0 = tuple(np.sort([nodes[0], nodes[1]]))
+            # edge_1 = tuple(np.sort([nodes[1], nodes[2]]))
+            # edge_2 = tuple(np.sort([nodes[2], nodes[0]]))
+            # edge_3 = tuple(np.sort([nodes[0], nodes[3]]))
+            # edge_4 = tuple(np.sort([nodes[2], nodes[3]]))
+            # edge_5 = tuple(np.sort([nodes[1], nodes[3]]))
 
             # https://defelement.com/elements/lagrange.html
             edge_0 = tuple(np.sort([nodes[2], nodes[3]]))
@@ -277,11 +287,15 @@ class Mesh:
 
         # fill edge to edge_id from existing triangles
         for nodes in triangle_data:
-            nodes_ext = np.append(nodes, nodes[0])
-            edges = [
-                tuple(np.sort([nodes_ext[i], nodes_ext[i + 1]]))
-                for i, _ in enumerate(nodes, 0)
-            ]
+            # nodes_ext = np.append(nodes, nodes[0])
+            # edges = [
+            #     tuple(np.sort([nodes_ext[i], nodes_ext[i + 1]]))
+            #     for i, _ in enumerate(nodes, 0)
+            # ]
+            edge_0 = tuple(np.sort(nodes[np.array([1, 2])]))
+            edge_1 = tuple(np.sort(nodes[np.array([0, 2])]))
+            edge_2 = tuple(np.sort(nodes[np.array([0, 1])]))
+            edges = [edge_0, edge_1, edge_2]
             for edge in edges:
                 key_exist_q = self.entities_1d.get(edge, None)
                 if key_exist_q is None:

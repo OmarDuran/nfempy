@@ -46,17 +46,33 @@ class FiniteElement:
             self.dof_ordering = self._dof_premutations()
             self.quadrature = (np.array([1.0]), np.array([1.0]))
         else:
-            self.basis_generator = basix.create_element(
-                element_family,
-                cell_type,
-                self.k_order,
-                self.variant,
-                self.discontinuous,
-            )
-            self.dof_ordering = self._dof_premutations()
-            self.quadrature = basix.make_quadrature(
-                basix.QuadratureType.gauss_jacobi, cell_type, self.integration_oder
-            )
+
+            if self.cell.dimension == 1 and self.family in ["RT","BDM"]:
+                self.family = "Lagrange"
+                element_family = self.basis_family(self.family)
+                self.basis_generator = basix.create_element(
+                    element_family,
+                    cell_type,
+                    self.k_order,
+                    self.variant,
+                    self.discontinuous,
+                )
+                self.dof_ordering = self._dof_premutations()
+                self.quadrature = basix.make_quadrature(
+                    basix.QuadratureType.gauss_jacobi, cell_type, self.integration_oder
+                )
+            else:
+                self.basis_generator = basix.create_element(
+                    element_family,
+                    cell_type,
+                    self.k_order,
+                    self.variant,
+                    self.discontinuous,
+                )
+                self.dof_ordering = self._dof_premutations()
+                self.quadrature = basix.make_quadrature(
+                    basix.QuadratureType.gauss_jacobi, cell_type, self.integration_oder
+                )
         self.evaluate_basis(self.quadrature[0], True)
 
     @staticmethod
@@ -111,7 +127,8 @@ class FiniteElement:
 
     def _dof_perm_triangle(self):
         indices = np.array([], dtype=int)
-        e_perms = np.array([1, 2, 0])
+        # e_perms = np.array([1, 2, 0])
+        e_perms = np.array([0, 1, 2])
         for dim, entity_dof in enumerate(self.basis_generator.entity_dofs):
             if dim == 1:
                 entity_dof = [entity_dof[i] for i in e_perms]
@@ -141,10 +158,10 @@ class FiniteElement:
 
         if self.cell.dimension == 0:
             x = cell_points
-            jac = det_jac = inv_jac = np.array([1.0])
+            jac = det_jac = inv_jac = axes = np.array([1.0])
             if storage:
-                self.mapping = (x, jac, det_jac, inv_jac)
-            return (x, jac, det_jac, inv_jac)
+                self.mapping = (x, jac, det_jac, inv_jac, axes)
+            return (x, jac, det_jac, inv_jac, axes)
 
         cell_type = self.type_by_dimension(self.cell.dimension)
         linear_element = basix.create_element(
@@ -172,43 +189,94 @@ class FiniteElement:
             if det_g_jac < 0.0:
                 print("Negative det jac: ", det_g_jac)
             inv_g_jac = np.dot(np.linalg.inv(r_jac), q_axes.T)
-            return det_g_jac, inv_g_jac
+            return det_g_jac, inv_g_jac, q_axes
 
         map_result = list(map(compute_det_and_pseudo_inverse, jac))
-        det_jac, inv_jac = zip(*map_result)
+        det_jac, inv_jac, axes = zip(*map_result)
         det_jac = np.array(det_jac)
         inv_jac = np.array(inv_jac)
+        axes = np.array(axes)
 
         if storage:
-            self.mapping = (x, jac, det_jac, inv_jac)
-        return (x, jac, det_jac, inv_jac)
+            self.mapping = (x, jac, det_jac, inv_jac, axes)
+        return (x, jac, det_jac, inv_jac, axes)
 
     def _validate_edge_orientation_2d(self):
-        connectiviy = np.array([[0, 1], [1, 2], [2, 0]])
-        e_perms = np.array([1, 2, 0])
+
+        edge_0 = self.cell.node_tags[np.array([1, 2])]
+        edge_1 = self.cell.node_tags[np.array([0, 2])]
+        edge_2 = self.cell.node_tags[np.array([0, 1])]
+        edges = [edge_0, edge_1, edge_2]
+
+        # connectiviy = np.array([[0, 1], [1, 2], [2, 0]])
+        e_perms = np.array([0, 1, 2])
         orientation = [False, False, False]
-        for i, con in enumerate(connectiviy):
-            edge = self.cell.node_tags[con]
+        for i, edge in enumerate(edges):
             v_edge = self.mesh.cells[self.cell.sub_cells_ids[1][i]].node_tags
             if np.any(edge == v_edge):
                 orientation[i] = True
         orientation = [orientation[i] for i in e_perms]
         return orientation
 
+    def _validate_face_orientation_2d(self):
+
+        orientation = False
+        rotations = 0
+        reflections = 0
+        face = self.cell.node_tags
+        face_ref = np.sort(face)
+        face_cell = self.mesh.cells[self.cell.id]
+
+        valid_orientation = np.all(face_ref == face)
+        if valid_orientation:
+            orientation = True
+        else:
+            perms = list(permutations(list(face_ref)))
+            pos_search = [i for i, perm in enumerate(perms) if perm == tuple(face)]
+            assert len(pos_search) == 1
+            assert pos_search[0] != 0
+            position = pos_search[0]
+
+            # cases
+            if position == 0:
+                rotations = 0
+                reflections = 0
+            elif position == 1:
+                rotations = 0
+                reflections = 1
+            elif position == 2:
+                rotations = 2
+                reflections = 1
+            elif position == 3:
+                rotations = 1
+                reflections = 0
+            elif position == 4:
+                rotations = 2
+                reflections = 0
+            elif position == 5:
+                rotations = 1
+                reflections = 1
+
+        return orientation, rotations, reflections
+
     def _permute_and_transform_basis_2d(self, phi_tab):
 
-        # make functions outward
-        if not self.basis_generator.dof_transformations_are_identity:
-            # n_dof = int(np.mean(self.basis_generator.num_entity_dofs[1]))
-            for index in [0, 2]:
-                transformation = self.basis_generator.entity_transformations()[
-                    "interval"
-                ][0]
-                dofs = self.basis_generator.entity_dofs[1][index]
-                for dim in range(phi_tab.shape[2]):
-                    phi_tab[:, dofs, dim] = phi_tab[:, dofs, dim] @ transformation.T
+        # oriented_q, rot_data, ref_data = self._validate_face_orientation_2d()
+        # if not oriented_q:
+        #     rotate_t, reflect_t = self.basis_generator.entity_transformations()[
+        #         "triangle"
+        #     ]
+        #     transformation = np.identity(len(rotate_t))
+        #     for i in range(rot_data):
+        #         transformation = rotate_t @ transformation
+        #     for i in range(ref_data):
+        #         transformation = reflect_t @ transformation
+        #
+        #     dofs = self.basis_generator.entity_dofs[2][0]
+        #     for dim in range(phi_tab.shape[2]):
+        #         phi_tab[:, dofs, dim] = phi_tab[:, dofs, dim] @ transformation.T
 
-        # triangle ref connectivity
+        # triangle reflections
         if not self.basis_generator.dof_transformations_are_identity:
             oriented_q = self._validate_edge_orientation_2d()
             for index, check in enumerate(oriented_q):
@@ -347,7 +415,7 @@ class FiniteElement:
 
     def evaluate_basis(self, points, storage=False):
 
-        (x, jac, det_jac, inv_jac) = self.compute_mapping(points, storage)
+        (x, jac, det_jac, inv_jac, _) = self.compute_mapping(points, storage)
 
         if self.cell.dimension == 0:
             phi_tab = np.ones((1, 1, 1))

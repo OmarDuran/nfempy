@@ -140,11 +140,11 @@ def h1_gen_projector(gmesh):
     n_components = 3
     dim = gmesh.dimension
     discontinuous = True
-    k_order = 1
+    k_order = 3
     family = "Lagrange"
 
-    u_field = DiscreteField(dim,n_components,family,k_order,gmesh)
-    u_field.make_discontinuous()
+    u_field = DiscreteField(dim-1,n_components,family,k_order,gmesh)
+    # u_field.make_discontinuous()
     u_field.build_dof_map()
     u_field.build_elements()
 
@@ -189,7 +189,7 @@ def h1_gen_projector(gmesh):
         cell = element.cell
         points, weights = element.quadrature
         phi_tab = element.phi
-        (x, jac, det_jac, inv_jac) = element.mapping
+        (x, jac, det_jac, inv_jac, _) = element.mapping
 
         # destination indexes
         dest = u_field.dof_map.destination_indices(cell.id)
@@ -259,7 +259,7 @@ def h1_gen_projector(gmesh):
         dest = np.array(np.split(dest,len(element.dof_ordering)))[element.dof_ordering].ravel()
         alpha_l = alpha[dest]
 
-        (x, jac, det_jac, inv_jac) = element.mapping
+        (x, jac, det_jac, inv_jac, _) = element.mapping
         points, weights = element.quadrature
         phi_tab = element.phi
 
@@ -318,7 +318,7 @@ def h1_gen_projector(gmesh):
 
 
         # evaluate mapping
-        (x, jac, det_jac, inv_jac) = element.compute_mapping(points)
+        (x, jac, det_jac, inv_jac, _) = element.compute_mapping(points)
         phi_tab = element.evaluate_basis(points)
         n_phi = phi_tab.shape[1]
         f_e = fun(x[:, 0], x[:, 1], x[:, 2])
@@ -344,7 +344,7 @@ def h1_gen_projector(gmesh):
         # Optionally provide extra data on points, cells, etc.
         point_data=p_data_dict,
     )
-    mesh.write("h1_projector.vtk")
+    mesh.write("h1_gen_projector.vtk")
     et = time.time()
     elapsed_time = et - st
     print("Post-processing time:", elapsed_time, "seconds")
@@ -368,10 +368,10 @@ def hdiv_gen_projector(gmesh):
     n_components = 1
     dim = gmesh.dimension
     discontinuous = True
-    k_order = 1
-    family = "RT"
+    k_order = 2
+    family = "BDM"
 
-    u_field = DiscreteField(dim,n_components,family,k_order,gmesh)
+    u_field = DiscreteField(dim-1,n_components,family,k_order,gmesh)
     # u_field.make_discontinuous()
     u_field.build_dof_map()
     u_field.build_elements()
@@ -380,8 +380,8 @@ def hdiv_gen_projector(gmesh):
     # vectorization with numpy should be performed with care
     # this lambda x, y, z: np.array([[0.5, -0.5, -0.5]]) is not generating data for all
     # integration points
-    fun = lambda x, y, z: np.array([[0.5+0.0*y, -0.5+0.0*x, 0.5+0*z]])
-    # fun = lambda x, y, z: np.array([[y, -x, -z]])
+    # fun = lambda x, y, z: np.array([[0.5+0.0*y, -0.5+0.0*x, 0.5+0*z]])
+    fun = lambda x, y, z: np.array([[y, -x, z]])
     # fun = lambda x, y, z: np.array([[y, -x, -z],[y, -x, -z],[y, -x, -z]])
     # fun = lambda x, y, z: np.array([[y * (1 - y), -x * (1 - x), -z * (1 - z)]])
     # fun = lambda x, y, z: np.array([[y * (1 - y), -x * (1 - x), -z * (1 - z)],
@@ -425,7 +425,7 @@ def hdiv_gen_projector(gmesh):
         cell = element.cell
         points, weights = element.quadrature
         phi_tab = element.phi
-        (x, jac, det_jac, inv_jac) = element.mapping
+        (x, jac, det_jac, inv_jac, axes) = element.mapping
 
         # destination indexes
         dest = u_field.dof_map.destination_indices(cell.id)
@@ -511,7 +511,7 @@ def hdiv_gen_projector(gmesh):
         dest = np.array(np.split(dest,len(element.dof_ordering)))[element.dof_ordering].ravel()
         alpha_l = alpha[dest]
 
-        (x, jac, det_jac, inv_jac) = element.mapping
+        (x, jac, det_jac, inv_jac, axes) = element.mapping
         points, weights = element.quadrature
         phi_tab = element.phi
         n_phi = phi_tab.shape[1]
@@ -525,6 +525,7 @@ def hdiv_gen_projector(gmesh):
         for c in range(n_components):
             for i, pt in enumerate(points):
                 u_e = fun(x[i, 0], x[i, 1], x[i, 2])[c]
+                u_e = (axes[0].T @ u_e) @ axes[0].T
                 u_h = np.dot(alpha_l, phi_tab[i, :, :])
                 l2_error += (
                         det_jac[i] * weights[i] * np.dot((u_h - u_e), (u_h - u_e))
@@ -579,16 +580,19 @@ def hdiv_gen_projector(gmesh):
             points = par_points[par_point_id]
 
         # evaluate mapping
-        (x, jac, det_jac, inv_jac) = element.compute_mapping(points)
+        (x, jac, det_jac, inv_jac, axes) = element.compute_mapping(points)
         phi_tab = element.evaluate_basis(points)
         n_phi = phi_tab.shape[1]
-        u_e = fun(x[:, 0], x[:, 1], x[:, 2])
-        alpha_star = np.array(np.split(alpha_l, n_phi))
-        u_h = np.array([(phi_tab[:, :, d] @ alpha_star).T for d in range(3)])
-        u_h = np.moveaxis(u_h,0,1)
+        u_e = fun(x[0, 0], x[0, 1], x[0, 2])[0]
+        # alpha_star = np.array(np.split(alpha_l, n_phi))
+        # u_h = np.array([(phi_tab[:, :, d] @ alpha_star).T for d in range(3)])
+        # u_h = np.moveaxis(u_h,0,1)
 
-        ue_data[target_node_id] = u_e[0]
-        uh_data[target_node_id] = u_h[0]
+        u_e = (axes[0].T @ u_e) @ axes[0].T
+        u_h = np.dot(alpha_l, phi_tab[0, :, :])
+
+        ue_data[target_node_id] = np.array([u_e]).T
+        uh_data[target_node_id] = np.array([u_h]).T
 
     mesh_points = gmesh.points
     con_d = np.array(
@@ -657,13 +661,13 @@ def generate_mesh_1d():
 
 def generate_mesh_2d():
 
-    h_cell = 1.0 / (1.0)
+    h_cell = 1.0 / (2.0)
     # higher dimension domain geometry
     s = 1.0
 
     theta_x = 45.0 * (np.pi/180)
-    theta_y = 0.0 * (np.pi/180)
-    theta_z = 0.0 * (np.pi/180)
+    theta_y = 45.0 * (np.pi/180)
+    theta_z = 45.0 * (np.pi/180)
     rotation_x = np.array(
         [[1, 0, 0],[0, np.cos(theta_x), -np.sin(theta_x)],[0,np.sin(theta_x), np.cos(theta_x)]])
     rotation_y = np.array(
@@ -743,7 +747,7 @@ def generate_mesh_2d():
 
 def generate_mesh_3d():
 
-    h_cell = 1.0 / (1.0)
+    h_cell = 1.0 / (4.0)
 
     theta_x = 0.0 * (np.pi/180)
     theta_y = 0.0 * (np.pi/180)
@@ -784,7 +788,7 @@ def generate_mesh_3d():
     gmesh.set_conformal_mesher(mesher)
     gmesh.build_conformal_mesh_II()
 
-    # gmesh.write_data()
+    gmesh.write_data()
     gmesh.write_vtk()
     print("h-size: ", h_cell)
 
@@ -793,14 +797,14 @@ def generate_mesh_3d():
 
 def main():
 
-    # gmesh_3d = generate_mesh_3d()
-    gmesh_2d = generate_mesh_2d()
+    gmesh_3d = generate_mesh_3d()
+    # gmesh_2d = generate_mesh_2d()
     # gmesh_1d = generate_mesh_1d()
 
     # # pojectors
 
     # h1_gen_projector(gmesh_2d)
-    hdiv_gen_projector(gmesh_2d)
+    hdiv_gen_projector(gmesh_3d)
 
 
 if __name__ == "__main__":

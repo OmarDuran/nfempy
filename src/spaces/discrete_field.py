@@ -43,6 +43,8 @@ class DiscreteField:
         if self.dimension == 0:
             basis_family = FiniteElement.basis_family("Lagrange")
             self.k_order = 0
+        if self.dimension == 1 and self.family in ["RT","BDM"]:
+            basis_family = FiniteElement.basis_family("Lagrange")
         self.dof_map = DoFMap(
             self.mesh_topology,
             basis_family,

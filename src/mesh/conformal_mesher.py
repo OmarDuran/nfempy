@@ -232,7 +232,8 @@ class ConformalMesher:
                 )
 
         gmsh.model.geo.synchronize()
-        gmsh.model.mesh.generate(self.dimension)
+        for d in range(self.dimension+1):
+            gmsh.model.mesh.generate(d)
 
         # if "-nopopup" not in sys.argv:
         #     gmsh.fltk.run()
