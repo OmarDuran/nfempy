@@ -143,7 +143,7 @@ def h1_gen_projector(gmesh):
     k_order = 3
     family = "Lagrange"
 
-    u_field = DiscreteField(dim-1,n_components,family,k_order,gmesh)
+    u_field = DiscreteField(dim,n_components,family,k_order,gmesh)
     # u_field.make_discontinuous()
     u_field.build_dof_map()
     u_field.build_elements()
@@ -193,7 +193,6 @@ def h1_gen_projector(gmesh):
 
         # destination indexes
         dest = u_field.dof_map.destination_indices(cell.id)
-        dest = np.array(np.split(dest,len(element.dof_ordering)))[element.dof_ordering].ravel()
 
         n_phi = element.phi.shape[1]
         n_dof = n_phi * n_components
@@ -256,7 +255,6 @@ def h1_gen_projector(gmesh):
         cell = element.cell
         # scattering dof
         dest = u_field.dof_map.destination_indices(cell.id)
-        dest = np.array(np.split(dest,len(element.dof_ordering)))[element.dof_ordering].ravel()
         alpha_l = alpha[dest]
 
         (x, jac, det_jac, inv_jac, _) = element.mapping
@@ -302,7 +300,6 @@ def h1_gen_projector(gmesh):
 
         # scattering dof
         dest = u_field.dof_map.destination_indices(cell.id)
-        dest = np.array(np.split(dest,len(element.dof_ordering)))[element.dof_ordering].ravel()
         alpha_l = alpha[dest]
 
         par_points = basix.geometry(u_field.element_type)
@@ -429,7 +426,6 @@ def hdiv_gen_projector(gmesh):
 
         # destination indexes
         dest = u_field.dof_map.destination_indices(cell.id)
-        dest = np.array(np.split(dest,len(element.dof_ordering)))[element.dof_ordering].ravel()
 
         n_phi = element.phi.shape[1]
         n_dof = n_phi * n_components
@@ -508,7 +504,6 @@ def hdiv_gen_projector(gmesh):
         cell = element.cell
         # scattering dof
         dest = u_field.dof_map.destination_indices(cell.id)
-        dest = np.array(np.split(dest,len(element.dof_ordering)))[element.dof_ordering].ravel()
         alpha_l = alpha[dest]
 
         (x, jac, det_jac, inv_jac, axes) = element.mapping
@@ -565,7 +560,6 @@ def hdiv_gen_projector(gmesh):
 
         # scattering dof
         dest = u_field.dof_map.destination_indices(cell.id)
-        dest = np.array(np.split(dest,len(element.dof_ordering)))[element.dof_ordering].ravel()
         alpha_l = alpha[dest]
 
         par_points = basix.geometry(u_field.element_type)
@@ -803,8 +797,8 @@ def main():
 
     # # pojectors
 
-    # h1_gen_projector(gmesh_2d)
-    hdiv_gen_projector(gmesh_3d)
+    h1_gen_projector(gmesh_3d)
+    # hdiv_gen_projector(gmesh_3d)
 
 
 if __name__ == "__main__":

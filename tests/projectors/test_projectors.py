@@ -177,7 +177,7 @@ def test_h1_projector(k_order):
 
                 # scattering dof
                 dest = dof_map.destination_indices(cell.id)
-                dest = dest[element.dof_ordering]
+                # dest = dest[element.dof_ordering]
 
                 c_sequ = cell_map[cell.id]
 
@@ -204,7 +204,7 @@ def test_h1_projector(k_order):
                 cell = element.cell
                 # scattering dof
                 dest = dof_map.destination_indices(cell.id)
-                dest = dest[element.dof_ordering]
+                # dest = dest[element.dof_ordering]
                 alpha_l = alpha[dest]
 
                 (x, jac, det_jac, inv_jac, _) = element.mapping
@@ -315,7 +315,7 @@ def test_hdiv_hcurl_projector(k_order):
 
                 # scattering dof
                 dest = dof_map.destination_indices(cell.id)
-                dest = dest[element.dof_ordering]
+                # dest = dest[element.dof_ordering]
 
                 c_sequ = cell_map[cell.id]
 
@@ -342,7 +342,7 @@ def test_hdiv_hcurl_projector(k_order):
                 cell = element.cell
                 # scattering dof
                 dest = dof_map.destination_indices(cell.id)
-                dest = dest[element.dof_ordering]
+                # dest = dest[element.dof_ordering]
                 alpha_l = alpha[dest]
 
                 (x, jac, det_jac, inv_jac, _) = element.mapping

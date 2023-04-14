@@ -17,7 +17,6 @@ class FiniteElement:
         self.family = family
         self.variant = None
         self.basis_generator = None
-        self.dof_ordering = None
         self.quadrature = None
         self.mapping = None
         self.phi = None
@@ -25,7 +24,7 @@ class FiniteElement:
 
     def _build_structures(self):
 
-        # fecth information from static methods
+        # fetch information from static methods
         element_family = self.basis_family(self.family)
         cell_type = self.type_by_dimension(self.cell.dimension)
         self.variant = self.basis_variant()
@@ -43,11 +42,10 @@ class FiniteElement:
                 self.variant,
                 self.discontinuous,
             )
-            self.dof_ordering = self._dof_premutations()
             self.quadrature = (np.array([1.0]), np.array([1.0]))
         else:
 
-            if self.cell.dimension == 1 and self.family in ["RT","BDM"]:
+            if self.cell.dimension == 1 and self.family in ["RT", "BDM"]:
                 self.family = "Lagrange"
                 element_family = self.basis_family(self.family)
                 self.basis_generator = basix.create_element(
@@ -57,7 +55,6 @@ class FiniteElement:
                     self.variant,
                     self.discontinuous,
                 )
-                self.dof_ordering = self._dof_premutations()
                 self.quadrature = basix.make_quadrature(
                     basix.QuadratureType.gauss_jacobi, cell_type, self.integration_oder
                 )
@@ -69,7 +66,6 @@ class FiniteElement:
                     self.variant,
                     self.discontinuous,
                 )
-                self.dof_ordering = self._dof_premutations()
                 self.quadrature = basix.make_quadrature(
                     basix.QuadratureType.gauss_jacobi, cell_type, self.integration_oder
                 )
@@ -103,55 +99,6 @@ class FiniteElement:
     def _set_integration_order(self):
         if self.integration_oder == 0:
             self.integration_oder = 2 * self.k_order + 1
-
-    def _dof_premutations(self):
-        # this permutation is because basix uses different entity ordering.
-        if self.cell.dimension == 0:
-            return self._dof_perm_point()
-        elif self.cell.dimension == 1:
-            return self._dof_perm_interval()
-        elif self.cell.dimension == 2:
-            return self._dof_perm_triangle()
-        elif self.cell.dimension == 3:
-            return self._dof_perm_tetrahedron()
-
-    def _dof_perm_point(self):
-        indices = np.array([0], dtype=int)
-        return indices
-
-    def _dof_perm_interval(self):
-        indices = np.array([], dtype=int)
-        for dim, entity_dof in enumerate(self.basis_generator.entity_dofs):
-            indices = np.append(indices, np.array(entity_dof, dtype=int))
-        return indices.ravel()
-
-    def _dof_perm_triangle(self):
-        indices = np.array([], dtype=int)
-        # e_perms = np.array([1, 2, 0])
-        e_perms = np.array([0, 1, 2])
-        for dim, entity_dof in enumerate(self.basis_generator.entity_dofs):
-            if dim == 1:
-                entity_dof = [entity_dof[i] for i in e_perms]
-                indices = np.append(indices, np.array(entity_dof, dtype=int))
-            else:
-                indices = np.append(indices, np.array(entity_dof, dtype=int))
-        return indices.ravel()
-
-    def _dof_perm_tetrahedron(self):
-
-        indices = np.array([], dtype=int)
-        e_edge_perms = np.array([0, 1, 2, 3, 4, 5])
-        e_face_perms = np.array([0, 1, 2, 3])
-        for dim, entity_dof in enumerate(self.basis_generator.entity_dofs):
-            if dim == 2:
-                entity_dof = [entity_dof[i] for i in e_face_perms]
-                indices = np.append(indices, np.array(entity_dof, dtype=int))
-            elif dim == 1:
-                entity_dof = [entity_dof[i] for i in e_edge_perms]
-                indices = np.append(indices, np.array(entity_dof, dtype=int))
-            else:
-                indices = np.append(indices, np.array(entity_dof, dtype=int))
-        return indices.ravel()
 
     def compute_mapping(self, points, storage=False):
         cell_points = self.mesh.points[self.cell.node_tags]
@@ -208,73 +155,14 @@ class FiniteElement:
         edge_2 = self.cell.node_tags[np.array([0, 1])]
         edges = [edge_0, edge_1, edge_2]
 
-        # connectiviy = np.array([[0, 1], [1, 2], [2, 0]])
-        e_perms = np.array([0, 1, 2])
         orientation = [False, False, False]
         for i, edge in enumerate(edges):
             v_edge = self.mesh.cells[self.cell.sub_cells_ids[1][i]].node_tags
             if np.any(edge == v_edge):
                 orientation[i] = True
-        orientation = [orientation[i] for i in e_perms]
         return orientation
 
-    def _validate_face_orientation_2d(self):
-
-        orientation = False
-        rotations = 0
-        reflections = 0
-        face = self.cell.node_tags
-        face_ref = np.sort(face)
-        face_cell = self.mesh.cells[self.cell.id]
-
-        valid_orientation = np.all(face_ref == face)
-        if valid_orientation:
-            orientation = True
-        else:
-            perms = list(permutations(list(face_ref)))
-            pos_search = [i for i, perm in enumerate(perms) if perm == tuple(face)]
-            assert len(pos_search) == 1
-            assert pos_search[0] != 0
-            position = pos_search[0]
-
-            # cases
-            if position == 0:
-                rotations = 0
-                reflections = 0
-            elif position == 1:
-                rotations = 0
-                reflections = 1
-            elif position == 2:
-                rotations = 2
-                reflections = 1
-            elif position == 3:
-                rotations = 1
-                reflections = 0
-            elif position == 4:
-                rotations = 2
-                reflections = 0
-            elif position == 5:
-                rotations = 1
-                reflections = 1
-
-        return orientation, rotations, reflections
-
     def _permute_and_transform_basis_2d(self, phi_tab):
-
-        # oriented_q, rot_data, ref_data = self._validate_face_orientation_2d()
-        # if not oriented_q:
-        #     rotate_t, reflect_t = self.basis_generator.entity_transformations()[
-        #         "triangle"
-        #     ]
-        #     transformation = np.identity(len(rotate_t))
-        #     for i in range(rot_data):
-        #         transformation = rotate_t @ transformation
-        #     for i in range(ref_data):
-        #         transformation = reflect_t @ transformation
-        #
-        #     dofs = self.basis_generator.entity_dofs[2][0]
-        #     for dim in range(phi_tab.shape[2]):
-        #         phi_tab[:, dofs, dim] = phi_tab[:, dofs, dim] @ transformation.T
 
         # triangle reflections
         if not self.basis_generator.dof_transformations_are_identity:
@@ -292,13 +180,6 @@ class FiniteElement:
 
     def _validate_edge_orientation_3d(self):
 
-        edge_0 = np.array([0, 1])
-        edge_1 = np.array([1, 2])
-        edge_2 = np.array([2, 0])
-        edge_3 = np.array([0, 3])
-        edge_4 = np.array([2, 3])
-        edge_5 = np.array([1, 3])
-
         edge_0 = np.array([2, 3])
         edge_1 = np.array([1, 3])
         edge_2 = np.array([1, 2])
@@ -307,8 +188,6 @@ class FiniteElement:
         edge_5 = np.array([0, 1])
         edges = [edge_0, edge_1, edge_2, edge_3, edge_4, edge_5]
 
-        # e_perms = np.array([5, 2, 4, 3, 0, 1])
-        e_perms = np.array([0, 1, 2, 3, 4, 5])
         orientation = [False, False, False, False, False, False]
         for i, egde_con in enumerate(edges):
             edge = self.cell.node_tags[egde_con]
@@ -316,7 +195,6 @@ class FiniteElement:
             v_edge = np.sort(edge_node_tags)
             if np.all(edge == v_edge):
                 orientation[i] = True
-        orientation = [orientation[i] for i in e_perms]
         return orientation
 
     def _validate_face_orientation_3d(self):
@@ -326,7 +204,6 @@ class FiniteElement:
         face_2 = np.array([0, 1, 3])
         face_3 = np.array([0, 1, 2])
         faces = [face_0, face_1, face_2, face_3]
-        face_perms = [0, 1, 2, 3]
 
         orientation = [False, False, False, False]
         rotations = [0, 0, 0, 0]
@@ -366,10 +243,6 @@ class FiniteElement:
                 elif position == 5:
                     rotations[i] = 1
                     reflections[i] = 1
-
-        orientation = [orientation[i] for i in face_perms]
-        rotations = [rotations[i] for i in face_perms]
-        reflections = [reflections[i] for i in face_perms]
         return orientation, rotations, reflections
 
     def _permute_and_transform_basis_3d(self, phi_tab):
