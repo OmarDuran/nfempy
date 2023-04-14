@@ -174,8 +174,9 @@ class FiniteElement:
                     "interval"
                 ][0]
                 dofs = self.basis_generator.entity_dofs[1][index]
-                for dim in range(phi_tab.shape[2]):
-                    phi_tab[:, dofs, dim] = phi_tab[:, dofs, dim] @ transformation.T
+                for d in range(phi_tab.shape[0]):
+                    for dim in range(phi_tab.shape[3]):
+                        phi_tab[d, :, dofs, dim] = transformation @ phi_tab[d, :, dofs, dim]
         return phi_tab
 
     def _validate_edge_orientation_3d(self):
@@ -298,16 +299,16 @@ class FiniteElement:
 
         # map functions
         phi_hat_tab = self.basis_generator.tabulate(1, points)
-        phi_tab = self.basis_generator.push_forward(
-            phi_hat_tab[0], jac, det_jac, inv_jac
-        )
-        # # TODO: activate this part for mapping any kind of entries
-        # # push forward all basis including derivatives
-        # phi_tab = phi_hat_tab
-        # for i in range(phi_hat_tab.shape[0]):
-        #     phi_tab[i] = self.basis_generator.push_forward(
-        #         phi_hat_tab[i], jac, det_jac, inv_jac
-        #     )
+        # phi_tab = self.basis_generator.push_forward(
+        #     phi_hat_tab[0], jac, det_jac, inv_jac
+        # )
+        # TODO: activate this part for mapping any kind of entries
+        # push forward all basis including derivatives
+        phi_tab = phi_hat_tab
+        for i in range(phi_hat_tab.shape[0]):
+            phi_tab[i] = self.basis_generator.push_forward(
+                phi_hat_tab[i], jac, det_jac, inv_jac
+            )
 
         phi_tab = self._permute_and_transform_basis(phi_tab)
 

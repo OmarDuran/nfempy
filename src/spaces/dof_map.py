@@ -142,3 +142,21 @@ class DoFMap:
             dest_by_dim.append(entity_dest)
         dest = np.concatenate(dest_by_dim)
         return dest
+
+    def bc_destination_indices(self, cell_id, bc_cell_id):
+        bc_cells_ids = self.mesh_topology.mesh.cells[bc_cell_id].sub_cells_ids
+        dim = self.dimension
+        entity_maps = [self.vertex_map, self.edge_map, self.face_map, self.volume_map]
+        dest_by_dim = []
+        for d in range(dim):
+            entity_map = self.mesh_topology.entity_map_by_dimension(d)
+            dof_supports = list(entity_map.successors(cell_id))
+            dof_supports = [dof_support for dof_support in dof_supports if dof_support in list(bc_cells_ids[d])]
+            if int(np.mean(self.ref_element.num_entity_dofs[d])) == 0:
+                dof_supports = []
+            entity_dest = np.array(
+                [entity_maps[d].get(dof_s) for dof_s in dof_supports], dtype=int
+            ).ravel()
+            dest_by_dim.append(entity_dest)
+        dest = np.concatenate(dest_by_dim)
+        return dest

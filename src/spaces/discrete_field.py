@@ -23,6 +23,7 @@ class DiscreteField:
         self.element_type = None
         self.elements = []
         self.element_ids = []
+        self.id_to_element = {}
 
     def set_name(self, name):
         self.name = name
@@ -83,6 +84,7 @@ class DiscreteField:
                 self.element_ids,
             )
         )
+        self.id_to_element = dict(zip(self.element_ids,range(len(self.element_ids))))
         et = time.time()
         elapsed_time = et - st
         n_d_cells = len(self.elements)

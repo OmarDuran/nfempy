@@ -616,7 +616,7 @@ def hdiv_gen_projector(gmesh):
 
 def generate_mesh_1d():
 
-    h_cell = 1.0 / (16.0)
+    h_cell = 1.0 / (1.0)
 
     theta_x = 0.0 * (np.pi/180)
     theta_y = -45.0 * (np.pi/180)
@@ -655,13 +655,13 @@ def generate_mesh_1d():
 
 def generate_mesh_2d():
 
-    h_cell = 1.0 / (2.0)
+    h_cell = 1.0 / (16.0)
     # higher dimension domain geometry
     s = 1.0
 
-    theta_x = 45.0 * (np.pi/180)
-    theta_y = 45.0 * (np.pi/180)
-    theta_z = 45.0 * (np.pi/180)
+    theta_x = 0.0 * (np.pi/180)
+    theta_y = 0.0 * (np.pi/180)
+    theta_z = 0.0 * (np.pi/180)
     rotation_x = np.array(
         [[1, 0, 0],[0, np.cos(theta_x), -np.sin(theta_x)],[0,np.sin(theta_x), np.cos(theta_x)]])
     rotation_y = np.array(
@@ -741,7 +741,7 @@ def generate_mesh_2d():
 
 def generate_mesh_3d():
 
-    h_cell = 1.0 / (4.0)
+    h_cell = 1.0 / (16.0)
 
     theta_x = 0.0 * (np.pi/180)
     theta_y = 0.0 * (np.pi/180)
@@ -782,12 +782,256 @@ def generate_mesh_3d():
     gmesh.set_conformal_mesher(mesher)
     gmesh.build_conformal_mesh_II()
 
-    gmesh.write_data()
+    # gmesh.write_data()
     gmesh.write_vtk()
     print("h-size: ", h_cell)
 
 
     return gmesh
+
+def md_h1_laplace(gmesh):
+
+    # FESpace: data
+    # polynomial order
+    n_components = 1
+    dim = gmesh.dimension
+    discontinuous = True
+    k_order = 2
+    family = "Lagrange"
+
+    u_field = DiscreteField(dim, n_components, family, k_order, gmesh)
+    # u_field.make_discontinuous()
+    u_field.build_dof_map()
+    u_field.build_elements()
+
+    # aux field for BC
+    bc_u_field = DiscreteField(dim-1, n_components, family, k_order, gmesh)
+    # u_field.make_discontinuous()
+    bc_u_field.build_dof_map()
+    bc_u_field.build_elements()
+
+    st = time.time()
+    # Assembler
+    # Triplets data
+    c_size = 0
+    n_dof_g = 0
+    cell_map = {}
+    for element in u_field.elements:
+        cell = element.cell
+        n_dof = 0
+        for n_entity_dofs in element.basis_generator.num_entity_dofs:
+            n_dof = n_dof + sum(n_entity_dofs) * n_components
+        cell_map.__setitem__(cell.id, c_size)
+        c_size = c_size + n_dof * n_dof
+
+    for element in bc_u_field.elements:
+        cell = element.cell
+        n_dof = 0
+        for n_entity_dofs in element.basis_generator.num_entity_dofs:
+            n_dof = n_dof + sum(n_entity_dofs) * n_components
+        cell_map.__setitem__(cell.id, c_size)
+        c_size = c_size + n_dof * n_dof
+
+    row = np.zeros((c_size), dtype=np.int64)
+    col = np.zeros((c_size), dtype=np.int64)
+    data = np.zeros((c_size), dtype=np.float64)
+
+    n_dof_g = u_field.dof_map.dof_number()
+    rg = np.zeros(n_dof_g)
+    print("n_dof: ", n_dof_g)
+
+    et = time.time()
+    elapsed_time = et - st
+    print("Triplets creation time:", elapsed_time, "seconds")
+
+    st = time.time()
+
+    f_rhs = lambda x, y, z: np.array([1.0 + 0.0*x])
+
+    def scatter_form_data(element, f_rhs, u_field, cell_map, row, col, data):
+
+        n_components = u_field.n_comp
+        cell = element.cell
+        points, weights = element.quadrature
+        phi_tab = element.phi
+        (x, jac, det_jac, inv_jac, axes) = element.mapping
+
+        # destination indexes
+        dest = u_field.dof_map.destination_indices(cell.id)
+
+        n_phi = element.phi.shape[2]
+        n_dof = n_phi * n_components
+        js = (n_dof, n_dof)
+        rs = n_dof
+        j_el = np.zeros(js)
+        r_el = np.zeros(rs)
+
+        # Partial local vectorization
+        f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
+        phi_s_star = (det_jac * weights * phi_tab[0, :, :, 0].T)
+
+        # local blocks
+        indices = np.array(np.split(np.array(range(n_phi * n_components)), n_phi)).T
+        jac_block = np.zeros((n_phi, n_phi))
+        for d in range(u_field.dimension):
+            for i, omega in enumerate(weights):
+                grad_phi = phi_tab[d, i, :, 0]
+                jac_block = jac_block + det_jac[i] * omega * np.outer(grad_phi, grad_phi)
+
+        for c in range(n_components):
+            b = c
+            e = (c + 1) * n_phi * n_components + 1
+            r_el[b:e:n_components] += phi_s_star @ f_val_star[c]
+            j_el[b:e:n_components, b:e:n_components] += jac_block
+
+        # scattering data
+        c_sequ = cell_map[cell.id]
+
+        # contribute rhs
+        rg[dest] += r_el
+
+        # contribute lhs
+        block_sequ = np.array(range(0, len(dest) * len(dest))) + c_sequ
+        row[block_sequ] += np.repeat(dest, len(dest))
+        col[block_sequ] += np.tile(dest, len(dest))
+        data[block_sequ] += j_el.ravel()
+
+    [
+        scatter_form_data(element, f_rhs, u_field, cell_map, row, col, data)
+        for element in u_field.elements
+    ]
+
+    def scatter_bc_form_data(element, u_field, bc_u_field, cell_map, row, col, data):
+
+        n_components = u_field.n_comp
+        cell = element.cell
+        points, weights = element.quadrature
+        phi_tab = element.phi
+        (x, jac, det_jac, inv_jac, _) = element.mapping
+
+        # find high-dimension neigh
+        entity_map = u_field.dof_map.mesh_topology.entity_map_by_dimension(cell.dimension)
+        neigh_list = list(entity_map.predecessors(cell.id))
+        assert len(neigh_list) == 1
+        neigh_cell_id = neigh_list[0]
+        neigh_cell_index = u_field.id_to_element[neigh_cell_id]
+        neigh_cell = u_field.elements[neigh_cell_index].cell
+
+        # destination indexes
+        dest_neigh = u_field.dof_map.destination_indices(neigh_cell_id)
+        dest = u_field.dof_map.bc_destination_indices(neigh_cell_id, cell.id)
+        n_phi = element.phi.shape[2]
+        n_dof = n_phi * n_components
+        js = (n_dof, n_dof)
+        j_el = np.zeros(js)
+
+        # local blocks
+        beta = 1.0e12
+        indices = np.array(np.split(np.array(range(n_phi * n_components)), n_phi)).T
+        jac_block = np.zeros((n_phi, n_phi))
+        for i, omega in enumerate(weights):
+            phi = phi_tab[0, i, :, 0]
+            jac_block = jac_block + beta * det_jac[i] * omega * np.outer(phi, phi)
+
+        for c in range(n_components):
+            b = c
+            e = (c + 1) * n_phi * n_components + 1
+            j_el[b:e:n_components, b:e:n_components] += jac_block
+
+        # scattering data
+        c_sequ = cell_map[cell.id]
+
+        # contribute lhs
+        block_sequ = np.array(range(0, len(dest) * len(dest))) + c_sequ
+        row[block_sequ] += np.repeat(dest, len(dest))
+        col[block_sequ] += np.tile(dest, len(dest))
+        data[block_sequ] += j_el.ravel()
+
+    [
+        scatter_bc_form_data(element, u_field, bc_u_field, cell_map, row, col, data)
+        for element in bc_u_field.elements
+    ]
+
+    jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
+    et = time.time()
+    elapsed_time = et - st
+    print("Assembly time:", elapsed_time, "seconds")
+
+    # solving ls
+    st = time.time()
+    alpha = sp.linalg.spsolve(jg, rg)
+    # alpha = sp_solver.spsolve(jg, rg)
+    et = time.time()
+    elapsed_time = et - st
+    print("Linear solver time:", elapsed_time, "seconds")
+
+    # post-process solution
+    st = time.time()
+    cellid_to_element = dict(zip(u_field.element_ids, u_field.elements))
+    # writing solution on mesh points
+    vertices = u_field.mesh_topology.entities_by_dimension(0)
+    fh_data = np.zeros((len(gmesh.points),n_components))
+    fe_data = np.zeros((len(gmesh.points),n_components))
+    cell_vertex_map = u_field.mesh_topology.entity_map_by_dimension(0)
+    for id in vertices:
+        if not cell_vertex_map.has_node(id):
+            continue
+
+        pr_ids = list(cell_vertex_map.predecessors(id))
+        cell = gmesh.cells[pr_ids[0]]
+        if cell.dimension != u_field.dimension:
+            continue
+
+        element = cellid_to_element[pr_ids[0]]
+
+        # scattering dof
+        dest = u_field.dof_map.destination_indices(cell.id)
+        alpha_l = alpha[dest]
+
+        par_points = basix.geometry(u_field.element_type)
+
+        target_node_id = gmesh.cells[id].node_tags[0]
+        par_point_id = np.array(
+            [i for i, node_id in enumerate(cell.node_tags) if node_id == target_node_id]
+        )
+
+        points = gmesh.points[target_node_id]
+        if u_field.dimension != 0:
+            points = par_points[par_point_id]
+
+
+        # evaluate mapping
+        (x, jac, det_jac, inv_jac, _) = element.compute_mapping(points)
+        phi_tab = element.evaluate_basis(points)
+        n_phi = phi_tab.shape[2]
+        # f_e = fun(x[:, 0], x[:, 1], x[:, 2])
+        alpha_star = np.array(np.split(alpha_l, n_phi))
+        f_h = (phi_tab[0, :, :, 0] @ alpha_star).T
+        fh_data[target_node_id] = f_h.ravel()
+        # fe_data[target_node_id] = f_e.ravel()
+
+    mesh_points = gmesh.points
+    con_d = np.array(
+        [
+            element.cell.node_tags
+            for element in u_field.elements
+        ]
+    )
+    meshio_cell_types = { 0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
+    cells_dict = {meshio_cell_types[u_field.dimension]: con_d}
+    p_data_dict = {"u_h": fh_data, "u_exact": fe_data}
+
+    mesh = meshio.Mesh(
+        points=mesh_points,
+        cells=cells_dict,
+        # Optionally provide extra data on points, cells, etc.
+        point_data=p_data_dict,
+    )
+    mesh.write("md_h1_laplace.vtk")
+    et = time.time()
+    elapsed_time = et - st
+    print("Post-processing time:", elapsed_time, "seconds")
+
 
 def main():
 
@@ -795,9 +1039,11 @@ def main():
     # gmesh_2d = generate_mesh_2d()
     # gmesh_1d = generate_mesh_1d()
 
-    # # pojectors
+    # laplace
+    md_h1_laplace(gmesh_3d)
 
-    h1_gen_projector(gmesh_3d)
+    # # pojectors
+    # h1_gen_projector(gmesh_3d)
     # hdiv_gen_projector(gmesh_3d)
 
 
