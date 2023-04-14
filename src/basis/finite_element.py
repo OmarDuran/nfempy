@@ -360,6 +360,14 @@ class FiniteElement:
         phi_tab = self.basis_generator.push_forward(
             phi_hat_tab[0], jac, det_jac, inv_jac
         )
+        # # TODO: activate this part for mapping any kind of entries
+        # # push forward all basis including derivatives
+        # phi_tab = phi_hat_tab
+        # for i in range(phi_hat_tab.shape[0]):
+        #     phi_tab[i] = self.basis_generator.push_forward(
+        #         phi_hat_tab[i], jac, det_jac, inv_jac
+        #     )
+
         phi_tab = self._permute_and_transform_basis(phi_tab)
 
         if storage:

@@ -368,7 +368,7 @@ def hdiv_gen_projector(gmesh):
     n_components = 1
     dim = gmesh.dimension
     discontinuous = True
-    k_order = 2
+    k_order = 1
     family = "RT"
 
     u_field = DiscreteField(dim,n_components,family,k_order,gmesh)
@@ -377,8 +377,16 @@ def hdiv_gen_projector(gmesh):
     u_field.build_elements()
 
     # n-components tensor field
-    fun = lambda x, y, z: np.array([[y, -x, -z]])
-    # fun = lambda x, y, z: np.array([y * (1 - y), -x * (1 - x), -z * (1 - z)])
+    # vectorization with numpy should be performed with care
+    # this lambda x, y, z: np.array([[0.5, -0.5, -0.5]]) is not generating data for all
+    # integration points
+    fun = lambda x, y, z: np.array([[0.5+0.0*y, -0.5+0.0*x, 0.5+0*z]])
+    # fun = lambda x, y, z: np.array([[y, -x, -z]])
+    # fun = lambda x, y, z: np.array([[y, -x, -z],[y, -x, -z],[y, -x, -z]])
+    # fun = lambda x, y, z: np.array([[y * (1 - y), -x * (1 - x), -z * (1 - z)]])
+    # fun = lambda x, y, z: np.array([[y * (1 - y), -x * (1 - x), -z * (1 - z)],
+    #                                 [y * (1 - y), -x * (1 - x), -z * (1 - z)],
+    #                                 [y * (1 - y), -x * (1 - x), -z * (1 - z)]])
     # fun = lambda x, y, z: np.array([y * (1 - y) *y, -x * (1 - x) *x, -z * (1 - z)* z])
     # fun = lambda x, y, z: np.array([y * (1 - y) * y * y, -x * (1 - x) * x * x, -z*(1-z)*z*z])
     # fun = lambda x, y, z: np.array([-y/(x*x+y*y + 1 ), +x/(x*x+y*y + 1), z/(x*x+y*y + 1)])
@@ -431,33 +439,38 @@ def hdiv_gen_projector(gmesh):
         r_el = np.zeros(rs)
 
         f_val_star = fun(x[:, 0], x[:, 1], x[:, 2])
-        for d in range(u_field.dimension):
-            phi_s_star = (det_jac * weights * phi_tab[:, :, d].T)
 
-            # local blocks
-            indices = np.array(np.split(np.array(range(n_phi * n_components)), n_phi)).T
-            jac_block = np.zeros((n_phi, n_phi))
-            for i, omega in enumerate(weights):
+        # local blocks
+        jac_block = np.zeros((n_phi, n_phi))
+        for i, omega in enumerate(weights):
+            for d in range(3):
                 phi_star = phi_tab[i, :, d]
                 jac_block = jac_block + det_jac[i] * omega * np.outer(phi_star, phi_star)
 
-            for c in range(n_components):
-                b = c
-                e = (c + 1) * n_phi * n_components + 1
-                r_el[b:e:n_components] += phi_s_star @ f_val_star[c,d]
-                j_el[b:e:n_components, b:e:n_components] += jac_block
+        for c in range(n_components):
+            b = c
+            e = (c + 1) * n_phi * n_components + 1
+            res_block = np.zeros(n_phi)
+            for i, omega in enumerate(weights):
+                f_val = fun(x[i, 0], x[i, 1], x[i, 2])[c]
+                res_block = res_block + det_jac[i] * omega * phi_tab[i, :, :] @ f_val
+            r_el[b:e:n_components] += res_block
+            j_el[b:e:n_components, b:e:n_components] += jac_block
 
-        # linear_base
-        j_el_c = np.zeros(js)
-        r_el_c = np.zeros(rs)
-        for i, omega in enumerate(weights):
-            f_val = fun(x[i, 0], x[i, 1], x[i, 2])
-            r_el_c = r_el + det_jac[i] * omega * phi_tab[i, :, :] @ f_val[0]
-            for d in range(3):
-                j_el_c = j_el + det_jac[i] * omega * np.outer(
-                    phi_tab[i, :, d], phi_tab[i, :, d]
-                )
+        # # linear_base
+        # r_el_c = np.zeros(n_phi)
+        # for i, omega in enumerate(weights):
+        #     f_val = fun(x[i, 0], x[i, 1], x[i, 2])
+        #     r_el_c = r_el_c + det_jac[i] * omega * phi_tab[i, :, :] @ f_val[0]
 
+        if True:
+            alpha_l = np.linalg.solve(j_el,r_el)
+            u_e_s = fun(x[:, 0], x[:, 1], x[:, 2])
+            alpha_star = np.array(np.split(alpha_l, n_phi))
+            u_h_s = np.array([(phi_tab[:, :, d] @ alpha_star).T for d in range(3)])
+            u_h_s = np.moveaxis(u_h_s, 0, 1)
+            l2_error = np.sum(det_jac * weights * (u_e_s - u_h_s) * (u_e_s - u_h_s))
+            aka = 0
         # scattering dof
         c_sequ = cell_map[cell.id]
 
@@ -482,7 +495,8 @@ def hdiv_gen_projector(gmesh):
 
     # solving ls
     st = time.time()
-    alpha = sp.linalg.spsolve(jg, rg)
+    # alpha = sp.linalg.spsolve(jg, rg)
+    alpha = sp_solver.spsolve(jg, rg)
     et = time.time()
     elapsed_time = et - st
     print("Linear solver time:", elapsed_time, "seconds")
@@ -500,11 +514,21 @@ def hdiv_gen_projector(gmesh):
         (x, jac, det_jac, inv_jac) = element.mapping
         points, weights = element.quadrature
         phi_tab = element.phi
-        for i, pt in enumerate(points):
-            u_e = fun(x[i, 0], x[i, 1], x[i, 2])[0]
-            u_h = np.dot(alpha_l, phi_tab[i, :, :])
-            l2_error += det_jac[i] * weights[i] * np.dot((u_h - u_e), (u_h - u_e))
+        n_phi = phi_tab.shape[1]
 
+        # vectorization
+        # u_e_s = fun(x[:, 0], x[:, 1], x[:, 2])
+        # alpha_star = np.array(np.split(alpha_l, n_phi))
+        # u_h_s = np.array([(phi_tab[:, :, d] @ alpha_star).T for d in range(3)])
+        # u_h_s = np.moveaxis(u_h_s,0,1)
+        # l2_error = np.sum(det_jac * weights * (u_e_s - u_h_s) * (u_e_s - u_h_s))
+        for c in range(n_components):
+            for i, pt in enumerate(points):
+                u_e = fun(x[i, 0], x[i, 1], x[i, 2])[c]
+                u_h = np.dot(alpha_l, phi_tab[i, :, :])
+                l2_error += (
+                        det_jac[i] * weights[i] * np.dot((u_h - u_e), (u_h - u_e))
+                )
         return l2_error
 
     st = time.time()
@@ -522,8 +546,8 @@ def hdiv_gen_projector(gmesh):
 
     st = time.time()
     cellid_to_element = dict(zip(u_field.element_ids, u_field.elements))
-    uh_data = np.zeros((len(gmesh.points), 3))
-    ue_data = np.zeros((len(gmesh.points), 3))
+    uh_data = np.zeros((len(gmesh.points), 3, n_components))
+    ue_data = np.zeros((len(gmesh.points), 3, n_components))
 
     vertices = u_field.mesh_topology.entities_by_dimension(0)
     cell_vertex_map = u_field.mesh_topology.entity_map_by_dimension(0)
@@ -557,11 +581,14 @@ def hdiv_gen_projector(gmesh):
         # evaluate mapping
         (x, jac, det_jac, inv_jac) = element.compute_mapping(points)
         phi_tab = element.evaluate_basis(points)
-        u_e = fun(x[0, 0], x[0, 1], x[0, 2])
-        u_h = np.dot(alpha_l, phi_tab[0, :, :])
+        n_phi = phi_tab.shape[1]
+        u_e = fun(x[:, 0], x[:, 1], x[:, 2])
+        alpha_star = np.array(np.split(alpha_l, n_phi))
+        u_h = np.array([(phi_tab[:, :, d] @ alpha_star).T for d in range(3)])
+        u_h = np.moveaxis(u_h,0,1)
 
-        ue_data[target_node_id] = u_e
-        uh_data[target_node_id] = u_h
+        ue_data[target_node_id] = u_e[0]
+        uh_data[target_node_id] = u_h[0]
 
     mesh_points = gmesh.points
     con_d = np.array(
@@ -572,7 +599,11 @@ def hdiv_gen_projector(gmesh):
     )
     meshio_cell_types = { 0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
     cells_dict = {meshio_cell_types[u_field.dimension]: con_d}
-    u_data_dict = {"uh": uh_data, "ue": ue_data}
+    tensor_uh_data = [uh_data[:, :, i] for i in range(n_components)]
+    tensor_uh_names = ["uh_" + str(i) for i in range(n_components)]
+    tensor_ue_data = [ue_data[:, :, i] for i in range(n_components)]
+    tensor_ue_names = ["ue_" + str(i) for i in range(n_components)]
+    u_data_dict = dict(zip(tensor_uh_names + tensor_ue_names, tensor_uh_data + tensor_ue_data))
 
     mesh = meshio.Mesh(
         points=mesh_points,
@@ -580,7 +611,7 @@ def hdiv_gen_projector(gmesh):
         # Optionally provide extra data on points, cells, etc.
         point_data=u_data_dict,
     )
-    mesh.write("hdiv_projector.vtk")
+    mesh.write("hdiv_gen_projector.vtk")
     et = time.time()
     elapsed_time = et - st
     print("Post-processing time:", elapsed_time, "seconds")
@@ -626,11 +657,11 @@ def generate_mesh_1d():
 
 def generate_mesh_2d():
 
-    h_cell = 1.0 / (8.0)
+    h_cell = 1.0 / (1.0)
     # higher dimension domain geometry
     s = 1.0
 
-    theta_x = 0.0 * (np.pi/180)
+    theta_x = 45.0 * (np.pi/180)
     theta_y = 0.0 * (np.pi/180)
     theta_z = 0.0 * (np.pi/180)
     rotation_x = np.array(
@@ -712,7 +743,7 @@ def generate_mesh_2d():
 
 def generate_mesh_3d():
 
-    h_cell = 1.0 / (32.0)
+    h_cell = 1.0 / (1.0)
 
     theta_x = 0.0 * (np.pi/180)
     theta_y = 0.0 * (np.pi/180)

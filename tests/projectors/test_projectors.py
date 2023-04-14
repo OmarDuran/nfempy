@@ -108,7 +108,7 @@ def test_h1_projector(k_order):
 
             # Entities by codimension
             # https://defelement.com/ciarlet.html
-            mesh_topology = MeshTopology(gmesh)
+            mesh_topology = MeshTopology(gmesh, dim)
             cell_ids = mesh_topology.entities_by_codimension(0)
 
             elements = list(
@@ -245,7 +245,7 @@ def test_hdiv_hcurl_projector(k_order):
 
             # Entities by codimension
             # https://defelement.com/ciarlet.html
-            mesh_topology = MeshTopology(gmesh)
+            mesh_topology = MeshTopology(gmesh,dim)
             cell_ids = mesh_topology.entities_by_codimension(0)
 
             elements = list(

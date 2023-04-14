@@ -63,6 +63,7 @@ Give a set DFN in form of disjoints manifolds, the conformal mesh is adjusted to
 
 Given a geometrical object it must be specified which geometrical entities should be duplicated. Then the connected cells via body connecttions are duplicated and storage into a map (new -> old). 
 Now traverse the list of duplicates nodes and updated neighs via conformal mesh graphs.
+Non-conformal mesh is not part of the package priorities.
  
 
 # Quadratures and FEM Basis
