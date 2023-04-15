@@ -616,11 +616,11 @@ def hdiv_gen_projector(gmesh):
 
 def generate_mesh_1d():
 
-    h_cell = 1.0 / (8.0)
+    h_cell = 1.0 / (16.0)
 
     theta_x = 0.0 * (np.pi/180)
     theta_y = 45.0 * (np.pi/180)
-    theta_z = 98.0 * (np.pi/180)
+    theta_z = 30.0 * (np.pi/180)
     rotation_x = np.array(
         [[1, 0, 0],[0, np.cos(theta_x), -np.sin(theta_x)],[0,np.sin(theta_x), np.cos(theta_x)]])
     rotation_y = np.array(
