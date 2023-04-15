@@ -655,7 +655,7 @@ def generate_mesh_1d():
 
 def generate_mesh_2d():
 
-    h_cell = 1.0 / (2.0)
+    h_cell = 1.0 / (1.0)
     # higher dimension domain geometry
     s = 1.0
 
@@ -741,7 +741,7 @@ def generate_mesh_2d():
 
 def generate_mesh_3d():
 
-    h_cell = 1.0 / (8.0)
+    h_cell = 1.0 / (16.0)
 
     theta_x = 0.0 * (np.pi/180)
     theta_y = 0.0 * (np.pi/180)
@@ -792,7 +792,7 @@ def generate_mesh_3d():
 def md_h1_laplace(gmesh):
 
     # FESpace: data
-    n_components = 1
+    n_components = 6
     dim = gmesh.dimension
     discontinuous = True
     k_order = 3
@@ -848,11 +848,20 @@ def md_h1_laplace(gmesh):
     # f_exact = lambda x, y, z: np.array([np.sqrt(x**2+y**2+z**2)*(1-np.sqrt(x**2+y**2+z**2))])
     # f_rhs = lambda x, y, z: np.array([2 + 0.0*x])
 
-    # f_exact = lambda x, y, z: np.array([x*(1-x) * y*(1-y)])
-    # f_rhs = lambda x, y, z: np.array([2*(1 - x)*x + 2*(1 - y)*y])
+    # fe_2d = lambda x, y, z: x*(1-x) * y*(1-y)
+    # rhs_2d = lambda x, y, z: 2*(1 - x)*x + 2*(1 - y)*y
+    # f_exact = lambda x, y, z: np.array([fe_2d(x,y,z),fe_2d(x,y,z),fe_2d(x,y,z)])
+    # f_rhs = lambda x, y, z: np.array([rhs_2d(x,y,z),rhs_2d(x,y,z),rhs_2d(x,y,z)])
 
-    f_exact = lambda x, y, z: np.array([x*(1-x) * y*(1-y) * z*(1-z)])
-    f_rhs = lambda x, y, z: np.array([2*(1-x)*x*(1-y)*y+2*(1-x)*x*(1-z)*z+2*(1-y)*y*(1-z)*z])
+    # f_exact = lambda x, y, z: np.array([x*(1-x) * y*(1-y) * z*(1-z)])
+    # f_rhs = lambda x, y, z: np.array([2*(1-x)*x*(1-y)*y+2*(1-x)*x*(1-z)*z+2*(1-y)*y*(1-z)*z])
+
+    fe_3d = lambda x, y, z: x*(1-x) * y*(1-y) * z*(1-z)
+    rhs_3d = lambda x, y, z: 2*(1-x)*x*(1-y)*y+2*(1-x)*x*(1-z)*z+2*(1-y)*y*(1-z)*z
+    # f_exact = lambda x, y, z: np.array([fe_3d(x,y,z),fe_3d(x,y,z),fe_3d(x,y,z)])
+    # f_rhs = lambda x, y, z: np.array([rhs_3d(x,y,z),rhs_3d(x,y,z),rhs_3d(x,y,z)])
+    f_exact = lambda x, y, z: np.array([fe_3d(x,y,z),fe_3d(x,y,z),fe_3d(x,y,z),fe_3d(x,y,z),fe_3d(x,y,z),fe_3d(x,y,z)])
+    f_rhs = lambda x, y, z: np.array([rhs_3d(x,y,z),rhs_3d(x,y,z),rhs_3d(x,y,z),rhs_3d(x,y,z),rhs_3d(x,y,z),rhs_3d(x,y,z)])
 
     def scatter_form_data(element, f_rhs, u_field, cell_map, row, col, data):
 
@@ -933,7 +942,7 @@ def md_h1_laplace(gmesh):
         j_el = np.zeros(js)
 
         # local blocks
-        beta = 1.0e14
+        beta = 1.0e12
         jac_block = np.zeros((n_phi, n_phi))
         for i, omega in enumerate(weights):
             phi = phi_tab[0, i, :, 0]
