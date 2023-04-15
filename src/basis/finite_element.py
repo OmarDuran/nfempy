@@ -264,8 +264,9 @@ class FiniteElement:
                     transformation = reflect_t @ transformation
 
                 dofs = self.basis_generator.entity_dofs[2][index]
-                for dim in range(phi_tab.shape[2]):
-                    phi_tab[:, dofs, dim] = phi_tab[:, dofs, dim] @ transformation.T
+                for d in range(phi_tab.shape[0]):
+                    for dim in range(phi_tab.shape[3]):
+                        phi_tab[d, :, dofs, dim] = transformation @ phi_tab[d, :, dofs, dim]
 
             # reflect edge orientation
             oriented_q = self._validate_edge_orientation_3d()
@@ -274,8 +275,9 @@ class FiniteElement:
                     continue
                 reflect_t = self.basis_generator.entity_transformations()["interval"][0]
                 dofs = self.basis_generator.entity_dofs[1][index]
-                for dim in range(phi_tab.shape[2]):
-                    phi_tab[:, dofs, dim] = phi_tab[:, dofs, dim] @ reflect_t.T
+                for d in range(phi_tab.shape[0]):
+                    for dim in range(phi_tab.shape[3]):
+                        phi_tab[d, :, dofs, dim] = reflect_t @ phi_tab[d, :, dofs, dim]
 
         return phi_tab
 

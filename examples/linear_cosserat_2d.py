@@ -655,7 +655,7 @@ def generate_mesh_1d():
 
 def generate_mesh_2d():
 
-    h_cell = 1.0 / (16.0)
+    h_cell = 1.0 / (8.0)
     # higher dimension domain geometry
     s = 1.0
 
@@ -741,7 +741,7 @@ def generate_mesh_2d():
 
 def generate_mesh_3d():
 
-    h_cell = 1.0 / (16.0)
+    h_cell = 1.0 / (1.0)
 
     theta_x = 0.0 * (np.pi/180)
     theta_y = 0.0 * (np.pi/180)
@@ -792,11 +792,10 @@ def generate_mesh_3d():
 def md_h1_laplace(gmesh):
 
     # FESpace: data
-    # polynomial order
     n_components = 1
     dim = gmesh.dimension
     discontinuous = True
-    k_order = 2
+    k_order = 5
     family = "Lagrange"
 
     u_field = DiscreteField(dim, n_components, family, k_order, gmesh)
@@ -846,11 +845,14 @@ def md_h1_laplace(gmesh):
 
     st = time.time()
 
-    f_exact = lambda x, y, z: np.array([np.sqrt(x**2+y**2+z**2)*(1-np.sqrt(x**2+y**2+z**2))])
-    f_rhs = lambda x, y, z: np.array([2 + 0.0*x])
+    # f_exact = lambda x, y, z: np.array([np.sqrt(x**2+y**2+z**2)*(1-np.sqrt(x**2+y**2+z**2))])
+    # f_rhs = lambda x, y, z: np.array([2 + 0.0*x])
 
     # f_exact = lambda x, y, z: np.array([x*(1-x) * y*(1-y)])
     # f_rhs = lambda x, y, z: np.array([2*(1 - x)*x + 2*(1 - y)*y])
+
+    f_exact = lambda x, y, z: np.array([x*(1-x) * y*(1-y) * z*(1-z)])
+    f_rhs = lambda x, y, z: np.array([2*(1-x)*x*(1-y)*y+2*(1-x)*x*(1-z)*z+2*(1-y)*y*(1-z)*z])
 
     def scatter_form_data(element, f_rhs, u_field, cell_map, row, col, data):
 
@@ -880,9 +882,9 @@ def md_h1_laplace(gmesh):
 
         for i, omega in enumerate(weights):
             for i_s in range(n_phi):
-                grad_phi_i = (1/det_jac[i]) * phi_tab[1:phi_tab.shape[0]+1, i, i_s, 0] @ axes[i].T
+                grad_phi_i = phi_tab[1:phi_tab.shape[0]+1, i, i_s, 0] @ inv_jac[i]
                 for j_s in range(n_phi):
-                    grad_phi_j = (1/det_jac[i]) * phi_tab[1:phi_tab.shape[0]+1, i, j_s, 0] @ axes[i].T
+                    grad_phi_j = phi_tab[1:phi_tab.shape[0]+1, i, j_s, 0] @ inv_jac[i]
                     jac_block[i_s,j_s] += det_jac[i] * omega * np.dot(grad_phi_i, grad_phi_j)
 
         for c in range(n_components):
@@ -933,12 +935,11 @@ def md_h1_laplace(gmesh):
         j_el = np.zeros(js)
 
         # local blocks
-        beta = 1.0e12
-        indices = np.array(np.split(np.array(range(n_phi * n_components)), n_phi)).T
+        beta = 1.0e14
         jac_block = np.zeros((n_phi, n_phi))
         for i, omega in enumerate(weights):
             phi = phi_tab[0, i, :, 0]
-            jac_block = jac_block + beta * det_jac[i] * omega * np.outer(phi, phi)
+            jac_block += beta * det_jac[i] * omega * np.outer(phi, phi)
 
         for c in range(n_components):
             b = c
@@ -966,8 +967,8 @@ def md_h1_laplace(gmesh):
 
     # solving ls
     st = time.time()
-    alpha = sp.linalg.spsolve(jg, rg)
-    # alpha = sp_solver.spsolve(jg, rg)
+    # alpha = sp.linalg.spsolve(jg, rg)
+    alpha = sp_solver.spsolve(jg, rg)
     et = time.time()
     elapsed_time = et - st
     print("Linear solver time:", elapsed_time, "seconds")
@@ -1071,12 +1072,12 @@ def md_h1_laplace(gmesh):
 
 def main():
 
-    # gmesh_3d = generate_mesh_3d()
+    gmesh_3d = generate_mesh_3d()
     # gmesh_2d = generate_mesh_2d()
-    gmesh_1d = generate_mesh_1d()
+    # gmesh_1d = generate_mesh_1d()
 
     # laplace
-    md_h1_laplace(gmesh_1d)
+    md_h1_laplace(gmesh_3d)
 
     # # pojectors
     # h1_gen_projector(gmesh_3d)
