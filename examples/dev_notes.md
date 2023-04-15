@@ -173,4 +173,7 @@ The main structure of the proyect
 	* The number of subfields: 0 < n_components represents number of repeated instances of cases (1), (2) and (3)
 	* k_order: polynomial order of approximation
 
+### Notes on assembler implementation:
+The best local vectorization occurs in eliminating integration point loops
+
 

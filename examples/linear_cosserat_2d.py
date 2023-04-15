@@ -655,7 +655,7 @@ def generate_mesh_1d():
 
 def generate_mesh_2d():
 
-    h_cell = 1.0 / (8.0)
+    h_cell = 1.0 / (2.0)
     # higher dimension domain geometry
     s = 1.0
 
@@ -680,13 +680,13 @@ def generate_mesh_2d():
         # polygon_polygon_intersection()
         # h_cell = 1.0 / 4.0
         fracture_tags = [0, 1, 2, 3, 4, 5]
-        fracture_1 = np.array([[0.5, 0.2], [0.5, 0.8]])
-        fracture_1 = np.array([[0.5, 0.4], [0.5, 0.6]])
-        fracture_2 = np.array([[0.25, 0.5], [0.75, 0.5]])
-        fracture_3 = np.array([[0.2, 0.35], [0.85, 0.35]])
-        fracture_4 = np.array([[0.15, 0.15], [0.85, 0.85]])
-        fracture_5 = np.array([[0.15, 0.85], [0.85, 0.15]])
-        fracture_6 = np.array([[0.22, 0.62], [0.92, 0.22]])
+        fracture_1 = np.array([[0.5, 0.2, 0], [0.5, 0.8, 0]])
+        fracture_1 = np.array([[0.5, 0.4, 0], [0.5, 0.6, 0]])
+        fracture_2 = np.array([[0.25, 0.5, 0], [0.75, 0.5, 0]])
+        fracture_3 = np.array([[0.2, 0.35, 0], [0.85, 0.35, 0]])
+        fracture_4 = np.array([[0.15, 0.15, 0], [0.85, 0.85, 0]])
+        fracture_5 = np.array([[0.15, 0.85, 0], [0.85, 0.15, 0]])
+        fracture_6 = np.array([[0.22, 0.62, 0], [0.92, 0.22, 0]])
         disjoint_fractures = [
             fracture_1,
             fracture_2,
@@ -704,7 +704,7 @@ def generate_mesh_2d():
         fracture_network = fn.FractureNetwork(dimension=2, physical_tag_shift=10)
         fracture_network.intersect_1D_fractures(fractures, render_intersection_q=False)
         fracture_network.build_grahp(all_fixed_d_cells_q=True)
-        # mesher.set_fracture_network(fracture_network)
+        mesher.set_fracture_network(fracture_network)
         mesher.set_points()
         mesher.generate(h_cell)
         mesher.write_mesh("gmesh.msh")
@@ -741,7 +741,7 @@ def generate_mesh_2d():
 
 def generate_mesh_3d():
 
-    h_cell = 1.0 / (1.0)
+    h_cell = 1.0 / (8.0)
 
     theta_x = 0.0 * (np.pi/180)
     theta_y = 0.0 * (np.pi/180)
@@ -795,7 +795,7 @@ def md_h1_laplace(gmesh):
     n_components = 1
     dim = gmesh.dimension
     discontinuous = True
-    k_order = 5
+    k_order = 3
     family = "Lagrange"
 
     u_field = DiscreteField(dim, n_components, family, k_order, gmesh)
@@ -877,15 +877,11 @@ def md_h1_laplace(gmesh):
         phi_s_star = (det_jac * weights * phi_tab[0, :, :, 0].T)
 
         # local blocks
-        indices = np.array(np.split(np.array(range(n_phi * n_components)), n_phi)).T
         jac_block = np.zeros((n_phi, n_phi))
-
         for i, omega in enumerate(weights):
-            for i_s in range(n_phi):
-                grad_phi_i = phi_tab[1:phi_tab.shape[0]+1, i, i_s, 0] @ inv_jac[i]
-                for j_s in range(n_phi):
-                    grad_phi_j = phi_tab[1:phi_tab.shape[0]+1, i, j_s, 0] @ inv_jac[i]
-                    jac_block[i_s,j_s] += det_jac[i] * omega * np.dot(grad_phi_i, grad_phi_j)
+            grad_phi = inv_jac[i].T @ phi_tab[1:phi_tab.shape[0] + 1, i, :, 0]
+            for d in range(3):
+                jac_block += det_jac[i] * omega * np.outer(grad_phi[d], grad_phi[d])
 
         for c in range(n_components):
             b = c
@@ -921,7 +917,9 @@ def md_h1_laplace(gmesh):
         # find high-dimension neigh
         entity_map = u_field.dof_map.mesh_topology.entity_map_by_dimension(cell.dimension)
         neigh_list = list(entity_map.predecessors(cell.id))
-        assert len(neigh_list) == 1
+        neigh_check_q = len(neigh_list) > 0
+        assert neigh_check_q
+
         neigh_cell_id = neigh_list[0]
         neigh_cell_index = u_field.id_to_element[neigh_cell_id]
         neigh_cell = u_field.elements[neigh_cell_index].cell
