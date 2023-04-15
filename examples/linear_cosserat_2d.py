@@ -616,11 +616,11 @@ def hdiv_gen_projector(gmesh):
 
 def generate_mesh_1d():
 
-    h_cell = 1.0 / (1.0)
+    h_cell = 1.0 / (8.0)
 
     theta_x = 0.0 * (np.pi/180)
-    theta_y = -45.0 * (np.pi/180)
-    theta_z = -45.0 * (np.pi/180)
+    theta_y = 45.0 * (np.pi/180)
+    theta_z = 98.0 * (np.pi/180)
     rotation_x = np.array(
         [[1, 0, 0],[0, np.cos(theta_x), -np.sin(theta_x)],[0,np.sin(theta_x), np.cos(theta_x)]])
     rotation_y = np.array(
@@ -846,7 +846,11 @@ def md_h1_laplace(gmesh):
 
     st = time.time()
 
-    f_rhs = lambda x, y, z: np.array([1.0 + 0.0*x])
+    f_exact = lambda x, y, z: np.array([np.sqrt(x**2+y**2+z**2)*(1-np.sqrt(x**2+y**2+z**2))])
+    f_rhs = lambda x, y, z: np.array([2 + 0.0*x])
+
+    # f_exact = lambda x, y, z: np.array([x*(1-x) * y*(1-y)])
+    # f_rhs = lambda x, y, z: np.array([2*(1 - x)*x + 2*(1 - y)*y])
 
     def scatter_form_data(element, f_rhs, u_field, cell_map, row, col, data):
 
@@ -873,10 +877,13 @@ def md_h1_laplace(gmesh):
         # local blocks
         indices = np.array(np.split(np.array(range(n_phi * n_components)), n_phi)).T
         jac_block = np.zeros((n_phi, n_phi))
-        for d in range(u_field.dimension):
-            for i, omega in enumerate(weights):
-                grad_phi = phi_tab[d, i, :, 0]
-                jac_block = jac_block + det_jac[i] * omega * np.outer(grad_phi, grad_phi)
+
+        for i, omega in enumerate(weights):
+            for i_s in range(n_phi):
+                grad_phi_i = (1/det_jac[i]) * phi_tab[1:phi_tab.shape[0]+1, i, i_s, 0] @ axes[i].T
+                for j_s in range(n_phi):
+                    grad_phi_j = (1/det_jac[i]) * phi_tab[1:phi_tab.shape[0]+1, i, j_s, 0] @ axes[i].T
+                    jac_block[i_s,j_s] += det_jac[i] * omega * np.dot(grad_phi_i, grad_phi_j)
 
         for c in range(n_components):
             b = c
@@ -965,6 +972,35 @@ def md_h1_laplace(gmesh):
     elapsed_time = et - st
     print("Linear solver time:", elapsed_time, "seconds")
 
+    # Computing L2 error
+    def compute_l2_error(element, u_field):
+        l2_error = 0.0
+        n_components = u_field.n_comp
+        cell = element.cell
+        # scattering dof
+        dest = u_field.dof_map.destination_indices(cell.id)
+        alpha_l = alpha[dest]
+
+        (x, jac, det_jac, inv_jac, _) = element.mapping
+        points, weights = element.quadrature
+        phi_tab = element.phi
+
+        # vectorization
+        n_phi = phi_tab.shape[2]
+        p_e_s = f_exact(x[:, 0], x[:, 1], x[:, 2])
+        alpha_star = np.array(np.split(alpha_l, n_phi))
+        p_h_s = (phi_tab[0, :, :, 0] @ alpha_star).T
+        l2_error = np.sum(det_jac * weights * (p_e_s - p_h_s) * (p_e_s - p_h_s))
+        return l2_error
+
+    st = time.time()
+    error_vec = [compute_l2_error(element, u_field) for element in u_field.elements]
+    et = time.time()
+    elapsed_time = et - st
+    print("L2-error time:", elapsed_time, "seconds")
+    l2_error = functools.reduce(lambda x, y: x + y, error_vec)
+    print("L2-error: ", np.sqrt(l2_error))
+
     # post-process solution
     st = time.time()
     cellid_to_element = dict(zip(u_field.element_ids, u_field.elements))
@@ -1004,11 +1040,11 @@ def md_h1_laplace(gmesh):
         (x, jac, det_jac, inv_jac, _) = element.compute_mapping(points)
         phi_tab = element.evaluate_basis(points)
         n_phi = phi_tab.shape[2]
-        # f_e = fun(x[:, 0], x[:, 1], x[:, 2])
+        f_e = f_exact(x[:, 0], x[:, 1], x[:, 2])
         alpha_star = np.array(np.split(alpha_l, n_phi))
         f_h = (phi_tab[0, :, :, 0] @ alpha_star).T
         fh_data[target_node_id] = f_h.ravel()
-        # fe_data[target_node_id] = f_e.ravel()
+        fe_data[target_node_id] = f_e.ravel()
 
     mesh_points = gmesh.points
     con_d = np.array(
@@ -1035,12 +1071,12 @@ def md_h1_laplace(gmesh):
 
 def main():
 
-    gmesh_3d = generate_mesh_3d()
+    # gmesh_3d = generate_mesh_3d()
     # gmesh_2d = generate_mesh_2d()
-    # gmesh_1d = generate_mesh_1d()
+    gmesh_1d = generate_mesh_1d()
 
     # laplace
-    md_h1_laplace(gmesh_3d)
+    md_h1_laplace(gmesh_1d)
 
     # # pojectors
     # h1_gen_projector(gmesh_3d)

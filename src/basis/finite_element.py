@@ -292,7 +292,7 @@ class FiniteElement:
         (x, jac, det_jac, inv_jac, _) = self.compute_mapping(points, storage)
 
         if self.cell.dimension == 0:
-            phi_tab = np.ones((1, 1, 1))
+            phi_tab = np.ones((1, 1, 1, 1))
             if storage:
                 self.phi = phi_tab
             return phi_tab
