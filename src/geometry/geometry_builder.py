@@ -9,6 +9,10 @@ class GeometryBuilder:
         self.dimension = dimension
         self.cells = np.array([], dtype=GeometryCell)
         self.points = np.empty((0, 3), dtype=float)
+        self.physical_tags = {}
+
+    def set_physical_tags(self, physical_tags):
+        self.physical_tags = physical_tags
 
     def set_boundary(self, vertices, connectivity, material_id):
         self.vertices = vertices
@@ -112,6 +116,10 @@ class GeometryBuilder:
 
     def build_box(self, box_points):
 
+        if len(self.physical_tags) == 0:
+            self.physical_tags = {"volume": 1, "bc_0": 2, "bc_1": 3, "bc_2": 4, "bc_3": 5,
+                             "bc_4": 6, "bc_5": 7}
+
         self.points = np.append(
             self.points, np.array([point for point in box_points]), axis=0
         )
@@ -170,36 +178,43 @@ class GeometryBuilder:
         self.cells = np.append(self.cells, edge)
 
         surface = GeometryCell(2, 20)
+        surface.physical_tag = self.physical_tags.get("bc_0", None)
         surface.boundary_cells = self.cells[[8, 17, 12, 16]]
         surface.boundary_loop = np.array([8, 17, -12, -16])
         self.cells = np.append(self.cells, surface)
 
         surface = GeometryCell(2, 21)
+        surface.physical_tag = self.physical_tags.get("bc_1", None)
         surface.boundary_cells = self.cells[[9, 18, 13, 17]]
         surface.boundary_loop = np.array([9, 18, -13, -17])
         self.cells = np.append(self.cells, surface)
 
         surface = GeometryCell(2, 22)
+        surface.physical_tag = self.physical_tags.get("bc_2", None)
         surface.boundary_cells = self.cells[[10, 19, 14, 18]]
         surface.boundary_loop = np.array([10, 19, -14, -18])
         self.cells = np.append(self.cells, surface)
 
         surface = GeometryCell(2, 23)
+        surface.physical_tag = self.physical_tags.get("bc_3", None)
         surface.boundary_cells = self.cells[[11, 16, 15, 19]]
         surface.boundary_loop = np.array([11, 16, -15, -19])
         self.cells = np.append(self.cells, surface)
 
         surface = GeometryCell(2, 24)
+        surface.physical_tag = self.physical_tags.get("bc_4", None)
         surface.boundary_cells = self.cells[[8, 9, 10, 11]]
         surface.boundary_loop = np.array([8, 9, 10, 11])
         self.cells = np.append(self.cells, surface)
 
         surface = GeometryCell(2, 25)
+        surface.physical_tag = self.physical_tags.get("bc_5", None)
         surface.boundary_cells = self.cells[[12, 13, 14, 15]]
         surface.boundary_loop = np.array([12, 13, 14, 15])
         self.cells = np.append(self.cells, surface)
 
         volume = GeometryCell(3, 26)
+        volume.physical_tag = self.physical_tags.get("volume", None)
         volume.boundary_cells = self.cells[[20, 21, 22, 23, 24, 25]]
         self.cells = np.append(self.cells, volume)
         self.build_grahp()

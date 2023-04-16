@@ -151,7 +151,11 @@ class DoFMap:
         for d in range(dim):
             entity_map = self.mesh_topology.entity_map_by_dimension(d)
             dof_supports = list(entity_map.successors(cell_id))
-            dof_supports = [dof_support for dof_support in dof_supports if dof_support in list(bc_cells_ids[d])]
+            dof_supports = [
+                dof_support
+                for dof_support in dof_supports
+                if dof_support in list(bc_cells_ids[d])
+            ]
             if int(np.mean(self.ref_element.num_entity_dofs[d])) == 0:
                 dof_supports = []
             entity_dest = np.array(

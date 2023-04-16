@@ -17,7 +17,7 @@ class Mesh:
         self.duplicated_ids = {}
         self.conformal_mesh = meshio.read(file_name)
         self.points = self.conformal_mesh.points
-        self.cell_data = {}  # np.array([], dtype=int)
+        self.cell_data = {}
         self.fracture_normals = {}
         self.conformal_mesher = None
 
@@ -145,12 +145,6 @@ class Mesh:
             edge_1 = node_tags[np.array([0, 2])]
             edge_2 = node_tags[np.array([0, 1])]
             edges = [edge_0, edge_1, edge_2]
-            # # line loop
-            # loop = [i for i in range(len(node_tags))]
-            # loop.append(loop[0])
-            # connectivity = np.array(
-            #     [[loop[index], loop[index + 1]] for index in range(len(loop) - 1)]
-            # )
 
             edge_ids = []
             for edge in edges:

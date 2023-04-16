@@ -129,9 +129,10 @@ class ConformalMesher:
 
         # add physical tags
         for geo_2_cell in geo_2_cells:
-            gmsh.model.addPhysicalGroup(2, [geo_2_cell.id], geo_2_cell.id)
+            gmsh.model.addPhysicalGroup(2, [geo_2_cell.id], geo_2_cell.physical_tag)
 
-        gmsh.model.addPhysicalGroup(3, self.tags_3d, self.tags_3d[0])
+        for geo_3_cell in geo_3_cells:
+            gmsh.model.addPhysicalGroup(3, self.tags_3d, geo_3_cell.physical_tag)
 
     def add_fracture_network_description(self):
 

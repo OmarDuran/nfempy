@@ -20,6 +20,7 @@ An exploratory enviroment with python 3.7 is necessary for a clean installation 
 6. matplotlib
 7. fenics-basix (Fem basis)
 8. shapely
+9. dill: because serialization and parallelization
 9. julia : https://github.com/SciML/LinearSolve.jl (Still not smooth)
 10. pyvista: https://docs.pyvista.org/
 
@@ -179,7 +180,7 @@ The best local vectorization occurs in eliminating integration point loops
 ### Log second-order excecution time:
 	
 	Note: In a 3d unit cube, the mesh generation for h = 1/64 will generate 200873 nodes and 1227986 elements (tetrahedra) and memory usage will be around 8Gb. So it is not worthy to optimize beyond  h = 1/32 because the mesh generation will be untractable. Ports for other mesh generators is required. 
-	The case h = 1/32 gmsh will generate 27364 nodes and 162993 elements (tetrahedra) will
+	The case h = 1/32 gmsh will generate 27364 nodes and 162993 elements (tetrahedra) will be the limitation of the approach with python.
 	
 	
 	Performance for

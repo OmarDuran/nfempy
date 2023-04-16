@@ -12,17 +12,21 @@ import matplotlib.pyplot as plt
 
 from geometry.geometry_cell import GeometryCell
 from geometry.geometry_builder import GeometryBuilder
+from geometry.mapping import store_mapping
+from geometry.mapping import evaluate_mapping
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
 from topology.mesh_topology import MeshTopology
 from basis.finite_element import FiniteElement
+from basis.element_data import ElementData
+
 from spaces.dof_map import DoFMap
 from spaces.discrete_field import DiscreteField
 
 import basix
 import functools
 from functools import partial
-
+import copy
 # from itertools import permutations
 from functools import reduce
 
@@ -43,6 +47,18 @@ import jax.numpy as jnp
 import time
 import sys
 
+from joblib import Parallel, delayed
+from joblib import wrap_non_picklable_objects
+import multiprocessing
+
+from numba import njit, prange
+import dask
+# dask.config.set(scheduler='threads')
+# dask.config.set(scheduler='processes')
+from loky import get_reusable_executor
+dask.config.set(scheduler=get_reusable_executor())
+
+import dill
 
 def polygon_polygon_intersection():
 
@@ -616,7 +632,7 @@ def hdiv_gen_projector(gmesh):
 
 def generate_mesh_1d():
 
-    h_cell = 1.0 / (16.0)
+    h_cell = 1.0 / (2.0)
 
     theta_x = 0.0 * (np.pi/180)
     theta_y = 45.0 * (np.pi/180)
@@ -655,7 +671,7 @@ def generate_mesh_1d():
 
 def generate_mesh_2d():
 
-    h_cell = 1.0 / (1.0)
+    h_cell = 1.0 / (64.0)
     # higher dimension domain geometry
     s = 1.0
 
@@ -741,7 +757,7 @@ def generate_mesh_2d():
 
 def generate_mesh_3d():
 
-    h_cell = 1.0 / (16.0)
+    h_cell = 1.0 / (1.0)
 
     theta_x = 0.0 * (np.pi/180)
     theta_y = 0.0 * (np.pi/180)
@@ -767,7 +783,6 @@ def generate_mesh_3d():
         ]
     )
     box_points = box_points @ rotation_x @ rotation_y @ rotation_z
-
     g_builder = GeometryBuilder(dimension=3)
     g_builder.build_box(box_points)
     g_builder.build_grahp()
@@ -783,7 +798,7 @@ def generate_mesh_3d():
     gmesh.build_conformal_mesh_II()
 
     # gmesh.write_data()
-    # gmesh.write_vtk()
+    gmesh.write_vtk()
     print("h-size: ", h_cell)
 
 
@@ -798,16 +813,21 @@ def md_h1_laplace(gmesh):
     k_order = 3
     family = "Lagrange"
 
+
+
+
     u_field = DiscreteField(dim, n_components, family, k_order, gmesh)
     # u_field.make_discontinuous()
     u_field.build_dof_map()
+    u_field.build_bc_dof_map()
     u_field.build_elements()
+    u_field.build_bc_elements([2,3,4,5,6,7])
 
-    # aux field for BC
-    bc_u_field = DiscreteField(dim-1, n_components, family, k_order, gmesh)
-    # u_field.make_discontinuous()
-    bc_u_field.build_dof_map()
-    bc_u_field.build_elements()
+    # # aux field for BC
+    # bc_u_field = DiscreteField(dim-1, n_components, family, k_order, gmesh)
+    # # u_field.make_discontinuous()
+    # bc_u_field.build_dof_map()
+    # bc_u_field.build_elements()
 
     # Field creation optimization
     return
@@ -1088,10 +1108,7 @@ def main():
 
     # laplace
     md_h1_laplace(gmesh_3d)
-
-    # # pojectors
-    # h1_gen_projector(gmesh_3d)
-    # hdiv_gen_projector(gmesh_3d)
+    return
 
 
 if __name__ == "__main__":
