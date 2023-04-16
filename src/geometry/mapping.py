@@ -1,9 +1,8 @@
+import basix
 import numpy as np
 
-import basix
 from basis.element_data import ElementData
-from basis.element_family import family_by_name
-from basis.element_family import basis_variant
+from basis.element_family import basis_variant, family_by_name
 from basis.element_type import type_by_dimension
 
 

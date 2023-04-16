@@ -1,9 +1,9 @@
 import copy
+import itertools
 
 import meshio
 import networkx as nx
 import numpy as np
-import itertools
 
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh_cell import MeshCell, barycenter, rotate_vector

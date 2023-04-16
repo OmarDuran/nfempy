@@ -13,7 +13,9 @@ import matplotlib.pyplot as plt
 from geometry.geometry_cell import GeometryCell
 from geometry.geometry_builder import GeometryBuilder
 from geometry.mapping import store_mapping
+from geometry.mapping import evaluate_linear_shapes
 from geometry.mapping import evaluate_mapping
+
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
 from topology.mesh_topology import MeshTopology
@@ -671,7 +673,7 @@ def generate_mesh_1d():
 
 def generate_mesh_2d():
 
-    h_cell = 1.0 / (64.0)
+    h_cell = 1.0 / (1.0)
     # higher dimension domain geometry
     s = 1.0
 
@@ -813,24 +815,9 @@ def md_h1_laplace(gmesh):
     k_order = 3
     family = "Lagrange"
 
-
-
-
     u_field = DiscreteField(dim, n_components, family, k_order, gmesh)
-    # u_field.make_discontinuous()
-    u_field.build_dof_map()
-    u_field.build_bc_dof_map()
-    u_field.build_elements()
-    u_field.build_bc_elements([2,3,4,5,6,7])
-
-    # # aux field for BC
-    # bc_u_field = DiscreteField(dim-1, n_components, family, k_order, gmesh)
-    # # u_field.make_discontinuous()
-    # bc_u_field.build_dof_map()
-    # bc_u_field.build_elements()
-
-    # Field creation optimization
-    return
+    u_field.build_structures([2, 3, 4, 5])
+    # u_field.build_structures([2, 3, 4, 5, 6, 7])
 
     st = time.time()
     # Assembler
@@ -839,15 +826,15 @@ def md_h1_laplace(gmesh):
     n_dof_g = 0
     cell_map = {}
     for element in u_field.elements:
-        cell = element.cell
+        cell = element.data.cell
         n_dof = 0
         for n_entity_dofs in element.basis_generator.num_entity_dofs:
             n_dof = n_dof + sum(n_entity_dofs) * n_components
         cell_map.__setitem__(cell.id, c_size)
         c_size = c_size + n_dof * n_dof
 
-    for element in bc_u_field.elements:
-        cell = element.cell
+    for element in u_field.bc_elements:
+        cell = element.data.cell
         n_dof = 0
         for n_entity_dofs in element.basis_generator.num_entity_dofs:
             n_dof = n_dof + sum(n_entity_dofs) * n_components
@@ -889,15 +876,21 @@ def md_h1_laplace(gmesh):
     def scatter_form_data(element, f_rhs, u_field, cell_map, row, col, data):
 
         n_components = u_field.n_comp
-        cell = element.cell
-        points, weights = element.quadrature
-        phi_tab = element.phi
-        (x, jac, det_jac, inv_jac, axes) = element.mapping
+        el_data: ElementData = element.data
+
+        cell = el_data.cell
+        points = el_data.quadrature.points
+        weights = el_data.quadrature.weights
+        phi_tab = el_data.basis.phi
+
+        x = el_data.mapping.x
+        det_jac = el_data.mapping.det_jac
+        inv_jac = el_data.mapping.inv_jac
 
         # destination indexes
         dest = u_field.dof_map.destination_indices(cell.id)
 
-        n_phi = element.phi.shape[2]
+        n_phi = phi_tab.shape[2]
         n_dof = n_phi * n_components
         js = (n_dof, n_dof)
         rs = n_dof
@@ -938,13 +931,19 @@ def md_h1_laplace(gmesh):
         for element in u_field.elements
     ]
 
-    def scatter_bc_form_data(element, u_field, bc_u_field, cell_map, row, col, data):
+    def scatter_bc_form_data(element, u_field, cell_map, row, col, data):
 
         n_components = u_field.n_comp
-        cell = element.cell
-        points, weights = element.quadrature
-        phi_tab = element.phi
-        (x, jac, det_jac, inv_jac, _) = element.mapping
+        el_data: ElementData = element.data
+
+        cell = el_data.cell
+        points = el_data.quadrature.points
+        weights = el_data.quadrature.weights
+        phi_tab = el_data.basis.phi
+
+        x = el_data.mapping.x
+        det_jac = el_data.mapping.det_jac
+        inv_jac = el_data.mapping.inv_jac
 
         # find high-dimension neigh
         entity_map = u_field.dof_map.mesh_topology.entity_map_by_dimension(cell.dimension)
@@ -954,12 +953,13 @@ def md_h1_laplace(gmesh):
 
         neigh_cell_id = neigh_list[0]
         neigh_cell_index = u_field.id_to_element[neigh_cell_id]
-        neigh_cell = u_field.elements[neigh_cell_index].cell
+        neigh_cell = u_field.elements[neigh_cell_index].data.cell
 
         # destination indexes
         dest_neigh = u_field.dof_map.destination_indices(neigh_cell_id)
         dest = u_field.dof_map.bc_destination_indices(neigh_cell_id, cell.id)
-        n_phi = element.phi.shape[2]
+
+        n_phi = phi_tab.shape[2]
         n_dof = n_phi * n_components
         js = (n_dof, n_dof)
         j_el = np.zeros(js)
@@ -986,8 +986,8 @@ def md_h1_laplace(gmesh):
         data[block_sequ] += j_el.ravel()
 
     [
-        scatter_bc_form_data(element, u_field, bc_u_field, cell_map, row, col, data)
-        for element in bc_u_field.elements
+        scatter_bc_form_data(element, u_field, cell_map, row, col, data)
+        for element in u_field.bc_elements
     ]
 
     jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
@@ -1007,14 +1007,19 @@ def md_h1_laplace(gmesh):
     def compute_l2_error(element, u_field):
         l2_error = 0.0
         n_components = u_field.n_comp
-        cell = element.cell
+        el_data = element.data
+        cell = el_data.cell
+        points = el_data.quadrature.points
+        weights = el_data.quadrature.weights
+        phi_tab = el_data.basis.phi
+
+        x = el_data.mapping.x
+        det_jac = el_data.mapping.det_jac
+        inv_jac = el_data.mapping.inv_jac
+
         # scattering dof
         dest = u_field.dof_map.destination_indices(cell.id)
         alpha_l = alpha[dest]
-
-        (x, jac, det_jac, inv_jac, _) = element.mapping
-        points, weights = element.quadrature
-        phi_tab = element.phi
 
         # vectorization
         n_phi = phi_tab.shape[2]
@@ -1068,7 +1073,8 @@ def md_h1_laplace(gmesh):
 
 
         # evaluate mapping
-        (x, jac, det_jac, inv_jac, _) = element.compute_mapping(points)
+        phi_shapes = evaluate_linear_shapes(points, element.data)
+        (x, jac, det_jac, inv_jac) = evaluate_mapping(cell.dimension, phi_shapes, gmesh.points[cell.node_tags])
         phi_tab = element.evaluate_basis(points)
         n_phi = phi_tab.shape[2]
         f_e = f_exact(x[:, 0], x[:, 1], x[:, 2])
@@ -1080,7 +1086,7 @@ def md_h1_laplace(gmesh):
     mesh_points = gmesh.points
     con_d = np.array(
         [
-            element.cell.node_tags
+            element.data.cell.node_tags
             for element in u_field.elements
         ]
     )

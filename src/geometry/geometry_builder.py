@@ -68,6 +68,9 @@ class GeometryBuilder:
 
     def build_box_1D(self, box_points):
 
+        if len(self.physical_tags) == 0:
+            self.physical_tags = {"line": 1, "bc_0": 2, "bc_1": 3}
+
         self.points = np.append(
             self.points, np.array([point for point in box_points]), axis=0
         )
@@ -76,15 +79,22 @@ class GeometryBuilder:
             self.cells, np.array([GeometryCell(0, index) for index in loop])
         )
 
+        self.cells[0].physical_tag = self.physical_tags.get("bc_0", None)
+        self.cells[1].physical_tag = self.physical_tags.get("bc_1", None)
+
         cell_id = len(box_points)
         vertex_indices = [0, 1]
         vertex_indices = np.array(vertex_indices)
         line = GeometryCell(1, cell_id)
+        line.physical_tag = self.physical_tags.get("line", None)
         line.boundary_cells = self.cells[vertex_indices]
         self.cells = np.append(self.cells, line)
         self.build_grahp()
 
     def build_box_2D(self, box_points):
+
+        if len(self.physical_tags) == 0:
+            self.physical_tags = {"area": 1, "bc_0": 2, "bc_1": 3, "bc_2": 4, "bc_3": 5}
 
         self.points = np.append(
             self.points, np.array([point for point in box_points]), axis=0
@@ -101,15 +111,20 @@ class GeometryBuilder:
 
         cell_id = len(box_points)
         edges_indices = []
+        bc_id = 0
+        bc_name = "bc_"
         for con in connectivities:
             edge = GeometryCell(1, cell_id)
+            edge.physical_tag = self.physical_tags.get(bc_name + str(bc_id), None)
             edge.boundary_cells = self.cells[con]
             self.cells = np.append(self.cells, edge)
             edges_indices.append(cell_id)
             cell_id = cell_id + 1
+            bc_id = bc_id + 1
 
         edges_indices = np.array(edges_indices)
         surface = GeometryCell(2, cell_id)
+        surface.physical_tag = self.physical_tags.get("area", None)
         surface.boundary_cells = self.cells[edges_indices]
         self.cells = np.append(self.cells, surface)
         self.build_grahp()
@@ -117,8 +132,15 @@ class GeometryBuilder:
     def build_box(self, box_points):
 
         if len(self.physical_tags) == 0:
-            self.physical_tags = {"volume": 1, "bc_0": 2, "bc_1": 3, "bc_2": 4, "bc_3": 5,
-                             "bc_4": 6, "bc_5": 7}
+            self.physical_tags = {
+                "volume": 1,
+                "bc_0": 2,
+                "bc_1": 3,
+                "bc_2": 4,
+                "bc_3": 5,
+                "bc_4": 6,
+                "bc_5": 7,
+            }
 
         self.points = np.append(
             self.points, np.array([point for point in box_points]), axis=0

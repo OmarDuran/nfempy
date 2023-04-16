@@ -65,9 +65,10 @@ class ConformalMesher:
 
         # add physical tags
         for geo_0_cell in geo_0_cells:
-            gmsh.model.addPhysicalGroup(0, [geo_0_cell.id + 1], geo_0_cell.id + 1)
+            gmsh.model.addPhysicalGroup(0, [geo_0_cell.id + 1], geo_0_cell.physical_tag)
 
-        gmsh.model.addPhysicalGroup(1, self.tags_1d, self.tags_1d[0] + 1)
+        for geo_1_cell in geo_1_cells:
+            gmsh.model.addPhysicalGroup(1, self.tags_1d, geo_1_cell.physical_tag)
 
     def add_domain_2d_descritpion(self):
 
@@ -92,9 +93,10 @@ class ConformalMesher:
 
         # add physical tags
         for geo_1_cell in geo_1_cells:
-            gmsh.model.addPhysicalGroup(1, [geo_1_cell.id], geo_1_cell.id)
+            gmsh.model.addPhysicalGroup(1, [geo_1_cell.id], geo_1_cell.physical_tag)
 
-        gmsh.model.addPhysicalGroup(2, self.tags_2d, self.tags_2d[0])
+        for geo_2_cell in geo_2_cells:
+            gmsh.model.addPhysicalGroup(2, self.tags_2d, geo_2_cell.physical_tag)
 
     def add_domain_3d_descritpion(self):
 

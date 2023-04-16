@@ -6,11 +6,14 @@ from mesh.mesh import Mesh
 from mesh.mesh_cell import MeshCell
 
 
-@dataclass
 class QuadratureData:
-    # Mesh and mesh entity
-    points: np.ndarray = np.empty(0)
-    weights: np.ndarray = np.empty(0)
+    def __init__(
+        self, points: np.ndarray = np.empty(0), weights: np.ndarray = np.empty(0)
+    ):
+
+        # Mesh and mesh entity
+        self.points = points
+        self.weights = weights
 
     @classmethod
     def copy(self):
@@ -19,15 +22,21 @@ class QuadratureData:
         return QuadratureData(points, weights)
 
 
-@dataclass
 class MappingData:
-
-    # Geometrical mapping data
-    phi: np.ndarray = np.empty(0)
-    x: np.ndarray = np.empty(0)
-    jac: np.ndarray = np.empty(0)
-    det_jac: np.ndarray = np.empty(0)
-    inv_jac: np.ndarray = np.empty(0)
+    def __init__(
+        self,
+        phi: np.ndarray = np.empty(0),
+        x: np.ndarray = np.empty(0),
+        jac: np.ndarray = np.empty(0),
+        det_jac: np.ndarray = np.empty(0),
+        inv_jac: np.ndarray = np.empty(0),
+    ):
+        # Geometrical mapping data
+        phi: np.ndarray = phi
+        x: np.ndarray = x
+        jac: np.ndarray = jac
+        det_jac: np.ndarray = det_jac
+        inv_jac: np.ndarray = inv_jac
 
     @classmethod
     def copy(self):
@@ -40,20 +49,26 @@ class MappingData:
         return MappingData(phi, cell_points, x, jac, det_jac, inv_jac)
 
 
-@dataclass
 class DoFData:
+    def __init__(
+        self,
+        entity_dofs: np.ndarray = np.empty(0),
+        transformations_are_identity: bool = True,
+        transformations: dict = {},
+        dest: np.ndarray = np.empty(0),
+    ):
 
-    # entity dofs
-    entity_dofs: np.ndarray = np.empty(0)
+        # entity dofs
+        self.entity_dofs: np.ndarray = entity_dofs
 
-    # entity dofs
-    transformations_are_identity: bool = True
+        # entity dofs
+        self.transformations_are_identity: bool = transformations_are_identity
 
-    # transformations
-    transformations: dict = field(default_factory=dict)
+        # transformations
+        self.transformations: dict = transformations
 
-    # destination indexes
-    dest: np.ndarray = np.empty(0)
+        # destination indexes
+        self.dest: np.ndarray = dest
 
     @classmethod
     def copy(self):
@@ -64,11 +79,13 @@ class DoFData:
         return DoFData(entity_dofs, transformations_are_identity, transformations, dest)
 
 
-@dataclass
 class BasisData:
-
-    # basis
-    phi: np.ndarray = np.empty(0)
+    def __init__(
+        self,
+        phi: np.ndarray = np.empty(0),
+    ):
+        # basis
+        self.phi: np.ndarray = phi
 
     @classmethod
     def copy(self):
@@ -76,21 +93,22 @@ class BasisData:
         return BasisData(phi)
 
 
-@dataclass
 class ElementData:
-    dimension: int = -1
-    cell: MeshCell = -1
-    mesh: Mesh = None
-    quadrature: QuadratureData = QuadratureData
-    mapping: MappingData = MappingData
-    dof: DoFData = DoFData
-    basis: BasisData = BasisData
+    def __init__(self, dimension: int = -1, cell: MeshCell = None, mesh: Mesh = None):
+
+        self.dimension: int = dimension
+        self.cell: MeshCell = cell
+        self.mesh: Mesh = mesh
+        self.quadrature: QuadratureData = QuadratureData()
+        self.mapping: MappingData = MappingData()
+        self.dof: DoFData = DoFData()
+        self.basis: BasisData = BasisData()
 
     @classmethod
     def copy(self):
         dimension = self.dimension
-        cell = self.cell
-        mesh = self.mesh
+        cell = None
+        mesh = None
         quadrature = self.quadrature.copy()
         mapping = self.mapping.copy()
         dof = self.dof.copy()

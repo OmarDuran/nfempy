@@ -3,15 +3,12 @@ from itertools import permutations
 import basix
 import numpy as np
 
-from geometry.mapping import evaluate_linear_shapes
-from geometry.mapping import evaluate_mapping
-from geometry.mapping import store_mapping
-
-from basis.element_family import family_by_name
-from basis.element_family import basis_variant
-from basis.element_type import type_by_dimension
 from basis.element_data import ElementData
+from basis.element_family import basis_variant, family_by_name
+from basis.element_type import type_by_dimension
 from basis.permute_and_transform import permute_and_transform
+from geometry.mapping import (evaluate_linear_shapes, evaluate_mapping,
+                              store_mapping)
 
 
 class FiniteElement:
@@ -24,21 +21,22 @@ class FiniteElement:
         self.discontinuous = discontinuous
         self.integration_oder = integration_oder
         self.basis_generator = None
-        self.data = ElementData
-        self._build_structures(mesh, cell_id)
+        self.data = ElementData(
+            dimension=mesh.cells[cell_id].dimension, cell=mesh.cells[cell_id], mesh=mesh
+        )
+        self._build_structures()
 
-    def _build_structures(self, mesh, cell_id):
+    def _build_structures(self):
 
         # fetch information from static methods
         family = self.family
-        cell = mesh.cells[cell_id]
-        cell_type = type_by_dimension(cell.dimension)
+        cell_type = type_by_dimension(self.data.cell.dimension)
         variant = basis_variant()
         self._set_integration_order()
 
         # create generator
         quadrature = np.empty(0)
-        if cell.dimension == 0:
+        if self.data.cell.dimension == 0:
             # Can only create order 0 Lagrange on a point
             self.k_order = 0
             self.family = "Lagrange"
@@ -53,7 +51,7 @@ class FiniteElement:
             quadrature = (np.array([1.0]), np.array([1.0]))
         else:
 
-            if cell.dimension == 1 and self.family in ["RT", "BDM"]:
+            if self.data.cell.dimension == 1 and self.family in ["RT", "BDM"]:
                 self.family = "Lagrange"
                 family = family_by_name(self.family)
                 self.basis_generator = basix.create_element(
@@ -78,13 +76,10 @@ class FiniteElement:
                     basix.QuadratureType.gauss_jacobi, cell_type, self.integration_oder
                 )
         # Partially fill element data
-        self._fill_element_data(mesh, cell_id, quadrature)
-        # self.storage_basis()
+        self._fill_element_data(quadrature)
+        self.evaluate_basis(quadrature[0], storage=True)
 
-    def _fill_element_data(self, mesh, cell_id, quadrature):
-        self.data.dimension = mesh.cells[cell_id].dimension
-        self.data.cell = mesh.cells[cell_id]
-        self.data.mesh = mesh
+    def _fill_element_data(self, quadrature):
         self.data.quadrature.points = quadrature[0]
         self.data.quadrature.weights = quadrature[1]
         self.data.dof.entity_dofs = self.basis_generator.entity_dofs

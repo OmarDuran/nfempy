@@ -1,9 +1,10 @@
-import numpy as np
 from itertools import permutations
 
+import numpy as np
+
+from basis.element_data import ElementData
 from mesh.mesh import Mesh
 from mesh.mesh_cell import MeshCell
-from basis.element_data import ElementData
 
 
 def _validate_edge_orientation_2d(data: ElementData):
