@@ -16,8 +16,6 @@ class MeshTopology:
         self.dimension = dimension
         self.entity_maps = []
         self.entity_ids = {}
-        self._build_entity_maps()
-        self._build_entity_ids()
 
     def _build_entity_maps(self):
 
@@ -39,6 +37,12 @@ class MeshTopology:
                 for id in list(self.entity_maps[d].nodes())
                 if self.mesh.cells[id].dimension == d
             ]
+
+    def build_data(self):
+        self.entity_maps.clear()
+        self.entity_ids.clear()
+        self._build_entity_maps_on_valid_physical_tags()
+        self._build_entity_ids()
 
     def build_data_on_physical_tags(self):
         self.entity_maps.clear()

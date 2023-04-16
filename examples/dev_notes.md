@@ -176,4 +176,31 @@ The main structure of the proyect
 ### Notes on assembler implementation:
 The best local vectorization occurs in eliminating integration point loops
 
+### Log second-order excecution time:
+	
+	Note: In a 3d unit cube, the mesh generation for h = 1/64 will generate 200873 nodes and 1227986 elements (tetrahedra) and memory usage will be around 8Gb. So it is not worthy to optimize beyond  h = 1/32 because the mesh generation will be untractable. Ports for other mesh generators is required. 
+	The case h = 1/32 gmsh will generate 27364 nodes and 162993 elements (tetrahedra) will
+	
+	
+	Performance for
+	- 3D laplacian operator
+	- six component field
+	- h = 1/16
+	- k_order = 3
+	
+	h-size:  0.0625
+	Field:: DoFMap construction time: 1.7416038513183594 seconds
+	Field:: Number of processed elements: 18842
+	Field:: Element construction time: 128.50061893463135 seconds
+	Field:: DoFMap construction time: 0.31716299057006836 seconds
+	Field:: Number of processed elements: 3700
+	Field:: Element construction time: 7.492000102996826 seconds
+	n_dof:  557622
+	Triplets creation time: 0.08223390579223633 seconds
+	Assembly time: 135.04999828338623 seconds
+	Linear solver time: 598.3841590881348 seconds
+	L2-error time: 9.504310131072998 seconds
+	L2-error:  6.91696585636745e-08
+	Post-processing time: 7.020235061645508 seconds
+
 

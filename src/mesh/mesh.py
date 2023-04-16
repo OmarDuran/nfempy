@@ -3,6 +3,7 @@ import copy
 import meshio
 import networkx as nx
 import numpy as np
+import itertools
 
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh_cell import MeshCell, barycenter, rotate_vector
@@ -681,9 +682,10 @@ class Mesh:
             cell_i for cell_i in self.cells if cell_i.dimension == dimension
         ]
 
-        tuple_id_list = []
-        for cell_i in disjoint_cells:
-            self.gather_graph_edges(dimension - co_dimension, cell_i, tuple_id_list)
+        tuple_id_list = [[] for i in range(len(disjoint_cells))]
+        for i, cell_i in enumerate(disjoint_cells):
+            self.gather_graph_edges(dimension - co_dimension, cell_i, tuple_id_list[i])
+        tuple_id_list = list(itertools.chain(*tuple_id_list))
 
         graph = nx.from_edgelist(tuple_id_list, create_using=nx.DiGraph)
         return graph
@@ -696,9 +698,10 @@ class Mesh:
             if cell_i.dimension == dimension and cell_i.material_id is not None
         ]
 
-        tuple_id_list = []
-        for cell_i in disjoint_cells:
-            self.gather_graph_edges(dimension - co_dimension, cell_i, tuple_id_list)
+        tuple_id_list = [[] for i in range(len(disjoint_cells))]
+        for i, cell_i in enumerate(disjoint_cells):
+            self.gather_graph_edges(dimension - co_dimension, cell_i, tuple_id_list[i])
+        tuple_id_list = list(itertools.chain(*tuple_id_list))
 
         graph = nx.from_edgelist(tuple_id_list, create_using=nx.DiGraph)
         return graph

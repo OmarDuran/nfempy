@@ -783,7 +783,7 @@ def generate_mesh_3d():
     gmesh.build_conformal_mesh_II()
 
     # gmesh.write_data()
-    gmesh.write_vtk()
+    # gmesh.write_vtk()
     print("h-size: ", h_cell)
 
 
@@ -808,6 +808,9 @@ def md_h1_laplace(gmesh):
     # u_field.make_discontinuous()
     bc_u_field.build_dof_map()
     bc_u_field.build_elements()
+
+    # Field creation optimization
+    return
 
     st = time.time()
     # Assembler

@@ -37,6 +37,7 @@ class DiscreteField:
             self.mesh_topology.build_data_on_physical_tags()
         else:
             self.physical_tag_filter = False
+            self.mesh_topology.build_data()
 
         self.element_type = FiniteElement.type_by_dimension(self.dimension)
         basis_family = FiniteElement.basis_family(self.family)
