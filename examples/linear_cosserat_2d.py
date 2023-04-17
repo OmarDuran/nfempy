@@ -1111,7 +1111,7 @@ def md_h1_laplace(gmesh):
 def md_h1_elasticity(gmesh):
 
     # Material data
-    m_lambda = 1.0
+    m_lambda = 1000.0
     m_mu = 1.0
 
     # FESpace: data
