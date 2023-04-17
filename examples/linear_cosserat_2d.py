@@ -634,7 +634,7 @@ def hdiv_gen_projector(gmesh):
 
 def generate_mesh_1d():
 
-    h_cell = 1.0 / (2.0)
+    h_cell = 1.0 / (128.0)
 
     theta_x = 0.0 * (np.pi/180)
     theta_y = 45.0 * (np.pi/180)
@@ -759,7 +759,7 @@ def generate_mesh_2d():
 
 def generate_mesh_3d():
 
-    h_cell = 1.0 / (1.0)
+    h_cell = 1.0 / (16.0)
 
     theta_x = 0.0 * (np.pi/180)
     theta_y = 0.0 * (np.pi/180)
@@ -809,14 +809,15 @@ def generate_mesh_3d():
 def md_h1_laplace(gmesh):
 
     # FESpace: data
-    n_components = 6
+    n_components = 1
     dim = gmesh.dimension
     discontinuous = True
-    k_order = 3
+    k_order = 1
     family = "Lagrange"
 
     u_field = DiscreteField(dim, n_components, family, k_order, gmesh)
-    u_field.build_structures([2, 3, 4, 5])
+    u_field.build_structures([2, 3])
+    # u_field.build_structures([2, 3, 4, 5])
     # u_field.build_structures([2, 3, 4, 5, 6, 7])
 
     st = time.time()
@@ -855,8 +856,9 @@ def md_h1_laplace(gmesh):
 
     st = time.time()
 
-    # f_exact = lambda x, y, z: np.array([np.sqrt(x**2+y**2+z**2)*(1-np.sqrt(x**2+y**2+z**2))])
-    # f_rhs = lambda x, y, z: np.array([2 + 0.0*x])
+    r_fun = lambda x, y, z: np.sqrt(x**2+y**2+z**2)
+    f_exact = lambda x, y, z: np.array([r_fun(x,y,z) * (1 - r_fun(x,y,z))])
+    f_rhs = lambda x, y, z: np.array([2 + 0.0*x])
 
     # fe_2d = lambda x, y, z: x*(1-x) * y*(1-y)
     # rhs_2d = lambda x, y, z: 2*(1 - x)*x + 2*(1 - y)*y
@@ -866,12 +868,12 @@ def md_h1_laplace(gmesh):
     # f_exact = lambda x, y, z: np.array([x*(1-x) * y*(1-y) * z*(1-z)])
     # f_rhs = lambda x, y, z: np.array([2*(1-x)*x*(1-y)*y+2*(1-x)*x*(1-z)*z+2*(1-y)*y*(1-z)*z])
 
-    fe_3d = lambda x, y, z: x*(1-x) * y*(1-y) * z*(1-z)
-    rhs_3d = lambda x, y, z: 2*(1-x)*x*(1-y)*y+2*(1-x)*x*(1-z)*z+2*(1-y)*y*(1-z)*z
-    # f_exact = lambda x, y, z: np.array([fe_3d(x,y,z),fe_3d(x,y,z),fe_3d(x,y,z)])
-    # f_rhs = lambda x, y, z: np.array([rhs_3d(x,y,z),rhs_3d(x,y,z),rhs_3d(x,y,z)])
-    f_exact = lambda x, y, z: np.array([fe_3d(x,y,z),fe_3d(x,y,z),fe_3d(x,y,z),fe_3d(x,y,z),fe_3d(x,y,z),fe_3d(x,y,z)])
-    f_rhs = lambda x, y, z: np.array([rhs_3d(x,y,z),rhs_3d(x,y,z),rhs_3d(x,y,z),rhs_3d(x,y,z),rhs_3d(x,y,z),rhs_3d(x,y,z)])
+    # fe_3d = lambda x, y, z: x*(1-x) * y*(1-y) * z*(1-z)
+    # rhs_3d = lambda x, y, z: 2*(1-x)*x*(1-y)*y+2*(1-x)*x*(1-z)*z+2*(1-y)*y*(1-z)*z
+    # # f_exact = lambda x, y, z: np.array([fe_3d(x,y,z),fe_3d(x,y,z),fe_3d(x,y,z)])
+    # # f_rhs = lambda x, y, z: np.array([rhs_3d(x,y,z),rhs_3d(x,y,z),rhs_3d(x,y,z)])
+    # f_exact = lambda x, y, z: np.array([fe_3d(x,y,z),fe_3d(x,y,z),fe_3d(x,y,z),fe_3d(x,y,z),fe_3d(x,y,z),fe_3d(x,y,z)])
+    # f_rhs = lambda x, y, z: np.array([rhs_3d(x,y,z),rhs_3d(x,y,z),rhs_3d(x,y,z),rhs_3d(x,y,z),rhs_3d(x,y,z),rhs_3d(x,y,z)])
 
     def scatter_form_data(element, f_rhs, u_field, cell_map, row, col, data):
 
@@ -1108,12 +1110,12 @@ def md_h1_laplace(gmesh):
 
 def main():
 
-    gmesh_3d = generate_mesh_3d()
+    # gmesh_3d = generate_mesh_3d()
     # gmesh_2d = generate_mesh_2d()
-    # gmesh_1d = generate_mesh_1d()
+    gmesh_1d = generate_mesh_1d()
 
     # laplace
-    md_h1_laplace(gmesh_3d)
+    md_h1_laplace(gmesh_1d)
     return
 
 

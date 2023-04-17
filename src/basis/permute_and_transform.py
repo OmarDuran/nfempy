@@ -137,7 +137,7 @@ def _permute_and_transform_3d(phi, data: ElementData):
             for d in range(phi.shape[0]):
                 for dim in range(phi.shape[3]):
                     phi[d, :, dofs, dim] = reflect_t @ phi[d, :, dofs, dim]
-        return phi
+    return phi
 
 
 def permute_and_transform(phi, data: ElementData):

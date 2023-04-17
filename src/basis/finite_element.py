@@ -101,6 +101,18 @@ class FiniteElement:
             phi_tab = np.ones((1, 1, 1, 1))
             if storage:
                 self.data.basis.phi = phi_tab
+
+            phi_shape = np.ones((1))
+            cell_points = self.data.mesh.points[self.data.cell.node_tags]
+            (x, jac, det_jac, inv_jac) = evaluate_mapping(
+                self.data.dimension, phi_shape, cell_points
+            )
+            if storage:
+                self.data.mapping.x = x
+                self.data.mapping.jac = jac
+                self.data.mapping.det_jac = det_jac
+                self.data.mapping.inv_jac = inv_jac
+
             return phi_tab
 
         phi_shape = evaluate_linear_shapes(points, self.data)
