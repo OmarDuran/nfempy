@@ -759,7 +759,7 @@ def generate_mesh_2d():
 
 def generate_mesh_3d():
 
-    h_cell = 1.0 / (16.0)
+    h_cell = 1.0 / (8.0)
 
     theta_x = 0.0 * (np.pi/180)
     theta_y = 0.0 * (np.pi/180)
@@ -1110,21 +1110,27 @@ def md_h1_laplace(gmesh):
 
 def md_h1_elasticity(gmesh):
 
+    dim = gmesh.dimension
     # Material data
+
     m_lambda = 1000.0
     m_mu = 1.0
 
     # FESpace: data
     n_components = 2
-    dim = gmesh.dimension
+    if dim == 3:
+        n_components = 3
+
     discontinuous = True
     k_order = 2
     family = "Lagrange"
 
     u_field = DiscreteField(dim, n_components, family, k_order, gmesh)
     # u_field.build_structures([2, 3])
-    u_field.build_structures([2, 3, 4, 5])
-    # u_field.build_structures([2, 3, 4, 5, 6, 7])
+    if dim == 2:
+        u_field.build_structures([2, 3, 4, 5])
+    elif dim == 3:
+        u_field.build_structures([2, 3, 4, 5, 6, 7])
 
     st = time.time()
     # Assembler
@@ -1162,10 +1168,17 @@ def md_h1_elasticity(gmesh):
 
     st = time.time()
 
+    # facturated solution for
     f_exact = lambda x, y, z: np.array([np.sin(np.pi*x) * y*(1-y),np.sin(np.pi*y) * x*(1-x)])
     f_rhs_x = lambda x, y, z: -(np.pi*(-1 + 2*x)*(m_lambda + m_mu)*np.cos(np.pi*y)) + (-2*m_mu + (np.pi**2)*(-1 + y)*y*(m_lambda + 2*m_mu))*np.sin(np.pi*x)
     f_rhs_y = lambda x, y, z: -(np.pi*(-1 + 2*y)*(m_lambda + m_mu)*np.cos(np.pi*x)) + (-2*m_mu + (np.pi**2)*(-1 + x)*x*(m_lambda + 2*m_mu))*np.sin(np.pi*y)
     f_rhs = lambda x, y, z: np.array([-f_rhs_x(x,y,z), -f_rhs_y(x,y,z)])
+    if dim == 3:
+        f_exact = lambda x, y, z: np.array([np.sin(np.pi*x)*y*(1-y)*z*(1-z),np.sin(np.pi*y)*x*(1-x)*z*(1-z),np.sin(np.pi*z)*x*(1-x)*y*(1-y)])
+        f_rhs_x = lambda x, y, z: -2*(np.pi**2)*(-1 + y)*y*(-1 + z)*z*m_mu*np.sin(np.pi*x) + (-1 + z)*z*m_mu*(np.pi*(-1 + 2*x)*np.cos(np.pi*y) + 2*np.sin(np.pi*x)) + (-1 + y)*y*m_mu*(np.pi*(-1 + 2*x)*np.cos(np.pi*z) + 2*np.sin(np.pi*x)) + np.pi*m_lambda*((-1 + 2*x)*(-1 + z)*z*np.cos(np.pi*y) + (-1 + y)*y*((-1 + 2*x)*np.cos(np.pi*z) - np.pi*(-1 + z)*z*np.sin(np.pi*x)))
+        f_rhs_y = lambda x, y, z: -2*(np.pi**2)*(-1 + x)*x*(-1 + z)*z*m_mu*np.sin(np.pi*y) + (-1 + z)*z*m_mu*(np.pi*(-1 + 2*y)*np.cos(np.pi*x) + 2*np.sin(np.pi*y)) + (-1 + x)*x*m_mu*(np.pi*(-1 + 2*y)*np.cos(np.pi*z) + 2*np.sin(np.pi*y)) + np.pi*m_lambda*((-1 + 2*y)*(-1 + z)*z*np.cos(np.pi*x) + (-1 + x)*x*((-1 + 2*y)*np.cos(np.pi*z) - np.pi*(-1 + z)*z*np.sin(np.pi*y)))
+        f_rhs_z = lambda x, y, z: -2*(np.pi**2)*(-1 + x)*x*(-1 + y)*y*m_mu*np.sin(np.pi*z) + (-1 + y)*y*m_mu*(np.pi*(-1 + 2*z)*np.cos(np.pi*x) + 2*np.sin(np.pi*z)) + (-1 + x)*x*m_mu*(np.pi*(-1 + 2*z)*np.cos(np.pi*y) + 2*np.sin(np.pi*z)) + np.pi*m_lambda*((-1 + y)*y*(-1 + 2*z)*np.cos(np.pi*x) + (-1 + x)*x*((-1 + 2*z)*np.cos(np.pi*y) - np.pi*(-1 + y)*y*np.sin(np.pi*z)))
+        f_rhs = lambda x, y, z: np.array([-f_rhs_x(x,y,z), -f_rhs_y(x,y,z), -f_rhs_z(x,y,z)])
 
     def scatter_form_data(element, m_lambda, m_mu, f_rhs, u_field, cell_map, row, col, data):
 
@@ -1195,14 +1208,14 @@ def md_h1_elasticity(gmesh):
         f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
         phi_s_star = (det_jac * weights * phi_tab[0, :, :, 0].T)
 
+        for c in range(n_components):
+            b = c
+            e = (c + 1) * n_phi * n_components + 1
+            r_el[b:e:n_components] += phi_s_star @ f_val_star[c]
+
         # local blocks
-        # phi_outer = np.zeros((n_phi, n_phi))
-        # phi_outer_c = np.zeros((n_phi, n_phi))
         for i, omega in enumerate(weights):
             grad_phi = inv_jac[i].T @ phi_tab[1:phi_tab.shape[0] + 1, i, :, 0]
-            # for di in range(3):
-            #     for dj in range(3):
-            #         phi_outer += det_jac[i] * omega * np.outer(grad_phi[di,:], grad_phi[dj,:])
             for i_s in range(n_phi):
                 bi = i_s*n_components
                 ei = (i_s+1)*n_components
@@ -1212,15 +1225,6 @@ def md_h1_elasticity(gmesh):
                     bj = j_s*n_components
                     ej = (j_s+1)*n_components
                     j_el[bi:ei, bj:ej] += det_jac[i] * omega * stress_grad[0:n_components,0:n_components]
-
-        for c in range(n_components):
-            b = c
-            e = (c + 1) * n_phi * n_components + 1
-            r_el[b:e:n_components] += phi_s_star @ f_val_star[c]
-            # stress_grad = m_lambda * phi_outer + m_mu * phi_outer.T + m_mu * phi_outer.trace() * np.identity(
-            #     n_phi)
-            # j_el[b:e:n_components, b:e:n_components] += stress_grad
-
 
         # scattering data
         c_sequ = cell_map[cell.id]
@@ -1415,13 +1419,13 @@ def md_h1_elasticity(gmesh):
 
 def main():
 
-    # gmesh_3d = generate_mesh_3d()
-    gmesh_2d = generate_mesh_2d()
+    gmesh_3d = generate_mesh_3d()
+    # gmesh_2d = generate_mesh_2d()
     # gmesh_1d = generate_mesh_1d()
 
     # laplace
     # md_h1_laplace(gmesh_2d)
-    md_h1_elasticity(gmesh_2d)
+    md_h1_elasticity(gmesh_3d)
     return
 
 
