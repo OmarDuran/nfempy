@@ -759,7 +759,7 @@ def generate_mesh_2d():
 
 def generate_mesh_3d():
 
-    h_cell = 1.0 / (8.0)
+    h_cell = 1.0 / (16.0)
 
     theta_x = 0.0 * (np.pi/180)
     theta_y = 0.0 * (np.pi/180)
@@ -1213,18 +1213,25 @@ def md_h1_elasticity(gmesh):
             e = (c + 1) * n_phi * n_components + 1
             r_el[b:e:n_components] += phi_s_star @ f_val_star[c]
 
-        # local blocks
+        # vectorized blocks
         for i, omega in enumerate(weights):
             grad_phi = inv_jac[i].T @ phi_tab[1:phi_tab.shape[0] + 1, i, :, 0]
-            for i_s in range(n_phi):
-                bi = i_s*n_components
-                ei = (i_s+1)*n_components
-                for j_s in range(n_phi):
-                    phi_outer = np.outer(grad_phi[:,i_s], grad_phi[:,j_s])
-                    stress_grad = m_lambda * phi_outer + m_mu * phi_outer.T + m_mu * phi_outer.trace() * np.identity(3)
-                    bj = j_s*n_components
-                    ej = (j_s+1)*n_components
-                    j_el[bi:ei, bj:ej] += det_jac[i] * omega * stress_grad[0:n_components,0:n_components]
+
+            phi_trace_outer = np.zeros((n_phi, n_phi))
+            for d in range(n_components):
+                phi_trace_outer += np.outer(grad_phi[d], grad_phi[d])
+
+            for i_d in range(n_components):
+                for j_d in range(n_components):
+                    phi_outer = np.outer(grad_phi[j_d], grad_phi[i_d])
+                    stress_grad = 0.0 * m_lambda * phi_outer
+                    if i_d == j_d:
+                        stress_grad += m_lambda * phi_outer
+                        stress_grad += m_mu * phi_outer + m_mu * phi_trace_outer
+                    else:
+                        phi_outer_T = np.outer(grad_phi[i_d], grad_phi[j_d])
+                        stress_grad += m_mu * phi_outer + m_lambda * phi_outer_T
+                    j_el[i_d:n_dof+1:n_components,j_d:n_dof+1:n_components] += det_jac[i] * omega * stress_grad
 
         # scattering data
         c_sequ = cell_map[cell.id]
