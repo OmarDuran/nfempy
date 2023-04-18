@@ -673,7 +673,7 @@ def generate_mesh_1d():
 
 def generate_mesh_2d():
 
-    h_cell = 1.0 / (1.0)
+    h_cell = 1.0 / (8.0)
     # higher dimension domain geometry
     s = 1.0
 
@@ -1429,7 +1429,7 @@ def md_h1_cosserat_elasticity(gmesh):
 
     m_lambda = 1.0
     m_mu = 1.0
-    m_kappa = 1.0
+    m_kappa = 0.0
     m_gamma = 1.0
 
     # FESpace: data
@@ -1564,9 +1564,10 @@ def md_h1_cosserat_elasticity(gmesh):
                     phi_outer = np.outer(grad_phi[j_d], grad_phi[i_d])
                     stress_grad = m_mu * phi_outer
                     if i_d == j_d:
-                        stress_grad += m_lambda * phi_outer + m_mu * phi_trace_outer
+                        stress_grad += m_lambda * phi_outer + (m_mu + m_kappa) * phi_trace_outer
                     else:
-                        stress_grad +=  m_lambda * np.outer(grad_phi[i_d], grad_phi[j_d])
+                        stress_grad -= m_kappa * phi_outer
+                        stress_grad += m_lambda * np.outer(grad_phi[i_d], grad_phi[j_d])
                     j_el[i_d:n_dof+1:n_components,j_d:n_dof+1:n_components] += det_jac[i] * omega * stress_grad
 
         # scattering data
