@@ -1429,7 +1429,7 @@ def md_h1_cosserat_elasticity(gmesh):
 
     m_lambda = 1.0
     m_mu = 1.0
-    m_kappa = 0.0
+    m_kappa = 1.0
     m_gamma = 1.0
 
     # FESpace: data
@@ -1438,7 +1438,7 @@ def md_h1_cosserat_elasticity(gmesh):
         n_components = 6
 
     discontinuous = True
-    k_order = 1
+    k_order = 2
     family = "Lagrange"
 
     u_field = DiscreteField(dim, n_components, family, k_order, gmesh)
@@ -1564,6 +1564,7 @@ def md_h1_cosserat_elasticity(gmesh):
                     phi_outer = np.outer(grad_phi[j_d], grad_phi[i_d])
                     stress_grad = m_mu * phi_outer
                     if i_d == j_d:
+                        stress_grad -= m_kappa * phi_outer
                         stress_grad += m_lambda * phi_outer + (m_mu + m_kappa) * phi_trace_outer
                     else:
                         stress_grad -= m_kappa * phi_outer
