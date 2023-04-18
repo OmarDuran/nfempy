@@ -10,7 +10,6 @@ class QuadratureData:
     def __init__(
         self, points: np.ndarray = np.empty(0), weights: np.ndarray = np.empty(0)
     ):
-
         # Mesh and mesh entity
         self.points = points
         self.weights = weights
@@ -57,7 +56,6 @@ class DoFData:
         transformations: dict = {},
         dest: np.ndarray = np.empty(0),
     ):
-
         # entity dofs
         self.entity_dofs: np.ndarray = entity_dofs
 
@@ -95,7 +93,6 @@ class BasisData:
 
 class ElementData:
     def __init__(self, dimension: int = -1, cell: MeshCell = None, mesh: Mesh = None):
-
         self.dimension: int = dimension
         self.cell: MeshCell = cell
         self.mesh: Mesh = mesh

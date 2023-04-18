@@ -7,8 +7,7 @@ from basis.element_data import ElementData
 from basis.element_family import basis_variant, family_by_name
 from basis.element_type import type_by_dimension
 from basis.permute_and_transform import permute_and_transform
-from geometry.mapping import (evaluate_linear_shapes, evaluate_mapping,
-                              store_mapping)
+from geometry.mapping import evaluate_linear_shapes, evaluate_mapping, store_mapping
 
 
 class FiniteElement:
@@ -27,7 +26,6 @@ class FiniteElement:
         self._build_structures()
 
     def _build_structures(self):
-
         # fetch information from static methods
         family = self.family
         cell_type = type_by_dimension(self.data.cell.dimension)
@@ -50,7 +48,6 @@ class FiniteElement:
             )
             quadrature = (np.array([1.0]), np.array([1.0]))
         else:
-
             if self.data.cell.dimension == 1 and self.family in ["RT", "BDM"]:
                 self.family = "Lagrange"
                 family = family_by_name(self.family)
@@ -96,7 +93,6 @@ class FiniteElement:
         self.evaluate_basis(self.data.quadrature.points, storage=True)
 
     def evaluate_basis(self, points, storage=False):
-
         if self.data.dimension == 0:
             phi_tab = np.ones((1, 1, 1, 1))
             if storage:

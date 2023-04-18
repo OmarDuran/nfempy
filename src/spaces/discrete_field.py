@@ -82,39 +82,6 @@ class DiscreteField:
         elapsed_time = et - st
         print("DiscreteField:: DoFMap construction time:", elapsed_time, "seconds")
 
-    # def _build_bc_dof_map(self, only_on_physical_tags=True):
-    #     st = time.time()
-    #     if only_on_physical_tags:
-    #         self.bc_mesh_topology.build_data_on_physical_tags()
-    #     else:
-    #         self.physical_tag_filter = False
-    #         self.bc_mesh_topology.build_data()
-    #
-    #     self.bc_element_type = type_by_dimension(self.dimension - 1)
-    #     basis_family = self.family
-    #     if self.dimension == 0:
-    #         basis_family = family_by_name("Lagrange")
-    #         self.k_order = 0
-    #     if self.dimension == 1 and self.family in ["RT", "BDM"]:
-    #         basis_family = family_by_name("Lagrange")
-    #     self.bc_dof_map = DoFMap(
-    #         self.bc_mesh_topology,
-    #         basis_family,
-    #         self.bc_element_type,
-    #         self.k_order,
-    #         basis_variant(),
-    #         discontinuous=self.discontinuous,
-    #     )
-    #     self.bc_dof_map.set_topological_dimension(self.dimension - 1)
-    #     self.bc_dof_map.build_entity_maps(n_components=self.n_comp)
-    #     et = time.time()
-    #     elapsed_time = et - st
-    #     print(
-    #         "DiscreteField:: Boundary DoFMap construction time:",
-    #         elapsed_time,
-    #         "seconds",
-    #     )
-
     def _build_elements(self, parallel_run_q=False):
         st = time.time()
 
@@ -125,30 +92,50 @@ class DiscreteField:
                 id for id in self.element_ids if mesh.cells[id].material_id != None
             ]
 
-        self.elements = list(
-            map(
-                partial(
-                    FiniteElement,
+        if parallel_run_q:
+            num_cores = multiprocessing.cpu_count()
+            batch_size = round(len(self.element_ids) / num_cores)
+
+            @wrap_non_picklable_objects
+            def task_create_element(
+                cell_id, family, k_order, mesh, discontinuous, integration_oder
+            ):
+                return FiniteElement(
+                    cell_id=cell_id,
                     family=self.family,
                     k_order=self.k_order,
                     mesh=self.mesh_topology.mesh,
                     discontinuous=self.discontinuous,
                     integration_oder=self.integration_oder,
-                ),
-                self.element_ids,
-            )
-        )
+                )
 
-        # if parallel_run_q:
-        #     num_cores = multiprocessing.cpu_count()
-        #     batch_size = round(len(self.elements)/num_cores)
-        #     @delayed
-        #     @wrap_non_picklable_objects
-        #     def task_storage_basis(element):
-        #         element.storage_basis()
-        #     Parallel(n_jobs=num_cores, backend='threading', batch_size=batch_size)(task_storage_basis(element) for element in self.elements)
-        # else:
-        #     [element.storage_basis() for element in self.elements]
+            self.elements = Parallel(
+                n_jobs=num_cores, backend="threading", batch_size='auto', verbose=10
+            )(
+                delayed(task_create_element)(
+                    cell_id=id,
+                    family=self.family,
+                    k_order=self.k_order,
+                    mesh=self.mesh_topology.mesh,
+                    discontinuous=self.discontinuous,
+                    integration_oder=self.integration_oder,
+                )
+                for id in self.element_ids
+            )
+        else:
+            self.elements = list(
+                map(
+                    partial(
+                        FiniteElement,
+                        family=self.family,
+                        k_order=self.k_order,
+                        mesh=self.mesh_topology.mesh,
+                        discontinuous=self.discontinuous,
+                        integration_oder=self.integration_oder,
+                    ),
+                    self.element_ids,
+                )
+            )
 
         self.id_to_element = dict(zip(self.element_ids, range(len(self.element_ids))))
         et = time.time()

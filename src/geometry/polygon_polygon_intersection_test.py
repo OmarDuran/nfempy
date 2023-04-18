@@ -90,7 +90,6 @@ class PolygonPolygonIntersectionTest:
     def polygon_polygon_intersection(
         self, o_polygon: np.array, t_polygon: np.array, render_polygons_q: bool = False
     ) -> (bool, np.array, np.array):
-
         result = (False, np.array, np.array)
         opoly = [o_polygon[self.oc[0]], o_polygon[self.oc[1]]]
         tpoly = [t_polygon[self.tc[0]], t_polygon[self.tc[1]]]

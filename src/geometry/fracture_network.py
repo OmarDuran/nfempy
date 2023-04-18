@@ -10,7 +10,6 @@ from .geometry_cell import GeometryCell
 
 
 class FractureNetwork:
-
     # The network object represents a mesh of intersecting objects.
     # For 2d the mesh includes (d-f)-facets f = {0,1}:
     #   (0)-facets vertices
@@ -22,7 +21,6 @@ class FractureNetwork:
     #   (2)-facets faces
 
     def __init__(self, dimension, physical_tag_shift=1, eps: float = 1.0e-12):
-
         self.eps = eps
         self.cells = np.array([], dtype=GeometryCell)
         self.points: np.array = None
@@ -69,7 +67,6 @@ class FractureNetwork:
         return vertex
 
     def insert_fracture_cell(self, cell_id, fracture, physical_tag):
-
         self.points = np.append(
             self.points, np.array([point for point in fracture]), axis=0
         )
@@ -100,7 +97,6 @@ class FractureNetwork:
         return cell_id
 
     def intersect_2D_fractures(self, fractures, render_intersection_q=False):
-
         self.cells = np.array([], dtype=GeometryCell)
         self.points = np.empty((0, 3), dtype=float)
 
@@ -129,12 +125,10 @@ class FractureNetwork:
                 intersection_data[i][j] = intersection_q
 
         for i, cell_i in enumerate(cells_2d):
-
             i_results = [chunk[0] for chunk in intersection_data[i]]
             n_intersections = np.count_nonzero(i_results)
 
             if n_intersections > 0:
-
                 p, q, r = fractures[i][[0, 1, 3]]
                 dir_cross = np.cross(p - q, r - q)
                 n_t = dir_cross / np.linalg.norm(dir_cross)
@@ -207,7 +201,6 @@ class FractureNetwork:
     def intersect_1D_fractures(
         self, fractures, pos=np.array([0, 1]), render_intersection_q=False
     ):
-
         self.fracture_tags = [
             i + self.physical_tag_shift for i, _ in enumerate(fractures)
         ]
@@ -330,7 +323,6 @@ class FractureNetwork:
                 self.gather_graph_edges(immersed_cell, tuple_id_list)
 
     def build_grahp(self, all_fixed_d_cells_q=False):
-
         disjoint_cells = []
         if all_fixed_d_cells_q:
             disjoint_cells = [

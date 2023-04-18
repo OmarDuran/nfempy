@@ -22,7 +22,6 @@ def _validate_edge_orientation_2d(data: ElementData):
 
 
 def _permute_and_transform_2d(phi, data: ElementData):
-
     identity_transformation_q = data.dof.transformations_are_identity
     # triangle reflections
     if not identity_transformation_q:
@@ -58,7 +57,6 @@ def _validate_edge_orientation_3d(data: ElementData):
 
 
 def _validate_face_orientation_3d(data: ElementData):
-
     face_0 = np.array([1, 2, 3])
     face_1 = np.array([0, 2, 3])
     face_2 = np.array([0, 1, 3])
@@ -107,7 +105,6 @@ def _validate_face_orientation_3d(data: ElementData):
 
 
 def _permute_and_transform_3d(phi, data: ElementData):
-
     identity_transformation_q = data.dof.transformations_are_identity
     if not identity_transformation_q:
         oriented_q, rot_data, ref_data = _validate_face_orientation_3d(data)
@@ -141,7 +138,6 @@ def _permute_and_transform_3d(phi, data: ElementData):
 
 
 def permute_and_transform(phi, data: ElementData):
-
     if data.dimension == 2:
         return _permute_and_transform_2d(phi, data)
     elif data.dimension == 3:

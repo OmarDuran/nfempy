@@ -43,7 +43,6 @@ class GeometryBuilder:
                 self.gather_graph_edges(immersed_cell, tuple_id_list)
 
     def build_grahp(self, all_fixed_d_cells_q=False):
-
         disjoint_cells = []
         if all_fixed_d_cells_q:
             disjoint_cells = [cell_i for cell_i in self.cells]
@@ -67,7 +66,6 @@ class GeometryBuilder:
         )
 
     def build_box_1D(self, box_points):
-
         if len(self.physical_tags) == 0:
             self.physical_tags = {"line": 1, "bc_0": 2, "bc_1": 3}
 
@@ -92,7 +90,6 @@ class GeometryBuilder:
         self.build_grahp()
 
     def build_box_2D(self, box_points):
-
         if len(self.physical_tags) == 0:
             self.physical_tags = {"area": 1, "bc_0": 2, "bc_1": 3, "bc_2": 4, "bc_3": 5}
 
@@ -130,7 +127,6 @@ class GeometryBuilder:
         self.build_grahp()
 
     def build_box(self, box_points):
-
         if len(self.physical_tags) == 0:
             self.physical_tags = {
                 "volume": 1,

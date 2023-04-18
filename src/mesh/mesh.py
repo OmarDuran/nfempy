@@ -38,7 +38,6 @@ class Mesh:
         return node_tags[perm]
 
     def insert_cell_data(self, mesh_cell, type_index, tags, sign=0):
-
         # The key can be composed in many ways
         chunk = [0 for i in range(6)]
         chunk[0] = sign
@@ -63,7 +62,6 @@ class Mesh:
         return mesh_cell
 
     def replace_cell_data(self, mesh_cell, type_index, tags, sign=0):
-
         # The key can be composed in many ways
         chunk = [0 for i in range(6)]
         chunk[0] = sign
@@ -90,7 +88,6 @@ class Mesh:
         return mesh_cell
 
     def build_conformal_mesh(self):
-
         # preallocate cells objects
 
         cells = self.conformal_mesh.cells
@@ -137,7 +134,6 @@ class Mesh:
         cell_id = self.entities_2d[tuple(np.sort(node_tags))]
         cell_absent_q = self.cells[cell_id] is None
         if cell_absent_q:
-
             # vertex id
             vertex_ids = [self.entities_0d[node] for node in node_tags]
 
@@ -162,11 +158,9 @@ class Mesh:
         return cell_id
 
     def insert_polyhedron(self, node_tags, physical_tag=None):
-
         cell_id = self.entities_3d[tuple(np.sort(node_tags))]
         cell_absent_q = self.cells[cell_id] is None
         if cell_absent_q:
-
             # vertex id
             vertex_ids = [self.entities_0d[node] for node in node_tags]
 
@@ -219,7 +213,6 @@ class Mesh:
         return cell_id
 
     def insert_simplex_cell_from_block(self, cell_block, physical):
-
         if cell_block.dim == 0:
             type_index = self.mesh_cell_type_index(cell_block.type)
             for node_tags, physical_tag in zip(cell_block.data, physical):
@@ -240,7 +233,6 @@ class Mesh:
                 self.insert_polyhedron(node_tags, physical_tag)
 
     def build_conformal_mesh_II(self):
-
         # fill node_id to vertices
         vid = 0
         for i, point in enumerate(self.conformal_mesh.points):
@@ -256,7 +248,6 @@ class Mesh:
         # fill edge to edge_id from existing tetrahedral
         edge_id = np.max([*self.entities_0d.values()]) + 1
         for nodes in tetra_data:
-
             # # https://gmsh.info/doc/texinfo/gmsh.html#Node-ordering
             # edge_0 = tuple(np.sort([nodes[0], nodes[1]]))
             # edge_1 = tuple(np.sort([nodes[1], nodes[2]]))
@@ -308,7 +299,6 @@ class Mesh:
         # fill face to face_id from existing tetrahedral
         face_id = np.max([*self.entities_1d.values()]) + 1
         for nodes in tetra_data:
-
             face_0 = tuple(np.sort(nodes[np.array([1, 2, 3])]))
             face_1 = tuple(np.sort(nodes[np.array([0, 2, 3])]))
             face_2 = tuple(np.sort(nodes[np.array([0, 1, 3])]))
@@ -364,7 +354,6 @@ class Mesh:
         self.entities_3d.clear()
 
     def create_simplex_cell(self, dimension, node_tags, p_tag, sign):
-
         assert self.dimension == 2
 
         if dimension == 0:
@@ -398,7 +387,6 @@ class Mesh:
             return mesh_cell
 
         elif dimension == 2:
-
             # 0d cells
             cells_0d = []
             for node_tag in cell.node_tags:
@@ -438,7 +426,6 @@ class Mesh:
             return mesh_cell
 
     def conformal_mesh_write_vtk(self):
-
         assert self.dimension == 2
 
         # write vtk files
@@ -470,7 +457,6 @@ class Mesh:
 
     def write_data(self, file_name="gmesh.txt"):
         with open(file_name, "w") as file:
-
             dimensions = [cell.dimension for cell in self.cells]
             dimensions_with_tag = [
                 cell.dimension for cell in self.cells if cell.material_id is not None
@@ -519,7 +505,6 @@ class Mesh:
         file.close()
 
     def write_vtk(self):
-
         # write vtk files
         physical_tags_3d = np.array(
             [
@@ -649,7 +634,6 @@ class Mesh:
             meshio.write("geometric_mesh_0d.vtk", mesh_0d)
 
     def gather_graph_edges(self, dimension, mesh_cell, tuple_id_list):
-
         if mesh_cell.id is None:
             return
 
@@ -671,7 +655,6 @@ class Mesh:
                 self.gather_graph_edges(dimension, self.cells[id], tuple_id_list)
 
     def build_graph(self, dimension, co_dimension):
-
         disjoint_cells = [
             cell_i for cell_i in self.cells if cell_i.dimension == dimension
         ]
@@ -685,7 +668,6 @@ class Mesh:
         return graph
 
     def build_graph_on_materials(self, dimension, co_dimension):
-
         disjoint_cells = [
             cell_i
             for cell_i in self.cells
@@ -701,7 +683,6 @@ class Mesh:
         return graph
 
     def build_graph_on_index(self, index, dimension, co_dimension):
-
         disjoint_cells = [
             cell_i
             for cell_i in self.cells
@@ -724,7 +705,6 @@ class Mesh:
         )
 
     def compute_fracture_normals(self):
-
         assert self.dimension == 2
 
         fracture_network = self.conformal_mesher.fracture_network
@@ -756,7 +736,6 @@ class Mesh:
             self.fracture_normals[geo_1_cell.physical_tag] = (n, xc)
 
     def apply_visual_opening(self, map_fracs_edge, factor=0.25):
-
         for data in self.fracture_normals.items():
             mat_id, (n, f_xc) = data
             f_cells = [
@@ -799,7 +778,6 @@ class Mesh:
                 self.points[pair[1]] = self.points[pair[1]] - factor * n * s_n
 
     def cut_conformity_on_fractures_mds_ec(self):
-
         assert self.dimension == 2
         # dictionary of fracture id's to (normal,fracture barycenter)
         self.compute_fracture_normals()
@@ -808,7 +786,6 @@ class Mesh:
         map_fracs_edge = {}
 
         for data in self.fracture_normals.items():
-
             gd2c2 = self.build_graph(2, 2)
             gd2c1 = self.build_graph(2, 1)
             gd1c1 = self.build_graph(1, 1)
@@ -974,7 +951,6 @@ class Mesh:
         return map_fracs_edge
 
     def cut_conformity_on_fractures(self):
-
         # this method requires
         # dictionary of fracture id's to (normal,fracture barycenter)
         self.compute_fracture_normals()
@@ -983,7 +959,6 @@ class Mesh:
         assert self.dimension == 2
 
         for data in self.fracture_normals.items():
-
             gd2c2 = self.build_graph(2, 2)
             gd2c1 = self.build_graph(2, 1)
             gd1c1 = self.build_graph(1, 1)
@@ -1045,7 +1020,6 @@ class Mesh:
                             self.update_entity_on_dimension(0, cell_1d, duplicated_ids)
 
                 else:
-
                     cells_2d_p_ids = []
                     cells_2d_n_ids = []
                     for id in cells_2d_ids:
@@ -1197,7 +1171,6 @@ class Mesh:
     def harvest_duplicates_from_vertex(
         self, frac_p_tag, cell, cells_1d_ids, physical_tag, sign, duplicated_ids
     ):
-
         vertex_node_tag = self.duplicate_vertice(cell.node_tags[0])
         _, duplicated_ids = self.duplicate_entity(
             "vertex",
@@ -1246,7 +1219,6 @@ class Mesh:
     def update_entity_on_dimension(
         self, dim, cell, duplicated_ids, invalidate_old_q=False
     ):
-
         for i, cell_id in enumerate(cell.cells_ids[dim]):
             position = duplicated_ids.get(cell_id, None)
             if position is not None:
@@ -1259,7 +1231,6 @@ class Mesh:
                     self.cells[cell_id].id = None
 
     def create_new_cells(self, frac_graph, d_m_1_frac_cell, cell_p, cell_n):
-
         # Detecting fracture boundaries
         d_m_1_cells = []
         if self.dimension == 3:
@@ -1327,7 +1298,6 @@ class Mesh:
             # print("Full duplicated d-1-cells with ids: ", [cell_p.id, cell_n.id])
 
     def update_codimension_1_cell(self, cell, index, d_m_1_cell):
-
         if cell.dimension == 3:
             # 3-d case
             assert self.dimension == 2
@@ -1350,7 +1320,6 @@ class Mesh:
             cell.cells_ids[0][index] = d_m_1_cell.id
 
     def update_cells_1d_from_cells_0d(self, cell, index, d_m_1_cell):
-
         n_cells_0d = len(cell.cells_ids[0])
         loop = [i for i in range(n_cells_0d)]
         loop.append(loop[0])
@@ -1381,7 +1350,6 @@ class Mesh:
                         cell_1d.cells_ids[0][i] = new_id
 
     def duplicate_cell(self, mat_id, cell, sign):
-
         mesh_cell = None
         if cell.dimension == 1:
             mesh_cell = self.duplicate_cells_1d(mat_id, cell, sign)
@@ -1392,7 +1360,6 @@ class Mesh:
         return mesh_cell
 
     def duplicate_cells_0d(self, cell, sign):
-
         cells_0d = []
         for id in cell.cells_ids[0]:
             d_m_1_cell = self.cells[id]
@@ -1414,7 +1381,6 @@ class Mesh:
         return cells_0d
 
     def duplicate_cells_1d(self, mat_id, cell, sign):
-
         cells_0d = self.duplicate_cells_0d(cell, sign)
         type_index = self.mesh_cell_type_index("line")
         mesh_cell = MeshCell(1)
@@ -1430,7 +1396,6 @@ class Mesh:
         return mesh_cell
 
     def duplicate_cells_2d(self, cell, sign):
-
         cells_0d = self.duplicate_cells_0d(cell, sign)
 
         cells_1d = []
@@ -1451,7 +1416,6 @@ class Mesh:
         return mesh_cell
 
     def partial_duplicate_cell(self, mat_id, cell, sign, duplicates_q):
-
         mesh_cell = None
         if cell.dimension == 1:
             mesh_cell = self.partial_duplicate_cells_1d(
@@ -1466,7 +1430,6 @@ class Mesh:
         return mesh_cell
 
     def partial_duplicate_cells_0d(self, cell, sign, duplicates_q):
-
         cells_0d = []
         for id, duplicate_q in zip(cell.cells_ids[0], duplicates_q):
             d_m_1_cell = self.cells[id]
@@ -1491,7 +1454,6 @@ class Mesh:
         return cells_0d
 
     def partial_duplicate_cells_1d(self, mat_id, cell, sign, duplicates_q):
-
         cells_0d = self.partial_duplicate_cells_0d(cell, sign, duplicates_q)
         type_index = self.mesh_cell_type_index("line")
         mesh_cell = MeshCell(1)
@@ -1509,7 +1471,6 @@ class Mesh:
     def partial_duplicate_cells_2d(
         self, mat_id, cell, sign, duplicates_1d_q, duplicates_0d_q
     ):
-
         cells_0d = self.partial_duplicate_cells_0d(mat_id, cell, sign, duplicates_0d_q)
         cells_1d = []
         for d_m_1_cell, duplicate_q in zip(cell.cells_1d, duplicates_1d_q):
@@ -1532,7 +1493,6 @@ class Mesh:
         return mesh_cell
 
     def next_d_m_1(self, seed_id, cell_id, cell_m_1_id, graph, closed_q):
-
         fracture_tags = self.conformal_mesher.fracture_network.fracture_tags
         pc = list(graph.predecessors(cell_m_1_id))
         neighs = [id for id in pc if self.cells[id].material_id not in fracture_tags]
@@ -1555,7 +1515,6 @@ class Mesh:
             self.next_d_m_1(seed_id, fcell_ids[0], ids[0], graph, closed_q)
 
     def circulate_internal_bc(self):
-
         closed_q = [False]
         fracture_tags = self.conformal_mesher.fracture_network.fracture_tags
         graph_e_to_cell = self.build_graph_on_materials(2, 1)

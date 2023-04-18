@@ -11,7 +11,6 @@ def geo_cell_type(dimension):
 
 class GeometryCell:
     def __init__(self, dimension, id, physical_tag=None, point_id=None):
-
         self.dimension = dimension
         self.type = geo_cell_type(dimension)
         self.id = id

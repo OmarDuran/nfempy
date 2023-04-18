@@ -47,7 +47,6 @@ class ConformalMesher:
             raise ValueError("Dimension not implemented yet, ", self.dimension)
 
     def add_domain_1d_descritpion(self):
-
         # add domain cells
         graph_nodes = list(self.geometry_builder.graph.nodes())
         geo_cells = self.geometry_builder.cells[graph_nodes]
@@ -71,7 +70,6 @@ class ConformalMesher:
             gmsh.model.addPhysicalGroup(1, self.tags_1d, geo_1_cell.physical_tag)
 
     def add_domain_2d_descritpion(self):
-
         # add domain cells
         graph_nodes = list(self.geometry_builder.graph.nodes())
         geo_cells = self.geometry_builder.cells[graph_nodes]
@@ -99,7 +97,6 @@ class ConformalMesher:
             gmsh.model.addPhysicalGroup(2, self.tags_2d, geo_2_cell.physical_tag)
 
     def add_domain_3d_descritpion(self):
-
         # add domain cells
         graph_nodes = list(self.geometry_builder.graph.nodes())
         geo_cells = self.geometry_builder.cells[graph_nodes]
@@ -137,7 +134,6 @@ class ConformalMesher:
             gmsh.model.addPhysicalGroup(3, self.tags_3d, geo_3_cell.physical_tag)
 
     def add_fracture_network_description(self):
-
         # add fn cells
         graph_nodes = list(self.fracture_network.graph.nodes())
         geo_cells = self.fracture_network.cells[graph_nodes]
@@ -218,7 +214,6 @@ class ConformalMesher:
         self.add_domain_descritpion()
 
         if self.fracture_network is not None:
-
             assert self.dimension == 2
 
             gmsh.model.geo.synchronize()

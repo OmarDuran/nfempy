@@ -37,7 +37,6 @@ def _compute_det_and_pseudo_inverse(grad_xmap):
 
 
 def evaluate_mapping(dimension, phi, cell_points):
-
     if dimension == 0:
         x = cell_points
         jac = det_jac = inv_jac = np.array([1.0])
@@ -57,7 +56,6 @@ def evaluate_mapping(dimension, phi, cell_points):
 
 
 def store_mapping(data: ElementData):
-
     (x, jac, det_jac, inv_jac) = evaluate_mapping(
         data.dimension, data.mapping.phi, data.mapping.cell_points
     )

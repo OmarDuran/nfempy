@@ -3,7 +3,6 @@ import numpy as np
 from numpy import linalg as la
 
 from shapely.geometry import LineString
-from numba import njit, prange
 
 import geometry.fracture_network as fn
 import networkx as nx
@@ -43,24 +42,8 @@ import matplotlib.colors as mcolors
 import matplotlib.pyplot as plot
 import meshio
 
-
-import jax
-import jax.numpy as jnp
 import time
 import sys
-
-from joblib import Parallel, delayed
-from joblib import wrap_non_picklable_objects
-import multiprocessing
-
-from numba import njit, prange
-import dask
-# dask.config.set(scheduler='threads')
-# dask.config.set(scheduler='processes')
-from loky import get_reusable_executor
-dask.config.set(scheduler=get_reusable_executor())
-
-import dill
 
 def polygon_polygon_intersection():
 
@@ -673,7 +656,7 @@ def generate_mesh_1d():
 
 def generate_mesh_2d():
 
-    h_cell = 1.0 / (8.0)
+    h_cell = 1.0 / (128.0)
     # higher dimension domain geometry
     s = 1.0
 
@@ -759,7 +742,7 @@ def generate_mesh_2d():
 
 def generate_mesh_3d():
 
-    h_cell = 1.0 / (16.0)
+    h_cell = 1.0 / (32.0)
 
     theta_x = 0.0 * (np.pi/180)
     theta_y = 0.0 * (np.pi/180)
@@ -1117,7 +1100,7 @@ def md_h1_elasticity(gmesh):
     m_mu = 1.0
 
     # FESpace: data
-    n_components = 3
+    n_components = 2
     if dim == 3:
         n_components = 3
 
@@ -1764,14 +1747,14 @@ def md_h1_cosserat_elasticity(gmesh):
 
 def main():
 
-    # gmesh_3d = generate_mesh_3d()
-    gmesh_2d = generate_mesh_2d()
+    gmesh_3d = generate_mesh_3d()
+    # gmesh_2d = generate_mesh_2d()
     # gmesh_1d = generate_mesh_1d()
 
     # laplace
     # md_h1_laplace(gmesh_2d)
-    # md_h1_elasticity(gmesh_2d)
-    md_h1_cosserat_elasticity(gmesh_2d)
+    md_h1_elasticity(gmesh_3d)
+    # md_h1_cosserat_elasticity(gmesh_2d)
     return
 
 

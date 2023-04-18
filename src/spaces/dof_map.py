@@ -32,7 +32,6 @@ class DoFMap:
         self.dimension = dimension
 
     def build_entity_maps(self, n_components=1, n_dof_shift=0):
-
         dim = self.dimension
 
         vertex_ids = []
@@ -129,7 +128,6 @@ class DoFMap:
         return self.n_dof
 
     def destination_indices(self, cell_id):
-
         dim = self.dimension
         entity_maps = [self.vertex_map, self.edge_map, self.face_map, self.volume_map]
         dest_by_dim = []
