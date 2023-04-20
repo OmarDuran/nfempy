@@ -154,6 +154,21 @@ The main structure of the proyect
 	- LinearSolver:
 	- L2-error
 
+### Projectors available:
+Projectors:
+The proyectors are essential in verfiying the correctness of functions with desired conformity 
+for d in {0,1,2,3}:
+	L2-scalars: d in {0,1,2,3}
+	L2-vectors: d in {0,1,2,3}
+	L2-tensors: d in {0,1,2,3}
+	H1-scalars: d in {0,1,2,3}
+	H1-vectors: d in {0,1,2,3}
+	H1-tensors: d in {0,1,2,3}
+	Hdiv-vectors: d in {1,2,3}
+	Hcurl-vectors: d in {1,2,3}
+	Hdiv-tensors
+	Hcurl-tensors
+
 ### PostProcessor:
 
 #### Discrete Field:

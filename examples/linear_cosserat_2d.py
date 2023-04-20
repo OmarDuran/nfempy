@@ -656,7 +656,7 @@ def generate_mesh_1d():
 
 def generate_mesh_2d():
 
-    h_cell = 1.0 / (128.0)
+    h_cell = 1.0 / (16.0)
     # higher dimension domain geometry
     s = 1.0
 
@@ -680,10 +680,10 @@ def generate_mesh_2d():
     if fractures_q:
         # polygon_polygon_intersection()
         # h_cell = 1.0 / 4.0
-        fracture_tags = [0, 1, 2, 3, 4, 5]
-        fracture_1 = np.array([[0.5, 0.2, 0], [0.5, 0.8, 0]])
+        fracture_tags = [0, 1, 2]
         fracture_1 = np.array([[0.5, 0.4, 0], [0.5, 0.6, 0]])
-        fracture_2 = np.array([[0.25, 0.5, 0], [0.75, 0.5, 0]])
+        fracture_1 = np.array([[0.5, 0.4, 0], [0.5, 0.6, 0]])
+        fracture_2 = np.array([[0.4, 0.5, 0], [0.6, 0.5, 0]])
         fracture_3 = np.array([[0.2, 0.35, 0], [0.85, 0.35, 0]])
         fracture_4 = np.array([[0.15, 0.15, 0], [0.85, 0.85, 0]])
         fracture_5 = np.array([[0.15, 0.85, 0], [0.85, 0.15, 0]])
@@ -713,11 +713,11 @@ def generate_mesh_2d():
         gmesh = Mesh(dimension=2, file_name="gmesh.msh")
         gmesh.set_conformal_mesher(mesher)
         gmesh.build_conformal_mesh_II()
-        # map_fracs_edge = gmesh.cut_conformity_on_fractures_mds_ec()
-        # factor = 0.025
-        # gmesh.apply_visual_opening(map_fracs_edge, factor)
+        map_fracs_edge = gmesh.cut_conformity_on_fractures_mds_ec()
+        factor = 0.05
+        gmesh.apply_visual_opening(map_fracs_edge, factor)
 
-        gmesh.write_data()
+        # gmesh.write_data()
         gmesh.write_vtk()
         # print("Skin boundary is closed Q:", gmesh.circulate_internal_bc())
         print("h-size: ", h_cell)
@@ -1197,19 +1197,19 @@ def md_h1_elasticity(gmesh):
             r_el[b:e:n_components] += phi_s_star @ f_val_star[c]
 
         # vectorized blocks
+        phi_star_dirs = [[1,2],[0,2],[0,1]]
         for i, omega in enumerate(weights):
             grad_phi = inv_jac[i].T @ phi_tab[1:phi_tab.shape[0] + 1, i, :, 0]
-
-            phi_trace_outer = np.zeros((n_phi, n_phi))
-            for d in range(n_components):
-                phi_trace_outer += np.outer(grad_phi[d], grad_phi[d])
 
             for i_d in range(n_components):
                 for j_d in range(n_components):
                     phi_outer = np.outer(grad_phi[j_d], grad_phi[i_d])
                     stress_grad = m_mu * phi_outer
                     if i_d == j_d:
-                        stress_grad += m_lambda * phi_outer + m_mu * phi_trace_outer
+                        phi_outer_star = np.zeros((n_phi, n_phi))
+                        for d in phi_star_dirs[i_d]:
+                            phi_outer_star += np.outer(grad_phi[d], grad_phi[d])
+                        stress_grad += (m_lambda + m_mu ) * phi_outer + m_mu * phi_outer_star
                     else:
                         stress_grad +=  m_lambda * np.outer(grad_phi[i_d], grad_phi[j_d])
                     j_el[i_d:n_dof+1:n_components,j_d:n_dof+1:n_components] += det_jac[i] * omega * stress_grad
@@ -1469,9 +1469,9 @@ def md_h1_cosserat_elasticity(gmesh):
 
     # facturated solution for
     f_exact = lambda x, y, z: np.array([np.sin(np.pi*x) * y*(1-y),np.sin(np.pi*y) * x*(1-x), np.sin(np.pi*x)*np.sin(np.pi*y)])
-    f_rhs_x = lambda x, y, z: -((2*m_kappa + 2*m_mu - (np.pi**2)*(-1 + y)*y*(m_lambda + 2*m_mu))*np.sin(np.pi*x)) + np.pi*np.cos(np.pi*y)*((-1 + 2*x)*(m_kappa - m_lambda - m_mu) + 2*m_kappa*np.sin(np.pi*x))
-    f_rhs_y = lambda x, y, z: -((2*m_kappa + 2*m_mu - (np.pi**2)*(-1 + x)*x*(m_lambda + 2*m_mu))*np.sin(np.pi*y)) + np.pi*np.cos(np.pi*x)*((-1 + 2*y)*(m_kappa - m_lambda - m_mu) - 2*m_kappa*np.sin(np.pi*y))
-    f_rhs_t = lambda x, y, z: 2*(-1 + 2*x)*m_kappa*np.sin(np.pi*y) + 2*np.sin(np.pi*x)*(m_kappa - 2*y*m_kappa + (-(np.pi**2*m_gamma) + 2*m_kappa)*np.sin(np.pi*y))
+    f_rhs_x = lambda x, y, z: -((2*m_kappa + 2*m_mu - np.pi**2*(-1 + y)*y*(m_lambda + 2*m_mu))*np.sin(np.pi*x)) + np.pi*np.cos(np.pi*y)*((-1 + 2*x)*(m_kappa - m_lambda - m_mu) + 2*m_kappa*np.sin(np.pi*x))
+    f_rhs_y = lambda x, y, z: -((2*m_kappa + 2*m_mu - np.pi**2*(-1 + x)*x*(m_lambda + 2*m_mu))*np.sin(np.pi*y)) + np.pi*np.cos(np.pi*x)*((-1 + 2*y)*(m_kappa - m_lambda - m_mu) - 2*m_kappa*np.sin(np.pi*y))
+    f_rhs_t = lambda x, y, z: -2*((-1 + 2*x)*m_kappa*np.sin(np.pi*y) + np.sin(np.pi*x)*(m_kappa - 2*y*m_kappa + ((np.pi**2)*m_gamma + 2*m_kappa)*np.sin(np.pi*y)))
     f_rhs = lambda x, y, z: np.array([-f_rhs_x(x,y,z), -f_rhs_y(x,y,z), -f_rhs_t(x,y,z)])
     if dim == 3:
         assert dim == 2
@@ -1510,7 +1510,7 @@ def md_h1_cosserat_elasticity(gmesh):
         phi_s_star = (det_jac * weights * phi_tab[0, :, :, 0].T)
 
         # rotation part
-        jac_block = np.zeros((n_phi, n_phi))
+        rotation_block = np.zeros((n_phi, n_phi))
         assymetric_block = np.zeros((n_phi, n_phi * (n_components - 1)))
         for i, omega in enumerate(weights):
             grad_phi = inv_jac[i].T @ phi_tab[1:phi_tab.shape[0] + 1, i, :, 0]
@@ -1520,11 +1520,11 @@ def md_h1_cosserat_elasticity(gmesh):
             sigma_12 = np.outer(phi, grad_phi[0,:])
             assymetric_block[:, 0:n_dof + 1:n_components - 1] += det_jac[i] * omega * 2.0 * m_kappa * sigma_21
             assymetric_block[:, 1:n_dof + 1:n_components - 1] -= det_jac[i] * omega * 2.0 * m_kappa * sigma_12
-            jac_block += det_jac[i] * omega * 4.0 * m_kappa * np.outer(phi, phi)
+            rotation_block += det_jac[i] * omega * 4.0 * m_kappa * np.outer(phi, phi)
             for d in range(3):
-                jac_block += det_jac[i] * omega * m_gamma * np.outer(grad_phi[d], grad_phi[d])
+                rotation_block += det_jac[i] * omega * m_gamma * np.outer(grad_phi[d], grad_phi[d])
 
-        j_el[n_components-1:n_dof + 1:n_components, n_components-1:n_dof + 1:n_components] += jac_block
+        j_el[n_components-1:n_dof + 1:n_components, n_components-1:n_dof + 1:n_components] += rotation_block
         for i_d in range(n_components - 1):
             j_el[n_components-1:n_dof + 1:n_components,i_d:n_dof+1:n_components] += assymetric_block[:,i_d:n_dof+1:n_components-1]
             j_el[i_d:n_dof+1:n_components,n_components-1:n_dof + 1:n_components] += assymetric_block[:,i_d:n_dof+1:n_components-1].T
@@ -1535,24 +1535,43 @@ def md_h1_cosserat_elasticity(gmesh):
             r_el[b:e:n_components] += phi_s_star @ f_val_star[c]
 
         # vectorized blocks
+        phi_star_dirs = [[1, 2], [0, 2], [0, 1]]
         for i, omega in enumerate(weights):
             grad_phi = inv_jac[i].T @ phi_tab[1:phi_tab.shape[0] + 1, i, :, 0]
-
-            phi_trace_outer = np.zeros((n_phi, n_phi))
-            for d in range(n_components-1):
-                phi_trace_outer += np.outer(grad_phi[d], grad_phi[d])
-
             for i_d in range(n_components-1):
                 for j_d in range(n_components-1):
-                    phi_outer = np.outer(grad_phi[j_d], grad_phi[i_d])
+                    phi_outer = np.outer(grad_phi[i_d], grad_phi[j_d])
                     stress_grad = m_mu * phi_outer
                     if i_d == j_d:
-                        stress_grad -= m_kappa * phi_outer
-                        stress_grad += m_lambda * phi_outer + (m_mu + m_kappa) * phi_trace_outer
+                        phi_outer_star = np.zeros((n_phi, n_phi))
+                        for d in phi_star_dirs[i_d]:
+                            phi_outer_star += np.outer(grad_phi[d], grad_phi[d])
+                        stress_grad += (m_lambda + m_mu) * phi_outer + (m_mu + m_kappa) * phi_outer_star
                     else:
                         stress_grad -= m_kappa * phi_outer
-                        stress_grad += m_lambda * np.outer(grad_phi[i_d], grad_phi[j_d])
-                    j_el[i_d:n_dof+1:n_components,j_d:n_dof+1:n_components] += det_jac[i] * omega * stress_grad
+                        stress_grad += m_lambda * np.outer(grad_phi[j_d], grad_phi[i_d])
+                    j_el[i_d:n_dof + 1:n_components, j_d:n_dof + 1:n_components] += \
+                    det_jac[i] * omega * stress_grad
+
+        # # vectorized blocks
+        # for i, omega in enumerate(weights):
+        #     grad_phi = inv_jac[i].T @ phi_tab[1:phi_tab.shape[0] + 1, i, :, 0]
+        #
+        #     phi_trace_outer = np.zeros((n_phi, n_phi))
+        #     for d in range(n_components-1):
+        #         phi_trace_outer += np.outer(grad_phi[d], grad_phi[d])
+        #
+        #     for i_d in range(n_components-1):
+        #         for j_d in range(n_components-1):
+        #             phi_outer = np.outer(grad_phi[j_d], grad_phi[i_d])
+        #             stress_grad = m_mu * phi_outer
+        #             if i_d == j_d:
+        #                 stress_grad -= m_kappa * phi_outer
+        #                 stress_grad += m_lambda * phi_outer + (m_mu + m_kappa) * phi_trace_outer
+        #             else:
+        #                 stress_grad -= m_kappa * phi_outer
+        #                 stress_grad += m_lambda * np.outer(grad_phi[i_d], grad_phi[j_d])
+        #             j_el[i_d:n_dof+1:n_components,j_d:n_dof+1:n_components] += det_jac[i] * omega * stress_grad
 
         # scattering data
         c_sequ = cell_map[cell.id]
@@ -1747,14 +1766,14 @@ def md_h1_cosserat_elasticity(gmesh):
 
 def main():
 
-    gmesh_3d = generate_mesh_3d()
-    # gmesh_2d = generate_mesh_2d()
+    # gmesh_3d = generate_mesh_3d()
+    gmesh_2d = generate_mesh_2d()
     # gmesh_1d = generate_mesh_1d()
 
     # laplace
     # md_h1_laplace(gmesh_2d)
-    md_h1_elasticity(gmesh_3d)
-    # md_h1_cosserat_elasticity(gmesh_2d)
+    # md_h1_elasticity(gmesh_2d)
+    md_h1_cosserat_elasticity(gmesh_2d)
     return
 
 

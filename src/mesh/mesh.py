@@ -728,7 +728,7 @@ class Mesh:
                 geo_1_cell.boundary_cells[1].point_id,
             )
             cell_points = fracture_network.points[[b, e]]
-            cell_points = np.hstack((cell_points, np.array([[0.0], [0.0]])))
+            # cell_points = np.hstack((cell_points, np.array([[0.0], [0.0]])))
             R = cell_points[1] - cell_points[0]
             tau = (R) / np.linalg.norm(R)
             n = rotate_vector(tau, np.pi / 2.0)

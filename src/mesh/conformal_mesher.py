@@ -223,7 +223,7 @@ class ConformalMesher:
             gmsh.model.mesh.embed(0, self.tags_0d, 2, self.tags_2d[0])
             gmsh.model.mesh.embed(1, self.tags_1d, 2, self.tags_2d[0])
 
-            numNodes = 20
+            numNodes = 10
             for tag_1d in self.tags_1d:
                 gmsh.model.geo.mesh.setTransfiniteCurve(
                     tag_1d, numNodes, "Bump", coef=0.25
