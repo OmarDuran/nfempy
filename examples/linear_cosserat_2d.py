@@ -658,7 +658,7 @@ def generate_mesh_1d():
 
 def generate_mesh_2d():
 
-    h_cell = 1.0 / (1.0)
+    h_cell = 1.0 / (16.0)
     # higher dimension domain geometry
     s = 1.0
 
@@ -1433,46 +1433,6 @@ def md_h1_cosserat_elasticity(gmesh):
     elif dim == 3:
         u_field.build_structures([2, 3, 4, 5, 6, 7])
 
-    data = u_field.elements[0].data
-    phi = data.basis.phi
-    points = data.quadrature.points
-    weights = data.quadrature.weights
-    x = data.mapping.x
-    det_jac = data.mapping.det_jac
-    inv_jac = data.mapping.inv_jac
-
-    alpha = np.zeros(phi.shape[2])
-    def weak_formulation(alpha, phi, inv_jac, i):
-        n_phi = phi.shape[2]
-        stiff = np.zeros((n_phi, n_phi))
-        mass = np.outer(phi[0, i, :, 0], phi[0, i, :, 0])
-        grad_phi = inv_jac[i].T @ phi[1:phi.shape[0] + 1, i, :, 0]
-        for d in range(3):
-            stiff += np.outer(grad_phi[d],grad_phi[d])
-        form = (stiff + mass) @ alpha.T
-        return form
-
-    jac_ref = np.zeros_like(np.outer(phi[0,0,:,0],phi[0,0,:,0]))
-    jac = np.zeros_like(np.outer(phi[0,0,:,0],phi[0,0,:,0]))
-    st = time.time()
-    with auto_diff.SparseAutoDiff(alpha) as alpha:
-        for i, omega in enumerate(weights):
-            form_eval = weak_formulation(alpha, phi, inv_jac, i)
-            res_v, jac_v = auto_diff.get_value_and_jacobian(form_eval)
-            jac += det_jac[i] * omega * jac_v.todense()
-
-            # jac += det_jac[i] * omega * np.outer(phi[0,i,:,0],phi[0,i,:,0])
-            # stiff_c = np.zeros((phi.shape[2], phi.shape[2]))
-            # grad_phi = inv_jac[i].T @ phi[1:phi.shape[0] + 1, i, :, 0]
-            # for d in range(3):
-            #     stiff_c += np.outer(grad_phi[d], grad_phi[d])
-            # jac += det_jac[i] * omega * stiff_c
-        print("jac:", jac)
-        et = time.time()
-        elapsed_time = et - st
-        print("Mass evaluation time:", elapsed_time, "seconds")
-
-
     st = time.time()
     # Assembler
     # Triplets data
@@ -1509,7 +1469,7 @@ def md_h1_cosserat_elasticity(gmesh):
 
     st = time.time()
 
-    # facturated solution for
+    # smooth solution
     f_exact = lambda x, y, z: np.array([np.sin(np.pi*x) * y*(1-y),np.sin(np.pi*y) * x*(1-x), np.sin(np.pi*x)*np.sin(np.pi*y)])
     f_rhs_x = lambda x, y, z: -((2*m_kappa + 2*m_mu - np.pi**2*(-1 + y)*y*(m_lambda + 2*m_mu))*np.sin(np.pi*x)) + np.pi*np.cos(np.pi*y)*((-1 + 2*x)*(m_kappa - m_lambda - m_mu) + 2*m_kappa*np.sin(np.pi*x))
     f_rhs_y = lambda x, y, z: -((2*m_kappa + 2*m_mu - np.pi**2*(-1 + x)*x*(m_lambda + 2*m_mu))*np.sin(np.pi*y)) + np.pi*np.cos(np.pi*x)*((-1 + 2*y)*(m_kappa - m_lambda - m_mu) - 2*m_kappa*np.sin(np.pi*y))
