@@ -44,6 +44,8 @@ import meshio
 
 import time
 import sys
+import auto_diff
+
 
 def polygon_polygon_intersection():
 
@@ -656,7 +658,7 @@ def generate_mesh_1d():
 
 def generate_mesh_2d():
 
-    h_cell = 1.0 / (4.0)
+    h_cell = 1.0 / (1.0)
     # higher dimension domain geometry
     s = 1.0
 
@@ -742,7 +744,7 @@ def generate_mesh_2d():
 
 def generate_mesh_3d():
 
-    h_cell = 1.0 / (16.0)
+    h_cell = 1.0 / (1.0)
 
     theta_x = 0.0 * (np.pi/180)
     theta_y = 0.0 * (np.pi/180)
@@ -1096,7 +1098,7 @@ def md_h1_elasticity(gmesh):
     dim = gmesh.dimension
     # Material data
 
-    m_lambda = 100000.0
+    m_lambda = 1.0
     m_mu = 1.0
 
     # FESpace: data
@@ -1410,9 +1412,9 @@ def md_h1_cosserat_elasticity(gmesh):
     dim = gmesh.dimension
     # Material data
 
-    m_lambda = 1000.0
+    m_lambda = 10.0
     m_mu = 1.0
-    m_kappa = 10.0
+    m_kappa = 1.0
     m_gamma = 1.0
 
     # FESpace: data
@@ -1421,7 +1423,7 @@ def md_h1_cosserat_elasticity(gmesh):
         n_components = 6
 
     discontinuous = True
-    k_order = 2
+    k_order = 3
     family = "Lagrange"
 
     u_field = DiscreteField(dim, n_components, family, k_order, gmesh)
@@ -1430,6 +1432,46 @@ def md_h1_cosserat_elasticity(gmesh):
         u_field.build_structures([2, 3, 4, 5])
     elif dim == 3:
         u_field.build_structures([2, 3, 4, 5, 6, 7])
+
+    data = u_field.elements[0].data
+    phi = data.basis.phi
+    points = data.quadrature.points
+    weights = data.quadrature.weights
+    x = data.mapping.x
+    det_jac = data.mapping.det_jac
+    inv_jac = data.mapping.inv_jac
+
+    alpha = np.zeros(phi.shape[2])
+    def weak_formulation(alpha, phi, inv_jac, i):
+        n_phi = phi.shape[2]
+        stiff = np.zeros((n_phi, n_phi))
+        mass = np.outer(phi[0, i, :, 0], phi[0, i, :, 0])
+        grad_phi = inv_jac[i].T @ phi[1:phi.shape[0] + 1, i, :, 0]
+        for d in range(3):
+            stiff += np.outer(grad_phi[d],grad_phi[d])
+        form = (stiff + mass) @ alpha.T
+        return form
+
+    jac_ref = np.zeros_like(np.outer(phi[0,0,:,0],phi[0,0,:,0]))
+    jac = np.zeros_like(np.outer(phi[0,0,:,0],phi[0,0,:,0]))
+    st = time.time()
+    with auto_diff.SparseAutoDiff(alpha) as alpha:
+        for i, omega in enumerate(weights):
+            form_eval = weak_formulation(alpha, phi, inv_jac, i)
+            res_v, jac_v = auto_diff.get_value_and_jacobian(form_eval)
+            jac += det_jac[i] * omega * jac_v.todense()
+
+            # jac += det_jac[i] * omega * np.outer(phi[0,i,:,0],phi[0,i,:,0])
+            # stiff_c = np.zeros((phi.shape[2], phi.shape[2]))
+            # grad_phi = inv_jac[i].T @ phi[1:phi.shape[0] + 1, i, :, 0]
+            # for d in range(3):
+            #     stiff_c += np.outer(grad_phi[d], grad_phi[d])
+            # jac += det_jac[i] * omega * stiff_c
+        print("jac:", jac)
+        et = time.time()
+        elapsed_time = et - st
+        print("Mass evaluation time:", elapsed_time, "seconds")
+
 
     st = time.time()
     # Assembler
@@ -1488,6 +1530,12 @@ def md_h1_cosserat_elasticity(gmesh):
         n_components = u_field.n_comp
         el_data: ElementData = element.data
 
+        n_comp_u = 2
+        n_comp_t = 1
+        if u_field.dimension == 3:
+            n_comp_u = 3
+            n_comp_t = 3
+
         cell = el_data.cell
         points = el_data.quadrature.points
         weights = el_data.quadrature.weights
@@ -1513,23 +1561,36 @@ def md_h1_cosserat_elasticity(gmesh):
 
         # rotation part
         rotation_block = np.zeros((n_phi, n_phi))
-        assymetric_block = np.zeros((n_phi, n_phi * (n_components - 1)))
+        assymetric_block = np.zeros((n_phi * n_comp_t, n_phi * n_comp_u))
+        axial_pairs_idx = [[1, 0]]
+        axial_dest_pairs_idx = [[0, 1]]
+        if u_field.dimension== 3:
+            axial_pairs_idx = [[1, 2],[2, 0],[0, 1]]
+            axial_dest_pairs_idx = [[2, 1], [0, 2], [1, 0]]
+
         for i, omega in enumerate(weights):
             grad_phi = inv_jac[i].T @ phi_tab[1:phi_tab.shape[0] + 1, i, :, 0]
 
             phi = phi_tab[0, i, :, 0]
-            sigma_21 = np.outer(phi, grad_phi[1,:])
-            sigma_12 = np.outer(phi, grad_phi[0,:])
-            assymetric_block[:, 0:n_dof + 1:n_components - 1] += det_jac[i] * omega * 2.0 * m_kappa * sigma_21
-            assymetric_block[:, 1:n_dof + 1:n_components - 1] -= det_jac[i] * omega * 2.0 * m_kappa * sigma_12
+            for i_c, pair in enumerate(axial_pairs_idx):
+                adest = axial_dest_pairs_idx[i_c]
+                sigma_rotation_0 = np.outer(phi, grad_phi[pair[0], :])
+                sigma_rotation_1 = np.outer(phi, grad_phi[pair[1], :])
+                assymetric_block[i_c*n_phi:n_phi+i_c*n_phi, adest[0]:n_dof + 1:n_comp_u] += det_jac[i] * omega * 2.0 * m_kappa * sigma_rotation_0
+                assymetric_block[i_c*n_phi:n_phi+i_c*n_phi, adest[1]:n_dof + 1:n_comp_u] -= det_jac[i] * omega * 2.0 * m_kappa * sigma_rotation_1
             rotation_block += det_jac[i] * omega * 4.0 * m_kappa * np.outer(phi, phi)
             for d in range(3):
                 rotation_block += det_jac[i] * omega * m_gamma * np.outer(grad_phi[d], grad_phi[d])
 
-        j_el[n_components-1:n_dof + 1:n_components, n_components-1:n_dof + 1:n_components] += rotation_block
-        for i_d in range(n_components - 1):
-            j_el[n_components-1:n_dof + 1:n_components,i_d:n_dof+1:n_components] += assymetric_block[:,i_d:n_dof+1:n_components-1]
-            j_el[i_d:n_dof+1:n_components,n_components-1:n_dof + 1:n_components] += assymetric_block[:,i_d:n_dof+1:n_components-1].T
+        for c in range(n_comp_t):
+            b = c + n_comp_u
+            j_el[b:n_dof + 1:n_components, b:n_dof + 1:n_components] += rotation_block
+
+        for i_c, adest in enumerate(axial_dest_pairs_idx):
+            j_el[n_comp_u+i_c:n_dof + 1:n_components,adest[0]:n_dof+1:n_components] += assymetric_block[i_c*n_phi:n_phi+i_c*n_phi,adest[0]:n_dof + 1:n_comp_u]
+            j_el[adest[0]:n_dof+1:n_components,n_comp_u+i_c:n_dof + 1:n_components] += assymetric_block[i_c*n_phi:n_phi+i_c*n_phi,adest[0]:n_dof + 1:n_comp_u].T
+            j_el[n_comp_u+i_c:n_dof + 1:n_components,adest[1]:n_dof+1:n_components] += assymetric_block[i_c*n_phi:n_phi+i_c*n_phi,adest[1]:n_dof + 1:n_comp_u]
+            j_el[adest[1]:n_dof+1:n_components,n_comp_u+i_c:n_dof + 1:n_components] += assymetric_block[i_c*n_phi:n_phi+i_c*n_phi,adest[1]:n_dof + 1:n_comp_u].T
 
         for c in range(n_components):
             b = c
@@ -1540,8 +1601,8 @@ def md_h1_cosserat_elasticity(gmesh):
         phi_star_dirs = [[1, 2], [0, 2], [0, 1]]
         for i, omega in enumerate(weights):
             grad_phi = inv_jac[i].T @ phi_tab[1:phi_tab.shape[0] + 1, i, :, 0]
-            for i_d in range(n_components-1):
-                for j_d in range(n_components-1):
+            for i_d in range(n_comp_u):
+                for j_d in range(n_comp_u):
                     phi_outer = np.outer(grad_phi[i_d], grad_phi[j_d])
                     stress_grad = m_mu * phi_outer
                     if i_d == j_d:
@@ -1554,26 +1615,6 @@ def md_h1_cosserat_elasticity(gmesh):
                         stress_grad += m_lambda * np.outer(grad_phi[j_d], grad_phi[i_d])
                     j_el[i_d:n_dof + 1:n_components, j_d:n_dof + 1:n_components] += \
                     det_jac[i] * omega * stress_grad
-
-        # # vectorized blocks
-        # for i, omega in enumerate(weights):
-        #     grad_phi = inv_jac[i].T @ phi_tab[1:phi_tab.shape[0] + 1, i, :, 0]
-        #
-        #     phi_trace_outer = np.zeros((n_phi, n_phi))
-        #     for d in range(n_components-1):
-        #         phi_trace_outer += np.outer(grad_phi[d], grad_phi[d])
-        #
-        #     for i_d in range(n_components-1):
-        #         for j_d in range(n_components-1):
-        #             phi_outer = np.outer(grad_phi[j_d], grad_phi[i_d])
-        #             stress_grad = m_mu * phi_outer
-        #             if i_d == j_d:
-        #                 stress_grad -= m_kappa * phi_outer
-        #                 stress_grad += m_lambda * phi_outer + (m_mu + m_kappa) * phi_trace_outer
-        #             else:
-        #                 stress_grad -= m_kappa * phi_outer
-        #                 stress_grad += m_lambda * np.outer(grad_phi[i_d], grad_phi[j_d])
-        #             j_el[i_d:n_dof+1:n_components,j_d:n_dof+1:n_components] += det_jac[i] * omega * stress_grad
 
         # scattering data
         c_sequ = cell_map[cell.id]
@@ -1766,16 +1807,17 @@ def md_h1_cosserat_elasticity(gmesh):
     elapsed_time = et - st
     print("Post-processing time:", elapsed_time, "seconds")
 
+
 def main():
 
-    gmesh_3d = generate_mesh_3d()
-    # gmesh_2d = generate_mesh_2d()
+    # gmesh_3d = generate_mesh_3d()
+    gmesh_2d = generate_mesh_2d()
     # gmesh_1d = generate_mesh_1d()
 
     # laplace
     # md_h1_laplace(gmesh_2d)
-    md_h1_elasticity(gmesh_3d)
-    # md_h1_cosserat_elasticity(gmesh_2d)
+    # md_h1_elasticity(gmesh_3d)
+    md_h1_cosserat_elasticity(gmesh_2d)
     return
 
 
