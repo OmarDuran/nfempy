@@ -204,7 +204,7 @@ class ConformalMesher:
             max_point_id = -len(self.geometry_builder.points)
             self.fracture_network.shift_point_ids(max_point_id)
 
-    def generate(self, lc):
+    def generate(self, lc, n_refinments = 0):
         gmsh.initialize()
         self.lc = lc
         n_points = len(self.points)
@@ -232,7 +232,8 @@ class ConformalMesher:
         gmsh.model.geo.synchronize()
         for d in range(self.dimension + 1):
             gmsh.model.mesh.generate(d)
-
+        for l in range(n_refinments):
+            gmsh.model.mesh.refine()
         # if "-nopopup" not in sys.argv:
         #     gmsh.fltk.run()
         # aka = 0

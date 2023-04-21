@@ -218,5 +218,45 @@ The best local vectorization occurs in eliminating integration point loops
 	L2-error time: 9.504310131072998 seconds
 	L2-error:  6.91696585636745e-08
 	Post-processing time: 7.020235061645508 seconds
+	
+	Performance for:
+	- 3D second-order Cosserat operator
+	- Six component field
+	- h = 1/1
+	- l = 3
+	- k_order = 2
+	- 	
+	h-size:  1.0
+	l-refi:  3
+	DiscreteField:: DoFMap construction time: 0.8933699131011963 seconds
+	DiscreteField:: Number of processed elements: 12288
+	DiscreteField:: Elements construction time: 46.39259123802185 seconds
+	DiscreteField:: Number of processed bc elements: 1536
+	DiscreteField:: Boundary Elements construction time: 2.3282089233398438 seconds
+	n_dof:  107814
+	Triplets creation time: 0.09861302375793457 seconds
+	Assembly time: 174.8708040714264 seconds
+	Linear solver time: 30.13961410522461 seconds
+	L2-error time: 2.045224905014038 seconds
+	L2-error:  5.954808931501035e-05
+	Post-processing time: 2.6556379795074463 seconds
+	
+	Performance for (Simulation not complete):
+	- 3D second-order Cosserat operator
+	- Six component field
+	- h = 1/1
+	- l = 4
+	- k_order = 2
+	
+	h-size:  1.0
+	l-refi:  4
+	DiscreteField:: DoFMap construction time: 9.730278968811035 seconds
+	DiscreteField:: Number of processed elements: 98304
+	DiscreteField:: Elements construction time: 334.8427629470825 seconds
+	DiscreteField:: Number of processed bc elements: 6144
+	DiscreteField:: Boundary Elements construction time: 8.834323406219482 seconds
+	n_dof:  823878
+	Triplets creation time: 4.465027093887329 seconds
+	Assembly time: 1393.5477249622345 seconds
 
 
