@@ -658,7 +658,7 @@ def generate_mesh_1d():
 
 def generate_mesh_2d():
 
-    h_cell = 1.0 / (16.0)
+    h_cell = 1.0 / (1.0)
     # higher dimension domain geometry
     s = 1.0
 
@@ -744,7 +744,7 @@ def generate_mesh_2d():
 
 def generate_mesh_3d():
 
-    h_cell = 1.0 / (1.0)
+    h_cell = 1.0 / (16.0)
 
     theta_x = 0.0 * (np.pi/180)
     theta_y = 0.0 * (np.pi/180)
@@ -1412,7 +1412,7 @@ def md_h1_cosserat_elasticity(gmesh):
     dim = gmesh.dimension
     # Material data
 
-    m_lambda = 10.0
+    m_lambda = 1000.0
     m_mu = 1.0
     m_kappa = 1.0
     m_gamma = 1.0
@@ -1423,7 +1423,7 @@ def md_h1_cosserat_elasticity(gmesh):
         n_components = 6
 
     discontinuous = True
-    k_order = 3
+    k_order = 2
     family = "Lagrange"
 
     u_field = DiscreteField(dim, n_components, family, k_order, gmesh)
@@ -1480,9 +1480,9 @@ def md_h1_cosserat_elasticity(gmesh):
         f_rhs_x = lambda x, y, z: -2*(np.pi**2)*(1 - y)*y*(1 - z)*z*m_mu*np.sin(np.pi*x) + m_mu*(np.pi*(1 - x)*(1 - y)*y*np.cos(np.pi*z) - np.pi*x*(1 - y)*y*np.cos(np.pi*z) - 2*(1 - y)*y*np.sin(np.pi*x)) + m_mu*(np.pi*(1 - x)*(1 - z)*z*np.cos(np.pi*y) - np.pi*x*(1 - z)*z*np.cos(np.pi*y) - 2*(1 - z)*z*np.sin(np.pi*x)) + m_lambda*(np.pi*(1 - x)*(1 - z)*z*np.cos(np.pi*y) - np.pi*x*(1 - z)*z*np.cos(np.pi*y) + np.pi*(1 - x)*(1 - y)*y*np.cos(np.pi*z) - np.pi*x*(1 - y)*y*np.cos(np.pi*z) - (np.pi**2)*(1 - y)*y*(1 - z)*z*np.sin(np.pi*x)) + m_kappa*(-(np.pi*(1 - x)*(1 - z)*z*np.cos(np.pi*y)) + np.pi*x*(1 - z)*z*np.cos(np.pi*y) - 2*(1 - z)*z*np.sin(np.pi*x) + 2*np.pi*z*np.cos(np.pi*y)*np.sin(np.pi*x) - 2*np.pi*(z**2)*np.cos(np.pi*y)*np.sin(np.pi*x)) + m_kappa*(-(np.pi*(1 - x)*(1 - y)*y*np.cos(np.pi*z)) + np.pi*x*(1 - y)*y*np.cos(np.pi*z) - 2*(1 - y)*y*np.sin(np.pi*x) - 2*np.pi*y*np.cos(np.pi*z)*np.sin(np.pi*x) + 2*np.pi*(y**2)*np.cos(np.pi*z)*np.sin(np.pi*x))
         f_rhs_y = lambda x, y, z: -2*(np.pi**2)*(1 - x)*x*(1 - z)*z*m_mu*np.sin(np.pi*y) + m_mu*(np.pi*(1 - x)*x*(1 - y)*np.cos(np.pi*z) - np.pi*(1 - x)*x*y*np.cos(np.pi*z) - 2*(1 - x)*x*np.sin(np.pi*y)) + m_mu*(np.pi*(1 - y)*(1 - z)*z*np.cos(np.pi*x) - np.pi*y*(1 - z)*z*np.cos(np.pi*x) - 2*(1 - z)*z*np.sin(np.pi*y)) + m_lambda*(np.pi*(1 - y)*(1 - z)*z*np.cos(np.pi*x) - np.pi*y*(1 - z)*z*np.cos(np.pi*x) + np.pi*(1 - x)*x*(1 - y)*np.cos(np.pi*z) - np.pi*(1 - x)*x*y*np.cos(np.pi*z) - (np.pi**2)*(1 - x)*x*(1 - z)*z*np.sin(np.pi*y)) + m_kappa*(-(np.pi*(1 - y)*(1 - z)*z*np.cos(np.pi*x)) + np.pi*y*(1 - z)*z*np.cos(np.pi*x) - 2*(1 - z)*z*np.sin(np.pi*y) - 2*np.pi*z*np.cos(np.pi*x)*np.sin(np.pi*y) + 2*np.pi*(z**2)*np.cos(np.pi*x)*np.sin(np.pi*y)) + m_kappa*(-(np.pi*(1 - x)*x*(1 - y)*np.cos(np.pi*z)) + np.pi*(1 - x)*x*y*np.cos(np.pi*z) - 2*(1 - x)*x*np.sin(np.pi*y) + 2*np.pi*x*np.cos(np.pi*z)*np.sin(np.pi*y) - 2*np.pi*(x**2)*np.cos(np.pi*z)*np.sin(np.pi*y))
         f_rhs_z = lambda x, y, z: -2*(np.pi**2)*(1 - x)*x*(1 - y)*y*m_mu*np.sin(np.pi*z) + m_mu*(np.pi*(1 - x)*x*(1 - z)*np.cos(np.pi*y) - np.pi*(1 - x)*x*z*np.cos(np.pi*y) - 2*(1 - x)*x*np.sin(np.pi*z)) + m_mu*(np.pi*(1 - y)*y*(1 - z)*np.cos(np.pi*x) - np.pi*(1 - y)*y*z*np.cos(np.pi*x) - 2*(1 - y)*y*np.sin(np.pi*z)) + m_lambda*(np.pi*(1 - y)*y*(1 - z)*np.cos(np.pi*x) - np.pi*(1 - y)*y*z*np.cos(np.pi*x) + np.pi*(1 - x)*x*(1 - z)*np.cos(np.pi*y) - np.pi*(1 - x)*x*z*np.cos(np.pi*y) - (np.pi**2)*(1 - x)*x*(1 - y)*y*np.sin(np.pi*z)) + m_kappa*(-(np.pi*(1 - y)*y*(1 - z)*np.cos(np.pi*x)) + np.pi*(1 - y)*y*z*np.cos(np.pi*x) - 2*(1 - y)*y*np.sin(np.pi*z) + 2*np.pi*y*np.cos(np.pi*x)*np.sin(np.pi*z) - 2*np.pi*(y**2)*np.cos(np.pi*x)*np.sin(np.pi*z)) + m_kappa*(-(np.pi*(1 - x)*x*(1 - z)*np.cos(np.pi*y)) + np.pi*(1 - x)*x*z*np.cos(np.pi*y) - 2*(1 - x)*x*np.sin(np.pi*z) - 2*np.pi*x*np.cos(np.pi*y)*np.sin(np.pi*z) + 2*np.pi*(x**2)*np.cos(np.pi*y)*np.sin(np.pi*z))
-        f_rhs_t_x = lambda x, y, z: 2*x*m_kappa*np.sin(np.pi*y) - 2*(x**2)*m_kappa*np.sin(np.pi*y) - 4*x*z*m_kappa*np.sin(np.pi*y) + 4*(x**2)*z*m_kappa*np.sin(np.pi*y) - 2*x*m_kappa*np.sin(np.pi*z) + 2*(x**2)*m_kappa*np.sin(np.pi*z) + 4*x*y*m_kappa*np.sin(np.pi*z) - 4*(x**2)*y*m_kappa*np.sin(np.pi*z) - 2*m_gamma*np.sin(np.pi*y)*np.sin(np.pi*z) - 2*(np.pi**2)*(1 - x)*x*m_gamma*np.sin(np.pi*y)*np.sin(np.pi*z) + 4*x*m_kappa*np.sin(np.pi*y)*np.sin(np.pi*z) - 4*(x**2)*m_kappa*np.sin(np.pi*y)*np.sin(np.pi*z)
-        f_rhs_t_y = lambda x, y, z: -2*y*m_kappa*np.sin(np.pi*x) + 2*(y**2)*m_kappa*np.sin(np.pi*x) + 4*y*z*m_kappa*np.sin(np.pi*x) - 4*(y**2)*z*m_kappa*np.sin(np.pi*x) + 2*y*m_kappa*np.sin(np.pi*z) - 4*x*y*m_kappa*np.sin(np.pi*z) - 2*(y**2)*m_kappa*np.sin(np.pi*z) + 4*x*(y**2)*m_kappa*np.sin(np.pi*z) - 2*m_gamma*np.sin(np.pi*x)*np.sin(np.pi*z) - 2*(np.pi**2)*(1 - y)*y*m_gamma*np.sin(np.pi*x)*np.sin(np.pi*z) + 4*y*m_kappa*np.sin(np.pi*x)*np.sin(np.pi*z) - 4*(y**2)*m_kappa*np.sin(np.pi*x)*np.sin(np.pi*z)
-        f_rhs_t_z = lambda x, y, z: 2*z*m_kappa*np.sin(np.pi*x) - 4*y*z*m_kappa*np.sin(np.pi*x) - 2*(z**2)*m_kappa*np.sin(np.pi*x) + 4*y*(z**2)*m_kappa*np.sin(np.pi*x) - 2*z*m_kappa*np.sin(np.pi*y) + 4*x*z*m_kappa*np.sin(np.pi*y) + 2*(z**2)*m_kappa*np.sin(np.pi*y) - 4*x*(z**2)*m_kappa*np.sin(np.pi*y) - 2*m_gamma*np.sin(np.pi*x)*np.sin(np.pi*y) - 2*(np.pi**2)*(1 - z)*z*m_gamma*np.sin(np.pi*x)*np.sin(np.pi*y) + 4*z*m_kappa*np.sin(np.pi*x)*np.sin(np.pi*y) - 4*(z**2)*m_kappa*np.sin(np.pi*x)*np.sin(np.pi*y)
+        f_rhs_t_x = lambda x, y, z: -2*x*m_kappa*np.sin(np.pi*y) + 2*(x**2)*m_kappa*np.sin(np.pi*y) + 4*x*z*m_kappa*np.sin(np.pi*y) - 4*(x**2)*z*m_kappa*np.sin(np.pi*y) + 2*x*m_kappa*np.sin(np.pi*z) - 2*(x**2)*m_kappa*np.sin(np.pi*z) - 4*x*y*m_kappa*np.sin(np.pi*z) + 4*(x**2)*y*m_kappa*np.sin(np.pi*z) - 2*m_gamma*np.sin(np.pi*y)*np.sin(np.pi*z) - 2*(np.pi**2)*(1 - x)*x*m_gamma*np.sin(np.pi*y)*np.sin(np.pi*z) - 4*x*m_kappa*np.sin(np.pi*y)*np.sin(np.pi*z) + 4*(x**2)*m_kappa*np.sin(np.pi*y)*np.sin(np.pi*z)
+        f_rhs_t_y = lambda x, y, z: 2*y*m_kappa*np.sin(np.pi*x) - 2*(y**2)*m_kappa*np.sin(np.pi*x) - 4*y*z*m_kappa*np.sin(np.pi*x) + 4*(y**2)*z*m_kappa*np.sin(np.pi*x) - 2*y*m_kappa*np.sin(np.pi*z) + 4*x*y*m_kappa*np.sin(np.pi*z) + 2*(y**2)*m_kappa*np.sin(np.pi*z) - 4*x*(y**2)*m_kappa*np.sin(np.pi*z) - 2*m_gamma*np.sin(np.pi*x)*np.sin(np.pi*z) - 2*(np.pi**2)*(1 - y)*y*m_gamma*np.sin(np.pi*x)*np.sin(np.pi*z) - 4*y*m_kappa*np.sin(np.pi*x)*np.sin(np.pi*z) + 4*(y**2)*m_kappa*np.sin(np.pi*x)*np.sin(np.pi*z)
+        f_rhs_t_z = lambda x, y, z: -2*z*m_kappa*np.sin(np.pi*x) + 4*y*z*m_kappa*np.sin(np.pi*x) + 2*(z**2)*m_kappa*np.sin(np.pi*x) - 4*y*(z**2)*m_kappa*np.sin(np.pi*x) + 2*z*m_kappa*np.sin(np.pi*y) - 4*x*z*m_kappa*np.sin(np.pi*y) - 2*(z**2)*m_kappa*np.sin(np.pi*y) + 4*x*(z**2)*m_kappa*np.sin(np.pi*y) - 2*m_gamma*np.sin(np.pi*x)*np.sin(np.pi*y) - 2*(np.pi**2)*(1 - z)*z*m_gamma*np.sin(np.pi*x)*np.sin(np.pi*y) - 4*z*m_kappa*np.sin(np.pi*x)*np.sin(np.pi*y) + 4*(z**2)*m_kappa*np.sin(np.pi*x)*np.sin(np.pi*y)
         f_rhs = lambda x, y, z: np.array([-f_rhs_x(x,y,z), -f_rhs_y(x,y,z), -f_rhs_z(x,y,z), -f_rhs_t_x(x,y,z), -f_rhs_t_y(x,y,z), -f_rhs_t_z(x,y,z)])
 
     def scatter_form_data(element, m_lambda, m_mu, m_kappa, m_gamma, f_rhs, u_field, cell_map, row, col, data):
@@ -1525,8 +1525,8 @@ def md_h1_cosserat_elasticity(gmesh):
         axial_pairs_idx = [[1, 0]]
         axial_dest_pairs_idx = [[0, 1]]
         if u_field.dimension== 3:
-            axial_pairs_idx = [[1, 2],[2, 0],[0, 1]]
-            axial_dest_pairs_idx = [[2, 1], [0, 2], [1, 0]]
+            axial_pairs_idx = [[2, 1],[0, 2],[1, 0]]
+            axial_dest_pairs_idx = [[1, 2], [2, 0], [0, 1]]
 
         for i, omega in enumerate(weights):
             grad_phi = inv_jac[i].T @ phi_tab[1:phi_tab.shape[0] + 1, i, :, 0]
@@ -1770,14 +1770,14 @@ def md_h1_cosserat_elasticity(gmesh):
 
 def main():
 
-    # gmesh_3d = generate_mesh_3d()
-    gmesh_2d = generate_mesh_2d()
+    gmesh_3d = generate_mesh_3d()
+    # gmesh_2d = generate_mesh_2d()
     # gmesh_1d = generate_mesh_1d()
 
     # laplace
     # md_h1_laplace(gmesh_2d)
     # md_h1_elasticity(gmesh_3d)
-    md_h1_cosserat_elasticity(gmesh_2d)
+    md_h1_cosserat_elasticity(gmesh_3d)
     return
 
 
