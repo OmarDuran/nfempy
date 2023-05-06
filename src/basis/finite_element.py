@@ -1,5 +1,3 @@
-from itertools import permutations
-
 import basix
 import numpy as np
 
@@ -7,7 +5,7 @@ from basis.element_data import ElementData
 from basis.element_family import basis_variant, family_by_name
 from basis.element_type import type_by_dimension
 from basis.permute_and_transform import permute_and_transform
-from geometry.mapping import evaluate_linear_shapes, evaluate_mapping, store_mapping
+from geometry.mapping import evaluate_linear_shapes, evaluate_mapping
 
 
 class FiniteElement:

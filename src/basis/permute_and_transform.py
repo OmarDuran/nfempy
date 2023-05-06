@@ -3,8 +3,6 @@ from itertools import permutations
 import numpy as np
 
 from basis.element_data import ElementData
-from mesh.mesh import Mesh
-from mesh.mesh_cell import MeshCell
 
 
 def _validate_edge_orientation_2d(data: ElementData):
@@ -35,7 +33,6 @@ def _permute_and_transform_2d(phi, data: ElementData):
                 for dim in range(phi.shape[3]):
                     phi[d, :, dofs, dim] = transformation @ phi[d, :, dofs, dim]
     return phi
-
 
 def _validate_edge_orientation_3d(data: ElementData):
     edge_0 = np.array([2, 3])

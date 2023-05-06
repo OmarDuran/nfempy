@@ -1,5 +1,3 @@
-from dataclasses import dataclass, field
-
 import numpy as np
 
 from mesh.mesh import Mesh
