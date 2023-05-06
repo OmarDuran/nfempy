@@ -4,6 +4,7 @@ meshio
 gmsh
 scipy
 pyvista
+black
 pytest
 pypardiso
 matplotlib

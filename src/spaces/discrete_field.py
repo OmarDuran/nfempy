@@ -45,7 +45,7 @@ class DiscreteField:
     def make_discontinuous(self):
         self.discontinuous = True
 
-    def build_structures(self, bc_physical_tags = [], only_on_physical_tags=True):
+    def build_structures(self, bc_physical_tags=[], only_on_physical_tags=True):
         self._build_dof_map(only_on_physical_tags)
         self._build_elements()
         if len(bc_physical_tags) != 0:
@@ -63,10 +63,15 @@ class DiscreteField:
         self.element_type = type_by_dimension(self.dimension)
         basis_family = self.family
         if self.dimension == 0:
-            basis_family = family_by_name("Lagrange")
+            self.family = basis_family = family_by_name("Lagrange")
             self.k_order = 0
-        if self.dimension == 1 and self.family in ["RT", "BDM"]:
-            basis_family = family_by_name("Lagrange")
+        if self.dimension == 1 and self.family in [
+            family_by_name("RT"),
+            family_by_name("BDM"),
+            family_by_name("N1E"),
+            family_by_name("N2E"),
+        ]:
+            self.family = basis_family = family_by_name("Lagrange")
         self.dof_map = DoFMap(
             self.mesh_topology,
             basis_family,
@@ -110,7 +115,7 @@ class DiscreteField:
                 )
 
             self.elements = Parallel(
-                n_jobs=num_cores, backend="threading", batch_size='auto', verbose=10
+                n_jobs=num_cores, backend="threading", batch_size="auto", verbose=10
             )(
                 delayed(task_create_element)(
                     cell_id=id,
