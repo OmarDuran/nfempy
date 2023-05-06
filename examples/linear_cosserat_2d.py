@@ -44,7 +44,6 @@ import meshio
 
 import time
 import sys
-import auto_diff
 
 
 def polygon_polygon_intersection():
@@ -659,6 +658,7 @@ def generate_mesh_1d():
 def generate_mesh_2d():
 
     h_cell = 1.0 / (1.0)
+    l = 6
     # higher dimension domain geometry
     s = 1.0
 
@@ -709,7 +709,7 @@ def generate_mesh_2d():
         fracture_network.build_grahp(all_fixed_d_cells_q=True)
         mesher.set_fracture_network(fracture_network)
         mesher.set_points()
-        mesher.generate(h_cell)
+        mesher.generate(h_cell, l)
         mesher.write_mesh("gmesh.msh")
 
         gmesh = Mesh(dimension=2, file_name="gmesh.msh")
@@ -723,13 +723,15 @@ def generate_mesh_2d():
         gmesh.write_vtk()
         # print("Skin boundary is closed Q:", gmesh.circulate_internal_bc())
         print("h-size: ", h_cell)
+        print("l-refi: ", l)
+
     else:
         # polygon_polygon_intersection()
 
         mesher = ConformalMesher(dimension=2)
         mesher.set_geometry_builder(g_builder)
         mesher.set_points()
-        mesher.generate(h_cell)
+        mesher.generate(h_cell, l)
         mesher.write_mesh("gmesh.msh")
 
         gmesh = Mesh(dimension=2, file_name="gmesh.msh")
@@ -739,6 +741,7 @@ def generate_mesh_2d():
         # gmesh.write_data()
         gmesh.write_vtk()
         print("h-size: ", h_cell)
+        print("l-refi: ", l)
 
     return gmesh
 
@@ -1769,14 +1772,14 @@ def md_h1_cosserat_elasticity(gmesh):
 
 def main():
 
-    gmesh_3d = generate_mesh_3d()
-    # gmesh_2d = generate_mesh_2d()
+    # gmesh_3d = generate_mesh_3d()
+    gmesh_2d = generate_mesh_2d()
     # gmesh_1d = generate_mesh_1d()
 
     # laplace
     # md_h1_laplace(gmesh_2d)
     # md_h1_elasticity(gmesh_3d)
-    md_h1_cosserat_elasticity(gmesh_3d)
+    md_h1_cosserat_elasticity(gmesh_2d)
     return
 
 
