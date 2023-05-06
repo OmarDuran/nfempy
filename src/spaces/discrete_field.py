@@ -45,7 +45,7 @@ class DiscreteField:
     def make_discontinuous(self):
         self.discontinuous = True
 
-    def build_structures(self, bc_physical_tags, only_on_physical_tags=True):
+    def build_structures(self, bc_physical_tags = [], only_on_physical_tags=True):
         self._build_dof_map(only_on_physical_tags)
         self._build_elements()
         if len(bc_physical_tags) != 0:

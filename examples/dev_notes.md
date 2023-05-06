@@ -189,6 +189,10 @@ for d in {0,1,2,3}:
 	* The number of subfields: 0 < n_components represents number of repeated instances of cases (1), (2) and (3)
 	* k_order: polynomial order of approximation
 
+### Notes on geometry representation and processing:
+The following refactors are needed:
+
+
 ### Notes on assembler implementation:
 The best local vectorization occurs in eliminating integration point loops
 

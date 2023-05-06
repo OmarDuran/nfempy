@@ -1,8 +1,10 @@
+fenics-basix
 networkx
 meshio
 gmsh
 scipy
 pyvista
+pytest
 pypardiso
 matplotlib
 shapely
