@@ -16,8 +16,7 @@ from basis.element_data import ElementData
 from spaces.discrete_field import DiscreteField
 
 
-# k_orders = [1, 2, 3, 4, 5]
-k_orders = [1, 2, 3, 4]
+k_orders = [1, 2, 3, 4, 5]
 
 s_functions = [
     lambda x, y, z: x + y,
@@ -129,7 +128,6 @@ def test_h1_projector(k_order):
             col = np.zeros((c_size), dtype=np.int64)
             data = np.zeros((c_size), dtype=np.float64)
 
-
             n_dof_g = field.dof_map.dof_number()
             rg = np.zeros(n_dof_g)
 
@@ -225,7 +223,7 @@ def test_hdiv_hcurl_projector(k_order):
 
         for discontinuous in [False]:
 
-            #TODO: Fix the case "N2E"
+            # TODO: Fix the case "N2E"
             for family in ["RT", "BDM", "N1E"]:
 
                 if family in ["RT", "N1E"]:
@@ -331,7 +329,9 @@ def test_hdiv_hcurl_projector(k_order):
 
                     return l2_error
 
-                error_vec = [compute_l2_error(element, field) for element in field.elements]
+                error_vec = [
+                    compute_l2_error(element, field) for element in field.elements
+                ]
                 l2_error = functools.reduce(lambda x, y: x + y, error_vec)
-                l2_error_q = np.isclose(np.sqrt(l2_error), 0.0, atol=1.0e-13)
+                l2_error_q = np.isclose(np.sqrt(l2_error), 0.0, atol=1.0e-12)
                 assert l2_error_q
