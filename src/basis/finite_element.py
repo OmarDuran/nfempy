@@ -126,16 +126,14 @@ class FiniteElement:
             self.data.mapping.inv_jac = inv_jac
 
         # tabulate
-        phi_hat_tab = self.basis_generator.tabulate(1, points)
-
-        phi_tab = phi_hat_tab
+        phi_tab = self.basis_generator.tabulate(1, points)
         phi_mapped = self.basis_generator.push_forward(
-            phi_hat_tab[0], jac, det_jac, inv_jac
+            phi_tab[0], jac, det_jac, inv_jac
         )
         if phi_tab[0].shape == phi_mapped.shape:
             phi_tab[0] = phi_mapped
         else:
-            shape = phi_hat_tab.shape
+            shape = phi_tab.shape
             new_shape = (shape[0], shape[1], shape[2], phi_mapped.shape[2])
             phi_tab = np.resize(phi_tab, new_shape)
             phi_tab[0] = phi_mapped
