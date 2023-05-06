@@ -1,0 +1,9 @@
+networkx
+meshio
+gmsh
+scipy
+pyvista
+pypardiso
+matplotlib
+shapely
+joblib
