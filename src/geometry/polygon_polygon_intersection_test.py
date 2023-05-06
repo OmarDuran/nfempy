@@ -1,9 +1,5 @@
-import math
-import warnings
-
 import matplotlib.pyplot as plt
 import numpy as np
-from mpl_toolkits import mplot3d
 
 import geometry.triangle_triangle_intersection_test as tt_intersector
 
@@ -81,11 +77,6 @@ class PolygonPolygonIntersectionTest:
             begin_id = np.argmin(poly_line_r_1d)
             end_id = np.argmax(poly_line_r_1d)
             self.poly_line = self.poly_line[[begin_id, end_id]]
-
-    # def build_connectivity(self, connectivity, polygon):
-    #     m, n = polygon.shape
-    #     xc = np.mean(a, axis=0)
-    #     connectivity
 
     def polygon_polygon_intersection(
         self, o_polygon: np.array, t_polygon: np.array, render_polygons_q: bool = False

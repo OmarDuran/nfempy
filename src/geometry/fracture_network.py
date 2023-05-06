@@ -101,7 +101,6 @@ class FractureNetwork:
         self.points = np.empty((0, 3), dtype=float)
 
         cell_id = 0
-        n_fractures = len(fractures)
         for fracture in fractures:
             physical_tag = cell_id
             cell_id = self.insert_fracture_cell(cell_id, fracture, physical_tag)

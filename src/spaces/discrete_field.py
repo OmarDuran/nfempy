@@ -2,8 +2,6 @@ import multiprocessing
 import time
 from functools import partial
 
-import basix
-from basix import CellType, ElementFamily, LagrangeVariant
 from joblib import Parallel, delayed, wrap_non_picklable_objects
 
 from basis.element_family import basis_variant, family_by_name
@@ -94,12 +92,12 @@ class DiscreteField:
         if self.physical_tag_filter:
             mesh = self.mesh_topology.mesh
             self.element_ids = [
-                id for id in self.element_ids if mesh.cells[id].material_id != None
+                id for id in self.element_ids if mesh.cells[id].material_id is not None
             ]
 
         if parallel_run_q:
             num_cores = multiprocessing.cpu_count()
-            batch_size = round(len(self.element_ids) / num_cores)
+            # batch_size = round(len(self.element_ids) / num_cores)
 
             @wrap_non_picklable_objects
             def task_create_element(

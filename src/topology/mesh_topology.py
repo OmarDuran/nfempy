@@ -1,6 +1,3 @@
-from mesh.mesh import Mesh
-
-
 class MeshTopology:
     # Entities by dimension or codimension
     # https://defelement.com/ciarlet.html

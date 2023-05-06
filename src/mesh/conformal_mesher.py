@@ -1,10 +1,5 @@
-import sys
-
 import gmsh
 import numpy as np
-
-from geometry.fracture_network import FractureNetwork
-from geometry.geometry_builder import GeometryBuilder
 
 
 class ConformalMesher:
@@ -207,7 +202,6 @@ class ConformalMesher:
     def generate(self, lc, n_refinments=0):
         gmsh.initialize()
         self.lc = lc
-        n_points = len(self.points)
         for tag, point in enumerate(self.points):
             gmsh.model.geo.addPoint(point[0], point[1], point[2], self.lc, tag + 1)
 
@@ -232,7 +226,7 @@ class ConformalMesher:
         gmsh.model.geo.synchronize()
         for d in range(self.dimension + 1):
             gmsh.model.mesh.generate(d)
-        for l in range(n_refinments):
+        for _ in range(n_refinments):
             gmsh.model.mesh.refine()
         # if "-nopopup" not in sys.argv:
         #     gmsh.fltk.run()

@@ -132,7 +132,6 @@ class TriangleTriangleIntersectionTest:
     def line_plane_intersection(
         self, plane: np.array, p: np.array, q: np.array
     ) -> np.array:
-        t_row = np.ones((1, 4))
         n_data = np.array([plane[0], plane[1], plane[2], p]).T
         d_data = np.array([plane[0], plane[1], plane[2], q - p]).T
         n_equ = np.vstack((np.array([[1.0, 1.0, 1.0, 1.0]]), n_data))
@@ -308,7 +307,8 @@ class TriangleTriangleIntersectionTest:
                 same_point_q = np.linalg.norm(pti - ca_intersected_q[1]) < self.eps
                 if not same_point_q:
                     qti = ca_intersected_q[1]
-            # One point is close to boundary and the segment does not generate intersections
+            # One point is close to boundary and the segment does not generate
+            # intersections
             if qti is None:
                 return result
             return (True, pti, qti)
@@ -318,7 +318,8 @@ class TriangleTriangleIntersectionTest:
     def triangle_triangle_intersection(
         self, o_triangle: np.array, t_triangle: np.array
     ) -> (bool, np.array, np.array):
-        sign = lambda x: math.copysign(1, x)
+        def sign(x):
+            return math.copysign(1, x)
 
         p1, q1, r1 = o_triangle
         p2, q2, r2 = t_triangle

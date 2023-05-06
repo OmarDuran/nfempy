@@ -5,7 +5,6 @@ import meshio
 import networkx as nx
 import numpy as np
 
-from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh_cell import MeshCell, barycenter, rotate_vector
 
 
@@ -61,39 +60,39 @@ class Mesh:
 
         return mesh_cell
 
-    def replace_cell_data(self, mesh_cell, type_index, tags, sign=0):
-        # The key can be composed in many ways
-        chunk = [0 for i in range(6)]
-        chunk[0] = sign
-        chunk[1] = type_index
-        for i, tag in enumerate(tags):
-            chunk[i + 2] = tag
-        key = ""
-        for integer in chunk:
-            key = key + str(integer)
+    # def replace_cell_data(self, mesh_cell, type_index, tags, sign=0):
+    #     # The key can be composed in many ways
+    #     chunk = [0 for i in range(6)]
+    #     chunk[0] = sign
+    #     chunk[1] = type_index
+    #     for i, tag in enumerate(tags):
+    #         chunk[i + 2] = tag
+    #     key = ""
+    #     for integer in chunk:
+    #         key = key + str(integer)
+    #
+    #     position = self.cell_data.get(
+    #         key, None
+    #     )  # np.where((self.cell_data == tuple(chunk)).all(axis=1))
+    #     cell_id = None
+    #     if position is None:
+    #         cell_id = len(self.cell_data)
+    #         self.cell_data.__setitem__(key, cell_id)
+    #         self.cells = np.append(self.cells, mesh_cell)
+    #         mesh_cell.set_id(cell_id)
+    #     else:
+    #         cell_id = position
+    #         mesh_cell = self.cells[cell_id]
+    #
+    #     return mesh_cell
 
-        position = self.cell_data.get(
-            key, None
-        )  # np.where((self.cell_data == tuple(chunk)).all(axis=1))
-        cell_id = None
-        if position is None:
-            cell_id = len(self.cell_data)
-            self.cell_data.__setitem__(key, cell_id)
-            self.cells = np.append(self.cells, mesh_cell)
-            mesh_cell.set_id(cell_id)
-        else:
-            cell_id = position
-            mesh_cell = self.cells[cell_id]
-
-        return mesh_cell
-
-    def build_conformal_mesh(self):
-        # preallocate cells objects
-
-        cells = self.conformal_mesh.cells
-        physical_tag = self.conformal_mesh.cell_data["gmsh:physical"]
-        for cell_block, physical in zip(cells, physical_tag):
-            self.insert_simplex_cell_from_block(cell_block, physical)
+    # def build_conformal_mesh(self):
+    #     # preallocate cells objects
+    #
+    #     cells = self.conformal_mesh.cells
+    #     physical_tag = self.conformal_mesh.cell_data["gmsh:physical"]
+    #     for cell_block, physical in zip(cells, physical_tag):
+    #         self.insert_simplex_cell_from_block(cell_block, physical)
 
     def create_cell(self, dimension, node_tags, tag, physical_tag=None):
         mesh_cell = MeshCell(dimension)
@@ -164,20 +163,6 @@ class Mesh:
             # vertex id
             vertex_ids = [self.entities_0d[node] for node in node_tags]
 
-            # edge_0 = np.sort([node_tags[0], node_tags[1]])
-            # edge_1 = np.sort([node_tags[1], node_tags[2]])
-            # edge_2 = np.sort([node_tags[2], node_tags[0]])
-            # edge_3 = np.sort([node_tags[0], node_tags[3]])
-            # edge_4 = np.sort([node_tags[2], node_tags[3]])
-            # edge_5 = np.sort([node_tags[1], node_tags[3]])
-
-            # edge_0 = np.sort([node_tags[2], node_tags[3]])
-            # edge_1 = np.sort([node_tags[1], node_tags[3]])
-            # edge_2 = np.sort([node_tags[1], node_tags[2]])
-            # edge_3 = np.sort([node_tags[0], node_tags[3]])
-            # edge_4 = np.sort([node_tags[0], node_tags[2]])
-            # edge_5 = np.sort([node_tags[0], node_tags[1]])
-
             edge_0 = [node_tags[2], node_tags[3]]
             edge_1 = [node_tags[1], node_tags[3]]
             edge_2 = [node_tags[1], node_tags[2]]
@@ -214,13 +199,11 @@ class Mesh:
 
     def insert_simplex_cell_from_block(self, cell_block, physical):
         if cell_block.dim == 0:
-            type_index = self.mesh_cell_type_index(cell_block.type)
             for node_tags, physical_tag in zip(cell_block.data, physical):
                 self.insert_vertex(node_tags[0], physical_tag)
 
         elif cell_block.dim == 1:
             for node_tags, physical_tag in zip(cell_block.data, physical):
-                # Ensures that all edges are validated
                 node_tags = self.validate_entity(node_tags)
                 self.insert_edge(node_tags, physical_tag)
 
@@ -248,14 +231,6 @@ class Mesh:
         # fill edge to edge_id from existing tetrahedral
         edge_id = np.max([*self.entities_0d.values()]) + 1
         for nodes in tetra_data:
-            # # https://gmsh.info/doc/texinfo/gmsh.html#Node-ordering
-            # edge_0 = tuple(np.sort([nodes[0], nodes[1]]))
-            # edge_1 = tuple(np.sort([nodes[1], nodes[2]]))
-            # edge_2 = tuple(np.sort([nodes[2], nodes[0]]))
-            # edge_3 = tuple(np.sort([nodes[0], nodes[3]]))
-            # edge_4 = tuple(np.sort([nodes[2], nodes[3]]))
-            # edge_5 = tuple(np.sort([nodes[1], nodes[3]]))
-
             # https://defelement.com/elements/lagrange.html
             edge_0 = tuple(np.sort([nodes[2], nodes[3]]))
             edge_1 = tuple(np.sort([nodes[1], nodes[3]]))
@@ -273,11 +248,6 @@ class Mesh:
 
         # fill edge to edge_id from existing triangles
         for nodes in triangle_data:
-            # nodes_ext = np.append(nodes, nodes[0])
-            # edges = [
-            #     tuple(np.sort([nodes_ext[i], nodes_ext[i + 1]]))
-            #     for i, _ in enumerate(nodes, 0)
-            # ]
             edge_0 = tuple(np.sort(nodes[np.array([1, 2])]))
             edge_1 = tuple(np.sort(nodes[np.array([0, 2])]))
             edge_2 = tuple(np.sort(nodes[np.array([0, 1])]))
@@ -352,78 +322,6 @@ class Mesh:
         self.entities_1d.clear()
         self.entities_2d.clear()
         self.entities_3d.clear()
-
-    def create_simplex_cell(self, dimension, node_tags, p_tag, sign):
-        assert self.dimension == 2
-
-        if dimension == 0:
-            type_index = self.mesh_cell_type_index("vertex")
-            mesh_cell = MeshCell(0)
-            mesh_cell.set_material_id(p_tag)
-            mesh_cell.set_node_tags(node_tags)
-            tags_v = self.validate_entity(node_tags)
-            mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v, sign)
-            return mesh_cell
-
-        elif dimension == 1:
-            # 0d cells
-            cells_0d = []
-            for node_tag in node_tags:
-                type_index = self.mesh_cell_type_index("vertex")
-                mesh_cell = MeshCell(0)
-                mesh_cell.set_node_tags(np.array([node_tag]))
-                tag_v = self.validate_entity(np.array([node_tag]))
-                mesh_cell = self.insert_cell_data(mesh_cell, type_index, tag_v)
-                cells_0d.append(mesh_cell.id)
-
-            # 1d cells
-            type_index = self.mesh_cell_type_index("line")
-            mesh_cell = MeshCell(1)
-            mesh_cell.set_material_id(p_tag)
-            mesh_cell.set_node_tags(node_tags)
-            mesh_cell.set_cells_ids(0, np.array(cells_0d))
-            tags_v = self.validate_entity(node_tags)
-            mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v, sign)
-            return mesh_cell
-
-        elif dimension == 2:
-            # 0d cells
-            cells_0d = []
-            for node_tag in cell.node_tags:
-                type_index = self.mesh_cell_type_index("vertex")
-                mesh_cell = MeshCell(0)
-                mesh_cell.set_node_tags(np.array([node_tag]))
-                tag_v = self.validate_entity(np.array([node_tag]))
-                mesh_cell = self.insert_cell_data(mesh_cell, type_index, tag_v)
-                cells_0d.append(mesh_cell.id)
-
-            # 1d cells
-            loop = [i for i in range(len(node_tags))]
-            loop.append(loop[0])
-            connectivities = np.array(
-                [[loop[index], loop[index + 1]] for index in range(len(loop) - 1)]
-            )
-
-            cells_1d = []
-            for con in connectivities:
-                type_index = self.mesh_cell_type_index("line")
-                mesh_cell = MeshCell(1)
-                mesh_cell.set_node_tags(node_tags[con])
-                mesh_cell.set_cells_ids(0, np.array(cells_0d)[con])
-                tags_v = self.validate_entity(node_tags[con])
-                mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v)
-                cells_1d.append(mesh_cell.id)
-
-            # 2d cells
-            type_index = self.mesh_cell_type_index("triangle")
-            mesh_cell = MeshCell(2)
-            mesh_cell.set_material_id(p_tag)
-            mesh_cell.set_node_tags(node_tags)
-            mesh_cell.set_cells_ids(0, np.array(cells_0d))
-            mesh_cell.set_cells_ids(1, np.array(cells_1d))
-            tags_v = self.validate_entity(node_tags)
-            mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v, sign)
-            return mesh_cell
 
     def conformal_mesh_write_vtk(self):
         assert self.dimension == 2
@@ -510,14 +408,16 @@ class Mesh:
             [
                 cell.material_id
                 for cell in self.cells
-                if cell.dimension == 3 and cell.id != None
+                if cell.dimension == 3 and cell.id is not None
             ]
         )
         entity_tags_3d = np.array(
             [
                 cell.id
                 for cell in self.cells
-                if cell.dimension == 3 and cell.id != None and cell.material_id != None
+                if cell.dimension == 3
+                and cell.id is not None
+                and cell.material_id is not None
             ]
         )
 
@@ -525,7 +425,9 @@ class Mesh:
             [
                 cell.node_tags
                 for cell in self.cells
-                if cell.dimension == 3 and cell.id != None and cell.material_id != None
+                if cell.dimension == 3
+                and cell.id is not None
+                and cell.material_id is not None
             ]
         )
 
@@ -542,14 +444,18 @@ class Mesh:
             [
                 cell.material_id
                 for cell in self.cells
-                if cell.dimension == 2 and cell.id != None and cell.material_id != None
+                if cell.dimension == 2
+                and cell.id is not None
+                and cell.material_id is not None
             ]
         )
         entity_tags_2d = np.array(
             [
                 cell.id
                 for cell in self.cells
-                if cell.dimension == 2 and cell.id != None and cell.material_id != None
+                if cell.dimension == 2
+                and cell.id is not None
+                and cell.material_id is not None
             ]
         )
 
@@ -557,7 +463,9 @@ class Mesh:
             [
                 cell.node_tags
                 for cell in self.cells
-                if cell.dimension == 2 and cell.id != None and cell.material_id != None
+                if cell.dimension == 2
+                and cell.id is not None
+                and cell.material_id is not None
             ]
         )
 
@@ -574,14 +482,18 @@ class Mesh:
             [
                 cell.material_id
                 for cell in self.cells
-                if cell.dimension == 1 and cell.id != None and cell.material_id != None
+                if cell.dimension == 1
+                and cell.id is not None
+                and cell.material_id is not None
             ]
         )
         entity_tags_1d = np.array(
             [
                 cell.id
                 for cell in self.cells
-                if cell.dimension == 1 and cell.id != None and cell.material_id != None
+                if cell.dimension == 1
+                and cell.id is not None
+                and cell.material_id is not None
             ]
         )
 
@@ -589,7 +501,9 @@ class Mesh:
             [
                 cell.node_tags
                 for cell in self.cells
-                if cell.dimension == 1 and cell.id != None and cell.material_id != None
+                if cell.dimension == 1
+                and cell.id is not None
+                and cell.material_id is not None
             ]
         )
         if len(con_1d) != 0:
@@ -605,14 +519,18 @@ class Mesh:
             [
                 cell.material_id
                 for cell in self.cells
-                if cell.dimension == 0 and cell.id != None and cell.material_id != None
+                if cell.dimension == 0
+                and cell.id is not None
+                and cell.material_id is not None
             ]
         )
         entity_tags_0d = np.array(
             [
                 cell.id
                 for cell in self.cells
-                if cell.dimension == 0 and cell.id != None and cell.material_id != None
+                if cell.dimension == 0
+                and cell.id is not None
+                and cell.material_id is not None
             ]
         )
 
@@ -620,7 +538,9 @@ class Mesh:
             [
                 cell.node_tags
                 for cell in self.cells
-                if cell.dimension == 0 and cell.id != None and cell.material_id != None
+                if cell.dimension == 0
+                and cell.id is not None
+                and cell.material_id is not None
             ]
         )
 
@@ -768,11 +688,11 @@ class Mesh:
             node_ids_p = np.unique(node_ids_p)
             node_ids_n = np.unique(node_ids_n)
             b, e = self.points[vertices]
-            l = np.linalg.norm(e - b)
+            lm = np.linalg.norm(e - b)
             for i, pair in enumerate(zip(node_ids_p, node_ids_n)):
                 pt_p, pt_n = self.points[pair[0]], self.points[pair[1]]
-                s_p = np.linalg.norm(pt_p - b) * np.linalg.norm(pt_p - e) / (l * l)
-                s_n = np.linalg.norm(pt_n - b) * np.linalg.norm(pt_n - e) / (l * l)
+                s_p = np.linalg.norm(pt_p - b) * np.linalg.norm(pt_p - e) / (lm * lm)
+                s_n = np.linalg.norm(pt_n - b) * np.linalg.norm(pt_n - e) / (lm * lm)
 
                 self.points[pair[0]] = self.points[pair[0]] + factor * n * s_p
                 self.points[pair[1]] = self.points[pair[1]] - factor * n * s_n
@@ -782,7 +702,6 @@ class Mesh:
         # dictionary of fracture id's to (normal,fracture barycenter)
         self.compute_fracture_normals()
 
-        fracture_tags = self.conformal_mesher.fracture_network.fracture_tags
         map_fracs_edge = {}
 
         for data in self.fracture_normals.items():
@@ -954,7 +873,7 @@ class Mesh:
         # this method requires
         # dictionary of fracture id's to (normal,fracture barycenter)
         self.compute_fracture_normals()
-        fracture_tags = self.conformal_mesher.fracture_network.fracture_tags
+        # fracture_tags = self.conformal_mesher.fracture_network.fracture_tags
 
         assert self.dimension == 2
 
@@ -983,12 +902,6 @@ class Mesh:
                     cells_2d_ids = list(gd2c2.predecessors(cell_0d.id))
                 else:
                     continue
-
-                frac_cells_ids = [
-                    id
-                    for id in cells_1d_ids
-                    if self.cells[id].material_id in fracture_tags
-                ]
 
                 is_bc_q = cell_0d.material_id == mat_id
                 if is_bc_q:
@@ -1125,8 +1038,6 @@ class Mesh:
                             duplicated_ids[edge_cell.id] = new_cell.id
                     self.update_entity_on_dimension(1, cell_2d, duplicated_ids)
 
-        aka = 0
-
         # cells_1d = [cell for cell in f_cells if cell.dimension == 1]
         # for mesh_cell in f_cells:
         #     cell_id = mesh_cell.id
@@ -1230,268 +1141,6 @@ class Mesh:
                 if invalidate_old_q:
                     self.cells[cell_id].id = None
 
-    def create_new_cells(self, frac_graph, d_m_1_frac_cell, cell_p, cell_n):
-        # Detecting fracture boundaries
-        d_m_1_cells = []
-        if self.dimension == 3:
-            d_m_1_cells = d_m_1_frac_cell.cells_ids[1]
-        else:
-            d_m_1_cells = d_m_1_frac_cell.cells_ids[0]
-
-        are_there_boundaries_q = []
-        for id in d_m_1_cells:
-            pre_ids = list(frac_graph.predecessors(id))
-            pre_cells = [id for id in pre_ids if self.cells[id].material_id is not None]
-            is_d_m_2_cell_bc_q = len(pre_cells) <= 1
-            are_there_boundaries_q.append(is_d_m_2_cell_bc_q)
-
-        if any(are_there_boundaries_q):
-            mat_id = d_m_1_frac_cell.material_id
-            # partial conformity cut
-            d_m_1_cell_id_p = [
-                i
-                for i, id in enumerate(cell_p.cells_ids[1])
-                if id == d_m_1_frac_cell.id
-            ]
-            d_m_1_cell_id_n = [
-                i
-                for i, id in enumerate(cell_n.cells_ids[1])
-                if id == d_m_1_frac_cell.id
-            ]
-
-            duplicates_q = [not boundary_q for boundary_q in are_there_boundaries_q]
-            d_m_1_cell_p = self.partial_duplicate_cell(
-                mat_id, self.cells[d_m_1_frac_cell.id], +1, duplicates_q
-            )
-            d_m_1_cell_n = self.partial_duplicate_cell(
-                mat_id, self.cells[d_m_1_frac_cell.id], -1, duplicates_q
-            )
-
-            self.update_codimension_1_cell(cell_p, d_m_1_cell_id_p[0], d_m_1_cell_p)
-            self.update_codimension_1_cell(cell_n, d_m_1_cell_id_n[0], d_m_1_cell_n)
-
-            # print("Partial duplicated d-1-cells with ids: ", [cell_p.id, cell_n.id])
-        else:
-            # full conformity cut
-            mat_id = d_m_1_frac_cell.material_id
-            d_m_1_cell_id_p = [
-                i
-                for i, id in enumerate(cell_p.cells_ids[1])
-                if id == d_m_1_frac_cell.id
-            ]
-            d_m_1_cell_id_n = [
-                i
-                for i, id in enumerate(cell_n.cells_ids[1])
-                if id == d_m_1_frac_cell.id
-            ]
-
-            d_m_1_cell_p = self.duplicate_cell(
-                mat_id, self.cells[d_m_1_frac_cell.id], +1
-            )
-            d_m_1_cell_n = self.duplicate_cell(
-                mat_id, self.cells[d_m_1_frac_cell.id], -1
-            )
-
-            self.update_codimension_1_cell(cell_p, d_m_1_cell_id_p[0], d_m_1_cell_p)
-            self.update_codimension_1_cell(cell_n, d_m_1_cell_id_n[0], d_m_1_cell_n)
-
-            # print("Full duplicated d-1-cells with ids: ", [cell_p.id, cell_n.id])
-
-    def update_codimension_1_cell(self, cell, index, d_m_1_cell):
-        if cell.dimension == 3:
-            # 3-d case
-            assert self.dimension == 2
-            # self.update_cells_1d_from_cells_0d(cell, index, d_m_1_cell)
-            # current_cell = self.cells_2d[index]
-            # for i, cell_0d in enumerate(current_cell.cells_0d):
-            #     cell_0d = d_m_1_cell.cells_0d[i]
-            #
-            # for i, cell_1d in enumerate(current_cell.cells_1d):
-            #     cell_1d = d_m_1_cell.cells_1d[i]
-            #
-            # cellcells_2d[index] = d_m_1_cell
-            # self.update_cells_1d_from_cells_0d()
-        elif cell.dimension == 2:
-            # 2-d case
-            self.update_cells_1d_from_cells_0d(cell, index, d_m_1_cell)
-            cell.cells_ids[1][index] = d_m_1_cell.id
-        elif cell.dimension == 1:
-            # 1-d case
-            cell.cells_ids[0][index] = d_m_1_cell.id
-
-    def update_cells_1d_from_cells_0d(self, cell, index, d_m_1_cell):
-        n_cells_0d = len(cell.cells_ids[0])
-        loop = [i for i in range(n_cells_0d)]
-        loop.append(loop[0])
-        connectivities = np.array(
-            [[loop[index], loop[index + 1]] for index in range(len(loop) - 1)]
-        )
-
-        # Update 0d cells
-        con = connectivities[index]
-        for new_id in d_m_1_cell.cells_ids[0]:
-            old_id = self.duplicated_ids.get(new_id, None)
-            if old_id is None:
-                continue
-            for c in con:
-                current_id = cell.cells_ids[0][c]
-                if current_id == old_id:
-                    cell.cells_ids[0][c] = new_id
-
-        # update 1d cells
-        cells_1d = [self.cells[i] for i in cell.cells_ids[1]]
-        for new_id in d_m_1_cell.cells_ids[0]:
-            old_id = self.duplicated_ids.get(new_id, None)
-            if old_id is None:
-                continue
-            for cell_1d in cells_1d:
-                for i, id in enumerate(cell_1d.cells_ids[0]):
-                    if id == old_id:
-                        cell_1d.cells_ids[0][i] = new_id
-
-    def duplicate_cell(self, mat_id, cell, sign):
-        mesh_cell = None
-        if cell.dimension == 1:
-            mesh_cell = self.duplicate_cells_1d(mat_id, cell, sign)
-        elif cell.dimesion == 2:
-            assert cell.dimesion != 2
-            mesh_cell = self.duplicate_cells_2d(cell, sign)
-
-        return mesh_cell
-
-    def duplicate_cells_0d(self, cell, sign):
-        cells_0d = []
-        for id in cell.cells_ids[0]:
-            d_m_1_cell = self.cells[id]
-            type_index = self.mesh_cell_type_index("vertex")
-            cell_0d = copy.deepcopy(d_m_1_cell)
-            node_tags = cell_0d.node_tags
-            tags_v = self.validate_entity(node_tags)
-
-            mat_id = self.cells[id].material_id
-            if mat_id is not None:
-                material_id = sign * (1000 * mat_id + sign)
-                cell_0d.set_material_id(material_id)
-                sign = material_id
-
-            cell_0d = self.insert_cell_data(cell_0d, type_index, tags_v, sign)
-            cells_0d.append(cell_0d.id)
-            self.duplicated_ids[cell_0d.id] = id
-
-        return cells_0d
-
-    def duplicate_cells_1d(self, mat_id, cell, sign):
-        cells_0d = self.duplicate_cells_0d(cell, sign)
-        type_index = self.mesh_cell_type_index("line")
-        mesh_cell = MeshCell(1)
-        if sign != 0:
-            material_id = sign * (1000 * mat_id + sign)
-            mesh_cell.set_material_id(material_id)
-            sign = material_id
-        mesh_cell.set_node_tags(cell.node_tags)
-        mesh_cell.set_cells_ids(0, np.array(cells_0d))
-        tags_v = self.validate_entity(cell.node_tags)
-        mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v, sign)
-        self.duplicated_ids[mesh_cell.id] = cell.id
-        return mesh_cell
-
-    def duplicate_cells_2d(self, cell, sign):
-        cells_0d = self.duplicate_cells_0d(cell, sign)
-
-        cells_1d = []
-        for d_m_1_cell in cell.cells_1d:
-            cell_1d = self.duplicate_cells_1d(d_m_1_cell, sign)
-            cells_1d.append(cell_1d)
-
-        type_index = self.mesh_cell_type_index(cell_block.type)
-        mesh_cell = MeshCell(2)
-        if sign != 0:
-            material_id = -(10 * cell.get_material_id() + sign)
-            mesh_cell.set_material_id(material_id)
-        mesh_cell.set_node_tags(cell.node_tags)
-        mesh_cell.set_cells_0d(np.array(cells_0d))
-        mesh_cell.set_cells_1d(np.array(cells_1d))
-        tags_v = self.validate_entity(node_tags)
-        mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v)
-        return mesh_cell
-
-    def partial_duplicate_cell(self, mat_id, cell, sign, duplicates_q):
-        mesh_cell = None
-        if cell.dimension == 1:
-            mesh_cell = self.partial_duplicate_cells_1d(
-                mat_id, cell, sign, duplicates_q
-            )
-        elif cell.dimesion == 2:
-            assert cell.dimesion != 2
-            mesh_cell = self.partial_duplicate_cells_2d(
-                mat_id, cell, sign, duplicates_q, duplicates_q
-            )
-
-        return mesh_cell
-
-    def partial_duplicate_cells_0d(self, cell, sign, duplicates_q):
-        cells_0d = []
-        for id, duplicate_q in zip(cell.cells_ids[0], duplicates_q):
-            d_m_1_cell = self.cells[id]
-            type_index = self.mesh_cell_type_index("vertex")
-            if duplicate_q:
-                cell_0d = copy.deepcopy(d_m_1_cell)
-                node_tags = cell_0d.node_tags
-                tags_v = self.validate_entity(node_tags)
-
-                mat_id = self.cells[id].material_id
-                if mat_id is not None:
-                    material_id = sign * (1000 * mat_id + sign)
-                    cell_0d.set_material_id(material_id)
-                    sign = material_id
-
-                cell_0d = self.insert_cell_data(cell_0d, type_index, tags_v, sign)
-                cells_0d.append(cell_0d.id)
-                self.duplicated_ids[cell_0d.id] = id
-            else:
-                cells_0d.append(d_m_1_cell.id)
-
-        return cells_0d
-
-    def partial_duplicate_cells_1d(self, mat_id, cell, sign, duplicates_q):
-        cells_0d = self.partial_duplicate_cells_0d(cell, sign, duplicates_q)
-        type_index = self.mesh_cell_type_index("line")
-        mesh_cell = MeshCell(1)
-        if sign != 0:
-            material_id = sign * (1000 * mat_id + sign)
-            mesh_cell.set_material_id(material_id)
-            sign = material_id
-        mesh_cell.set_node_tags(cell.node_tags)
-        mesh_cell.set_cells_ids(0, np.array(cells_0d))
-        tags_v = self.validate_entity(cell.node_tags)
-        mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v, sign)
-        self.duplicated_ids[mesh_cell.id] = cell.id
-        return mesh_cell
-
-    def partial_duplicate_cells_2d(
-        self, mat_id, cell, sign, duplicates_1d_q, duplicates_0d_q
-    ):
-        cells_0d = self.partial_duplicate_cells_0d(mat_id, cell, sign, duplicates_0d_q)
-        cells_1d = []
-        for d_m_1_cell, duplicate_q in zip(cell.cells_1d, duplicates_1d_q):
-            if duplicate_q:
-                cell_1d = self.partial_duplicate_cells_1d(d_m_1_cell)
-                cells_1d.append(cell_1d)
-            else:
-                cells_1d.append(d_m_1_cell)
-
-        type_index = self.mesh_cell_type_index(cell_block.type)
-        mesh_cell = MeshCell(2)
-        if sign != 0:
-            material_id = -(10 * cell.get_material_id() + sign)
-            mesh_cell.set_material_id(material_id)
-        mesh_cell.set_node_tags(cell.node_tags)
-        mesh_cell.set_cells_0d(np.array(cells_0d))
-        mesh_cell.set_cells_1d(np.array(cells_1d))
-        tags_v = self.validate_entity(node_tags)
-        mesh_cell = self.insert_cell_data(mesh_cell, type_index, tags_v)
-        return mesh_cell
-
     def next_d_m_1(self, seed_id, cell_id, cell_m_1_id, graph, closed_q):
         fracture_tags = self.conformal_mesher.fracture_network.fracture_tags
         pc = list(graph.predecessors(cell_m_1_id))
@@ -1517,7 +1166,6 @@ class Mesh:
     def circulate_internal_bc(self):
         closed_q = [False]
         fracture_tags = self.conformal_mesher.fracture_network.fracture_tags
-        graph_e_to_cell = self.build_graph_on_materials(2, 1)
         cells_1d = [
             cell.id for cell in self.cells if cell.material_id == fracture_tags[0]
         ]

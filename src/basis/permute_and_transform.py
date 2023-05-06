@@ -34,6 +34,7 @@ def _permute_and_transform_2d(phi, data: ElementData):
                     phi[d, :, dofs, dim] = transformation @ phi[d, :, dofs, dim]
     return phi
 
+
 def _validate_edge_orientation_3d(data: ElementData):
     edge_0 = np.array([2, 3])
     edge_1 = np.array([1, 3])
@@ -67,7 +68,6 @@ def _validate_face_orientation_3d(data: ElementData):
         volume_node_tags = data.cell.node_tags
         face = volume_node_tags[face_con]
         face_ref = np.sort(face)
-        face_cell = data.mesh.cells[data.cell.sub_cells_ids[2][i]]
 
         valid_orientation = np.all(face_ref == face)
         if valid_orientation:

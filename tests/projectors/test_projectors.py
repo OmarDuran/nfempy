@@ -68,7 +68,6 @@ def generate_geometry_3d():
 
 
 def generate_mesh(h_cell, dim):
-
     g_builder = None
     if dim == 1:
         g_builder = generate_geometry_1d()
@@ -92,7 +91,6 @@ def generate_mesh(h_cell, dim):
 
 @pytest.mark.parametrize("k_order", k_orders)
 def test_h1_projector(k_order):
-
     h_cell = 1.0
     n_components = 1
     # scalar functions
@@ -103,7 +101,6 @@ def test_h1_projector(k_order):
 
     for discontinuous in [True, False]:
         for dim in [1, 2, 3]:
-
             gmesh = generate_mesh(h_cell, dim)
 
             field = DiscreteField(dim, n_components, family, k_order, gmesh)
@@ -132,7 +129,6 @@ def test_h1_projector(k_order):
             rg = np.zeros(n_dof_g)
 
             def scatter_el_data(element, fun, field, cell_map, row, col, data):
-
                 el_data: ElementData = element.data
                 cell = el_data.cell
                 points = el_data.quadrature.points
@@ -211,21 +207,17 @@ def test_h1_projector(k_order):
 
 @pytest.mark.parametrize("k_order", k_orders)
 def test_hdiv_hcurl_projector(k_order):
-
     h_cell = 1.0
     n_components = 1
     fun = v_functions[k_order - 1]
 
     # FESpace: data
     for dim in [2, 3]:
-
         gmesh = generate_mesh(h_cell, dim)
 
         for discontinuous in [False]:
-
             # TODO: Fix the case "N2E"
             for family in ["RT", "BDM", "N1E"]:
-
                 if family in ["RT", "N1E"]:
                     k_order = k_order + 1
 
@@ -255,7 +247,6 @@ def test_hdiv_hcurl_projector(k_order):
                 rg = np.zeros(n_dof_g)
 
                 def scatter_el_data(element, fun, field, cell_map, row, col, data):
-
                     el_data: ElementData = element.data
                     cell = el_data.cell
                     points = el_data.quadrature.points
