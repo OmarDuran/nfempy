@@ -47,7 +47,7 @@ import sys
 
 
 from geometry.vertex import Vertex
-from geometry.domain_market import build_box_1D, build_box_2D, build_box
+from geometry.domain_market import build_box_1D, build_box_2D, build_box_3D
 
 def polygon_polygon_intersection():
 
@@ -1790,16 +1790,35 @@ def Geometry():
         ]
     )
 
-    domain = build_box(box_points)
-    domain.build_grahp()
+    # domain = build_box_3D(box_points)
+    # domain.build_grahp()
 
     # box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
     # domain = build_box_2D(box_points)
     # domain.build_grahp()
     #
-    # box_points = np.array([[0, 0, 0], [1, 0, 0]])
-    # domain = build_box_1D(box_points)
-    # domain.build_grahp()
+
+    box_points = np.array([[0, 0, 0], [1, 0, 0]])
+    domain = build_box_1D(box_points)
+
+    # inserting a subdomain
+    max_vertex_tag = len(domain.shapes[0])
+    immersed_points = np.array([[0.25, 0, 0], [0.75, 0, 0]])
+    physical_tags = {"f1": 4, "f2": 5}
+    vertices = np.array([Vertex(tag + max_vertex_tag, point) for tag, point in enumerate(immersed_points)])
+    for vertex, physical_tag in zip(vertices, physical_tags.values()):
+        vertex.physical_tag = physical_tag
+    domain.shapes[0] = np.append(domain.shapes[0], vertices, axis=0)
+
+    edge = domain.shapes[1][0]
+    edge.immersed_shapes = np.append(edge.immersed_shapes, vertices, axis=0)
+
+
+
+
+    domain.build_grahp()
+
+
 
     mesher = ConformalMesher(dimension=domain.dimension)
     mesher.domain = domain

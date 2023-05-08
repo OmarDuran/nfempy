@@ -8,6 +8,8 @@ class Domain:
         self.dimension = dimension
         self.shapes = [np.array([], dtype=Shape) for i in range(dimension + 1)]
         self.graph = None
+        self.sub_shapes = [np.array([], dtype=Shape) for i in range(dimension)]
+        self.sub_graph = None
 
     def gather_graph_edges(self, shape: Shape, tuple_id_list):
         for bc_shape in shape.boundary_shapes:

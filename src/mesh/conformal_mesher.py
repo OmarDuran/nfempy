@@ -109,16 +109,114 @@ class ConformalMesher:
                 gmsh.model.addPhysicalGroup(
                     1, [curve_stride + curve.tag + 1], curve.physical_tag
                 )
-        for surface in self.domain.shapes[2]:
-            if surface.physical_tag is not None:
+        if dimension > 1:
+            for surface in self.domain.shapes[2]:
+                if surface.physical_tag is not None:
+                    gmsh.model.addPhysicalGroup(
+                        2, [surface_stride + surface.tag + 1], surface.physical_tag
+                    )
+
+        if dimension > 2:
+            for volume in self.domain.shapes[3]:
+                if volume.physical_tag is not None:
+                    gmsh.model.addPhysicalGroup(
+                        3, [volume_stride + volume.tag + 1], volume.physical_tag
+                    )
+
+    def transfer_domain_occ_descritpion(self):
+
+        dimension = 0
+        for dimension in range(len(self.domain.shapes)):
+            if len(self.domain.shapes[dimension]) == 0:
+                break
+
+        vertex_stride = 0
+        curve_stride = vertex_stride + len(self.domain.shapes[0])
+
+        # transfer vertices
+        for vertex in self.domain.shapes[0]:
+            gmsh.model.occ.addPoint(
+                vertex.point[0],
+                vertex.point[1],
+                vertex.point[2],
+                self.lc,
+                vertex.tag + 1,
+            )
+        gmsh.model.occ.synchronize()
+
+        # transfer curves
+        for curve in self.domain.shapes[1]:
+            tag = curve_stride + curve.tag + 1
+            if not curve.composite:
+                print("curve tag: ", curve.tag)
+                b = curve.boundary_shapes[0].tag + 1
+                e = curve.boundary_shapes[1].tag + 1
+                gmsh.model.occ.addLine(b, e, tag)
+                # if len(curve.immersed_shapes) > 0:
+                #     vertex_dim_tags = [(shape.dimension, shape.tag + 1) for shape in curve.immersed_shapes]
+                #     result_tags = gmsh.model.occ.cut(vertex_dim_tags, [(1, tag)])
+                #     gmsh.model.occ.synchronize()
+                    # gmsh.model.occ.cut()
+                    # embedded_point = next(tag for (dim, tag) in result_tags if dim == 0)
+                    # aka = 0
+
+        gmsh.model.occ.synchronize()
+
+        # transfer surfaces
+        if dimension > 1:
+            surface_stride = curve_stride + len(self.domain.shapes[1])
+            for surface in self.domain.shapes[2]:
+                tag = surface_stride + surface.tag + 1
+                if not surface.composite:
+                    print("surface tag: ", surface.tag)
+                    wire = surface.boundary_shapes[0]
+                    loop_tags = [
+                        curve_stride + shape.tag + 1 for shape in wire.immersed_shapes
+                    ]
+                    loop_tags = [
+                        loop_tags[i] * sign for i, sign in enumerate(wire.orientation)
+                    ]
+                    gmsh.model.occ.addCurveLoop(loop_tags, tag)
+                    gmsh.model.occ.addPlaneSurface([tag], tag)
+        gmsh.model.occ.synchronize()
+
+        # transfer volumes
+        if dimension > 2:
+            volume_stride = surface_stride + len(self.domain.shapes[2])
+            for volume in self.domain.shapes[3]:
+                tag = volume_stride + volume.tag + 1
+                if not volume.composite:
+                    shell = volume.boundary_shapes[0]
+                    loop_tags = [
+                        surface_stride + shape.tag + 1
+                        for shape in shell.immersed_shapes
+                    ]
+                    gmsh.model.occ.addSurfaceLoop(loop_tags, tag)
+                    gmsh.model.occ.addVolume([tag], tag)
+        gmsh.model.occ.synchronize()
+
+        # add physical tags
+        for vertex in self.domain.shapes[0]:
+            if vertex.physical_tag is not None:
+                gmsh.model.addPhysicalGroup(0, [vertex.tag + 1], vertex.physical_tag)
+        for curve in self.domain.shapes[1]:
+            if curve.physical_tag is not None:
                 gmsh.model.addPhysicalGroup(
-                    2, [surface_stride + surface.tag + 1], surface.physical_tag
+                    1, [curve_stride + curve.tag + 1], curve.physical_tag
                 )
-        for volume in self.domain.shapes[3]:
-            if volume.physical_tag is not None:
-                gmsh.model.addPhysicalGroup(
-                    3, [volume_stride + volume.tag + 1], volume.physical_tag
-                )
+        if dimension > 1:
+            for surface in self.domain.shapes[2]:
+                if surface.physical_tag is not None:
+                    gmsh.model.addPhysicalGroup(
+                        2, [surface_stride + surface.tag + 1], surface.physical_tag
+                    )
+
+        if dimension > 2:
+            for volume in self.domain.shapes[3]:
+                if volume.physical_tag is not None:
+                    gmsh.model.addPhysicalGroup(
+                        3, [volume_stride + volume.tag + 1], volume.physical_tag
+                    )
 
     def add_domain_descritpion(self):
         if self.dimension == 1:
@@ -292,9 +390,9 @@ class ConformalMesher:
         gmsh.initialize()
         self.lc = lc
 
-        self.transfer_domain_descritpion()
+        # self.transfer_domain_descritpion()
+        self.transfer_domain_occ_descritpion()
 
-        gmsh.model.geo.synchronize()
         for d in range(self.dimension + 1):
             gmsh.model.mesh.generate(d)
         for _ in range(n_refinements):

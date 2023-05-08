@@ -57,6 +57,7 @@ def build_box_2D(box_points, physical_tags=None):
     for tag, edge_con in enumerate(edges_connectivities):
         edge = Edge(tag, domain.shapes[0][edge_con])
         edge.physical_tag = physical_tags.get(bc_name + str(bc_id), None)
+        bc_id += 1
         domain.shapes[1] = np.append(domain.shapes[1], edge)
         edges_list.append(edge)
 
@@ -72,7 +73,7 @@ def build_box_2D(box_points, physical_tags=None):
     return domain
 
 
-def build_box(box_points, physical_tags=None):
+def build_box_3D(box_points, physical_tags=None):
     if physical_tags is None:
         physical_tags = {
             "solid": 1,
