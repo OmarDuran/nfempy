@@ -215,7 +215,7 @@ class Mesh:
             for node_tags, physical_tag in zip(cell_block.data, physical):
                 self.insert_polyhedron(node_tags, physical_tag)
 
-    def build_conformal_mesh_II(self):
+    def build_conformal_mesh(self):
         # fill node_id to vertices
         vid = 0
         for i, point in enumerate(self.conformal_mesh.points):

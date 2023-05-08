@@ -1,6 +1,8 @@
 import gmsh
 import numpy as np
 
+from geometry.domain import Domain
+
 
 class ConformalMesher:
     def __init__(self, dimension):
@@ -13,6 +15,8 @@ class ConformalMesher:
         self.tags_1d = None
         self.tags_2d = None
         self.tags_3d = None
+
+        self.domain: Domain = None
 
     def set_geometry_builder(self, geometry_builder):
         self.geometry_builder = geometry_builder
@@ -30,6 +34,95 @@ class ConformalMesher:
         max_cell_id = len(self.geometry_builder.cells)
         self.fracture_network.shift_point_ids(max_point_id)
         self.fracture_network.shift_cell_ids(max_cell_id)
+
+    def transfer_domain_descritpion(self):
+        # add domain cells
+        # graph_nodes = list(self.geometry_builder.graph.nodes())
+        # geo_cells = self.geometry_builder.cells[graph_nodes]
+
+        dimension = 0
+        for dimension in range(len(self.domain.shapes)):
+            if len(self.domain.shapes[dimension]) == 0:
+                break
+
+        vertex_stride = 0
+        curve_stride = vertex_stride + len(self.domain.shapes[0])
+
+        # transfer vertices
+        for vertex in self.domain.shapes[0]:
+            gmsh.model.geo.addPoint(
+                vertex.point[0],
+                vertex.point[1],
+                vertex.point[2],
+                self.lc,
+                vertex.tag + 1,
+            )
+        gmsh.model.geo.synchronize()
+
+        # transfer curves
+        for curve in self.domain.shapes[1]:
+            tag = curve_stride + curve.tag + 1
+            if not curve.composite:
+                print("curve tag: ", curve.tag)
+                b = curve.boundary_shapes[0].tag + 1
+                e = curve.boundary_shapes[1].tag + 1
+                gmsh.model.geo.addLine(b, e, tag)
+
+        gmsh.model.geo.synchronize()
+
+        # transfer surfaces
+        if dimension > 1:
+            surface_stride = curve_stride + len(self.domain.shapes[1])
+            for surface in self.domain.shapes[2]:
+                tag = surface_stride + surface.tag + 1
+                if not surface.composite:
+                    print("surface tag: ", surface.tag)
+                    wire = surface.boundary_shapes[0]
+                    loop_tags = [
+                        curve_stride + shape.tag + 1 for shape in wire.immersed_shapes
+                    ]
+                    loop_tags = [
+                        loop_tags[i] * sign for i, sign in enumerate(wire.orientation)
+                    ]
+                    gmsh.model.geo.addCurveLoop(loop_tags, tag)
+                    gmsh.model.geo.addPlaneSurface([tag], tag)
+
+        # transfer volumes
+        if dimension > 2:
+            volume_stride = surface_stride + len(self.domain.shapes[2])
+            for volume in self.domain.shapes[3]:
+                tag = volume_stride + volume.tag + 1
+                if not volume.composite:
+                    shell = volume.boundary_shapes[0]
+                    loop_tags = [
+                        surface_stride + shape.tag + 1
+                        for shape in shell.immersed_shapes
+                    ]
+                    gmsh.model.geo.addSurfaceLoop(loop_tags, tag)
+                    gmsh.model.geo.addVolume([tag], tag)
+
+        gmsh.model.geo.synchronize()
+
+        # self.tags_3d = []
+        # self.tags_2d = []
+        # for geo_3_cell in geo_3_cells:
+        #     for geo_2_cell in geo_3_cell.boundary_cells:
+        #         tags = list(geo_2_cell.boundary_loop)
+        #         gmsh.model.geo.addCurveLoop(tags, geo_2_cell.id)
+        #         gmsh.model.geo.addPlaneSurface([geo_2_cell.id], geo_2_cell.id)
+        #         self.tags_2d.append(geo_2_cell.id)
+        #     gmsh.model.geo.addSurfaceLoop(self.tags_2d, geo_3_cell.id)
+        #     gmsh.model.geo.addVolume([geo_3_cell.id], geo_3_cell.id)
+        #     self.tags_3d.append(geo_3_cell.id)
+        #
+        # gmsh.model.geo.synchronize()
+
+        # # add physical tags
+        # for geo_2_cell in geo_2_cells:
+        #     gmsh.model.addPhysicalGroup(2, [geo_2_cell.id], geo_2_cell.physical_tag)
+        #
+        # for geo_3_cell in geo_3_cells:
+        #     gmsh.model.addPhysicalGroup(3, self.tags_3d, geo_3_cell.physical_tag)
 
     def add_domain_descritpion(self):
         if self.dimension == 1:
@@ -198,6 +291,41 @@ class ConformalMesher:
         if self.fracture_network is not None:
             max_point_id = -len(self.geometry_builder.points)
             self.fracture_network.shift_point_ids(max_point_id)
+
+    def generate_from_domain(self, lc, n_refinments=0):
+        gmsh.initialize()
+        self.lc = lc
+        self.transfer_domain_descritpion()
+
+        # for tag, point in enumerate(self.points):
+        #     gmsh.model.geo.addPoint(point[0], point[1], point[2], self.lc, tag + 1)
+        #
+        # self.add_domain_descritpion()
+        #
+        # if self.fracture_network is not None:
+        #     assert self.dimension == 2
+        #
+        #     gmsh.model.geo.synchronize()
+        #     self.add_fracture_network_description()
+        #     gmsh.model.geo.synchronize()
+        #     # embed entities
+        #     gmsh.model.mesh.embed(0, self.tags_0d, 2, self.tags_2d[0])
+        #     gmsh.model.mesh.embed(1, self.tags_1d, 2, self.tags_2d[0])
+        #
+        #     numNodes = 10
+        #     for tag_1d in self.tags_1d:
+        #         gmsh.model.geo.mesh.setTransfiniteCurve(
+        #             tag_1d, numNodes, "Bump", coef=0.25
+        #         )
+
+        gmsh.model.geo.synchronize()
+        for d in range(self.dimension + 1):
+            gmsh.model.mesh.generate(d)
+        for _ in range(n_refinments):
+            gmsh.model.mesh.refine()
+        # if "-nopopup" not in sys.argv:
+        #     gmsh.fltk.run()
+        # aka = 0
 
     def generate(self, lc, n_refinments=0):
         gmsh.initialize()

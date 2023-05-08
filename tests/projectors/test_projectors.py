@@ -84,7 +84,7 @@ def generate_mesh(h_cell, dim):
 
     gmesh = Mesh(dimension=dim, file_name="gmesh.msh")
     gmesh.set_conformal_mesher(conformal_mesher)
-    gmesh.build_conformal_mesh_II()
+    gmesh.build_conformal_mesh()
     # gmesh.write_vtk()
     return gmesh
 

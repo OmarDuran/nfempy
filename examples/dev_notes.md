@@ -190,8 +190,22 @@ for d in {0,1,2,3}:
 	* k_order: polynomial order of approximation
 
 ### Notes on geometry representation and processing:
-The following refactors are needed:
-
+The following refactors are needed: https://dev.opencascade.org/sites/default/files/pdf/Topology.pdf
+Geometrical objects represented by GeometryCell (Shapes) should consider immersed_entities and boundary entities  	
+Shapes:
+	Vertex: actual point in R3
+	Edge: part of a curve limited by vertices (This could contain intersections).
+	Wire: Set of Edges connected by edges (topological information)
+	Face: part of a surface limited by wires (This could contain intersections).
+	Shell: Set of faces connected by edges
+	Solid: a part of the space (subdomain) limited by shells  (This could contain intersections).
+	CompositeSolid: set of solids connected by their faces
+	
+Domain: set of any topological shape
+	
+The skins will be extra information after a Composite is created
+	
+#### TODO: Rename GeometryCell to GeometryEntity
 
 ### Notes on assembler implementation:
 The best local vectorization occurs in eliminating integration point loops

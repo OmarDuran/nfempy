@@ -6,6 +6,7 @@ import numpy as np
 # https://www.maruf.ca/files/caadoc/CAATobTechArticles/TopoConcepts.htm#Manifold
 def geo_cell_type(dimension):
     types = ("Vertex", "Edge", "Face", "Volume")
+    # types = ("Vertex", "Edge", "Face", "Solid")
     return types[dimension]
 
 

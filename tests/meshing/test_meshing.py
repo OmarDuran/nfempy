@@ -49,7 +49,7 @@ def generate_mesh(fracture_tags):
     conformal_mesh = generate_conformal_mesh(fracture_tags)
     gmesh = Mesh(dimension=2, file_name="gmesh.msh")
     gmesh.set_conformal_mesher(conformal_mesh)
-    gmesh.build_conformal_mesh_II()
+    gmesh.build_conformal_mesh()
     gmesh.cut_conformity_on_fractures_mds_ec()
     return gmesh
 

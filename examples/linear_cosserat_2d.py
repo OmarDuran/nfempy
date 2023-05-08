@@ -46,6 +46,9 @@ import time
 import sys
 
 
+from geometry.vertex import Vertex
+from geometry.domain_market import build_box_1D, build_box_2D, build_box
+
 def polygon_polygon_intersection():
 
     fracture_1 = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
@@ -646,7 +649,7 @@ def generate_mesh_1d():
 
     gmesh = Mesh(dimension=1, file_name="gmesh.msh")
     gmesh.set_conformal_mesher(mesher)
-    gmesh.build_conformal_mesh_II()
+    gmesh.build_conformal_mesh()
 
     # gmesh.write_data()
     gmesh.write_vtk()
@@ -657,8 +660,8 @@ def generate_mesh_1d():
 
 def generate_mesh_2d():
 
-    h_cell = 1.0 / (1.0)
-    l = 6
+    h_cell = 1.0 / (5.0)
+    l = 0
     # higher dimension domain geometry
     s = 1.0
 
@@ -678,11 +681,11 @@ def generate_mesh_2d():
     g_builder.build_grahp()
 
     gmesh = None
-    fractures_q = False
+    fractures_q = True
     if fractures_q:
         # polygon_polygon_intersection()
         # h_cell = 1.0 / 4.0
-        fracture_tags = [0, 1, 2]
+        fracture_tags = [0]
         fracture_1 = np.array([[0.5, 0.4, 0], [0.5, 0.6, 0]])
         fracture_1 = np.array([[0.5, 0.4, 0], [0.5, 0.6, 0]])
         fracture_2 = np.array([[0.4, 0.5, 0], [0.6, 0.5, 0]])
@@ -701,12 +704,14 @@ def generate_mesh_2d():
 
         mesher = ConformalMesher(dimension=2)
         mesher.set_geometry_builder(g_builder)
+
         fractures = []
         for tag in fracture_tags:
             fractures.append(disjoint_fractures[tag])
         fracture_network = fn.FractureNetwork(dimension=2, physical_tag_shift=10)
         fracture_network.intersect_1D_fractures(fractures, render_intersection_q=False)
         fracture_network.build_grahp(all_fixed_d_cells_q=True)
+
         mesher.set_fracture_network(fracture_network)
         mesher.set_points()
         mesher.generate(h_cell, l)
@@ -714,10 +719,10 @@ def generate_mesh_2d():
 
         gmesh = Mesh(dimension=2, file_name="gmesh.msh")
         gmesh.set_conformal_mesher(mesher)
-        gmesh.build_conformal_mesh_II()
+        gmesh.build_conformal_mesh()
         map_fracs_edge = gmesh.cut_conformity_on_fractures_mds_ec()
-        factor = 0.05
-        gmesh.apply_visual_opening(map_fracs_edge, factor)
+        # factor = 0.05
+        # gmesh.apply_visual_opening(map_fracs_edge, factor)
 
         # gmesh.write_data()
         gmesh.write_vtk()
@@ -736,7 +741,7 @@ def generate_mesh_2d():
 
         gmesh = Mesh(dimension=2, file_name="gmesh.msh")
         gmesh.set_conformal_mesher(mesher)
-        gmesh.build_conformal_mesh_II()
+        gmesh.build_conformal_mesh()
 
         # gmesh.write_data()
         gmesh.write_vtk()
@@ -786,7 +791,7 @@ def generate_mesh_3d():
 
     gmesh = Mesh(dimension=3, file_name="gmesh.msh")
     gmesh.set_conformal_mesher(mesher)
-    gmesh.build_conformal_mesh_II()
+    gmesh.build_conformal_mesh()
 
     # gmesh.write_data()
     gmesh.write_vtk()
@@ -1428,7 +1433,7 @@ def md_h1_cosserat_elasticity(gmesh):
         n_components = 6
 
     discontinuous = True
-    k_order = 2
+    k_order = 3
     family = "Lagrange"
 
     u_field = DiscreteField(dim, n_components, family, k_order, gmesh)
@@ -1770,16 +1775,50 @@ def md_h1_cosserat_elasticity(gmesh):
     print("Post-processing time:", elapsed_time, "seconds")
 
 
+def Geometry():
+
+    box_points = np.array(
+        [
+            [0, 0, 0],
+            [1, 0, 0],
+            [1, 1, 0],
+            [0, 1, 0],
+            [0, 0, 1],
+            [1, 0, 1],
+            [1, 1, 1],
+            [0, 1, 1],
+        ]
+    )
+
+    domain = build_box(box_points)
+    domain.build_grahp()
+
+    # box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
+    # domain = build_box_2D(box_points)
+    # domain.build_grahp()
+    #
+    # box_points = np.array([[0, 0, 0], [1, 0, 0]])
+    # domain = build_box_1D(box_points)
+    # domain.build_grahp()
+
+    mesher = ConformalMesher(dimension=domain.dimension)
+    mesher.domain = domain
+    mesher.generate_from_domain(0.5)
+    mesher.write_mesh("gmesh.msh")
+
+    aka = 0
+
 def main():
+    Geometry()
 
     # gmesh_3d = generate_mesh_3d()
-    gmesh_2d = generate_mesh_2d()
+    # gmesh_2d = generate_mesh_2d()
     # gmesh_1d = generate_mesh_1d()
 
     # laplace
     # md_h1_laplace(gmesh_2d)
     # md_h1_elasticity(gmesh_3d)
-    md_h1_cosserat_elasticity(gmesh_2d)
+    # md_h1_cosserat_elasticity(gmesh_2d)
     return
 
 
