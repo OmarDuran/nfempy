@@ -146,19 +146,14 @@ class ConformalMesher:
 
         # transfer curves
         for curve in self.domain.shapes[1]:
-            tag = curve_stride + curve.tag + 1
             if not curve.composite:
                 print("curve tag: ", curve.tag)
+                if len(curve.immersed_shapes) > 0:
+                    continue
+                tag = curve_stride + curve.tag + 1
                 b = curve.boundary_shapes[0].tag + 1
                 e = curve.boundary_shapes[1].tag + 1
                 gmsh.model.occ.addLine(b, e, tag)
-                # if len(curve.immersed_shapes) > 0:
-                #     vertex_dim_tags = [(shape.dimension, shape.tag + 1) for shape in curve.immersed_shapes]
-                #     result_tags = gmsh.model.occ.cut(vertex_dim_tags, [(1, tag)])
-                #     gmsh.model.occ.synchronize()
-                    # gmsh.model.occ.cut()
-                    # embedded_point = next(tag for (dim, tag) in result_tags if dim == 0)
-                    # aka = 0
 
         gmsh.model.occ.synchronize()
 
@@ -199,11 +194,24 @@ class ConformalMesher:
         for vertex in self.domain.shapes[0]:
             if vertex.physical_tag is not None:
                 gmsh.model.addPhysicalGroup(0, [vertex.tag + 1], vertex.physical_tag)
+
         for curve in self.domain.shapes[1]:
             if curve.physical_tag is not None:
-                gmsh.model.addPhysicalGroup(
-                    1, [curve_stride + curve.tag + 1], curve.physical_tag
-                )
+                if len(curve.immersed_shapes) > 0:
+                    tags = [
+                        curve_stride + icurve.tag + 1
+                        for icurve in curve.immersed_shapes
+                    ]
+                    gmsh.model.addPhysicalGroup(1, tags, curve.physical_tag)
+                else:
+                    no_predecessors = (
+                        len(list(self.domain.graph.predecessors((1, curve.tag)))) == 0
+                    )
+                    if no_predecessors:
+                        gmsh.model.addPhysicalGroup(
+                            1, [curve_stride + curve.tag + 1], curve.physical_tag
+                        )
+
         if dimension > 1:
             for surface in self.domain.shapes[2]:
                 if surface.physical_tag is not None:

@@ -12,6 +12,11 @@ class Vertex(Shape):
     def admissible_dimensions(self):
         return [0]
 
+    def __eq__(self, other):
+        identity_check = (self.dimension, self.tag) == (other.dimension, other.tag)
+        geometry_check = np.all(np.isclose(self.point, other.point))
+        return identity_check and geometry_check
+
     @property
     def point(self):
         return self._point

@@ -44,25 +44,40 @@ import meshio
 
 import time
 import sys
-
+import csv
+import marshal
 
 from geometry.vertex import Vertex
+from geometry.edge import Edge
 from geometry.domain_market import build_box_1D, build_box_2D, build_box_3D
+from geometry.domain_market import read_fractures_file
+from geometry.shape_manipulation import ShapeManipulation
+from geometry.domain import Domain
 
 def polygon_polygon_intersection():
 
-    fracture_1 = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
+    def read_fractures_file(n_points):
+        file_name = "fracture_files/setting_3d_0.csv"
+        fractures = np.empty((0, n_points, 3), float)
+        with open(file_name, 'r') as file:
+            loaded = csv.reader(file)
+            for line in loaded:
+                frac = [float(val) for val in line]
+                fractures = np.append(fractures, np.array([np.split(np.array(frac),n_points)]), axis=0)
+        return fractures
 
-    fracture_2 = np.array(
-        [[0.5, 0.0, 0.5], [0.5, 0.0, -0.5], [0.5, 1.0, -0.5], [0.5, 1.0, 0.5]]
-    )
-    fracture_3 = np.array(
-        [[0.0, 0.5, -0.5], [1.0, 0.5, -0.5], [1.0, 0.5, 0.5], [0.0, 0.5, 0.5]]
-    )
-
-    fracture_2 = np.array(
-        [[0.6, 0.0, 0.5], [0.6, 0.0, -0.5], [0.6, 1.0, -0.5], [0.6, 1.0, 0.5]]
-    )
+    # fracture_1 = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
+    #
+    # fracture_2 = np.array(
+    #     [[0.5, 0.0, 0.5], [0.5, 0.0, -0.5], [0.5, 1.0, -0.5], [0.5, 1.0, 0.5]]
+    # )
+    # fracture_3 = np.array(
+    #     [[0.0, 0.5, -0.5], [1.0, 0.5, -0.5], [1.0, 0.5, 0.5], [0.0, 0.5, 0.5]]
+    # )
+    #
+    # fracture_2 = np.array(
+    #     [[0.6, 0.0, 0.5], [0.6, 0.0, -0.5], [0.6, 1.0, -0.5], [0.6, 1.0, 0.5]]
+    # )
     fracture_3 = np.array(
         [
             [0.25, 0.0, 0.5],
@@ -71,9 +86,9 @@ def polygon_polygon_intersection():
             [-0.0920201, 0.939693, 0.5],
         ]
     )
+    # fractures = [fracture_1, fracture_2, fracture_3]
 
-    fractures = [fracture_1, fracture_2, fracture_3]
-
+    fractures = list(read_fractures_file(4))
     fracture_network = fn.FractureNetwork(dimension=3)
     fracture_network.render_fractures(fractures)
     fracture_network.intersect_2D_fractures(fractures, True)
@@ -1793,27 +1808,51 @@ def Geometry():
     # domain = build_box_3D(box_points)
     # domain.build_grahp()
 
-    # box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
-    # domain = build_box_2D(box_points)
-    # domain.build_grahp()
-    #
+    box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
+    domain = build_box_2D(box_points)
+    domain.build_grahp()
+    max_v_tag = len(domain.shapes[0])
+    max_e_tag = len(domain.shapes[1])
+    max_f_tag = len(domain.shapes[2])
 
-    box_points = np.array([[0, 0, 0], [1, 0, 0]])
-    domain = build_box_1D(box_points)
+    # define a domain from a disjoint set of lines
+    domain_lines = Domain(dimension=1)
+    physical_tags = [6, 7, 8, 9, 10]
+    physical_tags = [6]
+    lines = read_fractures_file(2, "fracture_files/setting_2d_0.csv")
+    v_tag = max_v_tag
+    e_tag = max_e_tag
+    for line, physical_tag in zip(lines, physical_tags):
+        v0 = Vertex(v_tag, line[0])
+        v_tag += 1
+        v1 = Vertex(v_tag, line[1])
+        v_tag += 1
+        e = Edge(e_tag, np.array([v0, v1]))
+        e.physical_tag = physical_tag
+        e_tag += 1
+        domain.append_shapes(np.array([v0, v1]))
+        domain.append_shapes(np.array([e]))
+
+    edges_obj = domain.shapes[1]
+    edges_tool = domain.shapes[1]
+    (edges, vertices) = ShapeManipulation.intersect_edges(edges_obj,edges_tool, render_intersection_q=True)
 
     # inserting a subdomain
     max_vertex_tag = len(domain.shapes[0])
-    immersed_points = np.array([[0.25, 0, 0], [0.75, 0, 0]])
+    immersed_points = np.array([[0.25, 0, 0], [0.75, 0, 0], [0.99999, 0, 0], [1.75, 0, 0]])
     physical_tags = {"f1": 4, "f2": 5}
     vertices = np.array([Vertex(tag + max_vertex_tag, point) for tag, point in enumerate(immersed_points)])
     for vertex, physical_tag in zip(vertices, physical_tags.values()):
         vertex.physical_tag = physical_tag
-    domain.shapes[0] = np.append(domain.shapes[0], vertices, axis=0)
 
+    max_edge_tag = len(domain.shapes[1])
     edge = domain.shapes[1][0]
-    edge.immersed_shapes = np.append(edge.immersed_shapes, vertices, axis=0)
+    vertices = ShapeManipulation.embed_vertex_in_edge(vertices, edge, tag_shift=max_edge_tag)
 
-
+    domain.append_shapes(vertices)
+    domain.append_shapes(edge.immersed_shapes)
+    # domain.shapes[0] = np.append(domain.shapes[0], vertices, axis=0)
+    # domain.shapes[1] = np.append(domain.shapes[1], edge.immersed_shapes, axis=0)
 
 
     domain.build_grahp()
@@ -1828,6 +1867,7 @@ def Geometry():
     aka = 0
 
 def main():
+    # polygon_polygon_intersection()
     Geometry()
 
     # gmesh_3d = generate_mesh_3d()
