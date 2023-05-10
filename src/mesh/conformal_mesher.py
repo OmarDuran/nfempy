@@ -174,6 +174,7 @@ class ConformalMesher:
                     ]
                     gmsh.model.occ.addCurveLoop(loop_tags, tag)
                     gmsh.model.occ.addPlaneSurface([tag], tag)
+
         gmsh.model.occ.synchronize()
 
         # transfer volumes
@@ -189,6 +190,7 @@ class ConformalMesher:
                     ]
                     gmsh.model.occ.addSurfaceLoop(loop_tags, tag)
                     gmsh.model.occ.addVolume([tag], tag)
+
         gmsh.model.occ.synchronize()
 
         # add physical tags
@@ -240,6 +242,8 @@ class ConformalMesher:
                         3, [volume_stride + volume.tag + 1], volume.physical_tag
                     )
 
+        gmsh.model.occ.synchronize()
+
         # embed entities
         if dimension > 1:
             dim = self.domain.dimension
@@ -266,10 +270,10 @@ class ConformalMesher:
                 gmsh.model.mesh.embed(0, tags_0d, 2, surface_stride + surface.tag + 1)
                 gmsh.model.mesh.embed(1, tags_1d, 2, surface_stride + surface.tag + 1)
 
-                numNodes = 10
+                numNodes = 30
                 for tag_1d in tags_1d:
-                    gmsh.model.geo.mesh.setTransfiniteCurve(
-                        tag_1d, numNodes, "Bump", coef=0.5
+                    gmsh.model.mesh.setTransfiniteCurve(
+                        tag_1d, numNodes, "Bump", coef=0.125
                     )
 
     def add_domain_descritpion(self):

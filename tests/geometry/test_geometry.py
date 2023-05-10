@@ -310,3 +310,94 @@ def test_domain_2d_cross_shape_in_face_bc_intersection():
     assert (1, wire_4.tag) == face_0_successors[0]
     assert (1, edge_5.tag) == face_0_successors[1]
     assert (1, edge_6.tag) == face_0_successors[2]
+
+
+def test_domain_2d_t_shape_in_face_bc_intersection():
+
+    lines_file = "lines/t_shape_bc_intersection.csv"
+    domain: Domain = generate_domain_2d_with_lines(lines_file)
+    vertex_0 = domain.shapes[0][0]
+    vertex_1 = domain.shapes[0][1]
+    vertex_2 = domain.shapes[0][2]
+    vertex_3 = domain.shapes[0][3]
+    vertex_4 = domain.shapes[0][4]
+    vertex_5 = domain.shapes[0][5]
+    vertex_6 = domain.shapes[0][6]
+    vertex_7 = domain.shapes[0][7]
+    edge_0 = domain.shapes[1][0]
+    edge_1 = domain.shapes[1][1]
+    edge_2 = domain.shapes[1][2]
+    edge_3 = domain.shapes[1][3]
+    wire_4 = domain.shapes[1][4]
+    edge_5 = domain.shapes[1][5]
+    edge_6 = domain.shapes[1][6]
+    face_0 = domain.shapes[0][0]
+
+    # wire features
+    assert len(wire_4.immersed_shapes) == 7
+    assert len(wire_4.orientation) == 7
+
+    predecessors_wire_4 = list(domain.graph.successors((1, wire_4.tag)))
+    assert (2, vertex_0.tag) == predecessors_wire_4[0]
+    assert (1, edge_0.immersed_shapes[0].tag) == predecessors_wire_4[1]
+    assert (1, edge_0.immersed_shapes[1].tag) == predecessors_wire_4[2]
+    assert (1, edge_1.immersed_shapes[0].tag) == predecessors_wire_4[3]
+    assert (1, edge_1.immersed_shapes[1].tag) == predecessors_wire_4[4]
+    assert (1, edge_2.tag) == predecessors_wire_4[5]
+    assert (1, edge_3.immersed_shapes[0].tag) == predecessors_wire_4[6]
+    assert (1, edge_3.immersed_shapes[1].tag) == predecessors_wire_4[7]
+
+    predecessors_vertex_7 = list(domain.graph.predecessors((2, vertex_7.tag)))
+    assert (1, edge_5.immersed_shapes[0].tag) == predecessors_vertex_7[0]
+    assert (1, edge_5.immersed_shapes[1].tag) == predecessors_vertex_7[1]
+    assert (1, edge_6.tag) == predecessors_vertex_7[2]
+
+    face_0_successors = list(domain.graph.successors((0, face_0.tag)))
+    assert (1, wire_4.tag) == face_0_successors[0]
+    assert (1, edge_5.tag) == face_0_successors[1]
+    assert (1, edge_6.tag) == face_0_successors[2]
+
+
+def test_domain_2d_y_shape_in_face_bc_intersection():
+
+    lines_file = "lines/y_shape_bc_intersection.csv"
+    domain: Domain = generate_domain_2d_with_lines(lines_file)
+    vertex_0 = domain.shapes[0][0]
+    vertex_1 = domain.shapes[0][1]
+    vertex_2 = domain.shapes[0][2]
+    vertex_3 = domain.shapes[0][3]
+    vertex_4 = domain.shapes[0][4]
+    vertex_5 = domain.shapes[0][5]
+    vertex_6 = domain.shapes[0][6]
+    vertex_7 = domain.shapes[0][7]
+    edge_0 = domain.shapes[1][0]
+    edge_1 = domain.shapes[1][1]
+    edge_2 = domain.shapes[1][2]
+    edge_3 = domain.shapes[1][3]
+    wire_4 = domain.shapes[1][4]
+    edge_5 = domain.shapes[1][5]
+    edge_6 = domain.shapes[1][6]
+    face_0 = domain.shapes[0][0]
+
+    # wire features
+    assert len(wire_4.immersed_shapes) == 6
+    assert len(wire_4.orientation) == 6
+
+    predecessors_wire_4 = list(domain.graph.successors((1, wire_4.tag)))
+    assert (2, vertex_0.tag) == predecessors_wire_4[0]
+    assert (1, edge_0.tag) == predecessors_wire_4[1]
+    assert (1, edge_1.immersed_shapes[0].tag) == predecessors_wire_4[2]
+    assert (1, edge_1.immersed_shapes[1].tag) == predecessors_wire_4[3]
+    assert (1, edge_2.immersed_shapes[0].tag) == predecessors_wire_4[4]
+    assert (1, edge_2.immersed_shapes[1].tag) == predecessors_wire_4[5]
+    assert (1, edge_3.tag) == predecessors_wire_4[6]
+
+    predecessors_vertex_7 = list(domain.graph.predecessors((2, vertex_7.tag)))
+    assert (1, edge_5.immersed_shapes[0].tag) == predecessors_vertex_7[0]
+    assert (1, edge_5.immersed_shapes[1].tag) == predecessors_vertex_7[1]
+    assert (1, edge_6.tag) == predecessors_vertex_7[2]
+
+    face_0_successors = list(domain.graph.successors((0, face_0.tag)))
+    assert (1, wire_4.tag) == face_0_successors[0]
+    assert (1, edge_5.tag) == face_0_successors[1]
+    assert (1, edge_6.tag) == face_0_successors[2]

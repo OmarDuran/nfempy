@@ -1823,7 +1823,7 @@ def Geometry():
 
     mesher = ConformalMesher(dimension=domain.dimension)
     mesher.domain = domain
-    mesher.generate_from_domain(0.1)
+    mesher.generate_from_domain(0.05)
     mesher.write_mesh("gmesh.msh")
 
     aka = 0
