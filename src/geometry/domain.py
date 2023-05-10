@@ -8,6 +8,7 @@ class Domain:
         self.dimension = dimension
         self.shapes = [np.array([], dtype=Shape) for i in range(dimension + 1)]
         self.graph = None
+        self.graph_embed = None
 
     def append_shapes(self, shapes):
         dims = [shape.dimension for shape in shapes]
@@ -37,6 +38,14 @@ class Domain:
                 self.gather_graph_edges(immersed_shape, tuple_id_list)
 
     def build_grahp(self):
+        disjoint_shapes = [shape_i for shape_i in self.shapes[self.dimension]]
+        tuple_id_list = []
+        for shape in disjoint_shapes:
+            self.gather_graph_edges(shape, tuple_id_list)
+
+        self.graph = nx.from_edgelist(tuple_id_list, create_using=nx.DiGraph)
+
+    def build_graph_embed(self):
         disjoint_shapes = [shape_i for shape_i in self.shapes[self.dimension]]
         tuple_id_list = []
         for shape in disjoint_shapes:

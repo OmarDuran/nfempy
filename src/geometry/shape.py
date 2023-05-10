@@ -81,7 +81,9 @@ class Shape(ABC):
     @immersed_shapes.setter
     def immersed_shapes(self, shapes):
 
-        check_shapes = np.array([shape.dimension == self.dimension for shape in shapes])
+        check_shapes = np.array(
+            [shape.dimension in self.admissible_dimensions() for shape in shapes]
+        )
         if np.all(check_shapes):
             self._immersed_shapes = shapes
         else:

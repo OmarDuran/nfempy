@@ -1814,11 +1814,12 @@ def Geometry():
     max_v_tag = len(domain.shapes[0])
     max_e_tag = len(domain.shapes[1])
     max_f_tag = len(domain.shapes[2])
+    face_0 = domain.shapes[2][0]
 
     # define a domain from a disjoint set of lines
     domain_lines = Domain(dimension=1)
     physical_tags = [6, 7, 8, 9, 10]
-    physical_tags = [6]
+    physical_tags = [6, 7]
     lines = read_fractures_file(2, "fracture_files/setting_2d_0.csv")
     v_tag = max_v_tag
     e_tag = max_e_tag
@@ -1832,27 +1833,13 @@ def Geometry():
         e_tag += 1
         domain.append_shapes(np.array([v0, v1]))
         domain.append_shapes(np.array([e]))
+        face_0.immersed_shapes = np.append(face_0.immersed_shapes, np.array([e]))
 
     edges_obj = domain.shapes[1]
     edges_tool = domain.shapes[1]
-    (edges, vertices) = ShapeManipulation.intersect_edges(edges_obj,edges_tool, render_intersection_q=True)
-
-    # inserting a subdomain
-    max_vertex_tag = len(domain.shapes[0])
-    immersed_points = np.array([[0.25, 0, 0], [0.75, 0, 0], [0.99999, 0, 0], [1.75, 0, 0]])
-    physical_tags = {"f1": 4, "f2": 5}
-    vertices = np.array([Vertex(tag + max_vertex_tag, point) for tag, point in enumerate(immersed_points)])
-    for vertex, physical_tag in zip(vertices, physical_tags.values()):
-        vertex.physical_tag = physical_tag
-
-    max_edge_tag = len(domain.shapes[1])
-    edge = domain.shapes[1][0]
-    vertices = ShapeManipulation.embed_vertex_in_edge(vertices, edge, tag_shift=max_edge_tag)
-
+    (edges, vertices) = ShapeManipulation.intersect_edges(edges_obj,edges_tool, v_tag_shift=v_tag, e_tag_shift=e_tag)
     domain.append_shapes(vertices)
-    domain.append_shapes(edge.immersed_shapes)
-    # domain.shapes[0] = np.append(domain.shapes[0], vertices, axis=0)
-    # domain.shapes[1] = np.append(domain.shapes[1], edge.immersed_shapes, axis=0)
+    domain.append_shapes(edges)
 
 
     domain.build_grahp()

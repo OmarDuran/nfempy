@@ -226,6 +226,31 @@ class ConformalMesher:
                         3, [volume_stride + volume.tag + 1], volume.physical_tag
                     )
 
+        # embed entities
+        if dimension > 1:
+            dim = self.domain.dimension
+            tags_0d = []
+            tags_1d = []
+            tags_2d = [shape.tag for shape in self.domain.shapes[2]]
+            for surface in self.domain.shapes[dim]:
+                shapes_c1 = [shape for shape in surface.immersed_shapes]
+                for shape_c1 in shapes_c1:
+                    tags_1d = tags_1d + [curve_stride + curve.tag + 1 for curve in shape_c1.immersed_shapes]
+                    for shape_c2 in shapes_c1:
+                        tags_0d = tags_0d + [vertex.tag + 1 for vertex in
+                                             shape_c1.boundary_shapes]
+                tags_0d = list(np.unique(tags_0d))
+                tags_1d = list(np.unique(tags_1d))
+                gmsh.model.mesh.embed(0, tags_0d, 2, surface_stride + surface.tag + 1)
+                gmsh.model.mesh.embed(1, tags_1d, 2, surface_stride + surface.tag + 1)
+
+            numNodes = 10
+            for tag_1d in tags_1d:
+                gmsh.model.geo.mesh.setTransfiniteCurve(
+                    tag_1d, numNodes, "Bump", coef=0.25
+                )
+
+
     def add_domain_descritpion(self):
         if self.dimension == 1:
             self.add_domain_1d_descritpion()
@@ -400,6 +425,9 @@ class ConformalMesher:
 
         # self.transfer_domain_descritpion()
         self.transfer_domain_occ_descritpion()
+
+
+
 
         for d in range(self.dimension + 1):
             gmsh.model.mesh.generate(d)
