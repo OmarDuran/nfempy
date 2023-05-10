@@ -204,7 +204,7 @@ class ConformalMesher:
                         for icurve in curve.immersed_shapes
                     ]
                     gmsh.model.addPhysicalGroup(1, tags, curve.physical_tag)
-                    if self.domain.dimension > 1 :
+                    if self.domain.dimension > 1:
                         tags_0d = [
                             vertex.tag + 1
                             for icurve in curve.immersed_shapes
@@ -214,8 +214,8 @@ class ConformalMesher:
                 else:
                     if self.domain.dimension == 1:
                         no_predecessors = (
-                                len(list(
-                                    self.domain.graph.predecessors((1, curve.tag)))) == 0
+                            len(list(self.domain.graph.predecessors((1, curve.tag))))
+                            == 0
                         )
                         if no_predecessors:
                             gmsh.model.addPhysicalGroup(
@@ -250,12 +250,16 @@ class ConformalMesher:
                 shapes_c1 = [shape for shape in surface.immersed_shapes]
                 for shape_c1 in shapes_c1:
                     if len(shape_c1.immersed_shapes) > 0:
-                        tags_1d = tags_1d + [curve_stride + curve.tag + 1 for curve in shape_c1.immersed_shapes]
+                        tags_1d = tags_1d + [
+                            curve_stride + curve.tag + 1
+                            for curve in shape_c1.immersed_shapes
+                        ]
                     else:
                         tags_1d = tags_1d + [curve_stride + shape_c1.tag + 1]
                     for shape_c2 in shapes_c1:
-                        tags_0d = tags_0d + [vertex.tag + 1 for vertex in
-                                             shape_c1.boundary_shapes]
+                        tags_0d = tags_0d + [
+                            vertex.tag + 1 for vertex in shape_c1.boundary_shapes
+                        ]
 
                 tags_0d = list(np.unique(tags_0d))
                 tags_1d = list(np.unique(tags_1d))
@@ -267,7 +271,6 @@ class ConformalMesher:
                     gmsh.model.geo.mesh.setTransfiniteCurve(
                         tag_1d, numNodes, "Bump", coef=0.5
                     )
-
 
     def add_domain_descritpion(self):
         if self.dimension == 1:
@@ -443,9 +446,6 @@ class ConformalMesher:
 
         # self.transfer_domain_descritpion()
         self.transfer_domain_occ_descritpion()
-
-
-
 
         for d in range(self.dimension + 1):
             gmsh.model.mesh.generate(d)

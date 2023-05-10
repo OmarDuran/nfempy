@@ -19,9 +19,28 @@ class Domain:
         self.shapes[dim[0]] = np.append(self.shapes[dim[0]], shapes, axis=0)
 
     def max_physical_tag(self):
-        physical_tags = [shape.physical_tag for shapes_d in self.shapes for shape in shapes_d if shape.physical_tag is not None]
+        physical_tags = [
+            shape.physical_tag
+            for shapes_d in self.shapes
+            for shape in shapes_d
+            if shape.physical_tag is not None
+        ]
         max = np.max(np.array(physical_tags))
         return max
+
+    def shapes_with_physical_tag(self, physical_tag):
+        shapes = np.array(
+            [
+                shape
+                for shapes_d in self.shapes
+                for shape in shapes_d
+                if shape.physical_tag == physical_tag
+            ]
+        )
+        return shapes
+
+    def refresh_wires(self):
+        [shape.orient_immersed_edges() for shape in self.shapes[1] if shape.composite]
 
     def gather_graph_edges(self, shape: Shape, tuple_id_list):
         for bc_shape in shape.boundary_shapes:

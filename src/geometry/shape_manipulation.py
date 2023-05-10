@@ -145,7 +145,7 @@ class ShapeManipulation:
                     case_idx += 1
 
         for i, edge_i in enumerate(edges_obj):
-            print("edge index: ", i)
+            # print("edge index: ", i)
             if isinstance(edge_i, Wire):
                 continue
             case_indices = np.argwhere(line_index == i)[:, 0]
@@ -167,41 +167,6 @@ class ShapeManipulation:
             vertices = vertices[new_vertices_idx]
         return (edges, vertices)
 
-    # @staticmethod
-    # def embed_edge_in_face(edges: np.ndarray, edge: Face, tag_shift=0):
-    #
-    #     a: Vertex = edge.boundary_shapes[0]
-    #     b: Vertex = edge.boundary_shapes[1]
-    #     translation = a.point
-    #     a.point = a.point - translation
-    #     b.point = b.point - translation
-    #
-    #     ra_norm = la.norm(a.point, axis=0)
-    #     rb_norm = la.norm(b.point, axis=0)
-    #
-    #     r_norms = [ra_norm, rb_norm]
-    #     valid_indices = []
-    #     for i, vertex in enumerate(vertices):
-    #         obj_out = ShapeManipulation.point_on_edge_boundary(vertex.point, edge)
-    #         if obj_out is not None:
-    #             continue
-    #         vertex.point = vertex.point - translation
-    #         r_norm = la.norm(vertex.point, axis=0)
-    #         if ra_norm < r_norm and r_norm < rb_norm:
-    #             is_a = np.isclose(r_norm, ra_norm)
-    #             is_b = np.isclose(r_norm, rb_norm)
-    #             if not is_a and not is_b:
-    #                 valid_indices.append(i)
-    #                 r_norms.append(r_norm)
-    #         vertex.point = vertex.point + translation
-    #     a.point = a.point + translation
-    #     b.point = b.point + translation
-    #     if len(r_norms) > 2:
-    #         perm = np.argsort(r_norms)
-    #         vertex_list = [a, b] + list(vertices[valid_indices])
-    #         vertex_list = [vertex_list[i] for i in perm]
-    #         for i in range(len(vertex_list) - 1):
-    #             e = Edge(i + tag_shift, np.array([vertex_list[i], vertex_list[i + 1]]))
-    #             e.physical_tag = edge.physical_tag
-    #             edge.immersed_shapes = np.append(edge.immersed_shapes, e)
-    #     return vertices[valid_indices]
+    @staticmethod
+    def embed_edge_in_face(edges: np.ndarray, face: Face):
+        face.immersed_shapes = np.append(face.immersed_shapes, np.array([edges]))

@@ -11,3 +11,7 @@ class Edge(Shape):
 
     def admissible_dimensions(self):
         return [0, 1]
+
+    def boundary_points(self):
+        points = np.array([shape.point for shape in self.boundary_shapes])
+        return points

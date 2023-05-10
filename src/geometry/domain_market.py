@@ -7,6 +7,7 @@ from geometry.face import Face
 from geometry.shell import Shell
 from geometry.solid import Solid
 from geometry.domain import Domain
+from geometry.shape_manipulation import ShapeManipulation
 import csv
 
 
@@ -180,5 +181,64 @@ def build_box_3D(box_points, physical_tags=None):
     solid = Solid(tag, np.array([shell]))
     solid.physical_tag = physical_tags.get("solid", None)
     domain.append_shapes(np.array([solid]))
+
+    return domain
+
+
+def build_disjoint_lines(file_name, max_e_tag=0, max_v_tag=0, max_p_tag=0):
+
+    domain = Domain(dimension=2)
+    lines = read_fractures_file(2, file_name)
+    physical_tags = [i + max_p_tag for i in range(len(lines))]
+    v_tag = max_v_tag
+    e_tag = max_e_tag
+    for line, physical_tag in zip(lines, physical_tags):
+        v0 = Vertex(v_tag, line[0])
+        v_tag += 1
+        v1 = Vertex(v_tag, line[1])
+        v_tag += 1
+        e = Edge(e_tag, np.array([v0, v1]))
+        e.physical_tag = physical_tag
+        e_tag += 1
+        domain.append_shapes(np.array([v0, v1]))
+        domain.append_shapes(np.array([e]))
+
+    return domain
+
+
+def build_box_2D_with_lines(box_points, lines_file, physical_tags=None):
+
+    if physical_tags is None:
+        physical_tags = {"area": 1, "bc_0": 2, "bc_1": 3, "bc_2": 4, "bc_3": 5}
+
+    domain = build_box_2D(box_points, physical_tags)
+    max_v_tag = len(domain.shapes[0])
+    max_e_tag = len(domain.shapes[1])
+    max_p_tag = domain.max_physical_tag()
+    face = domain.shapes[2][0]
+    domain_lines = build_disjoint_lines(
+        lines_file, max_e_tag=max_e_tag, max_v_tag=max_v_tag, max_p_tag=max_p_tag + 1
+    )
+    ShapeManipulation.embed_edge_in_face(domain_lines.shapes[1], face)
+    domain.append_shapes(domain_lines.shapes[0])
+    domain.append_shapes(domain_lines.shapes[1])
+
+    max_v_tag = len(domain.shapes[0])
+    max_e_tag = len(domain.shapes[1])
+    edges_obj = domain.shapes[1]
+    edges_tool = domain.shapes[1]
+    (edges, vertices) = ShapeManipulation.intersect_edges(
+        edges_obj, edges_tool, v_tag_shift=max_v_tag, e_tag_shift=max_e_tag
+    )
+
+    # update physical tags on intersections
+    max_p_tag = domain.max_physical_tag() + 1
+    physical_tag_vertices = [i + max_p_tag for i in range(len(vertices))]
+    for physical_tag, vertex in zip(physical_tag_vertices, vertices):
+        vertex.physical_tag = physical_tag
+
+    domain.append_shapes(vertices)
+    domain.append_shapes(edges)
+    domain.refresh_wires()
 
     return domain

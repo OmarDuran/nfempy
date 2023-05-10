@@ -50,7 +50,9 @@ import marshal
 from geometry.vertex import Vertex
 from geometry.edge import Edge
 from geometry.domain_market import build_box_1D, build_box_2D, build_box_3D
+from geometry.domain_market import build_box_2D_with_lines
 from geometry.domain_market import read_fractures_file
+from geometry.domain_market import build_disjoint_lines
 from geometry.shape_manipulation import ShapeManipulation
 from geometry.domain import Domain
 
@@ -1808,49 +1810,13 @@ def Geometry():
     # domain = build_box_3D(box_points)
     # domain.build_grahp()
 
+    # box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
+    # domain = build_box_2D(box_points)
+    # domain.build_grahp()
+
     box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
-    domain = build_box_2D(box_points)
-    domain.build_grahp()
-    max_v_tag = len(domain.shapes[0])
-    max_e_tag = len(domain.shapes[1])
-    max_f_tag = len(domain.shapes[2])
-    face_0 = domain.shapes[2][0]
-
-    # define a domain from a disjoint set of lines
-    domain_lines = Domain(dimension=1)
-    physical_tags = [6, 7, 8, 9, 10]
-    physical_tags = [6, 7]
-    lines = read_fractures_file(2, "fracture_files/setting_2d_0.csv")
-    max_p_tag = domain.max_physical_tag() + 1
-    physical_tags = [i + max_p_tag for i in range(len(lines))]
-    v_tag = max_v_tag
-    e_tag = max_e_tag
-    for line, physical_tag in zip(lines, physical_tags):
-        v0 = Vertex(v_tag, line[0])
-        v_tag += 1
-        v1 = Vertex(v_tag, line[1])
-        v_tag += 1
-        e = Edge(e_tag, np.array([v0, v1]))
-        e.physical_tag = physical_tag
-        e_tag += 1
-        domain.append_shapes(np.array([v0, v1]))
-        domain.append_shapes(np.array([e]))
-        face_0.immersed_shapes = np.append(face_0.immersed_shapes, np.array([e]))
-
-    edges_obj = domain.shapes[1]
-    edges_tool = domain.shapes[1]
-    (edges, vertices) = ShapeManipulation.intersect_edges(edges_obj,edges_tool, v_tag_shift=v_tag, e_tag_shift=e_tag)
-
-    # update physical tags on intersections
-    max_p_tag = domain.max_physical_tag() + 1
-    physical_tag_vertices = [i + max_p_tag for i in range(len(vertices))]
-    for physical_tag, vertex in zip(physical_tag_vertices, vertices):
-        vertex.physical_tag = physical_tag
-
-    domain.append_shapes(vertices)
-    domain.append_shapes(edges)
-
-
+    file = "fracture_files/setting_2d_0.csv"
+    domain = build_box_2D_with_lines(box_points, file)
     domain.build_grahp()
 
 
