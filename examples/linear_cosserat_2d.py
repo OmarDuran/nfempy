@@ -1821,6 +1821,8 @@ def Geometry():
     physical_tags = [6, 7, 8, 9, 10]
     physical_tags = [6, 7]
     lines = read_fractures_file(2, "fracture_files/setting_2d_0.csv")
+    max_p_tag = domain.max_physical_tag() + 1
+    physical_tags = [i + max_p_tag for i in range(len(lines))]
     v_tag = max_v_tag
     e_tag = max_e_tag
     for line, physical_tag in zip(lines, physical_tags):
@@ -1838,6 +1840,13 @@ def Geometry():
     edges_obj = domain.shapes[1]
     edges_tool = domain.shapes[1]
     (edges, vertices) = ShapeManipulation.intersect_edges(edges_obj,edges_tool, v_tag_shift=v_tag, e_tag_shift=e_tag)
+
+    # update physical tags on intersections
+    max_p_tag = domain.max_physical_tag() + 1
+    physical_tag_vertices = [i + max_p_tag for i in range(len(vertices))]
+    for physical_tag, vertex in zip(physical_tag_vertices, vertices):
+        vertex.physical_tag = physical_tag
+
     domain.append_shapes(vertices)
     domain.append_shapes(edges)
 
@@ -1848,7 +1857,7 @@ def Geometry():
 
     mesher = ConformalMesher(dimension=domain.dimension)
     mesher.domain = domain
-    mesher.generate_from_domain(0.5)
+    mesher.generate_from_domain(0.1)
     mesher.write_mesh("gmesh.msh")
 
     aka = 0

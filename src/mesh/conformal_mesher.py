@@ -165,6 +165,7 @@ class ConformalMesher:
                 if not surface.composite:
                     print("surface tag: ", surface.tag)
                     wire = surface.boundary_shapes[0]
+                    wire.orient_immersed_edges()
                     loop_tags = [
                         curve_stride + shape.tag + 1 for shape in wire.immersed_shapes
                     ]
@@ -203,6 +204,13 @@ class ConformalMesher:
                         for icurve in curve.immersed_shapes
                     ]
                     gmsh.model.addPhysicalGroup(1, tags, curve.physical_tag)
+                    if self.domain.dimension > 1 :
+                        tags_0d = [
+                            vertex.tag + 1
+                            for icurve in curve.immersed_shapes
+                            for vertex in icurve.boundary_shapes
+                        ]
+                        gmsh.model.addPhysicalGroup(0, tags_0d, curve.physical_tag)
                 else:
                     if self.domain.dimension == 1:
                         no_predecessors = (
@@ -235,26 +243,30 @@ class ConformalMesher:
         # embed entities
         if dimension > 1:
             dim = self.domain.dimension
-            tags_0d = []
-            tags_1d = []
             tags_2d = [shape.tag for shape in self.domain.shapes[2]]
             for surface in self.domain.shapes[dim]:
+                tags_0d = []
+                tags_1d = []
                 shapes_c1 = [shape for shape in surface.immersed_shapes]
                 for shape_c1 in shapes_c1:
-                    tags_1d = tags_1d + [curve_stride + curve.tag + 1 for curve in shape_c1.immersed_shapes]
+                    if len(shape_c1.immersed_shapes) > 0:
+                        tags_1d = tags_1d + [curve_stride + curve.tag + 1 for curve in shape_c1.immersed_shapes]
+                    else:
+                        tags_1d = tags_1d + [curve_stride + shape_c1.tag + 1]
                     for shape_c2 in shapes_c1:
                         tags_0d = tags_0d + [vertex.tag + 1 for vertex in
                                              shape_c1.boundary_shapes]
+
                 tags_0d = list(np.unique(tags_0d))
                 tags_1d = list(np.unique(tags_1d))
                 gmsh.model.mesh.embed(0, tags_0d, 2, surface_stride + surface.tag + 1)
                 gmsh.model.mesh.embed(1, tags_1d, 2, surface_stride + surface.tag + 1)
 
-            numNodes = 10
-            for tag_1d in tags_1d:
-                gmsh.model.geo.mesh.setTransfiniteCurve(
-                    tag_1d, numNodes, "Bump", coef=0.25
-                )
+                numNodes = 10
+                for tag_1d in tags_1d:
+                    gmsh.model.geo.mesh.setTransfiniteCurve(
+                        tag_1d, numNodes, "Bump", coef=0.5
+                    )
 
 
     def add_domain_descritpion(self):

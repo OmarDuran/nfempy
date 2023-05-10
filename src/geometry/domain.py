@@ -11,10 +11,17 @@ class Domain:
         self.graph_embed = None
 
     def append_shapes(self, shapes):
+        if len(shapes) == 0:
+            return
         dims = [shape.dimension for shape in shapes]
         dim, counts = np.unique(dims, return_counts=True)
         assert counts[0] == len(shapes)
         self.shapes[dim[0]] = np.append(self.shapes[dim[0]], shapes, axis=0)
+
+    def max_physical_tag(self):
+        physical_tags = [shape.physical_tag for shapes_d in self.shapes for shape in shapes_d if shape.physical_tag is not None]
+        max = np.max(np.array(physical_tags))
+        return max
 
     def gather_graph_edges(self, shape: Shape, tuple_id_list):
         for bc_shape in shape.boundary_shapes:

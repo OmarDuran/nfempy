@@ -15,6 +15,31 @@ class Wire(Shape):
     def admissible_dimensions(self):
         return [0, 1]
 
+    @property
+    def immersed_shapes(self):
+        shapes = np.array([], dtype=Shape)
+        for shape in self._immersed_shapes:
+            if len(shape.immersed_shapes) > 0:
+                for ishape in shape.immersed_shapes:
+                    shapes = np.append(shapes, np.array([ishape]), axis=0)
+            else:
+                shapes = np.append(shapes, np.array([shape]), axis=0)
+        return shapes
+
+    @immersed_shapes.setter
+    def immersed_shapes(self, shapes):
+
+        check_shapes = np.array(
+            [shape.dimension in self.admissible_dimensions() for shape in shapes]
+        )
+        if np.all(check_shapes):
+            self._immersed_shapes = shapes
+        else:
+            raise ValueError(
+                "This shape can only contain these dimensions: ",
+                self.admissible_dimensions(),
+            )
+
     # @staticmethod
     # def validate_edge(edge):
     #     perm = np.argsort([vertex.tag for vertex in edge.boundary_shapes])

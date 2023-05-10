@@ -65,7 +65,6 @@ class ShapeManipulation:
             vertex_list = [vertex_list[i] for i in perm]
             for i in range(len(vertex_list) - 1):
                 e = Edge(i + tag_shift, np.array([vertex_list[i], vertex_list[i + 1]]))
-                e.physical_tag = edge.physical_tag
                 edge.immersed_shapes = np.append(edge.immersed_shapes, e)
         return vertices[valid_indices]
 
@@ -151,6 +150,8 @@ class ShapeManipulation:
                 continue
             case_indices = np.argwhere(line_index == i)[:, 0]
             v_indices = np.unique([vertex_map[i] for i in case_indices])
+            if len(v_indices) == 0:
+                continue
             local_vertices = ShapeManipulation.embed_vertex_in_edge(
                 vertices[v_indices], edge_i, tag_shift=e_tag
             )
@@ -160,7 +161,9 @@ class ShapeManipulation:
                 edges = np.append(edges, edge_i.immersed_shapes)
 
         # filtering existing vertices
-        if len(new_vertices_idx) > 0:
+        if len(new_vertices_idx) == 0:
+            vertices = np.array([], dtype=Shape)
+        else:
             vertices = vertices[new_vertices_idx]
         return (edges, vertices)
 
