@@ -204,10 +204,16 @@ class ConformalMesher:
                     ]
                     gmsh.model.addPhysicalGroup(1, tags, curve.physical_tag)
                 else:
-                    no_predecessors = (
-                        len(list(self.domain.graph.predecessors((1, curve.tag)))) == 0
-                    )
-                    if no_predecessors:
+                    if self.domain.dimension == 1:
+                        no_predecessors = (
+                                len(list(
+                                    self.domain.graph.predecessors((1, curve.tag)))) == 0
+                        )
+                        if no_predecessors:
+                            gmsh.model.addPhysicalGroup(
+                                1, [curve_stride + curve.tag + 1], curve.physical_tag
+                            )
+                    else:
                         gmsh.model.addPhysicalGroup(
                             1, [curve_stride + curve.tag + 1], curve.physical_tag
                         )
