@@ -359,7 +359,7 @@ def test_domain_2d_t_shape_in_face_bc_intersection():
     assert (1, edge_6.tag) == face_0_successors[2]
 
 
-def failtest_domain_2d_y_shape_in_face_bc_intersection():
+def test_domain_2d_y_shape_in_face_bc_intersection():
 
     lines_file = "lines/y_shape_bc_intersection.csv"
     domain: Domain = generate_domain_2d_with_lines(lines_file)
@@ -378,6 +378,9 @@ def failtest_domain_2d_y_shape_in_face_bc_intersection():
     wire_4 = domain.shapes[1][4]
     edge_5 = domain.shapes[1][5]
     edge_6 = domain.shapes[1][6]
+    edge_7 = domain.shapes[1][7]
+    edge_8 = domain.shapes[1][8]
+    edge_9 = domain.shapes[1][9]
     face_0 = domain.shapes[0][0]
 
     # wire features
@@ -394,14 +397,15 @@ def failtest_domain_2d_y_shape_in_face_bc_intersection():
     assert (1, edge_3.tag) == predecessors_wire_4[6]
 
     predecessors_vertex_7 = list(domain.graph.predecessors((2, vertex_7.tag)))
-    assert (1, edge_5.immersed_shapes[0].tag) == predecessors_vertex_7[0]
-    assert (1, edge_5.immersed_shapes[1].tag) == predecessors_vertex_7[1]
+    assert (1, edge_8.tag) == predecessors_vertex_7[0]
+    assert (1, edge_9.tag) == predecessors_vertex_7[1]
     assert (1, edge_6.tag) == predecessors_vertex_7[2]
 
     face_0_successors = list(domain.graph.successors((0, face_0.tag)))
     assert (1, wire_4.tag) == face_0_successors[0]
     assert (1, edge_5.tag) == face_0_successors[1]
     assert (1, edge_6.tag) == face_0_successors[2]
+    assert (1, edge_7.tag) == face_0_successors[3]
 
 def test_domain_2d_18_shapes_in_face():
 
