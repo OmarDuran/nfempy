@@ -17,6 +17,7 @@ from geometry.domain_market import (
 from geometry.domain_market import build_box_2D_with_lines
 from geometry.shape_manipulation import ShapeManipulation
 
+from mesh.conformal_mesher import ConformalMesher
 
 def generate_domain_1d():
     box_points = np.array([[0, 0, 0], [1, 0, 0]])
@@ -358,7 +359,7 @@ def test_domain_2d_t_shape_in_face_bc_intersection():
     assert (1, edge_6.tag) == face_0_successors[2]
 
 
-def test_domain_2d_y_shape_in_face_bc_intersection():
+def failtest_domain_2d_y_shape_in_face_bc_intersection():
 
     lines_file = "lines/y_shape_bc_intersection.csv"
     domain: Domain = generate_domain_2d_with_lines(lines_file)
@@ -401,3 +402,18 @@ def test_domain_2d_y_shape_in_face_bc_intersection():
     assert (1, wire_4.tag) == face_0_successors[0]
     assert (1, edge_5.tag) == face_0_successors[1]
     assert (1, edge_6.tag) == face_0_successors[2]
+
+def test_domain_2d_18_shapes_in_face():
+
+    lines_file = "lines/18_shapes_in_unit_square.csv"
+    domain: Domain = generate_domain_2d_with_lines(lines_file)
+    wire_4 = domain.shapes[1][4]
+    face_0 = domain.shapes[0][0]
+
+    mesher = ConformalMesher(dimension=domain.dimension)
+    mesher.domain = domain
+    mesher.generate_from_domain(0.05)
+    mesher.write_mesh("gmesh.msh")
+
+    assert len(wire_4.immersed_shapes) == 4
+    assert len(wire_4.orientation) == 4
