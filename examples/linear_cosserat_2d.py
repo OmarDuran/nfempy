@@ -1815,11 +1815,10 @@ def Geometry():
     # domain.build_grahp()
 
     box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
+    box_points = 1.1 * np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
     file = "fracture_files/setting_2d_0.csv"
     domain = build_box_2D_with_lines(box_points, file)
     domain.build_grahp()
-
-
 
     mesher = ConformalMesher(dimension=domain.dimension)
     mesher.domain = domain

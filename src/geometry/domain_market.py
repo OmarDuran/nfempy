@@ -6,6 +6,7 @@ from geometry.wire import Wire
 from geometry.face import Face
 from geometry.shell import Shell
 from geometry.solid import Solid
+from geometry.solid import Shape
 from geometry.domain import Domain
 from geometry.shape_manipulation import ShapeManipulation
 import csv
@@ -24,7 +25,6 @@ def read_fractures_file(n_points, file_name):
 
 
 def build_box_1D(box_points, physical_tags=None):
-
     if physical_tags is None:
         physical_tags = {"line": 1, "bc_0": 2, "bc_1": 3}
 
@@ -45,7 +45,6 @@ def build_box_1D(box_points, physical_tags=None):
 
 
 def build_box_2D(box_points, physical_tags=None):
-
     if physical_tags is None:
         physical_tags = {"area": 1, "bc_0": 2, "bc_1": 3, "bc_2": 4, "bc_3": 5}
 
@@ -186,7 +185,6 @@ def build_box_3D(box_points, physical_tags=None):
 
 
 def build_disjoint_lines(file_name, max_e_tag=0, max_v_tag=0, max_p_tag=0):
-
     domain = Domain(dimension=2)
     lines = read_fractures_file(2, file_name)
     physical_tags = [i + max_p_tag for i in range(len(lines))]
@@ -207,7 +205,6 @@ def build_disjoint_lines(file_name, max_e_tag=0, max_v_tag=0, max_p_tag=0):
 
 
 def build_box_2D_with_lines(box_points, lines_file, physical_tags=None):
-
     if physical_tags is None:
         physical_tags = {"area": 1, "bc_0": 2, "bc_1": 3, "bc_2": 4, "bc_3": 5}
 
@@ -216,29 +213,36 @@ def build_box_2D_with_lines(box_points, lines_file, physical_tags=None):
     max_e_tag = len(domain.shapes[1])
     max_p_tag = domain.max_physical_tag()
     face = domain.shapes[2][0]
+
+    # lines
     domain_lines = build_disjoint_lines(
         lines_file, max_e_tag=max_e_tag, max_v_tag=max_v_tag, max_p_tag=max_p_tag + 1
     )
+
     ShapeManipulation.embed_edge_in_face(domain_lines.shapes[1], face)
     domain.append_shapes(domain_lines.shapes[0])
     domain.append_shapes(domain_lines.shapes[1])
 
     max_v_tag = len(domain.shapes[0])
     max_e_tag = len(domain.shapes[1])
+    max_p_tag = domain.max_physical_tag()
+
+    # performing multiple intersection of connected and disjointed edges
     edges_obj = domain.shapes[1]
     edges_tool = domain.shapes[1]
     (edges, vertices) = ShapeManipulation.intersect_edges(
-        edges_obj, edges_tool, v_tag_shift=max_v_tag, e_tag_shift=max_e_tag
+        edges_obj,
+        edges_tool,
+        v_tag_shift=max_v_tag,
+        e_tag_shift=max_e_tag,
+        p_tag_shift=max_p_tag,
     )
 
-    # update physical tags on intersections
-    max_p_tag = domain.max_physical_tag() + 1
-    physical_tag_vertices = [i + max_p_tag for i in range(len(vertices))]
-    for physical_tag, vertex in zip(physical_tag_vertices, vertices):
-        vertex.physical_tag = physical_tag
-
+    # append resulting fragments
     domain.append_shapes(vertices)
     domain.append_shapes(edges)
+
+    # update wires
     domain.refresh_wires()
 
     return domain

@@ -4,6 +4,7 @@ import numpy as np
 
 class Shape(ABC):
     def __init__(self):
+        self._active = True
         self._tag = None
         self._physical_tag = None
         self._dimension = None
@@ -23,6 +24,14 @@ class Shape(ABC):
             "CompositeSolid": 3,
         }
         return dimension_by_type[name]
+
+    @property
+    def active(self):
+        return self._active
+
+    @active.setter
+    def active(self, tag):
+        self._active = tag
 
     @property
     def tag(self):
@@ -58,7 +67,6 @@ class Shape(ABC):
 
     @boundary_shapes.setter
     def boundary_shapes(self, shapes):
-
         # make shape unique
         perm = np.argsort([shape.tag for shape in shapes])
         shapes = shapes[perm]
@@ -80,7 +88,6 @@ class Shape(ABC):
 
     @immersed_shapes.setter
     def immersed_shapes(self, shapes):
-
         check_shapes = np.array(
             [shape.dimension in self.admissible_dimensions() for shape in shapes]
         )

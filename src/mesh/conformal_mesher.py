@@ -36,7 +36,6 @@ class ConformalMesher:
         self.fracture_network.shift_cell_ids(max_cell_id)
 
     def transfer_domain_descritpion(self):
-
         dimension = 0
         for dimension in range(len(self.domain.shapes)):
             if len(self.domain.shapes[dimension]) == 0:
@@ -124,7 +123,6 @@ class ConformalMesher:
                     )
 
     def transfer_domain_occ_descritpion(self):
-
         dimension = 0
         for dimension in range(len(self.domain.shapes)):
             if len(self.domain.shapes[dimension]) == 0:
@@ -135,6 +133,9 @@ class ConformalMesher:
 
         # transfer vertices
         for vertex in self.domain.shapes[0]:
+            if len(vertex.immersed_shapes) > 0:
+                continue
+            print("Vertex tag: ", vertex.tag + 1)
             gmsh.model.occ.addPoint(
                 vertex.point[0],
                 vertex.point[1],
@@ -147,7 +148,7 @@ class ConformalMesher:
         # transfer curves
         for curve in self.domain.shapes[1]:
             if not curve.composite:
-                print("curve tag: ", curve.tag)
+                print("curve tag: ", curve_stride + curve.tag + 1)
                 if len(curve.immersed_shapes) > 0:
                     continue
                 tag = curve_stride + curve.tag + 1
@@ -196,7 +197,14 @@ class ConformalMesher:
         # add physical tags
         for vertex in self.domain.shapes[0]:
             if vertex.physical_tag is not None:
-                gmsh.model.addPhysicalGroup(0, [vertex.tag + 1], vertex.physical_tag)
+                if len(vertex.immersed_shapes) > 0:
+                    tags = [ivertex.tag + 1 for ivertex in vertex.immersed_shapes]
+                    tags = list(np.unique(tags))
+                    gmsh.model.addPhysicalGroup(0, tags, vertex.physical_tag)
+                else:
+                    gmsh.model.addPhysicalGroup(
+                        0, [vertex.tag + 1], vertex.physical_tag
+                    )
 
         for curve in self.domain.shapes[1]:
             if curve.physical_tag is not None:
@@ -205,12 +213,13 @@ class ConformalMesher:
                         curve_stride + icurve.tag + 1
                         for icurve in curve.immersed_shapes
                     ]
+                    tags = list(np.unique(tags))
                     gmsh.model.addPhysicalGroup(1, tags, curve.physical_tag)
                     if self.domain.dimension > 1:
                         tags_0d = [
                             vertex.tag + 1
-                            for icurve in curve.immersed_shapes
-                            for vertex in icurve.boundary_shapes
+                            for vertex in curve.boundary_shapes
+                            if vertex.physical_tag is None
                         ]
                         gmsh.model.addPhysicalGroup(0, tags_0d, curve.physical_tag)
                 else:

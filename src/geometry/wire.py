@@ -28,7 +28,6 @@ class Wire(Shape):
 
     @immersed_shapes.setter
     def immersed_shapes(self, shapes):
-
         check_shapes = np.array(
             [shape.dimension in self.admissible_dimensions() for shape in shapes]
         )
@@ -39,17 +38,6 @@ class Wire(Shape):
                 "This shape can only contain these dimensions: ",
                 self.admissible_dimensions(),
             )
-
-    # @staticmethod
-    # def validate_edge(edge):
-    #     perm = np.argsort([vertex.tag for vertex in edge.boundary_shapes])
-    #     edge.boundary_shapes = edge.boundary_shapes[perm]
-    #     return edge
-    #
-    # @staticmethod
-    # def reverse_edge(edge):
-    #     edge.boundary_shapes = np.reverse([vertex.tag for vertex in edge.boundary_shapes])
-    #     return edge
 
     def orient_immersed_edges(self):
         edges = self.immersed_shapes
@@ -66,3 +54,19 @@ class Wire(Shape):
                 self.orientation.append(-1)
                 seed_vertex = edge.boundary_shapes[0]
         self.orientation = np.array(self.orientation)
+
+    def boundary_points(self):
+        shape_b = self.immersed_shapes[0]
+        shape_e = self.immersed_shapes[-1]
+        o_b = self.orientation[0]
+        o_e = self.orientation[-1]
+        if o_b > 0:
+            v_b = shape_b.boundary_shapes[0]
+        else:
+            v_b = shape_b.boundary_shapes[1]
+        if o_e > 0:
+            v_e = shape_e.boundary_shapes[1]
+        else:
+            v_e = shape_e.boundary_shapes[0]
+        points = np.array([v_b.point, v_e.point])
+        return points
