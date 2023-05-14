@@ -443,12 +443,18 @@ def test_domain_2d_18_shapes_in_face():
     lines_file = "lines/18_shapes_in_unit_square.csv"
     domain: Domain = generate_domain_2d_with_lines(lines_file)
     wire_4 = domain.shapes[1][4]
-    face_0 = domain.shapes[0][0]
+    face_0 = domain.shapes[2][0]
+
+    assert len(domain.shapes[0]) == 63
+    assert len(domain.shapes[1]) == 87
+    assert len(face_0.immersed_shapes) == 18
+    assert len(wire_4.immersed_shapes) == 4
+    assert len(wire_4.orientation) == 4
+
 
     mesher = ConformalMesher(dimension=domain.dimension)
     mesher.domain = domain
     mesher.generate_from_domain(0.05)
     mesher.write_mesh("gmesh.msh")
 
-    assert len(wire_4.immersed_shapes) == 4
-    assert len(wire_4.orientation) == 4
+
