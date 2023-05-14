@@ -279,10 +279,10 @@ class ConformalMesher:
                 gmsh.model.mesh.embed(0, tags_0d, 2, surface_stride + surface.tag + 1)
                 gmsh.model.mesh.embed(1, tags_1d, 2, surface_stride + surface.tag + 1)
 
-                numNodes = 30
+                numNodes = 25
                 for tag_1d in tags_1d:
                     gmsh.model.mesh.setTransfiniteCurve(
-                        tag_1d, numNodes, "Bump", coef=0.125
+                        tag_1d, numNodes, "Bump", coef=0.25
                     )
 
     def add_domain_descritpion(self):

@@ -44,6 +44,11 @@ class ShapeManipulation:
     @staticmethod
     def embed_vertex_in_edge(vertices: np.ndarray, edge: Edge, tag_shift=0):
 
+        # unify vertices
+        points = np.array([vertex.point for vertex in vertices])
+        unique_points, indices = np.unique(points, return_index=True, axis = 0)
+        vertices = vertices[indices]
+
         indices_on_bc = []
         for i, vertex in enumerate(vertices):
             obj_out = ShapeManipulation.point_on_edge_boundary(vertex.point, edge)
@@ -104,7 +109,7 @@ class ShapeManipulation:
 
         vertices = np.array([], dtype=Shape)
         points = np.empty(shape=(0, 3), dtype=float)
-        line_indices = np.empty(shape=(0, 2), dtype=int)
+        case_line_indices = np.empty(shape=(0, 2), dtype=int)
         edges = np.array([], dtype=Shape)
         # Collects intersection vertices
 
@@ -148,7 +153,7 @@ class ShapeManipulation:
                         points = np.vstack((points, points[v_index]))
                     else:
                         points = np.vstack((points, new_point))
-                    line_indices = np.vstack((line_indices, np.array([i, j])))
+                    case_line_indices = np.vstack((case_line_indices, np.array([i, j])))
 
                     # v = Vertex(v_tag, point)
                     # existence_check = np.array(
@@ -259,7 +264,7 @@ class ShapeManipulation:
                 # print("edge index: ", i)
                 if isinstance(edge_i, Wire):
                     continue
-                case_indices = np.argwhere(line_indices == i)[:, 0]
+                case_indices = np.argwhere(case_line_indices == i)[:, 0]
                 if len(case_indices) == 0:
                     continue
                 vertices_to_embed = np.array([vertex_map[i] for i in case_indices])
