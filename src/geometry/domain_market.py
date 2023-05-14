@@ -112,71 +112,45 @@ def build_box_3D(box_points, physical_tags=None):
     ]
     for tag, con in enumerate(edge_connectivities):
         edge = Edge(tag, domain.shapes[0][con])
-        domain.shapes[1] = np.append(domain.shapes[1], edge)
-
+        domain.append_shapes(np.array([edge]))
     tag += 1
+
     wire_0 = Wire(tag, domain.shapes[1][[0, 1, 2, 3]], domain.shapes[0][[0]])
-    domain.append_shapes(np.array([wire_0]))
-
     tag += 1
+
     wire_1 = Wire(tag, domain.shapes[1][[4, 5, 6, 7]], domain.shapes[0][[4]])
-    domain.append_shapes(np.array([wire_1]))
-
     tag += 1
+
     wire_2 = Wire(tag, domain.shapes[1][[0, 9, 4, 8]], domain.shapes[0][[0]])
-    domain.append_shapes(np.array([wire_2]))
-
     tag += 1
+
     wire_3 = Wire(tag, domain.shapes[1][[1, 10, 5, 9]], domain.shapes[0][[1]])
-    domain.append_shapes(np.array([wire_3]))
-
     tag += 1
-    wire_4 = Wire(tag, domain.shapes[1][[10, 6, 11, 2]], domain.shapes[0][[2]])
-    domain.append_shapes(np.array([wire_4]))
 
+    wire_4 = Wire(tag, domain.shapes[1][[2, 11, 6, 10]], domain.shapes[0][[2]])
     tag += 1
+
     wire_5 = Wire(tag, domain.shapes[1][[3, 11, 7, 8]], domain.shapes[0][[3]])
-    domain.append_shapes(np.array([wire_5]))
-
     tag += 1
-    surface = Face(tag, np.array([wire_0]))
-    surface.physical_tag = physical_tags.get("bc_0", None)
-    domain.append_shapes(np.array([surface]))
 
-    tag += 1
-    surface = Face(tag, np.array([wire_1]))
-    surface.physical_tag = physical_tags.get("bc_1", None)
-    domain.append_shapes(np.array([surface]))
+    wires = np.array([wire_0, wire_1, wire_2, wire_3, wire_4, wire_5])
+    domain.append_shapes(wires)
 
-    tag += 1
-    surface = Face(tag, np.array([wire_2]))
-    surface.physical_tag = physical_tags.get("bc_2", None)
-    domain.append_shapes(np.array([surface]))
+    bc_labels = ["bc_0", "bc_1", "bc_2", "bc_3", "bc_4", "bc_5"]
+    for bc_label, wire in zip(bc_labels, wires):
+        surface = Face(tag, np.array([wire]))
+        surface.physical_tag = physical_tags.get(bc_label, None)
+        domain.append_shapes(np.array([surface]))
+        tag += 1
 
-    tag += 1
-    surface = Face(tag, np.array([wire_3]))
-    surface.physical_tag = physical_tags.get("bc_3", None)
-    domain.append_shapes(np.array([surface]))
-
-    tag += 1
-    surface = Face(tag, np.array([wire_4]))
-    surface.physical_tag = physical_tags.get("bc_4", None)
-    domain.append_shapes(np.array([surface]))
-
-    tag += 1
-    surface = Face(tag, np.array([wire_5]))
-    surface.physical_tag = physical_tags.get("bc_5", None)
-    domain.append_shapes(np.array([surface]))
-
-    tag += 1
     shell = Shell(
         tag,
         domain.shapes[2],
-        np.array([wire_0, wire_1, wire_2, wire_3, wire_4, wire_5]),
+        wires,
     )
     domain.append_shapes(np.array([shell]))
-
     tag += 1
+
     solid = Solid(tag, np.array([shell]))
     solid.physical_tag = physical_tags.get("solid", None)
     domain.append_shapes(np.array([solid]))
@@ -251,6 +225,126 @@ def build_box_2D_with_lines(box_points, lines_file, physical_tags=None):
     domain.retag_shapes()
     domain.build_grahp()
 
-    aka = 0
+    return domain
+
+
+def build_disjoint_planes(
+    file_name, max_f_tag=0, max_e_tag=0, max_v_tag=0, max_p_tag=0
+):
+    domain = Domain(dimension=3)
+    planes = read_fractures_file(4, file_name)
+    physical_tags = [i + max_p_tag for i in range(len(planes))]
+    v_tag = max_v_tag
+    e_tag = max_e_tag
+    f_tag = max_f_tag
+    for plane, physical_tag in zip(planes, physical_tags):
+        v0 = Vertex(v_tag, plane[0])
+        v_tag += 1
+        v1 = Vertex(v_tag, plane[1])
+        v_tag += 1
+        v2 = Vertex(v_tag, plane[2])
+        v_tag += 1
+        v3 = Vertex(v_tag, plane[3])
+        v_tag += 1
+
+        e0 = Edge(e_tag, np.array([v0, v1]))
+        e0.physical_tag = physical_tag
+        e_tag += 1
+
+        e1 = Edge(e_tag, np.array([v1, v2]))
+        e1.physical_tag = physical_tag
+        e_tag += 1
+
+        e2 = Edge(e_tag, np.array([v2, v3]))
+        e2.physical_tag = physical_tag
+        e_tag += 1
+
+        e3 = Edge(e_tag, np.array([v3, v0]))
+        e3.physical_tag = physical_tag
+        e_tag += 1
+
+        w0 = Wire(e_tag, np.array([e0, e1, e2, e3]), np.array([v0]))
+        e_tag += 1
+
+        s0 = Face(f_tag, np.array([w0]))
+        f_tag += 1
+
+        domain.append_shapes(np.array([v0, v1, v2, v3]))
+        domain.append_shapes(np.array([e0, e1, e2, e3, w0]))
+        domain.append_shapes(np.array([s0]))
+
+    return domain
+
+
+def build_box_3D_with_planes(box_points, planes_file, physical_tags=None):
+
+    if physical_tags is None:
+        physical_tags = {
+            "solid": 1,
+            "bc_0": 2,
+            "bc_1": 3,
+            "bc_2": 4,
+            "bc_3": 5,
+            "bc_4": 6,
+            "bc_5": 7,
+        }
+    domain = build_box_3D(box_points, physical_tags)
+    max_v_tag = len(domain.shapes[0])
+    max_e_tag = len(domain.shapes[1])
+    max_f_tag = len(domain.shapes[2])
+    max_p_tag = domain.max_physical_tag()
+    solid = domain.shapes[3][0]
+
+    # planes
+    domain_planes = build_disjoint_planes(
+        planes_file,
+        max_f_tag=max_f_tag,
+        max_e_tag=max_e_tag,
+        max_v_tag=max_v_tag,
+        max_p_tag=max_p_tag + 1,
+    )
+
+    # step one embed faces in solid
+    faces = domain_planes.shapes[2]
+    solid.immersed_shapes = np.append(solid.immersed_shapes, np.array([faces]))
+    domain.append_shapes(domain_planes.shapes[0])
+    domain.append_shapes(domain_planes.shapes[1])
+    domain.append_shapes(domain_planes.shapes[2])
+
+    # ShapeManipulation.embed_edge_in_face(domain_lines.shapes[1], face)
+    # domain.append_shapes(domain_lines.shapes[0])
+    # domain.append_shapes(domain_lines.shapes[1])
+
+    max_v_tag = len(domain.shapes[0])
+    max_e_tag = len(domain.shapes[1])
+    max_f_tag = len(domain.shapes[2])
+    max_p_tag = domain.max_physical_tag()
+
+    # step two multiple plane intersection of of connected and disjointed planes
+    faces_obj = domain.shapes[2]
+    faces_tool = domain.shapes[2]
+    (frag_edges, frag_vertices) = ShapeManipulation.intersect_faces(
+        faces_obj,
+        faces_tool,
+        f_tag_shift=max_f_tag,
+        v_tag_shift=max_v_tag,
+        e_tag_shift=max_e_tag,
+        p_tag_shift=max_p_tag,
+    )
+
+    # step 3
+    # append resulting fragments
+    domain.append_shapes(frag_vertices)
+    domain.append_shapes(frag_edges)
+
+    # step 4 update wires and shells
+    # update wires
+    domain.refresh_wires()
+    domain.build_grahp()
+
+    # Remove all shapes that are not presented in the graph
+    domain.remove_vertex()
+    domain.retag_shapes()
+    domain.build_grahp()
 
     return domain

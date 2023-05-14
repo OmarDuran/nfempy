@@ -164,7 +164,7 @@ class ConformalMesher:
             for surface in self.domain.shapes[2]:
                 tag = surface_stride + surface.tag + 1
                 if not surface.composite:
-                    print("surface tag: ", surface.tag)
+                    print("creating surface tag: ", surface.tag)
                     wire = surface.boundary_shapes[0]
                     wire.orient_immersed_edges()
                     loop_tags = [
@@ -255,9 +255,11 @@ class ConformalMesher:
 
         # embed entities
         if dimension > 1:
-            dim = self.domain.dimension
             tags_2d = [shape.tag for shape in self.domain.shapes[2]]
-            for surface in self.domain.shapes[dim]:
+            for surface in self.domain.shapes[2]:
+                if surface.composite:
+                    continue
+                print("surface tag: ", surface.tag)
                 tags_0d = []
                 tags_1d = []
                 shapes_c1 = [shape for shape in surface.immersed_shapes]

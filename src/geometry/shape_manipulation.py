@@ -1,4 +1,3 @@
-import networkx as nx
 import numpy as np
 from numpy import linalg as la
 
@@ -29,6 +28,19 @@ class ShapeManipulation:
             return edge.boundary_shapes[1]
         else:
             return None
+
+    @staticmethod
+    def points_on_face_boundary(points, face):
+        wires = face.boundary_shapes
+        for wire in wires:
+            for f_edge in wire.immersed_shapes:
+                f_points = f_edge.boundary_points()
+                if np.all(np.isclose(f_points[[0, 1]], points)):
+                    return f_edge
+                elif np.all(np.isclose(f_points[[1, 0]], points)):
+                    return f_edge
+        return None
+
 
     @staticmethod
     def embed_vertex_in_edge_boundary(vertex, edge):
@@ -120,10 +132,7 @@ class ShapeManipulation:
         e_tag = e_tag_shift
 
         physical_tag = p_tag_shift + 1
-        case_idx = 0
-        vertex_idx = 0
         vertex_map = {}
-        new_vertices_idx = []
         for i, edge_i in enumerate(edges_obj):
             if isinstance(edge_i, Wire):
                 continue
@@ -162,97 +171,6 @@ class ShapeManipulation:
                         points = np.vstack((points, new_point))
                     case_line_indices = np.vstack((case_line_indices, np.array([i, j])))
 
-                    # v = Vertex(v_tag, point)
-                    # existence_check = np.array(
-                    #     [
-                    #         np.all(np.isclose(v.point, vertex.point))
-                    #         for vertex in vertices
-                    #     ]
-                    # )
-                    # if len(existence_check) != 0 and np.any(existence_check):
-                    #     v_index = np.argwhere(existence_check)[0, 0]
-                    #     vertex_map.__setitem__(case_idx, v_index)
-                    #     v = vertices[v_index]
-                    #     if obj_vertex is not None and tool_vertex is not None:
-                    #         v.immersed_shapes = np.append(
-                    #             v.immersed_shapes,
-                    #             np.array([obj_vertex, tool_vertex]),
-                    #             axis=0,
-                    #         )
-                    #     if obj_vertex is not None and tool_vertex is not None:
-                    #         v.immersed_shapes = np.append(
-                    #             v.immersed_shapes,
-                    #             np.array([obj_vertex, tool_vertex]),
-                    #             axis=0,
-                    #         )
-                    #     elif obj_vertex is not None:
-                    #         v.immersed_shapes = np.append(
-                    #             v.immersed_shapes,
-                    #             np.array([obj_vertex]),
-                    #             axis=0,
-                    #         )
-                    #     elif tool_vertex is not None:
-                    #         v.immersed_shapes = np.append(
-                    #             v.immersed_shapes,
-                    #             np.array([tool_vertex]),
-                    #             axis=0,
-                    #         )
-                    #     # else:
-                    #     #     v.physical_tag = physical_tag
-                    #     #     physical_tag += 1
-                    #     #     vertices = np.append(vertices, np.array([v]), axis=0)
-                    #     #     new_vertices_idx.append(vertex_idx)
-                    #     #     v_tag += 1
-                    # else:
-                    #     # Edges with geometrically common vertices
-                    #     if obj_vertex is not None and tool_vertex is not None:
-                    #         # The directive in this case is to embed existing vertices in
-                    #         # new vertex v with a physical tag representing intersections
-                    #         v.physical_tag = physical_tag
-                    #         physical_tag += 1
-                    #         v.immersed_shapes = np.append(
-                    #             v.immersed_shapes,
-                    #             np.array([obj_vertex, tool_vertex]),
-                    #             axis=0,
-                    #         )
-                    #         vertices = np.append(vertices, np.array([v]), axis=0)
-                    #         new_vertices_idx.append(vertex_idx)
-                    #         v_tag += 1
-                    #     elif obj_vertex is not None:
-                    #         # The directive in this case is to embed existing vertex in
-                    #         # new vertex v with a physical tag representing intersections
-                    #         v.physical_tag = physical_tag
-                    #         physical_tag += 1
-                    #         v.immersed_shapes = np.append(
-                    #             v.immersed_shapes,
-                    #             np.array([obj_vertex]),
-                    #             axis=0,
-                    #         )
-                    #         vertices = np.append(vertices, np.array([v]), axis=0)
-                    #         new_vertices_idx.append(vertex_idx)
-                    #         v_tag += 1
-                    #     elif tool_vertex is not None:
-                    #         v.physical_tag = physical_tag
-                    #         physical_tag += 1
-                    #         v.immersed_shapes = np.append(
-                    #             v.immersed_shapes,
-                    #             np.array([tool_vertex]),
-                    #             axis=0,
-                    #         )
-                    #         vertices = np.append(vertices, np.array([v]), axis=0)
-                    #         new_vertices_idx.append(vertex_idx)
-                    #         v_tag += 1
-                    #     else:
-                    #         v.physical_tag = physical_tag
-                    #         physical_tag += 1
-                    #         vertices = np.append(vertices, np.array([v]), axis=0)
-                    #         new_vertices_idx.append(vertex_idx)
-                    #         v_tag += 1
-                    #     vertex_map.__setitem__(case_idx, vertex_idx)
-                    #     vertex_idx += 1
-                    # line_indices = np.vstack((line_indices, np.array([i, j])))
-                    # case_idx += 1
-
         if len(points) > 0:
             # map recurrences and make geometry unique
             unique_points, indices, inv_indices = np.unique(
@@ -277,7 +195,7 @@ class ShapeManipulation:
                 if len(case_indices) == 0:
                     continue
                 vertices_to_embed = np.array([vertex_map[i] for i in case_indices])
-                local_vertices = ShapeManipulation.embed_vertex_in_edge(
+                _ = ShapeManipulation.embed_vertex_in_edge(
                     vertices_to_embed, edge_i, tag_shift=e_tag
                 )
                 if len(edge_i.immersed_shapes) > 0:
@@ -291,16 +209,139 @@ class ShapeManipulation:
 
     @staticmethod
     def embed_edge_in_face(edges: np.ndarray, face: Face):
-        # wire_edges = [
-        #     edge for wire in face.boundary_shapes for edge in wire.immersed_shapes
-        # ]
-        # for edge in edges:
-        #     for i, vertex in enumerate(edge.boundary_shapes):
-        #         for wire_edge in wire_edges:
-        #             wire_vertex = ShapeManipulation.point_on_edge_boundary(
-        #                 vertex.point, wire_edge
-        #             )
-        #             if wire_vertex is not None:
-        #                 edge.boundary_shapes[i] = wire_vertex
-        #                 break
         face.immersed_shapes = np.append(face.immersed_shapes, np.array([edges]))
+
+    @staticmethod
+    def intersect_faces(
+        faces_obj: np.ndarray,
+        faces_tool: np.ndarray,
+        f_tag_shift=0,
+        e_tag_shift=0,
+        v_tag_shift=0,
+        p_tag_shift=0,
+        render_intersection_q=False,
+    ):
+        vertices = np.array([], dtype=Shape)
+        edges = np.array([], dtype=Shape)
+        point_pairs = np.empty(shape=(0, 2, 3), dtype=float)
+        case_plane_indices = np.empty(shape=(0, 2), dtype=int)
+
+        # Collects intersection vertices and edges
+        pp_test = pp_intersector.PolygonPolygonIntersectionTest()
+
+        v_tag = v_tag_shift
+        e_tag = e_tag_shift
+        f_tag = f_tag_shift
+
+        physical_tag = p_tag_shift + 1
+        vertex_map = {}
+        for i, face_i in enumerate(faces_obj):
+            if isinstance(face_i, Shell):
+                continue
+            face_i_vertices = face_i.boundary_shapes[0].orient_immersed_vertices()
+            face_i_pts = np.array([vertex.point for vertex in face_i_vertices])
+            for j, face_j in enumerate(faces_tool):
+                if isinstance(face_j, Shell):
+                    continue
+                if i >= j:
+                    continue
+                face_j_vertices = face_j.boundary_shapes[0].orient_immersed_vertices()
+                face_j_pts = np.array([vertex.point for vertex in face_j_vertices])
+
+                intersection_data = pp_test.polygon_polygon_intersection(
+                    face_i_pts, face_j_pts, render_intersection_q
+                )
+                if intersection_data[0]:
+                    new_points = np.array([intersection_data[1], intersection_data[2]])
+                    obj_edge = ShapeManipulation.points_on_face_boundary(
+                        new_points, face_i
+                    )
+                    tool_edge = ShapeManipulation.points_on_face_boundary(
+                        new_points, face_j
+                    )
+                    # Connected faces by a common edge are ignored
+                    if obj_edge is not None and tool_edge is not None:
+                        if obj_edge == tool_edge:
+                            continue
+
+                    existence_check = np.array(
+                        [np.all(np.isclose(new_points, point_pair)) for point_pair in point_pairs]
+                    )
+
+                    # new approach
+                    if len(existence_check) != 0 and np.any(existence_check):
+                        v_index = np.argwhere(existence_check)[0, 0]
+                        point_pairs = np.append((point_pairs, point_pairs[v_index]), axis=0)
+                    else:
+                        point_pairs = np.append(point_pairs, np.array([new_points]), axis=0)
+                    case_plane_indices = np.vstack((case_plane_indices, np.array([i, j])))
+
+        if len(point_pairs) > 0:
+            # map recurrences and make geometry unique
+            unique_point_pairs, indices, inv_indices = np.unique(
+                point_pairs, return_index=True, return_inverse=True, axis=0
+            )
+
+            # create unique egdes
+            for point_pair in unique_point_pairs:
+                v0 = Vertex(v_tag, point_pair[0])
+                vertices = np.append(vertices, np.array([v0]), axis=0)
+                v_tag += 1
+
+                v1 = Vertex(v_tag, point_pair[1])
+                vertices = np.append(vertices, np.array([v1]), axis=0)
+                v_tag += 1
+
+                e = Edge(e_tag, np.array([v0, v1]))
+                e.physical_tag = physical_tag
+                e_tag += 1
+                physical_tag += 1
+                edges = np.append(edges, np.array([e]), axis=0)
+
+            cases_idx = list(range(len(point_pairs)))
+            edge_map = dict(zip(cases_idx, edges[inv_indices]))
+
+            for i, face_i in enumerate(faces_obj):
+                # print("face index: ", i)
+                if isinstance(face_i, Shell):
+                    continue
+                case_indices = np.argwhere(case_plane_indices == i)[:, 0]
+                if len(case_indices) == 0:
+                    continue
+                # line line intersections
+                face_i_edges = face_i.boundary_shapes[0].immersed_shapes
+                face_i_vertices = face_i.boundary_shapes[0].orient_immersed_vertices()
+                face_i_pts = np.array([vertex.point for vertex in face_i_vertices])
+                dir = (face_i_pts[2] - face_i_pts[0]) / np.linalg.norm(face_i_pts[2] - face_i_pts[0])
+                axis_dir = np.argmin(np.abs(dir))
+
+                edges_to_embed = np.array([edge_map[i] for i in case_indices])
+
+                # performing multiple intersection of connected and disjointed edges
+                edges_obj = np.insert(edges_to_embed, 0, face_i_edges, axis = 0)
+                edges_tool = np.insert(edges_to_embed, 0, face_i_edges, axis = 0)
+                (frag_edges, frag_vertices) = ShapeManipulation.intersect_edges(
+                    edges_obj,
+                    edges_tool,
+                    axis=axis_dir,
+                    v_tag_shift=v_tag,
+                    e_tag_shift=e_tag,
+                    p_tag_shift=physical_tag,
+                )
+
+                ShapeManipulation.embed_edge_in_face(edges_to_embed, face_i)
+
+                if len(frag_vertices) > 0:
+                    new_v_tags = np.array(
+                        [shape.tag for shape in frag_vertices]
+                    )
+                    v_tag = np.max(new_v_tags) + 1
+                    vertices = np.append(vertices, frag_vertices)
+
+                if len(frag_edges) > 0:
+                    new_e_tags = np.array(
+                        [shape.tag for shape in frag_edges]
+                    )
+                    e_tag = np.max(new_e_tags) + 1
+                    edges = np.append(edges, frag_edges)
+        return (edges, vertices)

@@ -51,6 +51,7 @@ from geometry.vertex import Vertex
 from geometry.edge import Edge
 from geometry.domain_market import build_box_1D, build_box_2D, build_box_3D
 from geometry.domain_market import build_box_2D_with_lines
+from geometry.domain_market import build_box_3D_with_planes
 from geometry.domain_market import read_fractures_file
 from geometry.domain_market import build_disjoint_lines
 from geometry.shape_manipulation import ShapeManipulation
@@ -1794,34 +1795,36 @@ def md_h1_cosserat_elasticity(gmesh):
 
 def Geometry():
 
-    box_points = np.array(
-        [
-            [0, 0, 0],
-            [1, 0, 0],
-            [1, 1, 0],
-            [0, 1, 0],
-            [0, 0, 1],
-            [1, 0, 1],
-            [1, 1, 1],
-            [0, 1, 1],
-        ]
-    )
 
-    # domain = build_box_3D(box_points)
-    # domain.build_grahp()
 
     # box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
     # domain = build_box_2D(box_points)
     # domain.build_grahp()
 
-    box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
-    file = "fracture_files/setting_2d_0.csv"
-    domain = build_box_2D_with_lines(box_points, file)
+    # box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
+    # file = "fracture_files/setting_2d_0.csv"
+    # domain = build_box_2D_with_lines(box_points, file)
 
+    box_points = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [1.0, 0.0, 1.0],
+            [1.0, 1.0, 1.0],
+            [0.0, 1.0, 1.0],
+        ]
+    )
+
+    file = "fracture_files/setting_3d_0.csv"
+    domain = build_box_3D_with_planes(box_points, file)
+    domain.build_grahp()
 
     mesher = ConformalMesher(dimension=domain.dimension)
     mesher.domain = domain
-    mesher.generate_from_domain(0.025)
+    mesher.generate_from_domain(0.5)
     mesher.write_mesh("gmesh.msh")
 
     aka = 0

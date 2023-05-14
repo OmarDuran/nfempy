@@ -55,6 +55,22 @@ class Wire(Shape):
                 seed_vertex = edge.boundary_shapes[0]
         self.orientation = np.array(self.orientation)
 
+    def orient_immersed_vertices(self):
+        edges = self.immersed_shapes
+        seed_vertex = edges[0].boundary_shapes[0]
+        if seed_vertex.tag > edges[0].boundary_shapes[1].tag:
+            seed_vertex = edges[0].boundary_shapes[1]
+
+        vertices = []
+        for edge in edges:
+            if seed_vertex == edge.boundary_shapes[0]:
+                vertices.append(edge.boundary_shapes[0])
+                seed_vertex = edge.boundary_shapes[1]
+            else:
+                vertices.append(edge.boundary_shapes[1])
+                seed_vertex = edge.boundary_shapes[0]
+        return np.array(vertices)
+
     def boundary_points(self):
         shape_b = self.immersed_shapes[0]
         shape_e = self.immersed_shapes[-1]
