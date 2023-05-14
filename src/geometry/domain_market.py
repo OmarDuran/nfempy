@@ -230,7 +230,7 @@ def build_box_2D_with_lines(box_points, lines_file, physical_tags=None):
     # performing multiple intersection of connected and disjointed edges
     edges_obj = domain.shapes[1]
     edges_tool = domain.shapes[1]
-    (edges, vertices) = ShapeManipulation.intersect_edges(
+    (frag_edges, frag_vertices) = ShapeManipulation.intersect_edges(
         edges_obj,
         edges_tool,
         v_tag_shift=max_v_tag,
@@ -239,10 +239,18 @@ def build_box_2D_with_lines(box_points, lines_file, physical_tags=None):
     )
 
     # append resulting fragments
-    domain.append_shapes(vertices)
-    domain.append_shapes(edges)
+    domain.append_shapes(frag_vertices)
+    domain.append_shapes(frag_edges)
 
     # update wires
     domain.refresh_wires()
+    domain.build_grahp()
+
+    # Remove all shapes that are not presented in the graph
+    domain.remove_vertex()
+    domain.retag_shapes()
+    domain.build_grahp()
+
+    aka = 0
 
     return domain

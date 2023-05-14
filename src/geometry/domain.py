@@ -42,6 +42,40 @@ class Domain:
     def refresh_wires(self):
         [shape.orient_immersed_edges() for shape in self.shapes[1] if shape.composite]
 
+    def retag_shapes_with_dimension(self, dim):
+        tag = 0
+        for i, shape in enumerate(self.shapes[dim]):
+            shape.tag = tag
+            tag += 1
+            if len(shape.immersed_shapes):
+                for j, ishape in enumerate(shape.immersed_shapes):
+                    if shape.dimension != dim:
+                        continue
+                    ishape.tag = tag
+                    tag += 1
+
+    def retag_shapes(self):
+        for d in range(self.dimension + 1):
+            self.retag_shapes_with_dimension(d)
+
+    def lookup_vertex(self, point):
+        indices = []
+        for i, vertex in enumerate(self.shapes[0]):
+            if np.all(np.isclose(vertex.point, point)):
+                indices.append(i)
+        if len(indices) > 0:
+            assert len(indices) == 1
+            return self.shapes[0][indices][0]
+        else:
+            return None
+
+    def remove_vertex(self):
+        shapes = []
+        for shape in self.shapes[0]:
+            if self.graph.has_node((self.dimension, shape.tag)):
+                shapes = shapes + [shape]
+        self.shapes[0] = np.array(shapes)
+
     def gather_graph_edges(self, shape: Shape, tuple_id_list):
         for bc_shape in shape.boundary_shapes:
             tuple_id_list.append(

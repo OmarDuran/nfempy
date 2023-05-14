@@ -34,7 +34,8 @@ class ShapeManipulation:
     def embed_vertex_in_edge_boundary(vertex, edge):
         vertices_bc = [vertex_bc for vertex_bc in edge.boundary_shapes]
         check = [
-            np.all(np.isclose(vertex.point, vertex_bc.point)) for vertex_bc in vertices_bc
+            np.all(np.isclose(vertex.point, vertex_bc.point))
+            for vertex_bc in vertices_bc
         ]
         if check[0]:
             edge.boundary_shapes[0] = vertex
@@ -46,7 +47,7 @@ class ShapeManipulation:
 
         # unify vertices
         points = np.array([vertex.point for vertex in vertices])
-        unique_points, indices = np.unique(points, return_index=True, axis = 0)
+        unique_points, indices = np.unique(points, return_index=True, axis=0)
         vertices = vertices[indices]
 
         indices_on_bc = []
@@ -138,14 +139,20 @@ class ShapeManipulation:
                 )
                 if intersection_data[0]:
                     new_point = intersection_data[1]
-                    obj_vertex = ShapeManipulation.point_on_edge_boundary(new_point, edge_i)
-                    tool_vertex = ShapeManipulation.point_on_edge_boundary(new_point, edge_j)
+                    obj_vertex = ShapeManipulation.point_on_edge_boundary(
+                        new_point, edge_i
+                    )
+                    tool_vertex = ShapeManipulation.point_on_edge_boundary(
+                        new_point, edge_j
+                    )
                     # Connected edges by a common vertex are ignored
                     if obj_vertex is not None and tool_vertex is not None:
                         if obj_vertex == tool_vertex:
                             continue
 
-                    existence_check = np.array([np.all(np.isclose(new_point, point)) for point in points])
+                    existence_check = np.array(
+                        [np.all(np.isclose(new_point, point)) for point in points]
+                    )
 
                     # new approach
                     if len(existence_check) != 0 and np.any(existence_check):
@@ -248,7 +255,9 @@ class ShapeManipulation:
 
         if len(points) > 0:
             # map recurrences and make geometry unique
-            unique_points, indices, inv_indices = np.unique(points, return_index=True, return_inverse=True, axis=0)
+            unique_points, indices, inv_indices = np.unique(
+                points, return_index=True, return_inverse=True, axis=0
+            )
 
             # create unique vertices
             for point in unique_points:
@@ -272,7 +281,9 @@ class ShapeManipulation:
                     vertices_to_embed, edge_i, tag_shift=e_tag
                 )
                 if len(edge_i.immersed_shapes) > 0:
-                    new_e_tags = np.array([shape.tag for shape in edge_i.immersed_shapes])
+                    new_e_tags = np.array(
+                        [shape.tag for shape in edge_i.immersed_shapes]
+                    )
                     e_tag = np.max(new_e_tags) + 1
                     edges = np.append(edges, edge_i.immersed_shapes)
 
