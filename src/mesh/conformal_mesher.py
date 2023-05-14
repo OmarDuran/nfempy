@@ -184,6 +184,7 @@ class ConformalMesher:
             for volume in self.domain.shapes[3]:
                 tag = volume_stride + volume.tag + 1
                 if not volume.composite:
+                    print("creating surface tag: ", surface.tag)
                     shell = volume.boundary_shapes[0]
                     loop_tags = [
                         surface_stride + shape.tag + 1
@@ -232,10 +233,12 @@ class ConformalMesher:
                             gmsh.model.addPhysicalGroup(
                                 1, [curve_stride + curve.tag + 1], curve.physical_tag
                             )
-                    else:
+                    elif self.domain.dimension == 2:
                         gmsh.model.addPhysicalGroup(
                             1, [curve_stride + curve.tag + 1], curve.physical_tag
                         )
+                    else:
+                        aka = 0
 
         if dimension > 1:
             for surface in self.domain.shapes[2]:
@@ -271,15 +274,48 @@ class ConformalMesher:
                         ]
                     else:
                         tags_1d = tags_1d + [curve_stride + shape_c1.tag + 1]
-                    for shape_c2 in shapes_c1:
-                        tags_0d = tags_0d + [
-                            vertex.tag + 1 for vertex in shape_c1.boundary_shapes
-                        ]
+                    tags_0d = tags_0d + [
+                        vertex.tag + 1 for vertex in shape_c1.boundary_shapes
+                    ]
 
                 tags_0d = list(np.unique(tags_0d))
                 tags_1d = list(np.unique(tags_1d))
                 gmsh.model.mesh.embed(0, tags_0d, 2, surface_stride + surface.tag + 1)
                 gmsh.model.mesh.embed(1, tags_1d, 2, surface_stride + surface.tag + 1)
+
+                numNodes = 25
+                for tag_1d in tags_1d:
+                    gmsh.model.mesh.setTransfiniteCurve(
+                        tag_1d, numNodes, "Bump", coef=0.25
+                    )
+        # embed entities
+        if dimension > 2:
+            tags_3d = [shape.tag for shape in self.domain.shapes[3]]
+            for volume in self.domain.shapes[3]:
+                if volume.composite:
+                    continue
+                print("volume tag: ", volume.tag)
+                tags_1d = []
+                tags_2d = []
+                shapes_c1 = [shape for shape in volume.immersed_shapes]
+                for shape_c1 in shapes_c1:
+                    if len(shape_c1.immersed_shapes) > 0:
+                        tags_1d = tags_1d + [
+                            curve_stride + curve.tag + 1
+                            for curve in shape_c1.immersed_shapes
+                        ]
+                    else:
+                        tags_2d = tags_2d + [surface_stride + shape_c1.tag + 1]
+                    for shape_c2 in shape_c1.boundary_shapes:
+                        tags_1d = tags_1d + [
+                            curve_stride + curve.tag + 1
+                            for curve in shape_c2.immersed_shapes
+                        ]
+
+                tags_1d = list(np.unique(tags_1d))
+                tags_2d = list(np.unique(tags_2d))
+                gmsh.model.mesh.embed(1, tags_1d, 3, volume_stride + volume.tag + 1)
+                gmsh.model.mesh.embed(2, tags_2d, 3, volume_stride + volume.tag + 1)
 
                 numNodes = 25
                 for tag_1d in tags_1d:

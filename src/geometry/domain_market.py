@@ -248,26 +248,24 @@ def build_disjoint_planes(
         v_tag += 1
 
         e0 = Edge(e_tag, np.array([v0, v1]))
-        e0.physical_tag = physical_tag
         e_tag += 1
 
         e1 = Edge(e_tag, np.array([v1, v2]))
-        e1.physical_tag = physical_tag
         e_tag += 1
 
         e2 = Edge(e_tag, np.array([v2, v3]))
-        e2.physical_tag = physical_tag
         e_tag += 1
 
         e3 = Edge(e_tag, np.array([v3, v0]))
-        e3.physical_tag = physical_tag
         e_tag += 1
 
         w0 = Wire(e_tag, np.array([e0, e1, e2, e3]), np.array([v0]))
         e_tag += 1
 
         s0 = Face(f_tag, np.array([w0]))
+        s0.physical_tag = physical_tag
         f_tag += 1
+        physical_tag += 1
 
         domain.append_shapes(np.array([v0, v1, v2, v3]))
         domain.append_shapes(np.array([e0, e1, e2, e3, w0]))
@@ -343,8 +341,8 @@ def build_box_3D_with_planes(box_points, planes_file, physical_tags=None):
     domain.build_grahp()
 
     # Remove all shapes that are not presented in the graph
-    domain.remove_vertex()
-    domain.retag_shapes()
-    domain.build_grahp()
+    # domain.remove_vertex()
+    # domain.retag_shapes()
+    # domain.build_grahp()
 
     return domain

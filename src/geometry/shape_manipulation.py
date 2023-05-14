@@ -41,7 +41,6 @@ class ShapeManipulation:
                     return f_edge
         return None
 
-
     @staticmethod
     def embed_vertex_in_edge_boundary(vertex, edge):
         vertices_bc = [vertex_bc for vertex_bc in edge.boundary_shapes]
@@ -265,16 +264,25 @@ class ShapeManipulation:
                             continue
 
                     existence_check = np.array(
-                        [np.all(np.isclose(new_points, point_pair)) for point_pair in point_pairs]
+                        [
+                            np.all(np.isclose(new_points, point_pair))
+                            for point_pair in point_pairs
+                        ]
                     )
 
                     # new approach
                     if len(existence_check) != 0 and np.any(existence_check):
                         v_index = np.argwhere(existence_check)[0, 0]
-                        point_pairs = np.append((point_pairs, point_pairs[v_index]), axis=0)
+                        point_pairs = np.append(
+                            (point_pairs, point_pairs[v_index]), axis=0
+                        )
                     else:
-                        point_pairs = np.append(point_pairs, np.array([new_points]), axis=0)
-                    case_plane_indices = np.vstack((case_plane_indices, np.array([i, j])))
+                        point_pairs = np.append(
+                            point_pairs, np.array([new_points]), axis=0
+                        )
+                    case_plane_indices = np.vstack(
+                        (case_plane_indices, np.array([i, j]))
+                    )
 
         if len(point_pairs) > 0:
             # map recurrences and make geometry unique
@@ -312,14 +320,16 @@ class ShapeManipulation:
                 face_i_edges = face_i.boundary_shapes[0].immersed_shapes
                 face_i_vertices = face_i.boundary_shapes[0].orient_immersed_vertices()
                 face_i_pts = np.array([vertex.point for vertex in face_i_vertices])
-                dir = (face_i_pts[2] - face_i_pts[0]) / np.linalg.norm(face_i_pts[2] - face_i_pts[0])
+                dir = (face_i_pts[2] - face_i_pts[0]) / np.linalg.norm(
+                    face_i_pts[2] - face_i_pts[0]
+                )
                 axis_dir = np.argmin(np.abs(dir))
 
                 edges_to_embed = np.array([edge_map[i] for i in case_indices])
 
                 # performing multiple intersection of connected and disjointed edges
-                edges_obj = np.insert(edges_to_embed, 0, face_i_edges, axis = 0)
-                edges_tool = np.insert(edges_to_embed, 0, face_i_edges, axis = 0)
+                edges_obj = np.insert(edges_to_embed, 0, face_i_edges, axis=0)
+                edges_tool = np.insert(edges_to_embed, 0, face_i_edges, axis=0)
                 (frag_edges, frag_vertices) = ShapeManipulation.intersect_edges(
                     edges_obj,
                     edges_tool,
@@ -332,16 +342,12 @@ class ShapeManipulation:
                 ShapeManipulation.embed_edge_in_face(edges_to_embed, face_i)
 
                 if len(frag_vertices) > 0:
-                    new_v_tags = np.array(
-                        [shape.tag for shape in frag_vertices]
-                    )
+                    new_v_tags = np.array([shape.tag for shape in frag_vertices])
                     v_tag = np.max(new_v_tags) + 1
                     vertices = np.append(vertices, frag_vertices)
 
                 if len(frag_edges) > 0:
-                    new_e_tags = np.array(
-                        [shape.tag for shape in frag_edges]
-                    )
+                    new_e_tags = np.array([shape.tag for shape in frag_edges])
                     e_tag = np.max(new_e_tags) + 1
                     edges = np.append(edges, frag_edges)
         return (edges, vertices)
