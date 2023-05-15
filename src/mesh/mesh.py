@@ -5,6 +5,7 @@ import meshio
 import networkx as nx
 import numpy as np
 
+from geometry.domain import Domain
 from mesh.mesh_cell import MeshCell, barycenter, rotate_vector
 
 
