@@ -4,11 +4,13 @@ import functools
 import marshal
 import sys
 import time
+
 # from itertools import permutations
 from functools import partial, reduce
 
 import basix
 import matplotlib.colors as mcolors
+
 # import matplotlib.pyplot as plt
 import matplotlib.pyplot as plt
 import matplotlib.pyplot as plot
@@ -25,15 +27,19 @@ import geometry.fracture_network as fn
 from basis.element_data import ElementData
 from basis.finite_element import FiniteElement
 from geometry.domain import Domain
-from geometry.domain_market import (build_box_1D, build_box_2D,
-                                    build_box_2D_with_lines, build_box_3D,
-                                    build_box_3D_with_planes,
-                                    build_disjoint_lines, read_fractures_file)
+from geometry.domain_market import (
+    build_box_1D,
+    build_box_2D,
+    build_box_2D_with_lines,
+    build_box_3D,
+    build_box_3D_with_planes,
+    build_disjoint_lines,
+    read_fractures_file,
+)
 from geometry.edge import Edge
 from geometry.geometry_builder import GeometryBuilder
 from geometry.geometry_cell import GeometryCell
-from geometry.mapping import (evaluate_linear_shapes, evaluate_mapping,
-                              store_mapping)
+from geometry.mapping import evaluate_linear_shapes, evaluate_mapping, store_mapping
 from geometry.shape_manipulation import ShapeManipulation
 from geometry.vertex import Vertex
 from mesh.conformal_mesher import ConformalMesher
@@ -54,7 +60,7 @@ def matrix_plot(J, sparse_q=True):
     plot.show()
 
 
-def h1_elasticity(gmesh):
+def h1_elasticity(k_order, gmesh, write_vtk_q=False):
 
     dim = gmesh.dimension
     # Material data
@@ -68,7 +74,6 @@ def h1_elasticity(gmesh):
         n_components = 3
 
     discontinuous = True
-    k_order = 2
     family = "Lagrange"
 
     u_field = DiscreteField(dim, n_components, family, k_order, gmesh)
@@ -401,7 +406,8 @@ def h1_elasticity(gmesh):
         p_e_s = f_exact(x[:, 0], x[:, 1], x[:, 2])
         alpha_star = np.array(np.split(alpha_l, n_phi))
         p_h_s = (phi_tab[0, :, :, 0] @ alpha_star).T
-        l2_error = np.sum(det_jac * weights * (p_e_s - p_h_s) * (p_e_s - p_h_s))
+        diff_p = p_e_s - p_h_s
+        l2_error = np.sum(det_jac * weights * diff_p * diff_p)
         return l2_error
 
     st = time.time()
@@ -409,75 +415,82 @@ def h1_elasticity(gmesh):
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
-    l2_error = functools.reduce(lambda x, y: x + y, error_vec)
-    print("L2-error: ", np.sqrt(l2_error))
+    l2_error = np.sqrt(functools.reduce(lambda x, y: x + y, error_vec))
+    print("L2-error: ", l2_error)
 
-    # post-process solution
-    st = time.time()
-    cellid_to_element = dict(zip(u_field.element_ids, u_field.elements))
-    # writing solution on mesh points
-    vertices = u_field.mesh_topology.entities_by_dimension(0)
-    fh_data = np.zeros((len(gmesh.points), n_components))
-    fe_data = np.zeros((len(gmesh.points), n_components))
-    cell_vertex_map = u_field.mesh_topology.entity_map_by_dimension(0)
-    for id in vertices:
-        if not cell_vertex_map.has_node(id):
-            continue
+    if write_vtk_q:
+        # post-process solution
+        st = time.time()
+        cellid_to_element = dict(zip(u_field.element_ids, u_field.elements))
+        # writing solution on mesh points
+        vertices = u_field.mesh_topology.entities_by_dimension(0)
+        fh_data = np.zeros((len(gmesh.points), n_components))
+        fe_data = np.zeros((len(gmesh.points), n_components))
+        cell_vertex_map = u_field.mesh_topology.entity_map_by_dimension(0)
+        for id in vertices:
+            if not cell_vertex_map.has_node(id):
+                continue
 
-        pr_ids = list(cell_vertex_map.predecessors(id))
-        cell = gmesh.cells[pr_ids[0]]
-        if cell.dimension != u_field.dimension:
-            continue
+            pr_ids = list(cell_vertex_map.predecessors(id))
+            cell = gmesh.cells[pr_ids[0]]
+            if cell.dimension != u_field.dimension:
+                continue
 
-        element = cellid_to_element[pr_ids[0]]
+            element = cellid_to_element[pr_ids[0]]
 
-        # scattering dof
-        dest = u_field.dof_map.destination_indices(cell.id)
-        alpha_l = alpha[dest]
+            # scattering dof
+            dest = u_field.dof_map.destination_indices(cell.id)
+            alpha_l = alpha[dest]
 
-        par_points = basix.geometry(u_field.element_type)
+            par_points = basix.geometry(u_field.element_type)
 
-        target_node_id = gmesh.cells[id].node_tags[0]
-        par_point_id = np.array(
-            [i for i, node_id in enumerate(cell.node_tags) if node_id == target_node_id]
+            target_node_id = gmesh.cells[id].node_tags[0]
+            par_point_id = np.array(
+                [
+                    i
+                    for i, node_id in enumerate(cell.node_tags)
+                    if node_id == target_node_id
+                ]
+            )
+
+            points = gmesh.points[target_node_id]
+            if u_field.dimension != 0:
+                points = par_points[par_point_id]
+
+            # evaluate mapping
+            phi_shapes = evaluate_linear_shapes(points, element.data)
+            (x, jac, det_jac, inv_jac) = evaluate_mapping(
+                cell.dimension, phi_shapes, gmesh.points[cell.node_tags]
+            )
+            phi_tab = element.evaluate_basis(points)
+            n_phi = phi_tab.shape[2]
+            f_e = f_exact(x[:, 0], x[:, 1], x[:, 2])
+            alpha_star = np.array(np.split(alpha_l, n_phi))
+            f_h = (phi_tab[0, :, :, 0] @ alpha_star).T
+            fh_data[target_node_id] = f_h.ravel()
+            fe_data[target_node_id] = f_e.ravel()
+
+        mesh_points = gmesh.points
+        con_d = np.array([element.data.cell.node_tags for element in u_field.elements])
+        meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
+        cells_dict = {meshio_cell_types[u_field.dimension]: con_d}
+        p_data_dict = {"u_h": fh_data, "u_exact": fe_data}
+
+        mesh = meshio.Mesh(
+            points=mesh_points,
+            cells=cells_dict,
+            # Optionally provide extra data on points, cells, etc.
+            point_data=p_data_dict,
         )
+        mesh.write("rates_h1_elasticity.vtk")
+        et = time.time()
+        elapsed_time = et - st
+        print("Post-processing time:", elapsed_time, "seconds")
 
-        points = gmesh.points[target_node_id]
-        if u_field.dimension != 0:
-            points = par_points[par_point_id]
-
-        # evaluate mapping
-        phi_shapes = evaluate_linear_shapes(points, element.data)
-        (x, jac, det_jac, inv_jac) = evaluate_mapping(
-            cell.dimension, phi_shapes, gmesh.points[cell.node_tags]
-        )
-        phi_tab = element.evaluate_basis(points)
-        n_phi = phi_tab.shape[2]
-        f_e = f_exact(x[:, 0], x[:, 1], x[:, 2])
-        alpha_star = np.array(np.split(alpha_l, n_phi))
-        f_h = (phi_tab[0, :, :, 0] @ alpha_star).T
-        fh_data[target_node_id] = f_h.ravel()
-        fe_data[target_node_id] = f_e.ravel()
-
-    mesh_points = gmesh.points
-    con_d = np.array([element.data.cell.node_tags for element in u_field.elements])
-    meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
-    cells_dict = {meshio_cell_types[u_field.dimension]: con_d}
-    p_data_dict = {"u_h": fh_data, "u_exact": fe_data}
-
-    mesh = meshio.Mesh(
-        points=mesh_points,
-        cells=cells_dict,
-        # Optionally provide extra data on points, cells, etc.
-        point_data=p_data_dict,
-    )
-    mesh.write("md_h1_elasticity.vtk")
-    et = time.time()
-    elapsed_time = et - st
-    print("Post-processing time:", elapsed_time, "seconds")
+    return l2_error
 
 
-def h1_cosserat_elasticity(gmesh):
+def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
     dim = gmesh.dimension
     # Material data
@@ -492,8 +505,6 @@ def h1_cosserat_elasticity(gmesh):
     if dim == 3:
         n_components = 6
 
-    discontinuous = True
-    k_order = 3
     family = "Lagrange"
 
     u_field = DiscreteField(dim, n_components, family, k_order, gmesh)
@@ -1056,72 +1067,79 @@ def h1_cosserat_elasticity(gmesh):
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
-    l2_error = functools.reduce(lambda x, y: x + y, error_vec)
-    print("L2-error: ", np.sqrt(l2_error))
+    l2_error = np.sqrt(functools.reduce(lambda x, y: x + y, error_vec))
+    print("L2-error: ", l2_error)
 
-    # post-process solution
-    st = time.time()
-    cellid_to_element = dict(zip(u_field.element_ids, u_field.elements))
-    # writing solution on mesh points
-    vertices = u_field.mesh_topology.entities_by_dimension(0)
-    fh_data = np.zeros((len(gmesh.points), n_components))
-    fe_data = np.zeros((len(gmesh.points), n_components))
-    cell_vertex_map = u_field.mesh_topology.entity_map_by_dimension(0)
-    for id in vertices:
-        if not cell_vertex_map.has_node(id):
-            continue
+    if write_vtk_q:
+        # post-process solution
+        st = time.time()
+        cellid_to_element = dict(zip(u_field.element_ids, u_field.elements))
+        # writing solution on mesh points
+        vertices = u_field.mesh_topology.entities_by_dimension(0)
+        fh_data = np.zeros((len(gmesh.points), n_components))
+        fe_data = np.zeros((len(gmesh.points), n_components))
+        cell_vertex_map = u_field.mesh_topology.entity_map_by_dimension(0)
+        for id in vertices:
+            if not cell_vertex_map.has_node(id):
+                continue
 
-        pr_ids = list(cell_vertex_map.predecessors(id))
-        cell = gmesh.cells[pr_ids[0]]
-        if cell.dimension != u_field.dimension:
-            continue
+            pr_ids = list(cell_vertex_map.predecessors(id))
+            cell = gmesh.cells[pr_ids[0]]
+            if cell.dimension != u_field.dimension:
+                continue
 
-        element = cellid_to_element[pr_ids[0]]
+            element = cellid_to_element[pr_ids[0]]
 
-        # scattering dof
-        dest = u_field.dof_map.destination_indices(cell.id)
-        alpha_l = alpha[dest]
+            # scattering dof
+            dest = u_field.dof_map.destination_indices(cell.id)
+            alpha_l = alpha[dest]
 
-        par_points = basix.geometry(u_field.element_type)
+            par_points = basix.geometry(u_field.element_type)
 
-        target_node_id = gmesh.cells[id].node_tags[0]
-        par_point_id = np.array(
-            [i for i, node_id in enumerate(cell.node_tags) if node_id == target_node_id]
+            target_node_id = gmesh.cells[id].node_tags[0]
+            par_point_id = np.array(
+                [
+                    i
+                    for i, node_id in enumerate(cell.node_tags)
+                    if node_id == target_node_id
+                ]
+            )
+
+            points = gmesh.points[target_node_id]
+            if u_field.dimension != 0:
+                points = par_points[par_point_id]
+
+            # evaluate mapping
+            phi_shapes = evaluate_linear_shapes(points, element.data)
+            (x, jac, det_jac, inv_jac) = evaluate_mapping(
+                cell.dimension, phi_shapes, gmesh.points[cell.node_tags]
+            )
+            phi_tab = element.evaluate_basis(points)
+            n_phi = phi_tab.shape[2]
+            f_e = f_exact(x[:, 0], x[:, 1], x[:, 2])
+            alpha_star = np.array(np.split(alpha_l, n_phi))
+            f_h = (phi_tab[0, :, :, 0] @ alpha_star).T
+            fh_data[target_node_id] = f_h.ravel()
+            fe_data[target_node_id] = f_e.ravel()
+
+        mesh_points = gmesh.points
+        con_d = np.array([element.data.cell.node_tags for element in u_field.elements])
+        meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
+        cells_dict = {meshio_cell_types[u_field.dimension]: con_d}
+        p_data_dict = {"u_h": fh_data, "u_exact": fe_data}
+
+        mesh = meshio.Mesh(
+            points=mesh_points,
+            cells=cells_dict,
+            # Optionally provide extra data on points, cells, etc.
+            point_data=p_data_dict,
         )
+        mesh.write("rates_h1_cosserat_elasticity.vtk")
+        et = time.time()
+        elapsed_time = et - st
+        print("Post-processing time:", elapsed_time, "seconds")
 
-        points = gmesh.points[target_node_id]
-        if u_field.dimension != 0:
-            points = par_points[par_point_id]
-
-        # evaluate mapping
-        phi_shapes = evaluate_linear_shapes(points, element.data)
-        (x, jac, det_jac, inv_jac) = evaluate_mapping(
-            cell.dimension, phi_shapes, gmesh.points[cell.node_tags]
-        )
-        phi_tab = element.evaluate_basis(points)
-        n_phi = phi_tab.shape[2]
-        f_e = f_exact(x[:, 0], x[:, 1], x[:, 2])
-        alpha_star = np.array(np.split(alpha_l, n_phi))
-        f_h = (phi_tab[0, :, :, 0] @ alpha_star).T
-        fh_data[target_node_id] = f_h.ravel()
-        fe_data[target_node_id] = f_e.ravel()
-
-    mesh_points = gmesh.points
-    con_d = np.array([element.data.cell.node_tags for element in u_field.elements])
-    meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
-    cells_dict = {meshio_cell_types[u_field.dimension]: con_d}
-    p_data_dict = {"u_h": fh_data, "u_exact": fe_data}
-
-    mesh = meshio.Mesh(
-        points=mesh_points,
-        cells=cells_dict,
-        # Optionally provide extra data on points, cells, etc.
-        point_data=p_data_dict,
-    )
-    mesh.write("md_h1_cosserat_elasticity.vtk")
-    et = time.time()
-    elapsed_time = et - st
-    print("Post-processing time:", elapsed_time, "seconds")
+    return l2_error
 
 
 def create_domain(dimension):
@@ -1151,7 +1169,7 @@ def create_domain(dimension):
         return domain
 
 
-def create_conformal_mesher(domain: Domain, h, ref_l):
+def create_conformal_mesher(domain: Domain, h, ref_l = 0):
     mesher = ConformalMesher(dimension=domain.dimension)
     mesher.domain = domain
     mesher.generate_from_domain(h, ref_l)
@@ -1167,20 +1185,39 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
         gmesh.write_vtk()
     return gmesh
 
-
 def main():
 
-    k = 1
-    h = 0.1
+    k_order = 3
+    h = 1.0
+    n_ref = 6
+    dimension = 2
     ref_l = 0
-    dimension = 3
 
     domain = create_domain(dimension)
-    mesher = create_conformal_mesher(domain, h, ref_l)
-    gmesh = create_mesh(dimension, mesher, False)
+    error_data = np.empty((0, 2), float)
+    for l in range(n_ref):
+        h_val = h * (2**-l)
+        mesher = create_conformal_mesher(domain, h, l)
+        gmesh = create_mesh(dimension, mesher, False)
+        # error_val = h1_elasticity(k_order, gmesh, False)
+        error_val = h1_cosserat_elasticity(k_order, gmesh, False)
+        error_data = np.append(error_data, np.array([[h_val, error_val]]), axis=0)
 
-    h1_elasticity(gmesh)
-    # h1_cosserat_elasticity(gmesh)
+    rates_data = np.empty((0, 1), float)
+    for i in range(error_data.shape[0] - 1):
+        chunk_b = np.log(error_data[i])
+        chunk_e = np.log(error_data[i + 1])
+        h_step = chunk_e[0] - chunk_b[0]
+        partial = (chunk_e - chunk_b) / h_step
+        rates_data = np.append(rates_data, np.array([list(partial[1:2])]), axis=0)
+
+    print("error data: ", error_data)
+    print("error rates data: ", rates_data)
+
+    np.set_printoptions(precision=4)
+    print("rounded error data: ", error_data)
+    print("rounded error rates data: ", rates_data)
+
     return
 
 
