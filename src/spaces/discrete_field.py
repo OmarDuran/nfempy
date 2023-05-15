@@ -161,11 +161,15 @@ class DiscreteField:
                 if mesh.cells[id].material_id in physical_tags
             ]
 
+        bc_familiy = self.family
+        if self.dimension - 1 < 2 :
+            bc_familiy = family_by_name("Lagrange")
+
         self.bc_elements = list(
             map(
                 partial(
                     FiniteElement,
-                    family=self.family,
+                    family=bc_familiy,
                     k_order=self.k_order,
                     mesh=self.mesh_topology.mesh,
                     discontinuous=self.discontinuous,
