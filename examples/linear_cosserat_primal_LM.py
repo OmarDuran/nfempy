@@ -60,7 +60,7 @@ def matrix_plot(J, sparse_q=True):
     plot.show()
 
 
-def h1_elasticity(k_order, gmesh, write_vtk_q=False):
+def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
 
     dim = gmesh.dimension
     # Material data
@@ -346,12 +346,7 @@ def h1_elasticity(k_order, gmesh, write_vtk_q=False):
             # Optionally provide extra data on points, cells, etc.
             point_data=p_data_dict,
         )
-        if dim == 1:
-            prefix = "rod"
-        elif dim == 2:
-            prefix = "plate"
-        else:
-            prefix = "solid"
+        prefix = "lm"
         name = prefix + "_elasticity.vtk"
         mesh.write(name)
         et = time.time()
@@ -1057,8 +1052,8 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 def main():
 
-    dimension = 2
-    k_order = 3
+    dimension = 3
+    k_order = 2
     h_thickness = 0.1
     h = 0.05
     l = 0
@@ -1068,7 +1063,7 @@ def main():
     mesher = create_conformal_mesher(domain, h, l)
     gmesh = create_mesh(dimension, mesher, True)
 
-    h1_elasticity(k_order, gmesh, True)
+    # lm_h1_elasticity(k_order, gmesh, True)
     # h1_cosserat_elasticity(k_order, gmesh, False)
     return
 
