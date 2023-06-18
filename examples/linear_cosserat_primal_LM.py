@@ -1007,17 +1007,19 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     return l2_error
 
 
-def create_domain(dimension, h_thickness):
+def create_md_domain(dimension):
 
     if dimension == 1:
         box_points = np.array([[0, 0, 0], [1, 0, 0]])
         domain = build_box_1D(box_points)
         return domain
     elif dimension == 2:
+        lines_file = "fracture_files/setting_2d_single_fracture.csv"
         box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
-        domain = build_box_2D(box_points)
+        domain = build_box_2D_with_lines(box_points, lines_file)
         return domain
     else:
+        h_thickness = 1.0
         box_points = np.array(
             [
                 [0.0, 0.0, -h_thickness/2],
@@ -1046,24 +1048,24 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
     gmesh = Mesh(dimension=dimension, file_name="gmesh.msh")
     gmesh.set_conformal_mesher(mesher)
     gmesh.build_conformal_mesh()
+    map_fracs_edge = gmesh.cut_conformity_on_embed_shapes()
     if write_vtk_q:
         gmesh.write_vtk()
+        gmesh.write_data()
     return gmesh
 
 def main():
 
-    dimension = 3
+    dimension = 2
     k_order = 2
-    h_thickness = 0.1
-    h = 0.05
+    h = 1.0
     l = 0
-    ref_l = 0
 
-    domain = create_domain(dimension, h_thickness)
+    domain = create_md_domain(dimension)
     mesher = create_conformal_mesher(domain, h, l)
     gmesh = create_mesh(dimension, mesher, True)
 
-    # lm_h1_elasticity(k_order, gmesh, True)
+    lm_h1_elasticity(k_order, gmesh, True)
     # h1_cosserat_elasticity(k_order, gmesh, False)
     return
 

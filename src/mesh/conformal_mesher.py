@@ -234,6 +234,15 @@ class ConformalMesher:
                                 1, [curve_stride + curve.tag + 1], curve.physical_tag
                             )
                     elif self.domain.dimension == 2:
+
+                        if self.domain.dimension > 1:
+                            tags_0d = [
+                                vertex.tag + 1
+                                for vertex in curve.boundary_shapes
+                                if vertex.physical_tag is None
+                            ]
+                            gmsh.model.addPhysicalGroup(0, tags_0d, curve.physical_tag)
+
                         gmsh.model.addPhysicalGroup(
                             1, [curve_stride + curve.tag + 1], curve.physical_tag
                         )
@@ -283,7 +292,7 @@ class ConformalMesher:
                 gmsh.model.mesh.embed(0, tags_0d, 2, surface_stride + surface.tag + 1)
                 gmsh.model.mesh.embed(1, tags_1d, 2, surface_stride + surface.tag + 1)
 
-                numNodes = 25
+                numNodes = 3
                 for tag_1d in tags_1d:
                     gmsh.model.mesh.setTransfiniteCurve(
                         tag_1d, numNodes, "Bump", coef=0.25

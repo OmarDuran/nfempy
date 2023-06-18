@@ -55,6 +55,7 @@ class MeshCell:
         self.type = self.mesh_cell_type(dimension)
         self.id = None
         self.material_id = None
+        self.physical_name = "Unnamed"
         self.node_tags = np.array([], dtype=int)
         self.perm = np.array([], dtype=int)
         data = [np.array([], dtype=int) for i in range(dimension + 1)]
@@ -65,6 +66,12 @@ class MeshCell:
 
     def get_id(self):
         return self.id
+
+    def set_physical_name(self, physical_name):
+        self.physical_name = physical_name
+
+    def get_physical_name(self):
+        return self.physical_name
 
     def set_material_id(self, material_id):
         self.material_id = material_id

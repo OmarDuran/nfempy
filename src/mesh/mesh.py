@@ -19,6 +19,7 @@ class Mesh:
         self.points = self.conformal_mesh.points
         self.cell_data = {}
         self.fracture_normals = {}
+        self.embed_shape_normals = {}
         self.conformal_mesher = None
 
         self.entities_0d = {}
@@ -389,6 +390,7 @@ class Mesh:
                 print("Dimension: ", cell.dimension, file=file)
                 print("Tag: ", cell.id, file=file)
                 print("Physical_tag: ", cell.material_id, file=file)
+                print("Physical_name: ", cell.physical_name, file=file)
                 print("Node_tags: ", *cell.node_tags, sep=" ", file=file)
                 for dim, cells_ids_dim in enumerate(cell.sub_cells_ids):
                     print(
@@ -624,6 +626,205 @@ class Mesh:
             with_labels=True,
             node_color="skyblue",
         )
+
+    def compute_normals_on_embed_shapes(self):
+        assert self.dimension == 2
+        domain: Domain = self.conformal_mesher.domain
+        shapes = domain.shapes[self.dimension]
+        assert len(shapes) == 1
+        no_immersed_shapes_q = len(shapes[0].immersed_shapes) == 0
+        if no_immersed_shapes_q:
+            return
+        for embed_shape in shapes[0].immersed_shapes:
+            b_points = embed_shape.boundary_points()
+            R = b_points[1] - b_points[0]
+            tau = (R) / np.linalg.norm(R)
+            n = rotate_vector(tau, np.pi / 2.0)
+            xc = barycenter(b_points)
+            self.embed_shape_normals[embed_shape.physical_tag] = (n, xc)
+
+    def cut_conformity_on_embed_shapes(self):
+
+        # As alternative skins can be identified with
+        # for the positive side sp_<physical_tag>
+        # for the negative side sm_<physical_tag>
+        p_tag_shit = 10000
+
+        assert self.dimension == 2
+
+        # dictionary of fracture id's to (normal,fracture barycenter)
+        self.compute_normals_on_embed_shapes()
+
+        map_fracs_edge = {}
+
+        for data in self.embed_shape_normals.items():
+            gd2c2 = self.build_graph(2, 2)
+            gd2c1 = self.build_graph(2, 1)
+            gd1c1 = self.build_graph(1, 1)
+
+            mat_id, (n, f_xc) = data
+            f_cells = [
+                cell
+                for cell in self.cells
+                if (cell.id is not None)
+                and cell.material_id == mat_id
+                and cell.dimension == self.dimension - 1
+            ]
+            f_cell_ids = [cell.id for cell in f_cells]
+
+            neighs_by_face = []
+            for edge_id in f_cell_ids:
+                neighs_by_face = neighs_by_face + list(gd2c1.predecessors(edge_id))
+
+            # edges duplication
+            cells_n = []
+            cells_p = []
+            for neigh_id in neighs_by_face:
+                neigh = self.cells[neigh_id]
+                cell_xc = barycenter(self.points[neigh.node_tags])
+                positive_q = np.dot(cell_xc - f_xc, n) > 0.0
+                if positive_q:
+                    cells_p.append(neigh_id)
+                else:
+                    cells_n.append(neigh_id)
+
+            max_cell_id = len(self.cells)
+            new_cell_ids = np.array(list(range(0, 2 * len(f_cells)))) + max_cell_id
+            [new_cell_ids_p, new_cell_ids_n] = np.split(new_cell_ids, 2)
+
+            map_edge_p = {}
+            for i, cell_id in enumerate(new_cell_ids_p):
+                mat_id_p = p_tag_shit + mat_id + 1
+                mesh_cell = copy.deepcopy(f_cells[i])
+                mesh_cell.set_material_id(mat_id_p)
+                mesh_cell.set_physical_name("sp_" + str(mat_id))
+                mesh_cell.id = cell_id
+                mesh_cell.set_sub_cells_ids(mesh_cell.dimension, np.array([cell_id]))
+                self.cells = np.append(self.cells, mesh_cell)
+                map_edge_p[f_cells[i].id] = cell_id
+
+            map_edge_n = {}
+            for i, cell_id in enumerate(new_cell_ids_n):
+                mat_id_n = p_tag_shit + mat_id - 1
+                mesh_cell = copy.deepcopy(f_cells[i])
+                mesh_cell.set_material_id(mat_id_n)
+                mesh_cell.set_physical_name("sm_" + str(mat_id))
+                mesh_cell.id = cell_id
+                mesh_cell.set_sub_cells_ids(mesh_cell.dimension, np.array([cell_id]))
+                self.cells = np.append(self.cells, mesh_cell)
+                map_edge_n[f_cells[i].id] = cell_id
+
+            # collect new edges pair
+            for i, cell_id_pair in enumerate(zip(new_cell_ids_p, new_cell_ids_n)):
+                map_fracs_edge[f_cells[i].id] = cell_id_pair
+
+            for cell_p_id in cells_p:
+                self.update_entity_with_dimension(1, cell_p_id, map_edge_p)
+
+            for cell_n_id in cells_n:
+                self.update_entity_with_dimension(1, cell_n_id, map_edge_n)
+
+            # vertices duplication
+            vertices = np.unique(
+                np.array(
+                    [vertex for cell in f_cells for vertex in cell.sub_cells_ids[0]]
+                )
+            )
+            vertices = [
+                vertex
+                for vertex in vertices
+                if self.cells[vertex].material_id != mat_id
+            ]
+            if len(vertices) == 0:
+                continue
+
+            neighs_by_vertex = []
+            for vertex in vertices:
+                neighs_by_vertex = neighs_by_vertex + list(gd2c2.predecessors(vertex))
+                neighs_by_vertex = neighs_by_vertex + list(gd1c1.predecessors(vertex))
+            neighs_by_vertex = [
+                neigh_id for neigh_id in neighs_by_vertex if neigh_id not in f_cell_ids
+            ]
+            neighs = np.unique(neighs_by_vertex)
+            cells_n = []
+            cells_p = []
+            for neigh_id in neighs:
+                neigh = self.cells[neigh_id]
+                cell_xc = barycenter(self.points[neigh.node_tags])
+                positive_q = np.dot(cell_xc - f_xc, n) > 0.0
+                if positive_q:
+                    cells_p.append(neigh_id)
+                else:
+                    cells_n.append(neigh_id)
+            max_node_id = len(self.points)
+            new_nodes = np.array(
+                [self.points[self.cells[vertex].node_tags[0]] for vertex in vertices]
+            )
+            self.points = np.vstack((self.points, new_nodes))
+            self.points = np.vstack((self.points, new_nodes))
+            new_node_tags = np.array(list(range(0, 2 * len(new_nodes)))) + max_node_id
+
+            max_cell_id = len(self.cells)
+            new_cell_ids = np.array(list(range(0, 2 * len(new_nodes)))) + max_cell_id
+            [new_cell_ids_p, new_cell_ids_n] = np.split(new_cell_ids, 2)
+            [new_node_tags_p, new_node_tags_n] = np.split(new_node_tags, 2)
+
+            map_vertex_p = {}
+            map_node_p = {}
+            for i, cell_id in enumerate(new_cell_ids_p):
+                mat_id_p = None
+                if self.cells[vertices[i]].material_id is not None:
+                    mat_id_p = p_tag_shit + mat_id + 1
+                mesh_cell = self.create_cell(
+                    0, np.array([new_node_tags_p[i]]), cell_id, mat_id_p
+                )
+                mesh_cell.set_physical_name("sp_" + str(mat_id))
+                mesh_cell.set_sub_cells_ids(
+                    mesh_cell.dimension, np.array([new_node_tags_p[i]])
+                )
+                self.cells = np.append(self.cells, mesh_cell)
+                map_vertex_p[vertices[i]] = cell_id
+                old_node_tag = self.cells[vertices[i]].node_tags[0]
+                map_node_p[old_node_tag] = new_node_tags_p[i]
+
+            map_vertex_n = {}
+            map_node_n = {}
+            for i, cell_id in enumerate(new_cell_ids_n):
+                mat_id_n = None
+                if self.cells[vertices[i]].material_id is not None:
+                    mat_id_n = p_tag_shit + mat_id - 1
+
+                mesh_cell = self.create_cell(
+                    0, np.array([new_node_tags_n[i]]), cell_id, mat_id_n
+                )
+                mesh_cell.set_physical_name("sm_" + str(mat_id))
+                mesh_cell.set_sub_cells_ids(
+                    mesh_cell.dimension, np.array([new_node_tags_n[i]])
+                )
+                self.cells = np.append(self.cells, mesh_cell)
+                map_vertex_n[vertices[i]] = cell_id
+                old_node_tag = self.cells[vertices[i]].node_tags[0]
+                map_node_n[old_node_tag] = new_node_tags_n[i]
+
+            # update nodes and vertex
+            for cell_p_id in cells_p:
+                self.update_entity_with_dimension(0, cell_p_id, map_vertex_p)
+                self.update_nodes_ids(cell_p_id, map_node_p)
+
+            for cell_n_id in cells_n:
+                self.update_entity_with_dimension(0, cell_n_id, map_vertex_n)
+                self.update_nodes_ids(cell_n_id, map_node_n)
+
+            # update nodes and vertex on duplicated edges
+            for cell_p_id in map_edge_p.values():
+                self.update_entity_with_dimension(0, cell_p_id, map_vertex_p)
+                self.update_nodes_ids(cell_p_id, map_node_p)
+
+            for cell_n_id in map_edge_n.values():
+                self.update_entity_with_dimension(0, cell_n_id, map_vertex_n)
+                self.update_nodes_ids(cell_n_id, map_node_n)
+
+        return map_fracs_edge
 
     def compute_fracture_normals(self):
         assert self.dimension == 2

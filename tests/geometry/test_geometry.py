@@ -78,7 +78,7 @@ def test_domain_1d_vertex_in_edge():
     for vertex, physical_tag in zip(vertices, physical_tags):
         vertex.physical_tag = physical_tag
 
-    # embed_vertex_in_edge will filter points not in the interval
+    # embed_vertex_in_edge will filter points not in the line
     vertices = ShapeManipulation.embed_vertex_in_edge(
         vertices, edge_0, tag_shift=max_edge_tag
     )
