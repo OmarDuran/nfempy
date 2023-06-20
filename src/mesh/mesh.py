@@ -577,6 +577,32 @@ class Mesh:
             if self.cells[id].dimension != dimension:
                 self.gather_graph_edges(dimension, self.cells[id], tuple_id_list)
 
+    def gather_graph_edges_on_physical_tags(self, physical_tags, dimension, mesh_cell, tuple_id_list):
+        if mesh_cell.id is None:
+            return
+
+        mesh_cell_list = None
+        if dimension == 0:
+            mesh_cell_list = mesh_cell.sub_cells_ids[0]
+        elif dimension == 1:
+            mesh_cell_list = mesh_cell.sub_cells_ids[1]
+        elif dimension == 2:
+            mesh_cell_list = mesh_cell.sub_cells_ids[2]
+        elif dimension == 3:
+            mesh_cell_list = mesh_cell.sub_cells_ids[3]
+        else:
+            raise ValueError("Dimension not available: ", dimension)
+
+        # this assertion is associated with the condition below:
+        # if i > 0 and self.cells[id].dimension == 1:
+        assert self.dimension == 2
+        for i, id in enumerate(mesh_cell_list):
+            if i > 0 and self.cells[id].dimension == 1:
+                continue
+            tuple_id_list.append((mesh_cell.id, id))
+            if self.cells[id].dimension != dimension:
+                self.gather_graph_edges_on_physical_tags(physical_tags, dimension, self.cells[id], tuple_id_list)
+
     def build_graph(self, dimension, co_dimension):
         disjoint_cells = [
             cell_i for cell_i in self.cells if cell_i.dimension == dimension
@@ -600,6 +626,21 @@ class Mesh:
         tuple_id_list = [[] for i in range(len(disjoint_cells))]
         for i, cell_i in enumerate(disjoint_cells):
             self.gather_graph_edges(dimension - co_dimension, cell_i, tuple_id_list[i])
+        tuple_id_list = list(itertools.chain(*tuple_id_list))
+
+        graph = nx.from_edgelist(tuple_id_list, create_using=nx.DiGraph)
+        return graph
+
+    def build_graph_on_physical_tags(self, physical_tags, dimension, co_dimension):
+        disjoint_cells = [
+            cell_i
+            for cell_i in self.cells
+            if cell_i.dimension == dimension and cell_i.material_id in physical_tags
+        ]
+
+        tuple_id_list = [[] for i in range(len(disjoint_cells))]
+        for i, cell_i in enumerate(disjoint_cells):
+            self.gather_graph_edges_on_physical_tags(physical_tags, dimension - co_dimension, cell_i, tuple_id_list[i])
         tuple_id_list = list(itertools.chain(*tuple_id_list))
 
         graph = nx.from_edgelist(tuple_id_list, create_using=nx.DiGraph)
@@ -648,7 +689,7 @@ class Mesh:
         # As alternative skins can be identified with
         # for the positive side sp_<physical_tag>
         # for the negative side sm_<physical_tag>
-        p_tag_shit = 10000
+        p_tag_scale = 1000
 
         assert self.dimension == 2
 
@@ -672,11 +713,10 @@ class Mesh:
             ]
             f_cell_ids = [cell.id for cell in f_cells]
 
+            # edges duplication
             neighs_by_face = []
             for edge_id in f_cell_ids:
                 neighs_by_face = neighs_by_face + list(gd2c1.predecessors(edge_id))
-
-            # edges duplication
             cells_n = []
             cells_p = []
             for neigh_id in neighs_by_face:
@@ -694,23 +734,23 @@ class Mesh:
 
             map_edge_p = {}
             for i, cell_id in enumerate(new_cell_ids_p):
-                mat_id_p = p_tag_shit + mat_id + 1
+                mat_id_p = p_tag_scale * mat_id + 1
                 mesh_cell = copy.deepcopy(f_cells[i])
                 mesh_cell.set_material_id(mat_id_p)
                 mesh_cell.set_physical_name("sp_" + str(mat_id))
                 mesh_cell.id = cell_id
-                mesh_cell.set_sub_cells_ids(mesh_cell.dimension, np.array([cell_id]))
+                mesh_cell.set_sub_cells_ids(mesh_cell.dimension, np.array([cell_id, f_cells[i].id]))
                 self.cells = np.append(self.cells, mesh_cell)
                 map_edge_p[f_cells[i].id] = cell_id
 
             map_edge_n = {}
             for i, cell_id in enumerate(new_cell_ids_n):
-                mat_id_n = p_tag_shit + mat_id - 1
+                mat_id_n = p_tag_scale * mat_id - 1
                 mesh_cell = copy.deepcopy(f_cells[i])
                 mesh_cell.set_material_id(mat_id_n)
                 mesh_cell.set_physical_name("sm_" + str(mat_id))
                 mesh_cell.id = cell_id
-                mesh_cell.set_sub_cells_ids(mesh_cell.dimension, np.array([cell_id]))
+                mesh_cell.set_sub_cells_ids(mesh_cell.dimension, np.array([cell_id, f_cells[i].id]))
                 self.cells = np.append(self.cells, mesh_cell)
                 map_edge_n[f_cells[i].id] = cell_id
 
@@ -718,11 +758,13 @@ class Mesh:
             for i, cell_id_pair in enumerate(zip(new_cell_ids_p, new_cell_ids_n)):
                 map_fracs_edge[f_cells[i].id] = cell_id_pair
 
+            # update edges
             for cell_p_id in cells_p:
                 self.update_entity_with_dimension(1, cell_p_id, map_edge_p)
 
             for cell_n_id in cells_n:
                 self.update_entity_with_dimension(1, cell_n_id, map_edge_n)
+
 
             # vertices duplication
             vertices = np.unique(
@@ -774,7 +816,7 @@ class Mesh:
             for i, cell_id in enumerate(new_cell_ids_p):
                 mat_id_p = None
                 if self.cells[vertices[i]].material_id is not None:
-                    mat_id_p = p_tag_shit + mat_id + 1
+                    mat_id_p = p_tag_scale * mat_id + 1
                 mesh_cell = self.create_cell(
                     0, np.array([new_node_tags_p[i]]), cell_id, mat_id_p
                 )
@@ -792,7 +834,7 @@ class Mesh:
             for i, cell_id in enumerate(new_cell_ids_n):
                 mat_id_n = None
                 if self.cells[vertices[i]].material_id is not None:
-                    mat_id_n = p_tag_shit + mat_id - 1
+                    mat_id_n = p_tag_scale * mat_id - 1
 
                 mesh_cell = self.create_cell(
                     0, np.array([new_node_tags_n[i]]), cell_id, mat_id_n
@@ -823,6 +865,8 @@ class Mesh:
             for cell_n_id in map_edge_n.values():
                 self.update_entity_with_dimension(0, cell_n_id, map_vertex_n)
                 self.update_nodes_ids(cell_n_id, map_node_n)
+
+
 
         return map_fracs_edge
 
@@ -1393,4 +1437,71 @@ class Mesh:
         id = seed_id
         skin_cell_id = skin_cell_ids[0]
         self.next_d_m_1(seed_id, skin_cell_id, id, graph, closed_q)
+        return closed_q
+
+    def next_d_m_1_cell(self, fracture_tags, seed_id, cell_id, cell_m_1_id, graph, closed_q):
+
+        pc = list(graph.predecessors(cell_m_1_id))
+        neighs = [id for id in pc if self.cells[id].material_id not in fracture_tags]
+        assert len(neighs) == 2
+
+        fcell_ids = [id for id in neighs if id != cell_id]
+        assert len(fcell_ids) == 1
+
+        sc = list(graph.successors(fcell_ids[0]))
+        ids = [s_id for s_id in sc if s_id != cell_m_1_id]
+        assert len(ids) == 1
+        if seed_id == ids[0]:
+            # print("Seed id was found: ", ids[0])
+            # print("Skin boundary is closed.")
+            closed_q[0] = True
+        else:
+            # print("Next pair:")
+            # print("cell_id      : ", fcell_ids[0])
+            # print("cell_m_1_id  : ", ids[0])
+            # print("cell_dimension  : ", self.cells[fcell_ids[0]].dimension)
+            # print("cell_p_name  : ", self.cells[fcell_ids[0]].physical_name)
+            # print("cell_xc  : ", barycenter(self.points[self.cells[fcell_ids[0]].node_tags]))
+            self.next_d_m_1_cell(fracture_tags, seed_id, fcell_ids[0], ids[0], graph, closed_q)
+
+    def circulate_internal_bc_from_domain(self):
+
+        assert self.dimension == 2
+        domain: Domain = self.conformal_mesher.domain
+        shapes = domain.shapes[self.dimension]
+        assert len(shapes) == 1
+        no_immersed_shapes_q = len(shapes[0].immersed_shapes) == 0
+        if no_immersed_shapes_q:
+            return True
+
+        closed_q = [False]
+        fracture_tags = []
+        for embed_shape in shapes[0].immersed_shapes:
+            fracture_tags += [embed_shape.physical_tag]
+
+        cells_1d = [
+            cell.id for cell in self.cells if cell.material_id == fracture_tags[0]
+        ]
+        f_cells = [self.cells[id] for id in cells_1d if self.cells[id].dimension == 1]
+
+        # get fracture boundary
+        f_vertices = np.unique(
+            np.array([vertex for cell in f_cells for vertex in cell.sub_cells_ids[0]])
+        )
+        f_vertices = [
+            vertex
+            for vertex in f_vertices
+            if self.cells[vertex].material_id == fracture_tags[0]
+        ]
+
+        graph = self.build_graph_on_materials(1, 1)
+        seed_id = f_vertices[0]
+        cells_1d = list(graph.predecessors(seed_id))
+        skin_cell_ids = [
+            id for id in cells_1d if self.cells[id].material_id not in fracture_tags
+        ]
+
+        id = seed_id
+        skin_cell_id = skin_cell_ids[0]
+        self.next_d_m_1_cell(fracture_tags, seed_id, skin_cell_id, id, graph, closed_q)
         return closed_q

@@ -135,7 +135,7 @@ class ConformalMesher:
         for vertex in self.domain.shapes[0]:
             if len(vertex.immersed_shapes) > 0:
                 continue
-            print("Vertex tag: ", vertex.tag + 1)
+            # print("Vertex tag: ", vertex.tag + 1)
             gmsh.model.occ.addPoint(
                 vertex.point[0],
                 vertex.point[1],
@@ -148,7 +148,7 @@ class ConformalMesher:
         # transfer curves
         for curve in self.domain.shapes[1]:
             if not curve.composite:
-                print("curve tag: ", curve_stride + curve.tag + 1)
+                # print("curve tag: ", curve_stride + curve.tag + 1)
                 if len(curve.immersed_shapes) > 0:
                     continue
                 tag = curve_stride + curve.tag + 1
@@ -164,7 +164,7 @@ class ConformalMesher:
             for surface in self.domain.shapes[2]:
                 tag = surface_stride + surface.tag + 1
                 if not surface.composite:
-                    print("creating surface tag: ", surface.tag)
+                    # print("creating surface tag: ", surface.tag)
                     wire = surface.boundary_shapes[0]
                     wire.orient_immersed_edges()
                     loop_tags = [
@@ -184,7 +184,7 @@ class ConformalMesher:
             for volume in self.domain.shapes[3]:
                 tag = volume_stride + volume.tag + 1
                 if not volume.composite:
-                    print("creating surface tag: ", surface.tag)
+                    # print("creating surface tag: ", surface.tag)
                     shell = volume.boundary_shapes[0]
                     loop_tags = [
                         surface_stride + shape.tag + 1
@@ -292,7 +292,7 @@ class ConformalMesher:
                 gmsh.model.mesh.embed(0, tags_0d, 2, surface_stride + surface.tag + 1)
                 gmsh.model.mesh.embed(1, tags_1d, 2, surface_stride + surface.tag + 1)
 
-                numNodes = 3
+                numNodes = 50
                 for tag_1d in tags_1d:
                     gmsh.model.mesh.setTransfiniteCurve(
                         tag_1d, numNodes, "Bump", coef=0.25

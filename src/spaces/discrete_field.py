@@ -24,7 +24,7 @@ class DiscreteField:
         self.k_order = k_order
         self.integration_oder = integration_oder
 
-        self.name = "unnamed"
+        self.name = "Unnamed"
         self.mesh_topology = MeshTopology(mesh, dimension)
         self.discontinuous = False
         self.physical_tag_filter = True
@@ -50,10 +50,49 @@ class DiscreteField:
             # self._build_bc_dof_map(only_on_physical_tags)
             self._build_bc_elements(bc_physical_tags)
 
+    def build_structures_on_physical_tags(self, physical_tags=[]):
+        self._build_dof_map_on_physical_tags(physical_tags)
+        self._build_elements()
+
     def _build_dof_map(self, only_on_physical_tags=True):
         st = time.time()
         if only_on_physical_tags:
-            self.mesh_topology.build_data_on_physical_tags()
+            self.mesh_topology.build_data()
+        else:
+            self.physical_tag_filter = False
+            self.mesh_topology.build_data()
+
+        self.element_type = type_by_dimension(self.dimension)
+        basis_family = self.family
+        if self.dimension == 0:
+            self.family = basis_family = family_by_name("Lagrange")
+            self.k_order = 0
+        if self.dimension == 1 and self.family in [
+            family_by_name("RT"),
+            family_by_name("BDM"),
+            family_by_name("N1E"),
+            family_by_name("N2E"),
+        ]:
+            self.family = basis_family = family_by_name("Lagrange")
+        self.dof_map = DoFMap(
+            self.mesh_topology,
+            basis_family,
+            self.element_type,
+            self.k_order,
+            basis_variant(),
+            discontinuous=self.discontinuous,
+        )
+        self.dof_map.set_topological_dimension(self.dimension)
+        self.dof_map.build_entity_maps(n_components=self.n_comp)
+        self.n_dof = self.dof_map.dof_number()
+        et = time.time()
+        elapsed_time = et - st
+        print("DiscreteField:: DoFMap construction time:", elapsed_time, "seconds")
+
+    def _build_dof_map_on_physical_tags(self, physical_tags=[]):
+        st = time.time()
+        if len(physical_tags) != 0:
+            self.mesh_topology.build_data_on_physical_tags(physical_tags)
         else:
             self.physical_tag_filter = False
             self.mesh_topology.build_data()

@@ -62,9 +62,17 @@ def matrix_plot(J, sparse_q=True):
 
 def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
 
+    #
     dim = gmesh.dimension
-    # Material data
+    domain: Domain = gmesh.conformal_mesher.domain
+    domain_tags = [1, 2, 3, 4, 5]
+    frac_physical_tags = [shape.physical_tag for shape in domain.shapes[dim - 1] if (shape.physical_tag is not None) and (shape.physical_tag not in domain_tags)]
+    skin_p_physical_tags = [1000 * p_tag + 1 for p_tag in frac_physical_tags]
+    skin_m_physical_tags = [1000 * p_tag - 1 for p_tag in frac_physical_tags]
 
+
+
+    # Material data
     m_lambda = 1.0
     m_mu = 1.0
 
@@ -77,11 +85,19 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
     family = "Lagrange"
 
     u_field = DiscreteField(dim, n_components, family, k_order, gmesh)
+    um_field = DiscreteField(dim - 1, n_components, family, k_order, gmesh)
+    up_field = DiscreteField(dim - 1, n_components, family, k_order, gmesh)
+    l_field = DiscreteField(dim - 1, n_components, family, k_order - 2, gmesh, integration_oder= 2 * k_order + 1)
+
+    l_field.make_discontinuous()
     # u_field.build_structures([2, 3])
     if dim == 2:
         u_field.build_structures([5])
     elif dim == 3:
         u_field.build_structures([7])
+    up_field.build_structures_on_physical_tags(skin_p_physical_tags)
+    um_field.build_structures_on_physical_tags(skin_m_physical_tags)
+    l_field.build_structures_on_physical_tags(frac_physical_tags)
 
     st = time.time()
     # Assembler
@@ -90,6 +106,30 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
     n_dof_g = 0
     cell_map = {}
     for element in u_field.elements:
+        cell = element.data.cell
+        n_dof = 0
+        for n_entity_dofs in element.basis_generator.num_entity_dofs:
+            n_dof = n_dof + sum(n_entity_dofs) * n_components
+        cell_map.__setitem__(cell.id, c_size)
+        c_size = c_size + n_dof * n_dof
+
+    for element in up_field.elements:
+        cell = element.data.cell
+        n_dof = 0
+        for n_entity_dofs in element.basis_generator.num_entity_dofs:
+            n_dof = n_dof + sum(n_entity_dofs) * n_components
+        cell_map.__setitem__(cell.id, c_size)
+        c_size = c_size + 2 * n_dof * n_dof
+
+    for element in um_field.elements:
+        cell = element.data.cell
+        n_dof = 0
+        for n_entity_dofs in element.basis_generator.num_entity_dofs:
+            n_dof = n_dof + sum(n_entity_dofs) * n_components
+        cell_map.__setitem__(cell.id, c_size)
+        c_size = c_size + 2 * n_dof * n_dof
+
+    for element in l_field.elements:
         cell = element.data.cell
         n_dof = 0
         for n_entity_dofs in element.basis_generator.num_entity_dofs:
@@ -109,7 +149,7 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
     col = np.zeros((c_size), dtype=np.int64)
     data = np.zeros((c_size), dtype=np.float64)
 
-    n_dof_g = u_field.dof_map.dof_number()
+    n_dof_g = u_field.dof_map.dof_number() + l_field.dof_map.dof_number()
     rg = np.zeros(n_dof_g)
     print("n_dof: ", n_dof_g)
 
@@ -199,6 +239,94 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
         for element in u_field.elements
     ]
 
+    def scatter_skin_form_data(element, up_field, l_field, cell_map, row, col, data, sign):
+
+        n_components = u_field.n_comp
+        el_data: ElementData = element.data
+
+        cell = el_data.cell
+        points = el_data.quadrature.points
+        weights = el_data.quadrature.weights
+        phi_tab = el_data.basis.phi
+
+        x = el_data.mapping.x
+        det_jac = el_data.mapping.det_jac
+        inv_jac = el_data.mapping.inv_jac
+
+        # print("cell.sub_cells_ids: ", cell.sub_cells_ids)
+        lm_cell_id = cell.sub_cells_ids[1][1]
+        lm_cell_index = l_field.id_to_element[lm_cell_id]
+        lm_el_data = l_field.elements[lm_cell_index].data
+
+        lm_points = lm_el_data.quadrature.points
+        lm_weights = lm_el_data.quadrature.weights
+        lm_phi_tab = lm_el_data.basis.phi
+
+        # find high-dimension neigh
+        entity_map = u_field.dof_map.mesh_topology.entity_map_by_dimension(
+            cell.dimension
+        )
+        neigh_list = list(entity_map.predecessors(cell.id))
+        neigh_check_q = len(neigh_list) > 0
+        assert neigh_check_q
+
+        neigh_cell_id = neigh_list[0]
+        neigh_cell_index = u_field.id_to_element[neigh_cell_id]
+        neigh_cell = u_field.elements[neigh_cell_index].data.cell
+
+        # destination indexes
+        dest_neigh = u_field.dof_map.destination_indices(neigh_cell_id)
+        dest = u_field.dof_map.bc_destination_indices(neigh_cell_id, cell.id)
+        dest_lm = l_field.dof_map.destination_indices(lm_cell_id) + u_field.n_dof
+
+        n_phi = phi_tab.shape[2]
+        n_phi_lm = lm_phi_tab.shape[2]
+        n_dof = n_phi * n_components
+        n_dof_lm = n_phi_lm * n_components
+        js = (n_dof, n_dof_lm)
+        rs = n_dof
+        j_el = np.zeros(js)
+        r_el = np.zeros(rs)
+
+        # local blocks
+        jac_block = np.zeros((n_phi, n_phi_lm))
+        for i, omega in enumerate(weights):
+            phi_u = phi_tab[0, i, :, 0]
+            phi_l = lm_phi_tab[0, i, :, 0]
+            jac_block += sign * det_jac[i] * omega * np.outer(phi_u, phi_l)
+
+        for c in range(n_components):
+            b = c
+            e = (c + 1) * n_phi * n_components + 1
+            j_el[b:e:n_components, b:e:n_components] += jac_block
+
+        # scattering data
+        c_sequ = cell_map[cell.id]
+
+        block_size = len(dest) * len(dest_lm)
+
+        # contribute lhs
+        block_sequ = np.array(range(0, len(dest) * len(dest_lm))) + c_sequ
+        row[block_sequ] += np.repeat(dest, len(dest_lm))
+        col[block_sequ] += np.tile(dest_lm, len(dest))
+        data[block_sequ] += j_el.ravel()
+
+        # transpose contribute lhs
+        block_sequ = np.array(range(0, len(dest) * len(dest_lm))) + c_sequ + block_size
+        row[block_sequ] += np.repeat(dest_lm, len(dest))
+        col[block_sequ] += np.tile(dest, len(dest_lm))
+        data[block_sequ] += j_el.T.ravel()
+
+    [
+        scatter_skin_form_data(element, u_field, l_field, cell_map, row, col, data, -1)
+        for element in up_field.elements
+    ]
+
+    [
+        scatter_skin_form_data(element, u_field, l_field, cell_map, row, col, data, +1)
+        for element in um_field.elements
+    ]
+
     def scatter_bc_form_data(element, u_field, cell_map, row, col, data):
 
         n_components = u_field.n_comp
@@ -235,15 +363,6 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
         rs = n_dof
         j_el = np.zeros(js)
         r_el = np.zeros(rs)
-
-        # # Partial local vectorization
-        # f_val_star = force(x[:, 0], x[:, 1], x[:, 2])
-        # phi_s_star = det_jac * weights * phi_tab[0, :, :, 0].T
-        #
-        # for c in range(n_components):
-        #     b = c
-        #     e = (c + 1) * n_phi * n_components + 1
-        #     r_el[b:e:n_components] += phi_s_star @ f_val_star[c]
 
         # local blocks
         beta = 1.0e12
@@ -1049,21 +1168,24 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
     gmesh.set_conformal_mesher(mesher)
     gmesh.build_conformal_mesh()
     map_fracs_edge = gmesh.cut_conformity_on_embed_shapes()
+    # check_q = gmesh.circulate_internal_bc_from_domain()
+    # assert check_q[0]
     if write_vtk_q:
         gmesh.write_vtk()
-        gmesh.write_data()
+        # gmesh.write_data()
     return gmesh
 
 def main():
 
     dimension = 2
     k_order = 2
-    h = 1.0
+    h = 0.05
     l = 0
 
     domain = create_md_domain(dimension)
     mesher = create_conformal_mesher(domain, h, l)
     gmesh = create_mesh(dimension, mesher, True)
+
 
     lm_h1_elasticity(k_order, gmesh, True)
     # h1_cosserat_elasticity(k_order, gmesh, False)
