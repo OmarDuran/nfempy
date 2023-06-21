@@ -63,16 +63,14 @@ def matrix_plot(J, sparse_q=True):
 def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
 
     #
-    fixed_point_q = False
-    skin_stiffness_q = False
+    fixed_point_q = True
+    skin_stiffness_q = True
     dim = gmesh.dimension
     domain: Domain = gmesh.conformal_mesher.domain
     domain_tags = [1, 2, 3, 4, 5]
     frac_physical_tags = [shape.physical_tag for shape in domain.shapes[dim - 1] if (shape.physical_tag is not None) and (shape.physical_tag not in domain_tags)]
     skin_p_physical_tags = [1000 * p_tag + 1 for p_tag in frac_physical_tags]
     skin_m_physical_tags = [1000 * p_tag - 1 for p_tag in frac_physical_tags]
-
-
 
     # Material data
     m_lambda = 8.0e9
@@ -83,7 +81,7 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
     Gv = m_mu
     s_n = -35.0e6
 
-    hs = 10e-4
+    hs = 1.0e-10
     m_s_lambda = hs * 8.0e9
     m_s_mu = hs * 8.0e9
 
@@ -97,7 +95,7 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
 
     u_field = DiscreteField(dim, n_components, family, k_order, gmesh)
     um_field = DiscreteField(dim - 1, n_components, family, k_order, gmesh)
-    up_field = DiscreteField(dim - 1, n_components, family, k_order, gmesh)
+    up_field = DiscreteField(dim -1, n_components, family, k_order, gmesh)
     l_field = DiscreteField(dim - 1, n_components, family, k_order - 2, gmesh, integration_oder= 2 * k_order + 1)
 
     l_field.make_discontinuous()
@@ -109,6 +107,15 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
     up_field.build_structures_on_physical_tags(skin_p_physical_tags)
     um_field.build_structures_on_physical_tags(skin_m_physical_tags)
     l_field.build_structures_on_physical_tags(frac_physical_tags)
+
+    # make entitie maps equal
+    up_field.dof_map.vertex_map = u_field.dof_map.vertex_map
+    um_field.dof_map.vertex_map = u_field.dof_map.vertex_map
+    # l_field.dof_map.vertex_map = u_field.dof_map.vertex_map
+
+    up_field.dof_map.edge_map = u_field.dof_map.edge_map
+    um_field.dof_map.edge_map = u_field.dof_map.edge_map
+    # l_field.dof_map.edge_map = u_field.dof_map.edge_map
 
     st = time.time()
     # Assembler
@@ -321,6 +328,7 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
         data[block_sequ] += j_el.ravel()
 
     if skin_stiffness_q:
+
         [
             scatter_K_skin_form_data(
                 element, m_s_lambda, m_s_mu, f_rhs, up_field, cell_map, row, col, data
@@ -440,7 +448,7 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
         inv_jac = el_data.mapping.inv_jac
 
         # destination indexes
-        dest = l_field.dof_map.destination_indices(cell.id)
+        dest = l_field.dof_map.destination_indices(cell.id) + u_field.n_dof
 
         n_phi = phi_tab.shape[2]
         n_dof = n_phi * n_components
@@ -472,7 +480,7 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
 
     [
         scatter_lambda_form_data(A_n, A_t, element, l_field, cell_map, row, col, data)
-        for element in l_field.bc_elements
+        for element in l_field.elements
     ]
 
     def scatter_bc_form_data(element, u_field, cell_map, row, col, data):
@@ -571,9 +579,9 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
         jg_ul = jg[u_range, :][:, l_range]
         rg_uu = rg[u_range]
 
-        alpha_l = 0.0 * alpha[l_range]
+        alpha_l = alpha[l_range]
         gt_p = np.zeros(int(len(l_range)/2))
-        for k in range(10):
+        for k in range(3):
             L_k = np.array(np.split(alpha_l, 2))
             Ln_k = L_k[0,:]
             Lt_k = L_k[1,:]
@@ -842,7 +850,7 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
             element = cellid_to_element[pr_ids[0]]
 
             # scattering dof
-            dest = l_field.dof_map.destination_indices(cell.id)
+            dest = l_field.dof_map.destination_indices(cell.id) + u_field.n_dof
             alpha_l = alpha[dest]
 
             par_points = basix.geometry(l_field.element_type)
@@ -1591,14 +1599,14 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
     # assert check_q[0]
     if write_vtk_q:
         gmesh.write_vtk()
-        # gmesh.write_data()
+        gmesh.write_data()
     return gmesh
 
 def main():
 
     dimension = 2
     k_order = 2
-    h = 1.0
+    h = 0.5
     l = 0
 
     domain = create_md_domain(dimension)
