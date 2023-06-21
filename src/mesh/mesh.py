@@ -712,6 +712,8 @@ class Mesh:
                 and cell.dimension == self.dimension - 1
             ]
             f_cell_ids = [cell.id for cell in f_cells]
+            for i, cell in enumerate(f_cells):
+                f_cells[i].normal = n
 
             # edges duplication
             neighs_by_face = []

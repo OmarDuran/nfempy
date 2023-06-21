@@ -61,6 +61,8 @@ class MeshCell:
         data = [np.array([], dtype=int) for i in range(dimension + 1)]
         self.sub_cells_ids = data
 
+        self.normal = np.array([], dtype=float)
+
     def set_id(self, id):
         self.id = id
 

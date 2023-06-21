@@ -63,6 +63,7 @@ def matrix_plot(J, sparse_q=True):
 def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
 
     #
+    fixed_point_q = True
     dim = gmesh.dimension
     domain: Domain = gmesh.conformal_mesher.domain
     domain_tags = [1, 2, 3, 4, 5]
@@ -75,6 +76,8 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
     # Material data
     m_lambda = 1.0
     m_mu = 1.0
+    A_n = 0.0
+    A_t = 0.0
 
     # FESpace: data
     n_components = 2
@@ -92,7 +95,7 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
     l_field.make_discontinuous()
     # u_field.build_structures([2, 3])
     if dim == 2:
-        u_field.build_structures([5])
+        u_field.build_structures([2, 4])
     elif dim == 3:
         u_field.build_structures([7])
     up_field.build_structures_on_physical_tags(skin_p_physical_tags)
@@ -159,7 +162,8 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
 
     st = time.time()
 
-    f_rhs = lambda x, y, z: np.array([(1-y), -(1-x)])
+    f_rhs = lambda x, y, z: np.array([0.0 * (1 - y), 0.0 * (1 - x)])
+    s_load = lambda x, y, z: np.array([0.0*x, -0.1 + 0.0 *y])
     if dim == 3:
         f_rhs = lambda x, y, z: np.array([(1-y), -(1-x), 0.0 * z])
 
@@ -261,6 +265,8 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
         lm_points = lm_el_data.quadrature.points
         lm_weights = lm_el_data.quadrature.weights
         lm_phi_tab = lm_el_data.basis.phi
+        lm_n = lm_el_data.cell.normal[np.array([0,1])]
+        lm_t = np.array([lm_n[1],-lm_n[0]])
 
         # find high-dimension neigh
         entity_map = u_field.dof_map.mesh_topology.entity_map_by_dimension(
@@ -327,6 +333,56 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
         for element in um_field.elements
     ]
 
+    def scatter_lambda_form_data(A_n, A_t, element, l_field, cell_map, row, col, data):
+
+        n_components = l_field.n_comp
+        el_data: ElementData = element.data
+
+        cell = el_data.cell
+        points = el_data.quadrature.points
+        weights = el_data.quadrature.weights
+        phi_tab = el_data.basis.phi
+
+        x = el_data.mapping.x
+        det_jac = el_data.mapping.det_jac
+        inv_jac = el_data.mapping.inv_jac
+
+        # destination indexes
+        dest = l_field.dof_map.destination_indices(cell.id)
+
+        n_phi = phi_tab.shape[2]
+        n_dof = n_phi * n_components
+        js = (n_dof, n_dof)
+        rs = n_dof
+        j_el = np.zeros(js)
+        r_el = np.zeros(rs)
+
+        # local blocks
+        jac_block = np.zeros((n_phi, n_phi))
+        for i, omega in enumerate(weights):
+            phi = phi_tab[0, i, :, 0]
+            jac_block += det_jac[i] * omega * np.outer(phi, phi)
+
+        A_data = [A_n,A_t]
+        for c in range(n_components):
+            b = c
+            e = (c + 1) * n_phi * n_components + 1
+            j_el[b:e:n_components, b:e:n_components] += A_data[c] * jac_block
+
+        # scattering data
+        c_sequ = cell_map[cell.id]
+
+        # contribute lhs
+        block_sequ = np.array(range(0, len(dest) * len(dest))) + c_sequ
+        row[block_sequ] += np.repeat(dest, len(dest))
+        col[block_sequ] += np.tile(dest, len(dest))
+        data[block_sequ] += j_el.ravel()
+
+    [
+        scatter_lambda_form_data(A_n, A_t, element, l_field, cell_map, row, col, data)
+        for element in l_field.bc_elements
+    ]
+
     def scatter_bc_form_data(element, u_field, cell_map, row, col, data):
 
         n_components = u_field.n_comp
@@ -364,6 +420,18 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
         j_el = np.zeros(js)
         r_el = np.zeros(rs)
 
+        scale = 1.0
+        if cell.material_id == 2:
+            scale = 0.0
+
+        # Partial local vectorization
+        f_val_star = scale * s_load(x[:, 0], x[:, 1], x[:, 2])
+        phi_s_star = det_jac * weights * phi_tab[0, :, :, 0].T
+        for c in range(n_components):
+            b = c
+            e = (c + 1) * n_phi * n_components + 1
+            r_el[b:e:n_components] += phi_s_star @ f_val_star[c]
+
         # local blocks
         beta = 1.0e12
         jac_block = np.zeros((n_phi, n_phi))
@@ -378,6 +446,11 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
 
         # scattering data
         c_sequ = cell_map[cell.id]
+
+        # contribute rhs
+        rg[dest] += r_el
+        if cell.material_id == 4:
+            return
 
         # contribute lhs
         block_sequ = np.array(range(0, len(dest) * len(dest))) + c_sequ
@@ -397,8 +470,52 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
 
     # solving ls
     st = time.time()
-    # alpha = sp.linalg.spsolve(jg, rg)
-    alpha = sp_solver.spsolve(jg, rg)
+    if fixed_point_q:
+        alpha = sp_solver.spsolve(jg, rg)
+        u_range = list(range(u_field.n_dof))
+        l_range = list(range(u_field.n_dof,u_field.n_dof+l_field.n_dof))
+        jg_uu = jg[u_range, :][:, u_range]
+        jg_lu = jg[l_range, :][:, u_range]
+        jg_ul = jg[u_range, :][:, l_range]
+        rg_uu = rg[u_range]
+
+        alpha_l = alpha[l_range]
+
+        for k in range(10):
+            L_k = np.array(np.split(alpha_l, 2))
+            Ln_k = L_k[:,0]
+            Lt_k = L_k[:,1]
+
+            # step 1: compute u jump
+            alpha_u = sp_solver.spsolve(jg_uu, rg_uu - jg_ul * alpha_l)
+            u_jump = np.array(np.split(jg_lu * alpha_u, 2))
+
+            # step 2: For all LM
+
+            n = np.empty((0,2), dtype=float)
+            t = np.empty((0,2), dtype=float)
+            for element in l_field.elements:
+                el_data = element.data
+                ln = el_data.cell.normal[np.array([0,1])]
+                lt = np.array([ln[1],-ln[0]])
+                n = np.vstack((n, ln))
+                t = np.vstack((t, lt))
+
+            c_fric = 0.0
+            theta = 30.0 * np.pi / 180.0
+            gn = np.sum(u_jump * n, axis=1)
+            gt = np.sum(u_jump * t, axis=1)
+            Cn = np.where(gn > 0.0, 1.0e-16 + 0.0 * gn, 1.0e+16 + 0.0 * gn)
+            Tn = Cn * gn
+            tau_max = c_fric - Tn * np.tan(theta)
+            Ct = np.where(np.abs(Lt_k) < tau_max, 1.0e+16 + 0.0 * Lt_k, tau_max / np.abs(gt))
+            Tt = Ct * gt
+            L_k = Tn * n + Tt * t
+            alpha_l = L_k.ravel()
+        alpha = np.concatenate((alpha_u,alpha_l))
+
+    else:
+        alpha = sp_solver.spsolve(jg, rg)
     et = time.time()
     elapsed_time = et - st
     print("Linear solver time:", elapsed_time, "seconds")
@@ -1135,6 +1252,7 @@ def create_md_domain(dimension):
     elif dimension == 2:
         lines_file = "fracture_files/setting_2d_single_fracture.csv"
         box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
+        box_points = np.array([[-5, -5, 0], [5, -5, 0], [5, 5, 0], [-5, 5, 0]])
         domain = build_box_2D_with_lines(box_points, lines_file)
         return domain
     else:
@@ -1179,7 +1297,7 @@ def main():
 
     dimension = 2
     k_order = 2
-    h = 0.05
+    h = 2.0
     l = 0
 
     domain = create_md_domain(dimension)
