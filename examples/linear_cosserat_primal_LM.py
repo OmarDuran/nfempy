@@ -901,7 +901,7 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
 def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
     #
-    fixed_point_q = True
+    fixed_point_q = False
     skin_stiffness_q = True
     dim = gmesh.dimension
     domain: Domain = gmesh.conformal_mesher.domain

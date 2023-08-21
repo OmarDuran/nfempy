@@ -1189,8 +1189,8 @@ def main():
 
     k_order = 3
     h = 1.0
-    n_ref = 6
-    dimension = 2
+    n_ref = 4
+    dimension = 3
     ref_l = 0
 
     domain = create_domain(dimension)
