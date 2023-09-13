@@ -50,7 +50,7 @@ from mesh.mesh import Mesh
 from spaces.discrete_field import DiscreteField
 from spaces.dof_map import DoFMap
 from topology.mesh_topology import MeshTopology
-
+import numba
 
 def matrix_plot(J, sparse_q=True):
 
@@ -377,8 +377,6 @@ def h1_elasticity(k_order, gmesh, write_vtk_q=False):
         n_dof = n_phi * n_components
         alpha = np.zeros(n_dof)
 
-
-
         js = (n_dof, n_dof)
         rs = n_dof
         j_el = np.zeros(js)
@@ -404,8 +402,8 @@ def h1_elasticity(k_order, gmesh, write_vtk_q=False):
                 for i, omega in enumerate(weights):
                     inv_jac_m = np.vstack((inv_jac[i] @ e1, inv_jac[i] @ e2))
                     grad_phi = (inv_jac_m @ phi_tab[1: phi_tab.shape[0] + 1, i, :, 0]).T
-                    grad_x = alpha[:,0:5:2] @ grad_phi
-                    grad_y = alpha[:,1:6:2] @ grad_phi
+                    grad_x = alpha[:,0:n_dof-1:dim] @ grad_phi
+                    grad_y = alpha[:,1:n_dof:dim] @ grad_phi
                     grad_uh = VecValDer(np.vstack((grad_x.val, grad_y.val)),np.vstack((grad_x.der, grad_y.der)))
                     eps_h = (grad_uh + grad_uh.T) / 2.0
                     tr_eps_h = VecValDer(eps_h.val.trace(), eps_h.der.trace())
@@ -428,12 +426,22 @@ def h1_elasticity(k_order, gmesh, write_vtk_q=False):
         col[block_sequ] += np.tile(dest, len(dest))
         data[block_sequ] += j_el.ravel()
 
-    [
-        scatter_form_data(
-            element, m_lambda, m_mu, f_rhs, u_field, cell_map, row, col, data
-        )
-        for element in u_field.elements
-    ]
+    # [
+    #     scatter_form_data(
+    #         element, m_lambda, m_mu, f_rhs, u_field, cell_map, row, col, data
+    #     )
+    #     for element in u_field.elements
+    # ]
+
+    # @numba.jit(nopython=True, parallel=True)
+    def assembler(cell_map, row, col, data, u_field):
+        for element in u_field.elements:
+            scatter_form_data_ad(
+                element, m_lambda, m_mu, f_rhs, u_field, cell_map, row, col, data
+            )
+
+
+    assembler(cell_map, row, col, data, u_field)
 
     def scatter_bc_form_data(element, u_field, cell_map, row, col, data):
 
@@ -1313,7 +1321,7 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 def main():
 
-    k_order = 1
+    k_order = 2
     h = 0.25
     n_ref = 5
     dimension = 2
