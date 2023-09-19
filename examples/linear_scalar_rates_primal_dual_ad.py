@@ -448,7 +448,7 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
             # Optionally provide extra data on points, cells, etc.
             point_data=p_data_dict,
         )
-        mesh.write("rates_h1_elasticity.vtk")
+        mesh.write("rates_h1_laplace.vtk")
         et = time.time()
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
@@ -1153,9 +1153,9 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 def main():
 
-    k_order = 1
-    h = 1.0
-    n_ref = 1
+    k_order = 3
+    h = 0.5
+    n_ref = 4
     dimension = 2
     ref_l = 0
 
@@ -1165,7 +1165,7 @@ def main():
         h_val = h * (2**-l)
         mesher = create_conformal_mesher(domain, h, l)
         gmesh = create_mesh(dimension, mesher, False)
-        error_val = h1_laplace(k_order, gmesh, False)
+        error_val = h1_laplace(k_order, gmesh, True)
         # error_val = h1_cosserat_elasticity(k_order, gmesh, False)
         error_data = np.append(error_data, np.array([[h_val, error_val]]), axis=0)
 
