@@ -63,24 +63,22 @@ def matrix_plot(J, sparse_q=True):
     plot.show()
 
 
-def h1_elasticity(k_order, gmesh, write_vtk_q=False):
+def h1_laplace(k_order, gmesh, write_vtk_q=False):
 
     dim = gmesh.dimension
     # Material data
 
-    m_lambda = 1.0
-    m_mu = 1.0
+    m_kappa = 1.0
 
     # FESpace: data
-    n_components = 2
-    if dim == 3:
-        n_components = 3
+    n_components = 1
 
     discontinuous = True
-    family = "Lagrange"
+    u_family = "Lagrange"
 
-    u_field = DiscreteField(dim, n_components, family, k_order, gmesh)
-    # u_field.build_structures([2, 3])
+    # potential field
+    u_field = DiscreteField(dim, n_components, u_family, k_order, gmesh)
+
     if dim == 2:
         u_field.build_structures([2, 3, 4, 5])
     elif dim == 3:
@@ -123,14 +121,17 @@ def h1_elasticity(k_order, gmesh, write_vtk_q=False):
     st = time.time()
 
     # exact solution
-    f_exact = lambda x, y, z: np.array([(1.0 - x)*x*(1.0 - y)*y])
-    f_rhs = lambda x, y, z: np.array([2*(1 - x)*x + 2*(1 - y)*y])
+    f_exact = lambda x, y, z: np.array([(1.0 - x) * x * (1.0 - y) * y])
+    f_rhs = lambda x, y, z: np.array([2 * (1 - x) * x + 2 * (1 - y) * y])
 
     if dim == 3:
-        f_exact = lambda x, y, z: np.array([(1.0 - x)*x*(1.0 - y)*y*(1.0 - z)*z])
+
+        f_exact = lambda x, y, z: np.array(
+            [(1.0 - x) * x * (1.0 - y) * y * (1.0 - z) * z])
 
         f_rhs = lambda x, y, z: np.array(
-            [2*(1 - x)*x*(1 - y)*y + 2*(1 - x)*x*(1 - z)*z + 2*(1 - y)*y*(1 - z)*z]
+            [2 * (1 - x) * x * (1 - y) * y + 2 * (1 - x) * x * (1 - z) * z + 2 * (
+                        1 - y) * y * (1 - z) * z]
         )
 
     def scatter_form_data(
@@ -203,7 +204,7 @@ def h1_elasticity(k_order, gmesh, write_vtk_q=False):
         data[block_sequ] += j_el.ravel()
 
     def scatter_form_data_ad(
-        element, m_lambda, m_mu, f_rhs, u_field, cell_map, row, col, data
+        element, m_kappa, f_rhs, u_field, cell_map, row, col, data
     ):
 
         n_components = u_field.n_comp
@@ -233,7 +234,6 @@ def h1_elasticity(k_order, gmesh, write_vtk_q=False):
         # Partial local vectorization
         f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
         phi_s_star = det_jac * weights * phi_tab[0, :, :, 0].T
-
         # constant directors
         e1 = np.array([1, 0, 0])
         e2 = np.array([0, 1, 0])
@@ -250,9 +250,8 @@ def h1_elasticity(k_order, gmesh, write_vtk_q=False):
                     grad_phi = (inv_jac_m @ phi_tab[1: phi_tab.shape[0] + 1, i, :, 0]).T
                     grad_uh = alpha @ grad_phi
                     grad_uh *= m_kappa
-                    energy_h = (grad_phi @ grad_uh).reshape((n_dof,))
+                    energy_h = (grad_phi @ grad_uh.T).reshape((n_dof,))
                     el_form += det_jac[i] * omega * energy_h
-                # return el_form
 
         r_el, j_el = el_form.val, el_form.der.reshape((n_dof,n_dof))
 
@@ -268,96 +267,13 @@ def h1_elasticity(k_order, gmesh, write_vtk_q=False):
         col[block_sequ] += np.tile(dest, len(dest))
         data[block_sequ] += j_el.ravel()
 
-    # [
-    #     scatter_form_data(
-    #         element, m_lambda, m_mu, f_rhs, u_field, cell_map, row, col, data
-    #     )
-    #     for element in u_field.elements
-    # ]
+    [
+        scatter_form_data_ad(
+            element, m_kappa, f_rhs, u_field, cell_map, row, col, data
+        )
+        for element in u_field.elements
+    ]
 
-    @njit(nopython=True, parallel=False)
-    def scatter_form_data_simple(
-        element_data, c_sequ, dim, n_c, material_data, f_val_star, row, col, data
-    ):
-
-        m_lambda, m_mu = material_data
-        points, weights, phi_tab, x, det_jac, inv_jac, dest = element_data
-
-        n_phi = phi_tab.shape[2]
-        n_dof = n_phi * n_components
-        js = (n_dof, n_dof)
-        rs = n_dof
-        j_el = np.zeros(js)
-        r_el = np.zeros(rs)
-
-        # Partial local vectorization
-        phi_s_star = det_jac * weights * phi_tab[0, :, :, 0].T
-
-        for c in range(n_c):
-            b = c
-            e = (c + 1) * n_phi * n_c + 1
-            r_el[b:e:n_c] += phi_s_star @ f_val_star[c]
-
-        # vectorized blocks
-        phi_star_dirs = [[1, 2], [0, 2], [0, 1]]
-        for i, omega in enumerate(weights):
-            grad_phi = inv_jac[i].T @ phi_tab[1 : phi_tab.shape[0] + 1, i, :, 0]
-
-            for i_d in range(n_c):
-                for j_d in range(n_c):
-                    phi_outer = np.outer(grad_phi[j_d], grad_phi[i_d])
-                    stress_grad = m_mu * phi_outer
-                    if i_d == j_d:
-                        phi_outer_star = np.zeros((n_phi, n_phi))
-                        for d in phi_star_dirs[i_d]:
-                            phi_outer_star += np.outer(grad_phi[d], grad_phi[d])
-                        stress_grad += (
-                            m_lambda + m_mu
-                        ) * phi_outer + m_mu * phi_outer_star
-                    else:
-                        stress_grad += m_lambda * np.outer(grad_phi[i_d], grad_phi[j_d])
-                    j_el[
-                        i_d : n_dof + 1 : n_components, j_d : n_dof + 1 : n_components
-                    ] += (det_jac[i] * omega * stress_grad)
-
-        # scattering data
-
-        # contribute rhs
-        rg[dest] += r_el
-
-        # contribute lhs
-        block_sequ = np.array(range(0, len(dest) * len(dest))) + c_sequ
-        row[block_sequ] += np.repeat(dest, len(dest))
-        col[block_sequ] += np.tile(dest, len(dest))
-        data[block_sequ] += j_el.ravel()
-
-    material_data = (m_lambda, m_mu)
-    for element in u_field.elements:
-        el_data: ElementData = element.data
-        cell = el_data.cell
-        points = el_data.quadrature.points
-        weights = el_data.quadrature.weights
-        phi_tab = el_data.basis.phi
-        x = el_data.mapping.x
-        det_jac = el_data.mapping.det_jac
-        inv_jac = el_data.mapping.inv_jac
-        dest = u_field.dof_map.destination_indices(cell.id)
-        c_sequ = cell_map[cell.id]
-        # Partial local vectorization
-        f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
-
-        element_data = (points, weights, phi_tab, x, det_jac, inv_jac, dest)
-        scatter_form_data_simple(element_data, c_sequ, dim, n_components, material_data, f_val_star, row, col, data)
-
-    # @numba.jit(nopython=True, parallel=True)
-    def assembler(cell_map, row, col, data, u_field):
-        for element in u_field.elements:
-            scatter_form_data_ad(
-                element, m_lambda, m_mu, f_rhs, u_field, cell_map, row, col, data
-            )
-
-
-    # assembler(cell_map, row, col, data, u_field)
 
     def scatter_bc_form_data(element, u_field, cell_map, row, col, data):
 
@@ -1237,9 +1153,9 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 def main():
 
-    k_order = 3
+    k_order = 1
     h = 1.0
-    n_ref = 5
+    n_ref = 1
     dimension = 2
     ref_l = 0
 
@@ -1249,7 +1165,7 @@ def main():
         h_val = h * (2**-l)
         mesher = create_conformal_mesher(domain, h, l)
         gmesh = create_mesh(dimension, mesher, False)
-        error_val = h1_elasticity(k_order, gmesh, False)
+        error_val = h1_laplace(k_order, gmesh, False)
         # error_val = h1_cosserat_elasticity(k_order, gmesh, False)
         error_data = np.append(error_data, np.array([[h_val, error_val]]), axis=0)
 
