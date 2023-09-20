@@ -470,7 +470,7 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
     q_components = 1
     u_components = 1
 
-    q_family = "BDM"
+    q_family = "RT"
     u_family = "Lagrange"
 
     # flux field
@@ -544,11 +544,10 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
 
     if dim == 3:
         f_exact = lambda x, y, z: np.array(
-            [(1.0 - x) * x * (1.0 - y) * y * (1.0 - z) * z])
+            [(1.0 - x)*x*(1.0 - y)*y*(1.0 - z)*z])
 
         f_rhs = lambda x, y, z: np.array(
-            [2 * (1 - x) * x * (1 - y) * y + 2 * (1 - x) * x * (1 - z) * z + 2 * (
-                    1 - y) * y * (1 - z) * z]
+            [2.0*(1.0 - x)*x*(1.0 - y)*y + 2.0*(1.0 - x)*x*(1.0 - z)*z + 2.0*(1.0 - y)*y*(1.0 - z)*z]
         )
 
     def scatter_form_data_ad(
@@ -605,26 +604,26 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
         u_j_el = np.zeros((n_u_dof, n_u_dof))
         u_r_el = np.zeros(n_u_dof)
 
-        # linear_base
-        for i, omega in enumerate(weights):
-            q_val = q_exact(x[i, 0], x[i, 1], x[i, 2])
-            q_r_el = q_r_el + det_jac[i] * omega * q_phi_tab[0, i, :, 0:dim] @ q_val
-            for d in range(3):
-                q_j_el = q_j_el + det_jac[i] * omega * np.outer(
-                    q_phi_tab[0, i, :, d], q_phi_tab[0, i, :, d]
-                )
-        alpha_q = np.linalg.solve(q_j_el, q_r_el)
-
-        aka = 0
-        for i, omega in enumerate(weights):
-            u_val = f_exact(x[i, 0], x[i, 1], x[i, 2])
-            u_r_el = u_r_el + det_jac[i] * omega * u_phi_tab[0, i, :, :] @ u_val
-            for d in range(1):
-                u_j_el = u_j_el + det_jac[i] * omega * np.outer(
-                    u_phi_tab[0, i, :, d], u_phi_tab[0, i, :, d]
-                )
-
-        alpha_u = np.linalg.solve(u_j_el, u_r_el)
+        # # linear_base
+        # for i, omega in enumerate(weights):
+        #     q_val = q_exact(x[i, 0], x[i, 1], x[i, 2])
+        #     q_r_el = q_r_el + det_jac[i] * omega * q_phi_tab[0, i, :, 0:dim] @ q_val
+        #     for d in range(3):
+        #         q_j_el = q_j_el + det_jac[i] * omega * np.outer(
+        #             q_phi_tab[0, i, :, d], q_phi_tab[0, i, :, d]
+        #         )
+        # alpha_q = np.linalg.solve(q_j_el, q_r_el)
+        #
+        # aka = 0
+        # for i, omega in enumerate(weights):
+        #     u_val = f_exact(x[i, 0], x[i, 1], x[i, 2])
+        #     u_r_el = u_r_el + det_jac[i] * omega * u_phi_tab[0, i, :, :] @ u_val
+        #     for d in range(1):
+        #         u_j_el = u_j_el + det_jac[i] * omega * np.outer(
+        #             u_phi_tab[0, i, :, d], u_phi_tab[0, i, :, d]
+        #         )
+        #
+        # alpha_u = np.linalg.solve(u_j_el, u_r_el)
 
         # constant directors
         e1 = np.array([1, 0, 0])
@@ -750,8 +749,8 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
 
     # solving ls
     st = time.time()
-    alpha = sp.linalg.spsolve(jg, rg)
-    # alpha = sp_solver.spsolve(jg, rg)
+    # alpha = sp.linalg.spsolve(jg, rg)
+    alpha = sp_solver.spsolve(jg, rg)
     et = time.time()
     elapsed_time = et - st
     print("Linear solver time:", elapsed_time, "seconds")
@@ -908,9 +907,9 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 def main():
 
     k_order = 2
-    h = 0.25
+    h = 1.0
     n_ref = 4
-    dimension = 2
+    dimension = 3
     ref_l = 0
 
     domain = create_domain(dimension)
