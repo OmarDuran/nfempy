@@ -131,8 +131,6 @@ class FiniteElement:
         if phi_tab[0].shape == phi_mapped.shape:
             phi_tab[0] = phi_mapped
         else:
-            shape = phi_tab.shape
-            new_shape = (shape[0], shape[1], shape[2], phi_mapped.shape[2])
             phi_tab = np.insert(phi_tab, 2, 0, axis=3)
             phi_tab[0] = phi_mapped
 

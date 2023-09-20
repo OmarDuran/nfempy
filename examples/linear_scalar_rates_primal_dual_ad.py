@@ -125,7 +125,6 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
     f_rhs = lambda x, y, z: np.array([2 * (1 - x) * x + 2 * (1 - y) * y])
 
     if dim == 3:
-
         f_exact = lambda x, y, z: np.array(
             [(1.0 - x) * x * (1.0 - y) * y * (1.0 - z) * z])
 
@@ -237,6 +236,7 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
         # constant directors
         e1 = np.array([1, 0, 0])
         e2 = np.array([0, 1, 0])
+        e3 = np.array([0, 0, 1])
         with ad.AutoDiff(alpha) as alpha:
 
                 el_form = np.zeros(n_dof)
@@ -246,7 +246,10 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
                     el_form[b:e:n_components] += phi_s_star @ f_val_star[c]
 
                 for i, omega in enumerate(weights):
-                    inv_jac_m = np.vstack((inv_jac[i] @ e1, inv_jac[i] @ e2))
+                    if dim == 2:
+                        inv_jac_m = np.vstack((inv_jac[i] @ e1, inv_jac[i] @ e2))
+                    else:
+                        inv_jac_m = np.vstack((inv_jac[i] @ e1, inv_jac[i] @ e2, inv_jac[i] @ e3))
                     grad_phi = (inv_jac_m @ phi_tab[1: phi_tab.shape[0] + 1, i, :, 0]).T
                     grad_uh = alpha @ grad_phi
                     grad_uh *= m_kappa
@@ -456,29 +459,31 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
     return l2_error
 
 
-def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
+def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
 
     dim = gmesh.dimension
     # Material data
 
-    m_lambda = 1.0
-    m_mu = 1.0
     m_kappa = 1.0
-    m_gamma = 1.0
 
     # FESpace: data
-    n_components = 3
-    if dim == 3:
-        n_components = 6
+    q_components = 1
+    u_components = 1
 
-    family = "Lagrange"
+    q_family = "BDM"
+    u_family = "Lagrange"
 
-    u_field = DiscreteField(dim, n_components, family, k_order, gmesh)
-    # u_field.build_structures([2, 3])
+    # flux field
+    q_field = DiscreteField(dim, q_components, q_family, k_order, gmesh, integration_oder = 2 * k_order + 1)
     if dim == 2:
-        u_field.build_structures([2, 3, 4, 5])
+        q_field.build_structures([2, 3, 4, 5])
     elif dim == 3:
-        u_field.build_structures([2, 3, 4, 5, 6, 7])
+        q_field.build_structures([2, 3, 4, 5, 6, 7])
+
+    # potential field
+    u_field = DiscreteField(dim, u_components, u_family, k_order - 1, gmesh, integration_oder = 2 * k_order + 1)
+    u_field.make_discontinuous()
+    u_field.build_structures()
 
     st = time.time()
     # Assembler
@@ -486,19 +491,33 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     c_size = 0
     n_dof_g = 0
     cell_map = {}
-    for element in u_field.elements:
-        cell = element.data.cell
+
+    q_n_els = len(q_field.elements)
+    u_n_els = len(u_field.elements)
+    assert q_n_els == u_n_els
+
+    components = (q_components, u_components)
+    fields = (q_field, u_field)
+
+    for i in range(q_n_els):
+        q_element = q_field.elements[i]
+        u_element = u_field.elements[i]
+        cell = q_element.data.cell
+        elements = (q_element, u_element)
+
         n_dof = 0
-        for n_entity_dofs in element.basis_generator.num_entity_dofs:
-            n_dof = n_dof + sum(n_entity_dofs) * n_components
+        for j, element in enumerate(elements):
+            for n_entity_dofs in element.basis_generator.num_entity_dofs:
+                n_dof = n_dof + sum(n_entity_dofs) * components[j]
+
         cell_map.__setitem__(cell.id, c_size)
         c_size = c_size + n_dof * n_dof
 
-    for element in u_field.bc_elements:
+    for element in q_field.bc_elements:
         cell = element.data.cell
         n_dof = 0
         for n_entity_dofs in element.basis_generator.num_entity_dofs:
-            n_dof = n_dof + sum(n_entity_dofs) * n_components
+            n_dof = n_dof + sum(n_entity_dofs) * q_components
         cell_map.__setitem__(cell.id, c_size)
         c_size = c_size + n_dof * n_dof
 
@@ -506,7 +525,9 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     col = np.zeros((c_size), dtype=np.int64)
     data = np.zeros((c_size), dtype=np.float64)
 
-    n_dof_g = u_field.dof_map.dof_number()
+    q_n_dof_g = q_field.dof_map.dof_number()
+    u_n_dof_g = u_field.dof_map.dof_number()
+    n_dof_g = q_n_dof_g + u_n_dof_g
     rg = np.zeros(n_dof_g)
     print("n_dof: ", n_dof_g)
 
@@ -516,388 +537,131 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
     st = time.time()
 
-    # smooth solution
-    f_exact = lambda x, y, z: np.array(
-        [
-            np.sin(np.pi * x) * y * (1 - y),
-            np.sin(np.pi * y) * x * (1 - x),
-            np.sin(np.pi * x) * np.sin(np.pi * y),
-        ]
-    )
-    f_rhs_x = lambda x, y, z: -(
-        (2 * m_kappa + 2 * m_mu - np.pi**2 * (-1 + y) * y * (m_lambda + 2 * m_mu))
-        * np.sin(np.pi * x)
-    ) + np.pi * np.cos(np.pi * y) * (
-        (-1 + 2 * x) * (m_kappa - m_lambda - m_mu) + 2 * m_kappa * np.sin(np.pi * x)
-    )
-    f_rhs_y = lambda x, y, z: -(
-        (2 * m_kappa + 2 * m_mu - np.pi**2 * (-1 + x) * x * (m_lambda + 2 * m_mu))
-        * np.sin(np.pi * y)
-    ) + np.pi * np.cos(np.pi * x) * (
-        (-1 + 2 * y) * (m_kappa - m_lambda - m_mu) - 2 * m_kappa * np.sin(np.pi * y)
-    )
-    f_rhs_t = lambda x, y, z: -2 * (
-        (-1 + 2 * x) * m_kappa * np.sin(np.pi * y)
-        + np.sin(np.pi * x)
-        * (
-            m_kappa
-            - 2 * y * m_kappa
-            + ((np.pi**2) * m_gamma + 2 * m_kappa) * np.sin(np.pi * y)
-        )
-    )
-    f_rhs = lambda x, y, z: np.array(
-        [-f_rhs_x(x, y, z), -f_rhs_y(x, y, z), -f_rhs_t(x, y, z)]
-    )
+    # exact solution
+    f_exact = lambda x, y, z: np.array([(1.0 - x) * x * (1.0 - y) * y])
+    q_exact = lambda x, y, z: np.array([-((1 - x)*(1 - y)*y) + x*(1 - y)*y, -((1 - x)*x*(1 - y)) + (1 - x)*x*y])
+    f_rhs = lambda x, y, z: np.array([2.0 * (1.0 - x) * x + 2.0 * (1.0 - y) * y])
+
     if dim == 3:
         f_exact = lambda x, y, z: np.array(
-            [
-                (1 - y) * y * (1 - z) * z * np.sin(np.pi * x),
-                (1 - x) * x * (1 - z) * z * np.sin(np.pi * y),
-                (1 - x) * x * (1 - y) * y * np.sin(np.pi * z),
-                (1 - x) * x * np.sin(np.pi * y) * np.sin(np.pi * z),
-                (1 - y) * y * np.sin(np.pi * x) * np.sin(np.pi * z),
-                (1 - z) * z * np.sin(np.pi * x) * np.sin(np.pi * y),
-            ]
-        )
-        f_rhs_x = (
-            lambda x, y, z: -2
-            * (np.pi**2)
-            * (1 - y)
-            * y
-            * (1 - z)
-            * z
-            * m_mu
-            * np.sin(np.pi * x)
-            + m_mu
-            * (
-                np.pi * (1 - x) * (1 - y) * y * np.cos(np.pi * z)
-                - np.pi * x * (1 - y) * y * np.cos(np.pi * z)
-                - 2 * (1 - y) * y * np.sin(np.pi * x)
-            )
-            + m_mu
-            * (
-                np.pi * (1 - x) * (1 - z) * z * np.cos(np.pi * y)
-                - np.pi * x * (1 - z) * z * np.cos(np.pi * y)
-                - 2 * (1 - z) * z * np.sin(np.pi * x)
-            )
-            + m_lambda
-            * (
-                np.pi * (1 - x) * (1 - z) * z * np.cos(np.pi * y)
-                - np.pi * x * (1 - z) * z * np.cos(np.pi * y)
-                + np.pi * (1 - x) * (1 - y) * y * np.cos(np.pi * z)
-                - np.pi * x * (1 - y) * y * np.cos(np.pi * z)
-                - (np.pi**2) * (1 - y) * y * (1 - z) * z * np.sin(np.pi * x)
-            )
-            + m_kappa
-            * (
-                -(np.pi * (1 - x) * (1 - z) * z * np.cos(np.pi * y))
-                + np.pi * x * (1 - z) * z * np.cos(np.pi * y)
-                - 2 * (1 - z) * z * np.sin(np.pi * x)
-                + 2 * np.pi * z * np.cos(np.pi * y) * np.sin(np.pi * x)
-                - 2 * np.pi * (z**2) * np.cos(np.pi * y) * np.sin(np.pi * x)
-            )
-            + m_kappa
-            * (
-                -(np.pi * (1 - x) * (1 - y) * y * np.cos(np.pi * z))
-                + np.pi * x * (1 - y) * y * np.cos(np.pi * z)
-                - 2 * (1 - y) * y * np.sin(np.pi * x)
-                - 2 * np.pi * y * np.cos(np.pi * z) * np.sin(np.pi * x)
-                + 2 * np.pi * (y**2) * np.cos(np.pi * z) * np.sin(np.pi * x)
-            )
-        )
-        f_rhs_y = (
-            lambda x, y, z: -2
-            * (np.pi**2)
-            * (1 - x)
-            * x
-            * (1 - z)
-            * z
-            * m_mu
-            * np.sin(np.pi * y)
-            + m_mu
-            * (
-                np.pi * (1 - x) * x * (1 - y) * np.cos(np.pi * z)
-                - np.pi * (1 - x) * x * y * np.cos(np.pi * z)
-                - 2 * (1 - x) * x * np.sin(np.pi * y)
-            )
-            + m_mu
-            * (
-                np.pi * (1 - y) * (1 - z) * z * np.cos(np.pi * x)
-                - np.pi * y * (1 - z) * z * np.cos(np.pi * x)
-                - 2 * (1 - z) * z * np.sin(np.pi * y)
-            )
-            + m_lambda
-            * (
-                np.pi * (1 - y) * (1 - z) * z * np.cos(np.pi * x)
-                - np.pi * y * (1 - z) * z * np.cos(np.pi * x)
-                + np.pi * (1 - x) * x * (1 - y) * np.cos(np.pi * z)
-                - np.pi * (1 - x) * x * y * np.cos(np.pi * z)
-                - (np.pi**2) * (1 - x) * x * (1 - z) * z * np.sin(np.pi * y)
-            )
-            + m_kappa
-            * (
-                -(np.pi * (1 - y) * (1 - z) * z * np.cos(np.pi * x))
-                + np.pi * y * (1 - z) * z * np.cos(np.pi * x)
-                - 2 * (1 - z) * z * np.sin(np.pi * y)
-                - 2 * np.pi * z * np.cos(np.pi * x) * np.sin(np.pi * y)
-                + 2 * np.pi * (z**2) * np.cos(np.pi * x) * np.sin(np.pi * y)
-            )
-            + m_kappa
-            * (
-                -(np.pi * (1 - x) * x * (1 - y) * np.cos(np.pi * z))
-                + np.pi * (1 - x) * x * y * np.cos(np.pi * z)
-                - 2 * (1 - x) * x * np.sin(np.pi * y)
-                + 2 * np.pi * x * np.cos(np.pi * z) * np.sin(np.pi * y)
-                - 2 * np.pi * (x**2) * np.cos(np.pi * z) * np.sin(np.pi * y)
-            )
-        )
-        f_rhs_z = (
-            lambda x, y, z: -2
-            * (np.pi**2)
-            * (1 - x)
-            * x
-            * (1 - y)
-            * y
-            * m_mu
-            * np.sin(np.pi * z)
-            + m_mu
-            * (
-                np.pi * (1 - x) * x * (1 - z) * np.cos(np.pi * y)
-                - np.pi * (1 - x) * x * z * np.cos(np.pi * y)
-                - 2 * (1 - x) * x * np.sin(np.pi * z)
-            )
-            + m_mu
-            * (
-                np.pi * (1 - y) * y * (1 - z) * np.cos(np.pi * x)
-                - np.pi * (1 - y) * y * z * np.cos(np.pi * x)
-                - 2 * (1 - y) * y * np.sin(np.pi * z)
-            )
-            + m_lambda
-            * (
-                np.pi * (1 - y) * y * (1 - z) * np.cos(np.pi * x)
-                - np.pi * (1 - y) * y * z * np.cos(np.pi * x)
-                + np.pi * (1 - x) * x * (1 - z) * np.cos(np.pi * y)
-                - np.pi * (1 - x) * x * z * np.cos(np.pi * y)
-                - (np.pi**2) * (1 - x) * x * (1 - y) * y * np.sin(np.pi * z)
-            )
-            + m_kappa
-            * (
-                -(np.pi * (1 - y) * y * (1 - z) * np.cos(np.pi * x))
-                + np.pi * (1 - y) * y * z * np.cos(np.pi * x)
-                - 2 * (1 - y) * y * np.sin(np.pi * z)
-                + 2 * np.pi * y * np.cos(np.pi * x) * np.sin(np.pi * z)
-                - 2 * np.pi * (y**2) * np.cos(np.pi * x) * np.sin(np.pi * z)
-            )
-            + m_kappa
-            * (
-                -(np.pi * (1 - x) * x * (1 - z) * np.cos(np.pi * y))
-                + np.pi * (1 - x) * x * z * np.cos(np.pi * y)
-                - 2 * (1 - x) * x * np.sin(np.pi * z)
-                - 2 * np.pi * x * np.cos(np.pi * y) * np.sin(np.pi * z)
-                + 2 * np.pi * (x**2) * np.cos(np.pi * y) * np.sin(np.pi * z)
-            )
-        )
-        f_rhs_t_x = (
-            lambda x, y, z: -2 * x * m_kappa * np.sin(np.pi * y)
-            + 2 * (x**2) * m_kappa * np.sin(np.pi * y)
-            + 4 * x * z * m_kappa * np.sin(np.pi * y)
-            - 4 * (x**2) * z * m_kappa * np.sin(np.pi * y)
-            + 2 * x * m_kappa * np.sin(np.pi * z)
-            - 2 * (x**2) * m_kappa * np.sin(np.pi * z)
-            - 4 * x * y * m_kappa * np.sin(np.pi * z)
-            + 4 * (x**2) * y * m_kappa * np.sin(np.pi * z)
-            - 2 * m_gamma * np.sin(np.pi * y) * np.sin(np.pi * z)
-            - 2
-            * (np.pi**2)
-            * (1 - x)
-            * x
-            * m_gamma
-            * np.sin(np.pi * y)
-            * np.sin(np.pi * z)
-            - 4 * x * m_kappa * np.sin(np.pi * y) * np.sin(np.pi * z)
-            + 4 * (x**2) * m_kappa * np.sin(np.pi * y) * np.sin(np.pi * z)
-        )
-        f_rhs_t_y = (
-            lambda x, y, z: 2 * y * m_kappa * np.sin(np.pi * x)
-            - 2 * (y**2) * m_kappa * np.sin(np.pi * x)
-            - 4 * y * z * m_kappa * np.sin(np.pi * x)
-            + 4 * (y**2) * z * m_kappa * np.sin(np.pi * x)
-            - 2 * y * m_kappa * np.sin(np.pi * z)
-            + 4 * x * y * m_kappa * np.sin(np.pi * z)
-            + 2 * (y**2) * m_kappa * np.sin(np.pi * z)
-            - 4 * x * (y**2) * m_kappa * np.sin(np.pi * z)
-            - 2 * m_gamma * np.sin(np.pi * x) * np.sin(np.pi * z)
-            - 2
-            * (np.pi**2)
-            * (1 - y)
-            * y
-            * m_gamma
-            * np.sin(np.pi * x)
-            * np.sin(np.pi * z)
-            - 4 * y * m_kappa * np.sin(np.pi * x) * np.sin(np.pi * z)
-            + 4 * (y**2) * m_kappa * np.sin(np.pi * x) * np.sin(np.pi * z)
-        )
-        f_rhs_t_z = (
-            lambda x, y, z: -2 * z * m_kappa * np.sin(np.pi * x)
-            + 4 * y * z * m_kappa * np.sin(np.pi * x)
-            + 2 * (z**2) * m_kappa * np.sin(np.pi * x)
-            - 4 * y * (z**2) * m_kappa * np.sin(np.pi * x)
-            + 2 * z * m_kappa * np.sin(np.pi * y)
-            - 4 * x * z * m_kappa * np.sin(np.pi * y)
-            - 2 * (z**2) * m_kappa * np.sin(np.pi * y)
-            + 4 * x * (z**2) * m_kappa * np.sin(np.pi * y)
-            - 2 * m_gamma * np.sin(np.pi * x) * np.sin(np.pi * y)
-            - 2
-            * (np.pi**2)
-            * (1 - z)
-            * z
-            * m_gamma
-            * np.sin(np.pi * x)
-            * np.sin(np.pi * y)
-            - 4 * z * m_kappa * np.sin(np.pi * x) * np.sin(np.pi * y)
-            + 4 * (z**2) * m_kappa * np.sin(np.pi * x) * np.sin(np.pi * y)
-        )
+            [(1.0 - x) * x * (1.0 - y) * y * (1.0 - z) * z])
+
         f_rhs = lambda x, y, z: np.array(
-            [
-                -f_rhs_x(x, y, z),
-                -f_rhs_y(x, y, z),
-                -f_rhs_z(x, y, z),
-                -f_rhs_t_x(x, y, z),
-                -f_rhs_t_y(x, y, z),
-                -f_rhs_t_z(x, y, z),
-            ]
+            [2 * (1 - x) * x * (1 - y) * y + 2 * (1 - x) * x * (1 - z) * z + 2 * (
+                    1 - y) * y * (1 - z) * z]
         )
 
-    def scatter_form_data(
-        element,
-        m_lambda,
-        m_mu,
-        m_kappa,
-        m_gamma,
-        f_rhs,
-        u_field,
-        cell_map,
-        row,
-        col,
-        data,
+    def scatter_form_data_ad(
+            i, m_kappa, f_rhs, fields, cell_map, row, col, data
     ):
 
-        n_components = u_field.n_comp
-        el_data: ElementData = element.data
+        dim = fields[0].dimension
+        q_components = fields[0].n_comp
+        u_components = fields[1].n_comp
 
-        n_comp_u = 2
-        n_comp_t = 1
-        if u_field.dimension == 3:
-            n_comp_u = 3
-            n_comp_t = 3
+        q_data: ElementData = fields[0].elements[i].data
+        u_data: ElementData = fields[1].elements[i].data
 
-        cell = el_data.cell
-        points = el_data.quadrature.points
-        weights = el_data.quadrature.weights
-        phi_tab = el_data.basis.phi
+        cell = q_data.cell
 
-        x = el_data.mapping.x
-        det_jac = el_data.mapping.det_jac
-        inv_jac = el_data.mapping.inv_jac
+        points = q_data.quadrature.points
+        weights = q_data.quadrature.weights
+        x = q_data.mapping.x
+        det_jac = q_data.mapping.det_jac
+        inv_jac = q_data.mapping.inv_jac
+
+        # basis
+        q_phi_tab = q_data.basis.phi
+        u_phi_tab = u_data.basis.phi
 
         # destination indexes
-        dest = u_field.dof_map.destination_indices(cell.id)
+        dest_q = q_field.dof_map.destination_indices(cell.id)
+        dest_u = u_field.dof_map.destination_indices(cell.id) + q_n_dof_g
+        dest = np.concatenate([dest_q,dest_u])
+        n_q_phi = q_phi_tab.shape[2]
+        n_u_phi = u_phi_tab.shape[2]
 
-        n_phi = phi_tab.shape[2]
-        n_dof = n_phi * n_components
+        n_q_dof = n_q_phi * q_components
+        n_u_dof = n_u_phi * u_components
+
+        n_dof = n_q_dof + n_u_dof
         js = (n_dof, n_dof)
         rs = n_dof
         j_el = np.zeros(js)
         r_el = np.zeros(rs)
+        alpha = np.zeros(n_dof)
 
         # Partial local vectorization
         f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
-        phi_s_star = det_jac * weights * phi_tab[0, :, :, 0].T
+        phi_s_star = det_jac * weights * u_phi_tab[0, :, :, 0].T
+        
+        q_val_star = q_exact(x[:, 0], x[:, 1], x[:, 2])
+        u_val_star = f_exact(x[:, 0], x[:, 1], x[:, 2])
 
-        # rotation part
-        rotation_block = np.zeros((n_phi, n_phi))
-        assymetric_block = np.zeros((n_phi * n_comp_t, n_phi * n_comp_u))
-        axial_pairs_idx = [[1, 0]]
-        axial_dest_pairs_idx = [[0, 1]]
-        if u_field.dimension == 3:
-            axial_pairs_idx = [[2, 1], [0, 2], [1, 0]]
-            axial_dest_pairs_idx = [[1, 2], [2, 0], [0, 1]]
+        # projectors
+        q_j_el = np.zeros((n_q_dof, n_q_dof))
+        q_r_el = np.zeros(n_q_dof)
 
-        phi_star_dirs = [[1, 2], [0, 2], [0, 1]]
+        u_j_el = np.zeros((n_u_dof, n_u_dof))
+        u_r_el = np.zeros(n_u_dof)
+
+        # linear_base
         for i, omega in enumerate(weights):
-            grad_phi = inv_jac[i].T @ phi_tab[1 : phi_tab.shape[0] + 1, i, :, 0]
-
-            phi = phi_tab[0, i, :, 0]
-            for i_c, pair in enumerate(axial_pairs_idx):
-                adest = axial_dest_pairs_idx[i_c]
-                sigma_rotation_0 = np.outer(phi, grad_phi[pair[0], :])
-                sigma_rotation_1 = np.outer(phi, grad_phi[pair[1], :])
-                assymetric_block[
-                    i_c * n_phi : n_phi + i_c * n_phi, adest[0] : n_dof + 1 : n_comp_u
-                ] += (det_jac[i] * omega * 2.0 * m_kappa * sigma_rotation_0)
-                assymetric_block[
-                    i_c * n_phi : n_phi + i_c * n_phi, adest[1] : n_dof + 1 : n_comp_u
-                ] -= (det_jac[i] * omega * 2.0 * m_kappa * sigma_rotation_1)
-            rotation_block += det_jac[i] * omega * 4.0 * m_kappa * np.outer(phi, phi)
+            q_val = q_exact(x[i, 0], x[i, 1], x[i, 2])
+            q_r_el = q_r_el + det_jac[i] * omega * q_phi_tab[0, i, :, 0:dim] @ q_val
             for d in range(3):
-                rotation_block += (
-                    det_jac[i] * omega * m_gamma * np.outer(grad_phi[d], grad_phi[d])
+                q_j_el = q_j_el + det_jac[i] * omega * np.outer(
+                    q_phi_tab[0, i, :, d], q_phi_tab[0, i, :, d]
+                )
+        alpha_q = np.linalg.solve(q_j_el, q_r_el)
+
+        aka = 0
+        for i, omega in enumerate(weights):
+            u_val = f_exact(x[i, 0], x[i, 1], x[i, 2])
+            u_r_el = u_r_el + det_jac[i] * omega * u_phi_tab[0, i, :, :] @ u_val
+            for d in range(1):
+                u_j_el = u_j_el + det_jac[i] * omega * np.outer(
+                    u_phi_tab[0, i, :, d], u_phi_tab[0, i, :, d]
                 )
 
-            for i_d in range(n_comp_u):
-                for j_d in range(n_comp_u):
-                    phi_outer = np.outer(grad_phi[i_d], grad_phi[j_d])
-                    stress_grad = m_mu * phi_outer
-                    if i_d == j_d:
-                        phi_outer_star = np.zeros((n_phi, n_phi))
-                        for d in phi_star_dirs[i_d]:
-                            phi_outer_star += np.outer(grad_phi[d], grad_phi[d])
-                        stress_grad += (m_lambda + m_mu) * phi_outer + (
-                            m_mu + m_kappa
-                        ) * phi_outer_star
-                    else:
-                        stress_grad -= m_kappa * phi_outer
-                        stress_grad += m_lambda * np.outer(grad_phi[j_d], grad_phi[i_d])
-                    j_el[
-                        i_d : n_dof + 1 : n_components, j_d : n_dof + 1 : n_components
-                    ] += (det_jac[i] * omega * stress_grad)
+        alpha_u = np.linalg.solve(u_j_el, u_r_el)
 
-        for c in range(n_comp_t):
-            b = c + n_comp_u
-            j_el[
-                b : n_dof + 1 : n_components, b : n_dof + 1 : n_components
-            ] += rotation_block
+        # constant directors
+        e1 = np.array([1, 0, 0])
+        e2 = np.array([0, 1, 0])
+        e3 = np.array([0, 0, 1])
+        with ad.AutoDiff(alpha) as alpha:
 
-        for i_c, adest in enumerate(axial_dest_pairs_idx):
-            j_el[
-                n_comp_u + i_c : n_dof + 1 : n_components,
-                adest[0] : n_dof + 1 : n_components,
-            ] += assymetric_block[
-                i_c * n_phi : n_phi + i_c * n_phi, adest[0] : n_dof + 1 : n_comp_u
-            ]
-            j_el[
-                adest[0] : n_dof + 1 : n_components,
-                n_comp_u + i_c : n_dof + 1 : n_components,
-            ] += assymetric_block[
-                i_c * n_phi : n_phi + i_c * n_phi, adest[0] : n_dof + 1 : n_comp_u
-            ].T
-            j_el[
-                n_comp_u + i_c : n_dof + 1 : n_components,
-                adest[1] : n_dof + 1 : n_components,
-            ] += assymetric_block[
-                i_c * n_phi : n_phi + i_c * n_phi, adest[1] : n_dof + 1 : n_comp_u
-            ]
-            j_el[
-                adest[1] : n_dof + 1 : n_components,
-                n_comp_u + i_c : n_dof + 1 : n_components,
-            ] += assymetric_block[
-                i_c * n_phi : n_phi + i_c * n_phi, adest[1] : n_dof + 1 : n_comp_u
-            ].T
+            el_form = np.zeros(n_dof)
+            for c in range(u_components):
+                el_form[n_q_dof:n_dof:1] += -1.0 * phi_s_star @ f_val_star[c]
 
-        for c in range(n_components):
-            b = c
-            e = (c + 1) * n_phi * n_components + 1
-            r_el[b:e:n_components] += phi_s_star @ f_val_star[c]
+            for i, omega in enumerate(weights):
+                if dim == 2:
+                    inv_jac_m = np.vstack((inv_jac[i] @ e1, inv_jac[i] @ e2))
+                else:
+                    inv_jac_m = np.vstack(
+                        (inv_jac[i] @ e1, inv_jac[i] @ e2, inv_jac[i] @ e3))
+
+                qh = alpha[:, 0:n_q_dof:1] @ q_phi_tab[0, i, :, 0:dim]
+                qh *= (1.0 / m_kappa)
+
+                uh = alpha[:, n_q_dof:n_dof:1] @ u_phi_tab[0, i, :, 0:dim]
+
+                grad_qh = q_phi_tab[1: q_phi_tab.shape[0] + 1, i, :, 0:dim]
+                div_vh = np.array([[np.trace(grad_qh[:,j,:]) / det_jac[i] for j in range (n_q_dof)]])
+                div_qh = alpha[:, 0:n_q_dof:1] @ div_vh.T
+
+                equ_1_integrand = (qh @ q_phi_tab[0, i, :, 0:dim].T) + (uh @ div_vh)
+                equ_2_integrand = (div_qh @ u_phi_tab[0, i, :, 0:dim].T)
+                multiphysic_integrand = np.zeros((1,n_dof))
+                multiphysic_integrand[:, 0:n_q_dof:1] = equ_1_integrand
+                multiphysic_integrand[:, n_q_dof:n_dof:1] = equ_2_integrand
+
+                discrete_integrand = (multiphysic_integrand).reshape((n_dof,))
+                el_form += det_jac[i] * omega * discrete_integrand
+
+        r_el, j_el = el_form.val, el_form.der.reshape((n_dof, n_dof))
 
         # scattering data
         c_sequ = cell_map[cell.id]
@@ -912,82 +676,72 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         data[block_sequ] += j_el.ravel()
 
     [
-        scatter_form_data(
-            element,
-            m_lambda,
-            m_mu,
-            m_kappa,
-            m_gamma,
-            f_rhs,
-            u_field,
-            cell_map,
-            row,
-            col,
-            data,
+        scatter_form_data_ad(
+            i, m_kappa, f_rhs, fields, cell_map, row, col, data
         )
-        for element in u_field.elements
+        for i in range(q_n_els)
     ]
 
-    def scatter_bc_form_data(element, u_field, cell_map, row, col, data):
+    # def scatter_bc_form_data(element, u_field, cell_map, row, col, data):
+    #
+    #     n_components = u_field.n_comp
+    #     el_data: ElementData = element.data
+    #
+    #     cell = el_data.cell
+    #     points = el_data.quadrature.points
+    #     weights = el_data.quadrature.weights
+    #     phi_tab = el_data.basis.phi
+    #
+    #     x = el_data.mapping.x
+    #     det_jac = el_data.mapping.det_jac
+    #     inv_jac = el_data.mapping.inv_jac
+    #
+    #     # find high-dimension neigh
+    #     entity_map = u_field.dof_map.mesh_topology.entity_map_by_dimension(
+    #         cell.dimension
+    #     )
+    #     neigh_list = list(entity_map.predecessors(cell.id))
+    #     neigh_check_q = len(neigh_list) > 0
+    #     assert neigh_check_q
+    #
+    #     neigh_cell_id = neigh_list[0]
+    #     neigh_cell_index = u_field.id_to_element[neigh_cell_id]
+    #     neigh_cell = u_field.elements[neigh_cell_index].data.cell
+    #
+    #     # destination indexes
+    #     dest_neigh = u_field.dof_map.destination_indices(neigh_cell_id)
+    #     dest = u_field.dof_map.bc_destination_indices(neigh_cell_id, cell.id)
+    #
+    #     n_phi = phi_tab.shape[2]
+    #     n_dof = n_phi * n_components
+    #     js = (n_dof, n_dof)
+    #     j_el = np.zeros(js)
+    #
+    #     # local blocks
+    #     beta = 1.0e12
+    #     jac_block = np.zeros((n_phi, n_phi))
+    #     for i, omega in enumerate(weights):
+    #         phi = phi_tab[0, i, :, 0]
+    #         jac_block += beta * det_jac[i] * omega * np.outer(phi, phi)
+    #
+    #     for c in range(n_components):
+    #         b = c
+    #         e = (c + 1) * n_phi * n_components + 1
+    #         j_el[b:e:n_components, b:e:n_components] += jac_block
+    #
+    #     # scattering data
+    #     c_sequ = cell_map[cell.id]
+    #
+    #     # contribute lhs
+    #     block_sequ = np.array(range(0, len(dest) * len(dest))) + c_sequ
+    #     row[block_sequ] += np.repeat(dest, len(dest))
+    #     col[block_sequ] += np.tile(dest, len(dest))
+    #     data[block_sequ] += j_el.ravel()
 
-        n_components = u_field.n_comp
-        el_data: ElementData = element.data
-
-        cell = el_data.cell
-        points = el_data.quadrature.points
-        weights = el_data.quadrature.weights
-        phi_tab = el_data.basis.phi
-
-        x = el_data.mapping.x
-        det_jac = el_data.mapping.det_jac
-        inv_jac = el_data.mapping.inv_jac
-
-        # find high-dimension neigh
-        entity_map = u_field.dof_map.mesh_topology.entity_map_by_dimension(
-            cell.dimension
-        )
-        neigh_list = list(entity_map.predecessors(cell.id))
-        neigh_check_q = len(neigh_list) > 0
-        assert neigh_check_q
-
-        neigh_cell_id = neigh_list[0]
-        neigh_cell_index = u_field.id_to_element[neigh_cell_id]
-        neigh_cell = u_field.elements[neigh_cell_index].data.cell
-
-        # destination indexes
-        dest_neigh = u_field.dof_map.destination_indices(neigh_cell_id)
-        dest = u_field.dof_map.bc_destination_indices(neigh_cell_id, cell.id)
-
-        n_phi = phi_tab.shape[2]
-        n_dof = n_phi * n_components
-        js = (n_dof, n_dof)
-        j_el = np.zeros(js)
-
-        # local blocks
-        beta = 1.0e12
-        jac_block = np.zeros((n_phi, n_phi))
-        for i, omega in enumerate(weights):
-            phi = phi_tab[0, i, :, 0]
-            jac_block += beta * det_jac[i] * omega * np.outer(phi, phi)
-
-        for c in range(n_components):
-            b = c
-            e = (c + 1) * n_phi * n_components + 1
-            j_el[b:e:n_components, b:e:n_components] += jac_block
-
-        # scattering data
-        c_sequ = cell_map[cell.id]
-
-        # contribute lhs
-        block_sequ = np.array(range(0, len(dest) * len(dest))) + c_sequ
-        row[block_sequ] += np.repeat(dest, len(dest))
-        col[block_sequ] += np.tile(dest, len(dest))
-        data[block_sequ] += j_el.ravel()
-
-    [
-        scatter_bc_form_data(element, u_field, cell_map, row, col, data)
-        for element in u_field.bc_elements
-    ]
+    # [
+    #     scatter_bc_form_data(element, u_field, cell_map, row, col, data)
+    #     for element in u_field.bc_elements
+    # ]
 
     jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
     et = time.time()
@@ -996,8 +750,8 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
     # solving ls
     st = time.time()
-    # alpha = sp.linalg.spsolve(jg, rg)
-    alpha = sp_solver.spsolve(jg, rg)
+    alpha = sp.linalg.spsolve(jg, rg)
+    # alpha = sp_solver.spsolve(jg, rg)
     et = time.time()
     elapsed_time = et - st
     print("Linear solver time:", elapsed_time, "seconds")
@@ -1017,7 +771,7 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         inv_jac = el_data.mapping.inv_jac
 
         # scattering dof
-        dest = u_field.dof_map.destination_indices(cell.id)
+        dest = u_field.dof_map.destination_indices(cell.id) + q_n_dof_g
         alpha_l = alpha[dest]
 
         # vectorization
@@ -1042,8 +796,8 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         cellid_to_element = dict(zip(u_field.element_ids, u_field.elements))
         # writing solution on mesh points
         vertices = u_field.mesh_topology.entities_by_dimension(0)
-        fh_data = np.zeros((len(gmesh.points), n_components))
-        fe_data = np.zeros((len(gmesh.points), n_components))
+        fh_data = np.zeros((len(gmesh.points), u_components))
+        fe_data = np.zeros((len(gmesh.points), u_components))
         cell_vertex_map = u_field.mesh_topology.entity_map_by_dimension(0)
         for id in vertices:
             if not cell_vertex_map.has_node(id):
@@ -1057,7 +811,7 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             element = cellid_to_element[pr_ids[0]]
 
             # scattering dof
-            dest = u_field.dof_map.destination_indices(cell.id)
+            dest = u_field.dof_map.destination_indices(cell.id) + q_n_dof_g
             alpha_l = alpha[dest]
 
             par_points = basix.geometry(u_field.element_type)
@@ -1100,7 +854,7 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             # Optionally provide extra data on points, cells, etc.
             point_data=p_data_dict,
         )
-        mesh.write("rates_h1_cosserat_elasticity.vtk")
+        mesh.write("rates_hdiv_laplace.vtk")
         et = time.time()
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
@@ -1153,8 +907,8 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 def main():
 
-    k_order = 3
-    h = 0.5
+    k_order = 2
+    h = 0.25
     n_ref = 4
     dimension = 2
     ref_l = 0
@@ -1165,8 +919,8 @@ def main():
         h_val = h * (2**-l)
         mesher = create_conformal_mesher(domain, h, l)
         gmesh = create_mesh(dimension, mesher, False)
-        error_val = h1_laplace(k_order, gmesh, True)
-        # error_val = h1_cosserat_elasticity(k_order, gmesh, False)
+        # error_val = h1_laplace(k_order, gmesh, True)
+        error_val = hdiv_laplace(k_order, gmesh, True)
         error_data = np.append(error_data, np.array([[h_val, error_val]]), axis=0)
 
     rates_data = np.empty((0, 1), float)
