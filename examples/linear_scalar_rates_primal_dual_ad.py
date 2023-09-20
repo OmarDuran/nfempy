@@ -470,7 +470,7 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
     q_components = 1
     u_components = 1
 
-    q_family = "RT"
+    q_family = "BDM"
     u_family = "Lagrange"
 
     # flux field
