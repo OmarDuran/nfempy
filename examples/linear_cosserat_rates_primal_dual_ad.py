@@ -724,26 +724,44 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     m_gamma = 1.0
 
     # FESpace: data
-    s_components = 3
-    u_components = 3
+    s_components = 2
+    m_components = 1
+    u_components = 2
+    t_components = 1
     if dim == 3:
-        s_components = 6
-        u_components = 6
+        s_components = 3
+        m_components = 3
+        u_components = 3
+        t_components = 3
 
     s_family = "BDM"
+    m_family = "BDM"
     u_family = "Lagrange"
+    t_family = "Lagrange"
 
-    # generalized stress field
+    # stress field
     s_field = DiscreteField(dim, s_components, s_family, k_order, gmesh, integration_oder = 2 * k_order + 1)
     if dim == 2:
         s_field.build_structures([2, 3, 4, 5])
     elif dim == 3:
         s_field.build_structures([2, 3, 4, 5, 6, 7])
 
+    # couple stress field
+    m_field = DiscreteField(dim, m_components, m_family, k_order, gmesh, integration_oder = 2 * k_order + 1)
+    if dim == 2:
+        m_field.build_structures([2, 3, 4, 5])
+    elif dim == 3:
+        m_field.build_structures([2, 3, 4, 5, 6, 7])
+
     # potential field
     u_field = DiscreteField(dim, u_components, u_family, k_order - 1, gmesh, integration_oder = 2 * k_order + 1)
     u_field.make_discontinuous()
     u_field.build_structures()
+
+    # rotation field
+    t_field = DiscreteField(dim, t_components, t_family, k_order - 1, gmesh, integration_oder = 2 * k_order + 1)
+    t_field.make_discontinuous()
+    t_field.build_structures()
 
     st = time.time()
     # Assembler
@@ -753,17 +771,21 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     cell_map = {}
 
     s_n_els = len(s_field.elements)
+    m_n_els = len(m_field.elements)
     u_n_els = len(u_field.elements)
-    assert s_n_els == u_n_els
+    t_n_els = len(t_field.elements)
+    assert s_n_els == m_n_els == u_n_els == t_n_els
 
-    components = (s_components, u_components)
-    fields = (s_field, u_field)
+    components = (s_components, m_components, u_components, t_components)
+    fields = (s_field, m_field, u_field, t_field)
 
     for i in range(s_n_els):
         s_element = s_field.elements[i]
+        m_element = m_field.elements[i]
         u_element = u_field.elements[i]
+        t_element = t_field.elements[i]
         cell = s_element.data.cell
-        elements = (s_element, u_element)
+        elements = (s_element, m_element, u_element, t_element)
 
         n_dof = 0
         for j, element in enumerate(elements):
@@ -786,8 +808,10 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     data = np.zeros((c_size), dtype=np.float64)
 
     s_n_dof_g = s_field.dof_map.dof_number()
+    m_n_dof_g = m_field.dof_map.dof_number()
     u_n_dof_g = u_field.dof_map.dof_number()
-    n_dof_g = s_n_dof_g + u_n_dof_g
+    t_n_dof_g = t_field.dof_map.dof_number()
+    n_dof_g = s_n_dof_g + m_n_dof_g + u_n_dof_g + t_n_dof_g
     rg = np.zeros(n_dof_g)
     print("n_dof: ", n_dof_g)
 
@@ -1077,10 +1101,14 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
         dim = fields[0].dimension
         s_components = fields[0].n_comp
-        u_components = fields[1].n_comp
+        m_components = fields[1].n_comp
+        u_components = fields[2].n_comp
+        t_components = fields[3].n_comp
 
         s_data: ElementData = fields[0].elements[i].data
-        u_data: ElementData = fields[1].elements[i].data
+        m_data: ElementData = fields[1].elements[i].data
+        u_data: ElementData = fields[2].elements[i].data
+        t_data: ElementData = fields[3].elements[i].data
 
         cell = s_data.cell
 
@@ -1092,19 +1120,27 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
         # basis
         s_phi_tab = s_data.basis.phi
+        m_phi_tab = m_data.basis.phi
         u_phi_tab = u_data.basis.phi
+        t_phi_tab = t_data.basis.phi
 
         # destination indexes
         dest_s = s_field.dof_map.destination_indices(cell.id)
-        dest_u = u_field.dof_map.destination_indices(cell.id) + s_n_dof_g
-        dest = np.concatenate([dest_s, dest_u])
+        dest_m = m_field.dof_map.destination_indices(cell.id) + s_n_dof_g
+        dest_u = u_field.dof_map.destination_indices(cell.id) + s_n_dof_g + m_n_dof_g
+        dest_t = t_field.dof_map.destination_indices(cell.id) + s_n_dof_g + m_n_dof_g + u_n_dof_g
+        dest = np.concatenate([dest_s, dest_m, dest_u, dest_t])
         n_s_phi = s_phi_tab.shape[2]
+        n_m_phi = m_phi_tab.shape[2]
         n_u_phi = u_phi_tab.shape[2]
+        n_t_phi = t_phi_tab.shape[2]
 
         n_s_dof = n_s_phi * s_components
+        n_m_dof = n_m_phi * m_components
         n_u_dof = n_u_phi * u_components
+        n_t_dof = n_t_phi * t_components
 
-        n_dof = n_s_dof + n_u_dof
+        n_dof = n_s_dof + n_m_dof + n_u_dof + n_t_dof
         js = (n_dof, n_dof)
         rs = n_dof
         j_el = np.zeros(js)
@@ -1124,9 +1160,13 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
             el_form = np.zeros(n_dof)
             for c in range(u_components):
-                b = c + n_s_dof
+                b = c + n_s_dof + n_m_dof
                 e = b + n_u_dof
                 el_form[b:e:u_components] += -1.0 * phi_s_star @ f_val_star[c]
+            for c in range(t_components):
+                b = c + n_s_dof + n_m_dof + n_u_dof
+                e = b + n_t_dof
+                el_form[b:e:t_components] += -1.0 * phi_s_star @ f_val_star[c+u_components]
 
             for i, omega in enumerate(weights):
                 if dim == 2:
@@ -1136,28 +1176,31 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
                         (inv_jac[i] @ e1, inv_jac[i] @ e2, inv_jac[i] @ e3))
 
                 if dim == 2:
-                    c = 0
-                    s_x = alpha[:, c:n_s_dof + c:s_components] @ s_phi_tab[0, i, :, 0:dim]
-                    ux_h = alpha[:,
-                           n_s_dof:n_s_dof + n_u_dof + c:u_components] @ u_phi_tab[0, i,
-                                                                         :, 0:dim]
-                    c = 1
-                    s_y = alpha[:, c:n_s_dof + c:s_components] @ s_phi_tab[0, i, :, 0:dim]
-                    uy_h = alpha[:,
-                           n_s_dof + c:n_s_dof + n_u_dof + c:u_components] @ u_phi_tab[0,
-                                                                             i, :, 0:dim]
 
-                    gamma_h = alpha[:,
-                              n_s_dof + n_u_dof: n_s_dof + n_u_dof + n_t_dof:t_components] @ t_phi_tab[
-                                                                                             0,
-                                                                                             i,
-                                                                                             :,
-                                                                                             0:dim]
+                    c = 0
+                    a_sx = alpha[:, c:n_s_dof + c:s_components]
+                    a_ux = alpha[:, n_s_dof+n_m_dof + c:n_s_dof + n_m_dof + n_u_dof + c:u_components]
+
+                    a_m = alpha[:, n_s_dof + c:n_s_dof + n_m_dof + c:m_components]
+                    a_t = alpha[:, n_s_dof+n_m_dof+n_u_dof + c:n_s_dof + n_m_dof + n_u_dof + n_t_dof + c:t_components]
+
+                    c = 1
+                    a_sy = alpha[:, c:n_s_dof + c:s_components]
+                    a_uy = alpha[:, n_s_dof+n_m_dof + c:n_s_dof + n_m_dof + n_u_dof + c:u_components]
+
+                    sx_h = a_sx @ s_phi_tab[0, i, :, 0:dim]
+                    sy_h = a_sy @ s_phi_tab[0, i, :, 0:dim]
+                    ux_h = a_ux @ u_phi_tab[0, i,:, 0:dim]
+                    uy_h = a_uy @ u_phi_tab[0, i, :, 0:dim]
+
+                    mh = a_m @ m_phi_tab[0, i, :, 0:dim]
+                    gh = a_t @ t_phi_tab[0,i, :, 0:dim]
 
                     u_h = VecValDer(np.hstack((ux_h.val, uy_h.val)),
                                     np.hstack((ux_h.der, uy_h.der)))
-                    s_h = VecValDer(np.vstack((s_x.val, s_y.val)),
-                                    np.vstack((s_x.der, s_y.der)))
+
+                    s_h = VecValDer(np.vstack((sx_h.val, sy_h.val)),
+                                    np.vstack((sx_h.der, sy_h.der)))
 
                     # symmetric part
                     Symm_sh = 0.5 * (s_h + s_h.T)
@@ -1165,19 +1208,26 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
                     tr_s_h = VecValDer(Symm_sh.val.trace(), Symm_sh.der.trace())
                     A_sh = (1.0 / 2.0 * m_mu) * (Symm_sh - (
-                                m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat)
+                                m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat) + (1.0 / 2.0 * m_kappa) * Skew_sh
+
+                    A_mh = (1.0 / m_gamma) * mh
 
                     grad_s_phi = s_phi_tab[1: s_phi_tab.shape[0] + 1, i, :, 0:dim]
                     div_tau = np.array([[np.trace(grad_s_phi[:, j, :]) / det_jac[i] for j
                                          in range(n_s_phi)]])
-                    c = 0
-                    div_sh_x = alpha[:, c:n_s_dof + c:s_components] @ div_tau.T
-                    c = 1
-                    div_sh_y = alpha[:, c:n_s_dof + c:s_components] @ div_tau.T
+
+                    grad_m_phi = m_phi_tab[1: s_phi_tab.shape[0] + 1, i, :, 0:dim]
+                    div_v = np.array([[np.trace(grad_m_phi[:, j, :]) / det_jac[i] for j
+                                         in range(n_m_phi)]])
+
+                    div_sh_x = a_sx @ div_tau.T
+                    div_sh_y = a_sy @ div_tau.T
                     div_sh = VecValDer(np.hstack((div_sh_x.val, div_sh_y.val)),
                                        np.hstack((div_sh_x.der, div_sh_y.der)))
 
-                    Gamma_outer = gamma_h * np.array([[0.0, -1.0], [1.0, 0.0]])
+                    div_mh = a_m @ div_v.T
+
+                    Gamma_outer = gh * np.array([[0.0, -1.0], [1.0, 0.0]])
                     S_cross = np.array([[Skew_sh[0, 1] - Skew_sh[1, 0]]])
 
                 else:
@@ -1185,66 +1235,70 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
                     inv_jac_m = np.vstack(
                         (inv_jac[i] @ e1, inv_jac[i] @ e2, inv_jac[i] @ e3))
 
-                    c = 0
-                    s_x =  alpha[:, c:n_s_dof + c:s_components] @ s_phi_tab[0, i, :, 0:dim]
-                    ux_h = alpha[:,n_s_dof + c: n_s_dof + n_u_dof + c:u_components] @ u_phi_tab[0, i,:, 0:dim]
-                    gx_h = alpha[:,n_s_dof + n_u_dof: n_s_dof + n_u_dof + n_t_dof + c:t_components] @ t_phi_tab[0, i, :, 0:dim]
+                    # c = 0
+                    # s_x =  alpha[:, c:n_s_dof + c:s_components] @ s_phi_tab[0, i, :, 0:dim]
+                    # ux_h = alpha[:,n_s_dof + c: n_s_dof + n_u_dof + c:u_components] @ u_phi_tab[0, i,:, 0:dim]
+                    # gx_h = alpha[:,n_s_dof + n_u_dof: n_s_dof + n_u_dof + n_t_dof + c:t_components] @ t_phi_tab[0, i, :, 0:dim]
+                    #
+                    # c = 1
+                    # s_y =  alpha[:, c:n_s_dof + c:s_components] @ s_phi_tab[0, i, :, 0:dim]
+                    # uy_h = alpha[:,n_s_dof + c:n_s_dof + n_u_dof + c:u_components] @ u_phi_tab[0,i, :, 0:dim]
+                    # gy_h = alpha[:,n_s_dof + n_u_dof + c: n_s_dof + n_u_dof + n_t_dof + c:t_components] @ t_phi_tab[0,i,:, 0:dim]
+                    #
+                    # c = 2
+                    # s_z =  alpha[:, c:n_s_dof + c:s_components] @ s_phi_tab[0, i, :, 0:dim]
+                    # uz_h = alpha[:,n_s_dof + c:n_s_dof + n_u_dof + c:u_components] @ u_phi_tab[0,i, :, 0:dim]
+                    # gz_h = alpha[:,n_s_dof + n_u_dof + c: n_s_dof + n_u_dof + n_t_dof + c:t_components] @ t_phi_tab[0,i,:,0:dim]
+                    #
+                    # u_h = VecValDer(np.hstack((ux_h.val, uy_h.val, uz_h.val)),
+                    #                 np.hstack((ux_h.der, uy_h.der, uz_h.der)))
+                    #
+                    # g_h = VecValDer(np.hstack((gx_h.val, gy_h.val, gz_h.val)),
+                    #                 np.hstack((gx_h.der, gy_h.der, gz_h.der)))
+                    #
+                    # s_h = VecValDer(np.vstack((s_x.val, s_y.val, s_z.val)),
+                    #                 np.vstack((s_x.der, s_y.der, s_z.der)))
+                    #
+                    # # symmetric part
+                    # Symm_sh = 0.5 * (s_h + s_h.T)
+                    # Skew_sh = 0.5 * (s_h - s_h.T)
+                    #
+                    # tr_s_h = VecValDer(Symm_sh.val.trace(), Symm_sh.der.trace())
+                    # A_sh = (1.0 / 2.0 * m_mu) * (Symm_sh - (
+                    #             m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat)
+                    #
+                    # grad_s_phi = s_phi_tab[1: s_phi_tab.shape[0] + 1, i, :, 0:dim]
+                    # div_tau = np.array([[np.trace(grad_s_phi[:, j, :]) / det_jac[i] for j
+                    #                      in range(n_s_phi)]])
+                    # c = 0
+                    # div_sh_x = alpha[:, c:n_s_dof + c:s_components] @ div_tau.T
+                    # c = 1
+                    # div_sh_y = alpha[:, c:n_s_dof + c:s_components] @ div_tau.T
+                    # c = 2
+                    # div_sh_z = alpha[:, c:n_s_dof + c:s_components] @ div_tau.T
+                    #
+                    # div_sh = VecValDer(np.hstack((div_sh_x.val, div_sh_y.val, div_sh_z.val)),
+                    #                    np.hstack((div_sh_x.der, div_sh_y.der, div_sh_z.der)))
+                    #
+                    # S_cross = np.array([[Skew_sh[1, 2] - Skew_sh[2, 1],
+                    #                      Skew_sh[2, 0] - Skew_sh[0, 2],
+                    #                      Skew_sh[0, 1] - Skew_sh[1, 0]]])
+                    #
+                    # Gamma_outer = np.array([[0.0*g_h[0,0], -g_h[0,2], +g_h[0,1]],
+                    #                         [+g_h[0,2], 0.0*g_h[0,0], -g_h[0,0]],
+                    #                         [-g_h[0,1], +g_h[0,0], 0.0*g_h[0,0]]])
 
-                    c = 1
-                    s_y =  alpha[:, c:n_s_dof + c:s_components] @ s_phi_tab[0, i, :, 0:dim]
-                    uy_h = alpha[:,n_s_dof + c:n_s_dof + n_u_dof + c:u_components] @ u_phi_tab[0,i, :, 0:dim]
-                    gy_h = alpha[:,n_s_dof + n_u_dof + c: n_s_dof + n_u_dof + n_t_dof + c:t_components] @ t_phi_tab[0,i,:, 0:dim]
-
-                    c = 2
-                    s_z =  alpha[:, c:n_s_dof + c:s_components] @ s_phi_tab[0, i, :, 0:dim]
-                    uz_h = alpha[:,n_s_dof + c:n_s_dof + n_u_dof + c:u_components] @ u_phi_tab[0,i, :, 0:dim]
-                    gz_h = alpha[:,n_s_dof + n_u_dof + c: n_s_dof + n_u_dof + n_t_dof + c:t_components] @ t_phi_tab[0,i,:,0:dim]
-
-                    u_h = VecValDer(np.hstack((ux_h.val, uy_h.val, uz_h.val)),
-                                    np.hstack((ux_h.der, uy_h.der, uz_h.der)))
-
-                    g_h = VecValDer(np.hstack((gx_h.val, gy_h.val, gz_h.val)),
-                                    np.hstack((gx_h.der, gy_h.der, gz_h.der)))
-
-                    s_h = VecValDer(np.vstack((s_x.val, s_y.val, s_z.val)),
-                                    np.vstack((s_x.der, s_y.der, s_z.der)))
-
-                    # symmetric part
-                    Symm_sh = 0.5 * (s_h + s_h.T)
-                    Skew_sh = 0.5 * (s_h - s_h.T)
-
-                    tr_s_h = VecValDer(Symm_sh.val.trace(), Symm_sh.der.trace())
-                    A_sh = (1.0 / 2.0 * m_mu) * (Symm_sh - (
-                                m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat)
-
-                    grad_s_phi = s_phi_tab[1: s_phi_tab.shape[0] + 1, i, :, 0:dim]
-                    div_tau = np.array([[np.trace(grad_s_phi[:, j, :]) / det_jac[i] for j
-                                         in range(n_s_phi)]])
-                    c = 0
-                    div_sh_x = alpha[:, c:n_s_dof + c:s_components] @ div_tau.T
-                    c = 1
-                    div_sh_y = alpha[:, c:n_s_dof + c:s_components] @ div_tau.T
-                    c = 2
-                    div_sh_z = alpha[:, c:n_s_dof + c:s_components] @ div_tau.T
-
-                    div_sh = VecValDer(np.hstack((div_sh_x.val, div_sh_y.val, div_sh_z.val)),
-                                       np.hstack((div_sh_x.der, div_sh_y.der, div_sh_z.der)))
-
-                    S_cross = np.array([[Skew_sh[1, 2] - Skew_sh[2, 1],
-                                         Skew_sh[2, 0] - Skew_sh[0, 2],
-                                         Skew_sh[0, 1] - Skew_sh[1, 0]]])
-
-                    Gamma_outer = np.array([[0.0*g_h[0,0], -g_h[0,2], +g_h[0,1]],
-                                            [+g_h[0,2], 0.0*g_h[0,0], -g_h[0,0]],
-                                            [-g_h[0,1], +g_h[0,0], 0.0*g_h[0,0]]])
 
                 equ_1_integrand = (s_phi_tab[0, i, :, 0:dim] @ A_sh) + (div_tau.T @ u_h) + (s_phi_tab[0, i, :, 0:dim] @ Gamma_outer)
-                equ_2_integrand = (u_phi_tab[0, i, :, 0:dim] @ div_sh)
-                equ_3_integrand = (t_phi_tab[0, i, :, 0:dim] @ S_cross)
+                equ_2_integrand = (m_phi_tab[0, i, :, 0:dim] @ A_mh.T) + (div_v.T @ gh)
+                equ_3_integrand = (u_phi_tab[0, i, :, 0:dim] @ div_sh)
+                equ_4_integrand = (t_phi_tab[0, i, :, 0:dim] @ div_mh) + (t_phi_tab[0, i, :, 0:dim] @ S_cross)
+
                 multiphysic_integrand = np.zeros((1, n_dof))
                 multiphysic_integrand[:, 0:n_s_dof:1] = (equ_1_integrand).reshape((n_s_dof,))
-                multiphysic_integrand[:, n_s_dof:n_s_dof + n_u_dof:1] = (equ_2_integrand).reshape((n_u_dof,))
-                multiphysic_integrand[:, n_s_dof + n_u_dof:n_s_dof + n_u_dof + n_t_dof:1] = (equ_3_integrand).reshape((n_t_dof,))
+                multiphysic_integrand[:, n_s_dof:n_s_dof+n_m_dof:1] = (equ_2_integrand).reshape((n_m_dof,))
+                multiphysic_integrand[:, n_s_dof+n_m_dof:n_s_dof+n_m_dof+n_u_dof:1] = (equ_3_integrand).reshape((n_u_dof,))
+                multiphysic_integrand[:, n_s_dof+n_m_dof+n_u_dof:n_s_dof+n_m_dof+n_u_dof+n_t_dof:1] = (equ_4_integrand).reshape((n_t_dof,))
 
                 discrete_integrand = (multiphysic_integrand).reshape((n_dof,))
                 el_form += det_jac[i] * omega * discrete_integrand
@@ -1374,7 +1428,9 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         inv_jac = el_data.mapping.inv_jac
 
         # scattering dof
-        dest = u_field.dof_map.destination_indices(cell.id) + s_n_dof_g
+        dest_u = u_field.dof_map.destination_indices(cell.id) + s_n_dof_g + m_n_dof_g
+        dest_t = t_field.dof_map.destination_indices(cell.id) + s_n_dof_g + m_n_dof_g + u_n_dof_g
+        dest = np.concatenate([dest_u, dest_t])
         alpha_l = alpha[dest]
 
         # vectorization
@@ -1400,8 +1456,8 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         cellid_to_element = dict(zip(u_field.element_ids, u_field.elements))
         # writing solution on mesh points
         vertices = u_field.mesh_topology.entities_by_dimension(0)
-        fh_data = np.zeros((len(gmesh.points), u_components))
-        fe_data = np.zeros((len(gmesh.points), u_components))
+        fh_data = np.zeros((len(gmesh.points), u_components + t_components))
+        fe_data = np.zeros((len(gmesh.points), u_components + t_components))
         cell_vertex_map = u_field.mesh_topology.entity_map_by_dimension(0)
         for id in vertices:
             if not cell_vertex_map.has_node(id):
@@ -1415,7 +1471,9 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             element = cellid_to_element[pr_ids[0]]
 
             # scattering dof
-            dest = u_field.dof_map.destination_indices(cell.id) + s_n_dof_g
+            dest_u = u_field.dof_map.destination_indices(cell.id) + s_n_dof_g + m_n_dof_g
+            dest_t = t_field.dof_map.destination_indices(cell.id) + s_n_dof_g + m_n_dof_g + u_n_dof_g
+            dest = np.concatenate([dest_u, dest_t])
             alpha_l = alpha[dest]
 
             par_points = basix.geometry(u_field.element_type)
@@ -1511,10 +1569,10 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 def main():
 
-    k_order = 2
-    h = 1.0
-    n_ref = 5
-    dimension = 3
+    k_order = 1
+    h = 0.1
+    n_ref = 1
+    dimension = 2
     ref_l = 0
 
     domain = create_domain(dimension)
@@ -1523,8 +1581,8 @@ def main():
         h_val = h * (2**-l)
         mesher = create_conformal_mesher(domain, h, l)
         gmesh = create_mesh(dimension, mesher, False)
-        # error_val = h1_elasticity(k_order, gmesh, False)
-        error_val = h1_cosserat_elasticity(k_order, gmesh, True)
+        # error_val = h1_cosserat_elasticity(k_order, gmesh, True)
+        error_val = hdiv_cosserat_elasticity(k_order, gmesh, True)
         error_data = np.append(error_data, np.array([[h_val, error_val]]), axis=0)
 
     rates_data = np.empty((0, 1), float)
