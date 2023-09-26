@@ -5,5 +5,3 @@ A lightweight library for defining finite elements and simulating multiphysics i
 This project aims to provide a general, yet simple, method for using finite elements methods in Python. 
 
 Despite the fact that the code structure is highly parallelized, it is still not a trivial task to perform in Python. The entire design can be translated to C++ as a workaround.
-
-[The source for this project is available here][src].
