@@ -1143,9 +1143,9 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 def main():
 
-    k_order = 1
-    h = 0.1
-    n_ref = 1
+    k_order = 3
+    h = 1.0
+    n_ref = 5
     dimension = 2
     ref_l = 0
 

@@ -829,31 +829,10 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             np.sin(np.pi * x) * np.sin(np.pi * y),
         ]
     )
-    f_rhs_x = lambda x, y, z: -(
-            (2 * m_kappa + 2 * m_mu - np.pi ** 2 * (-1 + y) * y * (m_lambda + 2 * m_mu))
-            * np.sin(np.pi * x)
-    ) + np.pi * np.cos(np.pi * y) * (
-                                      (-1 + 2 * x) * (
-                                          m_kappa - m_lambda - m_mu) + 2 * m_kappa * np.sin(
-                                  np.pi * x)
-                              )
-    f_rhs_y = lambda x, y, z: -(
-            (2 * m_kappa + 2 * m_mu - np.pi ** 2 * (-1 + x) * x * (m_lambda + 2 * m_mu))
-            * np.sin(np.pi * y)
-    ) + np.pi * np.cos(np.pi * x) * (
-                                      (-1 + 2 * y) * (
-                                          m_kappa - m_lambda - m_mu) - 2 * m_kappa * np.sin(
-                                  np.pi * y)
-                              )
-    f_rhs_t = lambda x, y, z: -2 * (
-            (-1 + 2 * x) * m_kappa * np.sin(np.pi * y)
-            + np.sin(np.pi * x)
-            * (
-                    m_kappa
-                    - 2 * y * m_kappa
-                    + ((np.pi ** 2) * m_gamma + 2 * m_kappa) * np.sin(np.pi * y)
-            )
-    )
+
+    f_rhs_x = lambda x, y, z: -((2*m_kappa + 2*m_mu - np.pi**2*(-1 + y)*y*(m_lambda + 2*m_mu))*np.sin(np.pi*x)) + np.pi*np.cos(np.pi*y)*((-1 + 2*x)*(m_kappa - m_lambda - m_mu) - 2*m_kappa*np.sin(np.pi*x))
+    f_rhs_y = lambda x, y, z: -((2*m_kappa + 2*m_mu - np.pi**2*(-1 + x)*x*(m_lambda + 2*m_mu))*np.sin(np.pi*y)) + np.pi*np.cos(np.pi*x)*((-1 + 2*y)*(m_kappa - m_lambda - m_mu) + 2*m_kappa*np.sin(np.pi*y))
+    f_rhs_t = lambda x, y, z: -2*((1 - 2*x)*m_kappa*np.sin(np.pi*y) + np.sin(np.pi*x)*((-1 + 2*y)*m_kappa + (np.pi**2*m_gamma + 2*m_kappa)*np.sin(np.pi*y)))
     f_rhs = lambda x, y, z: np.array(
         [-f_rhs_x(x, y, z), -f_rhs_y(x, y, z), -f_rhs_t(x, y, z)]
     )
@@ -1208,7 +1187,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
                     tr_s_h = VecValDer(Symm_sh.val.trace(), Symm_sh.der.trace())
                     A_sh = (1.0 / 2.0 * m_mu) * (Symm_sh - (
-                                m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat) + (1.0 / 2.0 * m_kappa) * Skew_sh
+                                m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat) - (1.0 / 2.0 * m_kappa) * Skew_sh
 
                     A_mh = (1.0 / m_gamma) * mh
 
@@ -1228,7 +1207,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
                     div_mh = a_m @ div_v.T
 
                     Gamma_outer = gh * np.array([[0.0, -1.0], [1.0, 0.0]])
-                    S_cross = np.array([[Skew_sh[0, 1] - Skew_sh[1, 0]]])
+                    S_cross = - np.array([[Skew_sh[1, 0] - Skew_sh[0, 1]]])
 
                 else:
 
@@ -1414,36 +1393,48 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     print("Linear solver time:", elapsed_time, "seconds")
 
     # Computing L2 error
-    def compute_l2_error(element, u_field):
-        l2_error = 0.0
-        n_components = u_field.n_comp
-        el_data = element.data
-        cell = el_data.cell
-        points = el_data.quadrature.points
-        weights = el_data.quadrature.weights
-        phi_tab = el_data.basis.phi
+    def compute_l2_error(i, fields):
 
-        x = el_data.mapping.x
-        det_jac = el_data.mapping.det_jac
-        inv_jac = el_data.mapping.inv_jac
+        l2_error = 0.0
+
+        u_data: ElementData = fields[2].elements[i].data
+        t_data: ElementData = fields[3].elements[i].data
+
+        u_components = u_field.n_comp
+        t_components = t_field.n_comp
+
+        cell = u_data.cell
+        points = u_data.quadrature.points
+        weights = u_data.quadrature.weights
+        u_phi_tab = u_data.basis.phi
+        t_phi_tab = t_data.basis.phi
+
+        x = u_data.mapping.x
+        det_jac = u_data.mapping.det_jac
+        inv_jac = u_data.mapping.inv_jac
 
         # scattering dof
         dest_u = u_field.dof_map.destination_indices(cell.id) + s_n_dof_g + m_n_dof_g
         dest_t = t_field.dof_map.destination_indices(cell.id) + s_n_dof_g + m_n_dof_g + u_n_dof_g
         dest = np.concatenate([dest_u, dest_t])
-        alpha_l = alpha[dest]
+        u_alpha_l = alpha[dest_u]
+        t_alpha_l = alpha[dest_t]
 
         # vectorization
-        n_phi = phi_tab.shape[2]
+        u_n_phi = u_phi_tab.shape[2]
+        t_n_phi = t_phi_tab.shape[2]
         p_e_s = f_exact(x[:, 0], x[:, 1], x[:, 2])
-        alpha_star = np.array(np.split(alpha_l, n_phi))
-        p_h_s = (phi_tab[0, :, :, 0] @ alpha_star).T
+        u_alpha_star = np.array(np.split(u_alpha_l, u_n_phi))
+        t_alpha_star = np.array(np.split(t_alpha_l, t_n_phi))
+        u_h_s = (u_phi_tab[0, :, :, 0] @ u_alpha_star).T
+        t_h_s = (t_phi_tab[0, :, :, 0] @ t_alpha_star).T
+        p_h_s = np.vstack((u_h_s,t_h_s))
         diff_p = p_e_s - p_h_s
         l2_error = np.sum(det_jac * weights * diff_p * diff_p)
         return l2_error
 
     st = time.time()
-    error_vec = [compute_l2_error(element, u_field) for element in u_field.elements]
+    error_vec = [compute_l2_error(i, fields) for i in range(u_n_els)]
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
@@ -1569,9 +1560,9 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 def main():
 
-    k_order = 1
-    h = 0.1
-    n_ref = 1
+    k_order = 3
+    h = 1.0
+    n_ref = 5
     dimension = 2
     ref_l = 0
 
@@ -1582,7 +1573,7 @@ def main():
         mesher = create_conformal_mesher(domain, h, l)
         gmesh = create_mesh(dimension, mesher, False)
         # error_val = h1_cosserat_elasticity(k_order, gmesh, True)
-        error_val = hdiv_cosserat_elasticity(k_order, gmesh, True)
+        error_val = hdiv_cosserat_elasticity(k_order, gmesh, False)
         error_data = np.append(error_data, np.array([[h_val, error_val]]), axis=0)
 
     rates_data = np.empty((0, 1), float)
