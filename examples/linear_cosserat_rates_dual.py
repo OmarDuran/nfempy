@@ -277,9 +277,7 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
             [-f_rhs_x(x, y, z), -f_rhs_y(x, y, z), -f_rhs_z(x, y, z)]
         )
 
-    def scatter_form_data(
-        i, m_lambda, m_mu, f_rhs, fields, cell_map, row, col, data
-    ):
+    def scatter_form_data(i, m_lambda, m_mu, f_rhs, fields, cell_map, row, col, data):
 
         dim = fields[0].dimension
         s_components = fields[0].n_comp
@@ -375,9 +373,7 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
         data[block_sequ] += j_el.ravel()
 
     [
-        scatter_form_data(
-            i, m_lambda, m_mu, f_rhs, fields, cell_map, row, col, data
-        )
+        scatter_form_data(i, m_lambda, m_mu, f_rhs, fields, cell_map, row, col, data)
         for i in range(s_n_els)
     ]
 

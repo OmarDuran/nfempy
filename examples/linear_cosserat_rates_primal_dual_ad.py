@@ -52,6 +52,7 @@ from spaces.dof_map import DoFMap
 from topology.mesh_topology import MeshTopology
 from numba import njit, types
 
+
 def matrix_plot(J, sparse_q=True):
 
     if sparse_q:
@@ -61,6 +62,7 @@ def matrix_plot(J, sparse_q=True):
     plot.colorbar(orientation="vertical")
     plot.set_cmap("seismic")
     plot.show()
+
 
 def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
@@ -713,6 +715,7 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
     return l2_error
 
+
 def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
     dim = gmesh.dimension
@@ -740,26 +743,44 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     t_family = "Lagrange"
 
     # stress field
-    s_field = DiscreteField(dim, s_components, s_family, k_order, gmesh, integration_oder = 2 * k_order + 1)
+    s_field = DiscreteField(
+        dim, s_components, s_family, k_order, gmesh, integration_oder=2 * k_order + 1
+    )
     if dim == 2:
         s_field.build_structures([2, 3, 4, 5])
     elif dim == 3:
         s_field.build_structures([2, 3, 4, 5, 6, 7])
 
     # couple stress field
-    m_field = DiscreteField(dim, m_components, m_family, k_order, gmesh, integration_oder = 2 * k_order + 1)
+    m_field = DiscreteField(
+        dim, m_components, m_family, k_order, gmesh, integration_oder=2 * k_order + 1
+    )
     if dim == 2:
         m_field.build_structures([2, 3, 4, 5])
     elif dim == 3:
         m_field.build_structures([2, 3, 4, 5, 6, 7])
 
     # potential field
-    u_field = DiscreteField(dim, u_components, u_family, k_order - 1, gmesh, integration_oder = 2 * k_order + 1)
+    u_field = DiscreteField(
+        dim,
+        u_components,
+        u_family,
+        k_order - 1,
+        gmesh,
+        integration_oder=2 * k_order + 1,
+    )
     u_field.make_discontinuous()
     u_field.build_structures()
 
     # rotation field
-    t_field = DiscreteField(dim, t_components, t_family, k_order - 1, gmesh, integration_oder = 2 * k_order + 1)
+    t_field = DiscreteField(
+        dim,
+        t_components,
+        t_family,
+        k_order - 1,
+        gmesh,
+        integration_oder=2 * k_order + 1,
+    )
     t_field.make_discontinuous()
     t_field.build_structures()
 
@@ -829,10 +850,27 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             np.sin(np.pi * x) * np.sin(np.pi * y),
         ]
     )
+    f_rhs_x = lambda x, y, z: -(
+        (2 * m_kappa + 2 * m_mu - np.pi**2 * (-1 + y) * y * (m_lambda + 2 * m_mu))
+        * np.sin(np.pi * x)
+    ) + np.pi * np.cos(np.pi * y) * (
+        (-1 + 2 * x) * (m_kappa - m_lambda - m_mu) - 2 * m_kappa * np.sin(np.pi * x)
+    )
+    f_rhs_y = lambda x, y, z: -(
+        (2 * m_kappa + 2 * m_mu - np.pi**2 * (-1 + x) * x * (m_lambda + 2 * m_mu))
+        * np.sin(np.pi * y)
+    ) + np.pi * np.cos(np.pi * x) * (
+        (-1 + 2 * y) * (m_kappa - m_lambda - m_mu) + 2 * m_kappa * np.sin(np.pi * y)
+    )
+    f_rhs_t = lambda x, y, z: -2 * (
+        (1 - 2 * x) * m_kappa * np.sin(np.pi * y)
+        + np.sin(np.pi * x)
+        * (
+            (-1 + 2 * y) * m_kappa
+            + (np.pi**2 * m_gamma + 2 * m_kappa) * np.sin(np.pi * y)
+        )
+    )
 
-    f_rhs_x = lambda x, y, z: -((2*m_kappa + 2*m_mu - np.pi**2*(-1 + y)*y*(m_lambda + 2*m_mu))*np.sin(np.pi*x)) + np.pi*np.cos(np.pi*y)*((-1 + 2*x)*(m_kappa - m_lambda - m_mu) - 2*m_kappa*np.sin(np.pi*x))
-    f_rhs_y = lambda x, y, z: -((2*m_kappa + 2*m_mu - np.pi**2*(-1 + x)*x*(m_lambda + 2*m_mu))*np.sin(np.pi*y)) + np.pi*np.cos(np.pi*x)*((-1 + 2*y)*(m_kappa - m_lambda - m_mu) + 2*m_kappa*np.sin(np.pi*y))
-    f_rhs_t = lambda x, y, z: -2*((1 - 2*x)*m_kappa*np.sin(np.pi*y) + np.sin(np.pi*x)*((-1 + 2*y)*m_kappa + (np.pi**2*m_gamma + 2*m_kappa)*np.sin(np.pi*y)))
     f_rhs = lambda x, y, z: np.array(
         [-f_rhs_x(x, y, z), -f_rhs_y(x, y, z), -f_rhs_t(x, y, z)]
     )
@@ -849,219 +887,201 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         )
         f_rhs_x = (
             lambda x, y, z: -2
-                            * (np.pi ** 2)
-                            * (1 - y)
-                            * y
-                            * (1 - z)
-                            * z
-                            * m_mu
-                            * np.sin(np.pi * x)
-                            + m_mu
-                            * (
-                                    np.pi * (1 - x) * (1 - y) * y * np.cos(np.pi * z)
-                                    - np.pi * x * (1 - y) * y * np.cos(np.pi * z)
-                                    - 2 * (1 - y) * y * np.sin(np.pi * x)
-                            )
-                            + m_mu
-                            * (
-                                    np.pi * (1 - x) * (1 - z) * z * np.cos(np.pi * y)
-                                    - np.pi * x * (1 - z) * z * np.cos(np.pi * y)
-                                    - 2 * (1 - z) * z * np.sin(np.pi * x)
-                            )
-                            + m_lambda
-                            * (
-                                    np.pi * (1 - x) * (1 - z) * z * np.cos(np.pi * y)
-                                    - np.pi * x * (1 - z) * z * np.cos(np.pi * y)
-                                    + np.pi * (1 - x) * (1 - y) * y * np.cos(np.pi * z)
-                                    - np.pi * x * (1 - y) * y * np.cos(np.pi * z)
-                                    - (np.pi ** 2) * (1 - y) * y * (1 - z) * z * np.sin(
-                                np.pi * x)
-                            )
-                            + m_kappa
-                            * (
-                                    -(np.pi * (1 - x) * (1 - z) * z * np.cos(np.pi * y))
-                                    + np.pi * x * (1 - z) * z * np.cos(np.pi * y)
-                                    - 2 * (1 - z) * z * np.sin(np.pi * x)
-                                    + 2 * np.pi * z * np.cos(np.pi * y) * np.sin(
-                                np.pi * x)
-                                    - 2 * np.pi * (z ** 2) * np.cos(np.pi * y) * np.sin(
-                                np.pi * x)
-                            )
-                            + m_kappa
-                            * (
-                                    -(np.pi * (1 - x) * (1 - y) * y * np.cos(np.pi * z))
-                                    + np.pi * x * (1 - y) * y * np.cos(np.pi * z)
-                                    - 2 * (1 - y) * y * np.sin(np.pi * x)
-                                    - 2 * np.pi * y * np.cos(np.pi * z) * np.sin(
-                                np.pi * x)
-                                    + 2 * np.pi * (y ** 2) * np.cos(np.pi * z) * np.sin(
-                                np.pi * x)
-                            )
+            * (np.pi**2)
+            * (1 - y)
+            * y
+            * (1 - z)
+            * z
+            * m_mu
+            * np.sin(np.pi * x)
+            + m_mu
+            * (
+                np.pi * (1 - x) * (1 - y) * y * np.cos(np.pi * z)
+                - np.pi * x * (1 - y) * y * np.cos(np.pi * z)
+                - 2 * (1 - y) * y * np.sin(np.pi * x)
+            )
+            + m_mu
+            * (
+                np.pi * (1 - x) * (1 - z) * z * np.cos(np.pi * y)
+                - np.pi * x * (1 - z) * z * np.cos(np.pi * y)
+                - 2 * (1 - z) * z * np.sin(np.pi * x)
+            )
+            + m_lambda
+            * (
+                np.pi * (1 - x) * (1 - z) * z * np.cos(np.pi * y)
+                - np.pi * x * (1 - z) * z * np.cos(np.pi * y)
+                + np.pi * (1 - x) * (1 - y) * y * np.cos(np.pi * z)
+                - np.pi * x * (1 - y) * y * np.cos(np.pi * z)
+                - (np.pi**2) * (1 - y) * y * (1 - z) * z * np.sin(np.pi * x)
+            )
+            + m_kappa
+            * (
+                -(np.pi * (1 - x) * (1 - z) * z * np.cos(np.pi * y))
+                + np.pi * x * (1 - z) * z * np.cos(np.pi * y)
+                - 2 * (1 - z) * z * np.sin(np.pi * x)
+                + 2 * np.pi * z * np.cos(np.pi * y) * np.sin(np.pi * x)
+                - 2 * np.pi * (z**2) * np.cos(np.pi * y) * np.sin(np.pi * x)
+            )
+            + m_kappa
+            * (
+                -(np.pi * (1 - x) * (1 - y) * y * np.cos(np.pi * z))
+                + np.pi * x * (1 - y) * y * np.cos(np.pi * z)
+                - 2 * (1 - y) * y * np.sin(np.pi * x)
+                - 2 * np.pi * y * np.cos(np.pi * z) * np.sin(np.pi * x)
+                + 2 * np.pi * (y**2) * np.cos(np.pi * z) * np.sin(np.pi * x)
+            )
         )
         f_rhs_y = (
             lambda x, y, z: -2
-                            * (np.pi ** 2)
-                            * (1 - x)
-                            * x
-                            * (1 - z)
-                            * z
-                            * m_mu
-                            * np.sin(np.pi * y)
-                            + m_mu
-                            * (
-                                    np.pi * (1 - x) * x * (1 - y) * np.cos(np.pi * z)
-                                    - np.pi * (1 - x) * x * y * np.cos(np.pi * z)
-                                    - 2 * (1 - x) * x * np.sin(np.pi * y)
-                            )
-                            + m_mu
-                            * (
-                                    np.pi * (1 - y) * (1 - z) * z * np.cos(np.pi * x)
-                                    - np.pi * y * (1 - z) * z * np.cos(np.pi * x)
-                                    - 2 * (1 - z) * z * np.sin(np.pi * y)
-                            )
-                            + m_lambda
-                            * (
-                                    np.pi * (1 - y) * (1 - z) * z * np.cos(np.pi * x)
-                                    - np.pi * y * (1 - z) * z * np.cos(np.pi * x)
-                                    + np.pi * (1 - x) * x * (1 - y) * np.cos(np.pi * z)
-                                    - np.pi * (1 - x) * x * y * np.cos(np.pi * z)
-                                    - (np.pi ** 2) * (1 - x) * x * (1 - z) * z * np.sin(
-                                np.pi * y)
-                            )
-                            + m_kappa
-                            * (
-                                    -(np.pi * (1 - y) * (1 - z) * z * np.cos(np.pi * x))
-                                    + np.pi * y * (1 - z) * z * np.cos(np.pi * x)
-                                    - 2 * (1 - z) * z * np.sin(np.pi * y)
-                                    - 2 * np.pi * z * np.cos(np.pi * x) * np.sin(
-                                np.pi * y)
-                                    + 2 * np.pi * (z ** 2) * np.cos(np.pi * x) * np.sin(
-                                np.pi * y)
-                            )
-                            + m_kappa
-                            * (
-                                    -(np.pi * (1 - x) * x * (1 - y) * np.cos(np.pi * z))
-                                    + np.pi * (1 - x) * x * y * np.cos(np.pi * z)
-                                    - 2 * (1 - x) * x * np.sin(np.pi * y)
-                                    + 2 * np.pi * x * np.cos(np.pi * z) * np.sin(
-                                np.pi * y)
-                                    - 2 * np.pi * (x ** 2) * np.cos(np.pi * z) * np.sin(
-                                np.pi * y)
-                            )
+            * (np.pi**2)
+            * (1 - x)
+            * x
+            * (1 - z)
+            * z
+            * m_mu
+            * np.sin(np.pi * y)
+            + m_mu
+            * (
+                np.pi * (1 - x) * x * (1 - y) * np.cos(np.pi * z)
+                - np.pi * (1 - x) * x * y * np.cos(np.pi * z)
+                - 2 * (1 - x) * x * np.sin(np.pi * y)
+            )
+            + m_mu
+            * (
+                np.pi * (1 - y) * (1 - z) * z * np.cos(np.pi * x)
+                - np.pi * y * (1 - z) * z * np.cos(np.pi * x)
+                - 2 * (1 - z) * z * np.sin(np.pi * y)
+            )
+            + m_lambda
+            * (
+                np.pi * (1 - y) * (1 - z) * z * np.cos(np.pi * x)
+                - np.pi * y * (1 - z) * z * np.cos(np.pi * x)
+                + np.pi * (1 - x) * x * (1 - y) * np.cos(np.pi * z)
+                - np.pi * (1 - x) * x * y * np.cos(np.pi * z)
+                - (np.pi**2) * (1 - x) * x * (1 - z) * z * np.sin(np.pi * y)
+            )
+            + m_kappa
+            * (
+                -(np.pi * (1 - y) * (1 - z) * z * np.cos(np.pi * x))
+                + np.pi * y * (1 - z) * z * np.cos(np.pi * x)
+                - 2 * (1 - z) * z * np.sin(np.pi * y)
+                - 2 * np.pi * z * np.cos(np.pi * x) * np.sin(np.pi * y)
+                + 2 * np.pi * (z**2) * np.cos(np.pi * x) * np.sin(np.pi * y)
+            )
+            + m_kappa
+            * (
+                -(np.pi * (1 - x) * x * (1 - y) * np.cos(np.pi * z))
+                + np.pi * (1 - x) * x * y * np.cos(np.pi * z)
+                - 2 * (1 - x) * x * np.sin(np.pi * y)
+                + 2 * np.pi * x * np.cos(np.pi * z) * np.sin(np.pi * y)
+                - 2 * np.pi * (x**2) * np.cos(np.pi * z) * np.sin(np.pi * y)
+            )
         )
         f_rhs_z = (
             lambda x, y, z: -2
-                            * (np.pi ** 2)
-                            * (1 - x)
-                            * x
-                            * (1 - y)
-                            * y
-                            * m_mu
-                            * np.sin(np.pi * z)
-                            + m_mu
-                            * (
-                                    np.pi * (1 - x) * x * (1 - z) * np.cos(np.pi * y)
-                                    - np.pi * (1 - x) * x * z * np.cos(np.pi * y)
-                                    - 2 * (1 - x) * x * np.sin(np.pi * z)
-                            )
-                            + m_mu
-                            * (
-                                    np.pi * (1 - y) * y * (1 - z) * np.cos(np.pi * x)
-                                    - np.pi * (1 - y) * y * z * np.cos(np.pi * x)
-                                    - 2 * (1 - y) * y * np.sin(np.pi * z)
-                            )
-                            + m_lambda
-                            * (
-                                    np.pi * (1 - y) * y * (1 - z) * np.cos(np.pi * x)
-                                    - np.pi * (1 - y) * y * z * np.cos(np.pi * x)
-                                    + np.pi * (1 - x) * x * (1 - z) * np.cos(np.pi * y)
-                                    - np.pi * (1 - x) * x * z * np.cos(np.pi * y)
-                                    - (np.pi ** 2) * (1 - x) * x * (1 - y) * y * np.sin(
-                                np.pi * z)
-                            )
-                            + m_kappa
-                            * (
-                                    -(np.pi * (1 - y) * y * (1 - z) * np.cos(np.pi * x))
-                                    + np.pi * (1 - y) * y * z * np.cos(np.pi * x)
-                                    - 2 * (1 - y) * y * np.sin(np.pi * z)
-                                    + 2 * np.pi * y * np.cos(np.pi * x) * np.sin(
-                                np.pi * z)
-                                    - 2 * np.pi * (y ** 2) * np.cos(np.pi * x) * np.sin(
-                                np.pi * z)
-                            )
-                            + m_kappa
-                            * (
-                                    -(np.pi * (1 - x) * x * (1 - z) * np.cos(np.pi * y))
-                                    + np.pi * (1 - x) * x * z * np.cos(np.pi * y)
-                                    - 2 * (1 - x) * x * np.sin(np.pi * z)
-                                    - 2 * np.pi * x * np.cos(np.pi * y) * np.sin(
-                                np.pi * z)
-                                    + 2 * np.pi * (x ** 2) * np.cos(np.pi * y) * np.sin(
-                                np.pi * z)
-                            )
+            * (np.pi**2)
+            * (1 - x)
+            * x
+            * (1 - y)
+            * y
+            * m_mu
+            * np.sin(np.pi * z)
+            + m_mu
+            * (
+                np.pi * (1 - x) * x * (1 - z) * np.cos(np.pi * y)
+                - np.pi * (1 - x) * x * z * np.cos(np.pi * y)
+                - 2 * (1 - x) * x * np.sin(np.pi * z)
+            )
+            + m_mu
+            * (
+                np.pi * (1 - y) * y * (1 - z) * np.cos(np.pi * x)
+                - np.pi * (1 - y) * y * z * np.cos(np.pi * x)
+                - 2 * (1 - y) * y * np.sin(np.pi * z)
+            )
+            + m_lambda
+            * (
+                np.pi * (1 - y) * y * (1 - z) * np.cos(np.pi * x)
+                - np.pi * (1 - y) * y * z * np.cos(np.pi * x)
+                + np.pi * (1 - x) * x * (1 - z) * np.cos(np.pi * y)
+                - np.pi * (1 - x) * x * z * np.cos(np.pi * y)
+                - (np.pi**2) * (1 - x) * x * (1 - y) * y * np.sin(np.pi * z)
+            )
+            + m_kappa
+            * (
+                -(np.pi * (1 - y) * y * (1 - z) * np.cos(np.pi * x))
+                + np.pi * (1 - y) * y * z * np.cos(np.pi * x)
+                - 2 * (1 - y) * y * np.sin(np.pi * z)
+                + 2 * np.pi * y * np.cos(np.pi * x) * np.sin(np.pi * z)
+                - 2 * np.pi * (y**2) * np.cos(np.pi * x) * np.sin(np.pi * z)
+            )
+            + m_kappa
+            * (
+                -(np.pi * (1 - x) * x * (1 - z) * np.cos(np.pi * y))
+                + np.pi * (1 - x) * x * z * np.cos(np.pi * y)
+                - 2 * (1 - x) * x * np.sin(np.pi * z)
+                - 2 * np.pi * x * np.cos(np.pi * y) * np.sin(np.pi * z)
+                + 2 * np.pi * (x**2) * np.cos(np.pi * y) * np.sin(np.pi * z)
+            )
         )
         f_rhs_t_x = (
             lambda x, y, z: -2 * x * m_kappa * np.sin(np.pi * y)
-                            + 2 * (x ** 2) * m_kappa * np.sin(np.pi * y)
-                            + 4 * x * z * m_kappa * np.sin(np.pi * y)
-                            - 4 * (x ** 2) * z * m_kappa * np.sin(np.pi * y)
-                            + 2 * x * m_kappa * np.sin(np.pi * z)
-                            - 2 * (x ** 2) * m_kappa * np.sin(np.pi * z)
-                            - 4 * x * y * m_kappa * np.sin(np.pi * z)
-                            + 4 * (x ** 2) * y * m_kappa * np.sin(np.pi * z)
-                            - 2 * m_gamma * np.sin(np.pi * y) * np.sin(np.pi * z)
-                            - 2
-                            * (np.pi ** 2)
-                            * (1 - x)
-                            * x
-                            * m_gamma
-                            * np.sin(np.pi * y)
-                            * np.sin(np.pi * z)
-                            - 4 * x * m_kappa * np.sin(np.pi * y) * np.sin(np.pi * z)
-                            + 4 * (x ** 2) * m_kappa * np.sin(np.pi * y) * np.sin(
-                np.pi * z)
+            + 2 * (x**2) * m_kappa * np.sin(np.pi * y)
+            + 4 * x * z * m_kappa * np.sin(np.pi * y)
+            - 4 * (x**2) * z * m_kappa * np.sin(np.pi * y)
+            + 2 * x * m_kappa * np.sin(np.pi * z)
+            - 2 * (x**2) * m_kappa * np.sin(np.pi * z)
+            - 4 * x * y * m_kappa * np.sin(np.pi * z)
+            + 4 * (x**2) * y * m_kappa * np.sin(np.pi * z)
+            - 2 * m_gamma * np.sin(np.pi * y) * np.sin(np.pi * z)
+            - 2
+            * (np.pi**2)
+            * (1 - x)
+            * x
+            * m_gamma
+            * np.sin(np.pi * y)
+            * np.sin(np.pi * z)
+            - 4 * x * m_kappa * np.sin(np.pi * y) * np.sin(np.pi * z)
+            + 4 * (x**2) * m_kappa * np.sin(np.pi * y) * np.sin(np.pi * z)
         )
         f_rhs_t_y = (
             lambda x, y, z: 2 * y * m_kappa * np.sin(np.pi * x)
-                            - 2 * (y ** 2) * m_kappa * np.sin(np.pi * x)
-                            - 4 * y * z * m_kappa * np.sin(np.pi * x)
-                            + 4 * (y ** 2) * z * m_kappa * np.sin(np.pi * x)
-                            - 2 * y * m_kappa * np.sin(np.pi * z)
-                            + 4 * x * y * m_kappa * np.sin(np.pi * z)
-                            + 2 * (y ** 2) * m_kappa * np.sin(np.pi * z)
-                            - 4 * x * (y ** 2) * m_kappa * np.sin(np.pi * z)
-                            - 2 * m_gamma * np.sin(np.pi * x) * np.sin(np.pi * z)
-                            - 2
-                            * (np.pi ** 2)
-                            * (1 - y)
-                            * y
-                            * m_gamma
-                            * np.sin(np.pi * x)
-                            * np.sin(np.pi * z)
-                            - 4 * y * m_kappa * np.sin(np.pi * x) * np.sin(np.pi * z)
-                            + 4 * (y ** 2) * m_kappa * np.sin(np.pi * x) * np.sin(
-                np.pi * z)
+            - 2 * (y**2) * m_kappa * np.sin(np.pi * x)
+            - 4 * y * z * m_kappa * np.sin(np.pi * x)
+            + 4 * (y**2) * z * m_kappa * np.sin(np.pi * x)
+            - 2 * y * m_kappa * np.sin(np.pi * z)
+            + 4 * x * y * m_kappa * np.sin(np.pi * z)
+            + 2 * (y**2) * m_kappa * np.sin(np.pi * z)
+            - 4 * x * (y**2) * m_kappa * np.sin(np.pi * z)
+            - 2 * m_gamma * np.sin(np.pi * x) * np.sin(np.pi * z)
+            - 2
+            * (np.pi**2)
+            * (1 - y)
+            * y
+            * m_gamma
+            * np.sin(np.pi * x)
+            * np.sin(np.pi * z)
+            - 4 * y * m_kappa * np.sin(np.pi * x) * np.sin(np.pi * z)
+            + 4 * (y**2) * m_kappa * np.sin(np.pi * x) * np.sin(np.pi * z)
         )
         f_rhs_t_z = (
             lambda x, y, z: -2 * z * m_kappa * np.sin(np.pi * x)
-                            + 4 * y * z * m_kappa * np.sin(np.pi * x)
-                            + 2 * (z ** 2) * m_kappa * np.sin(np.pi * x)
-                            - 4 * y * (z ** 2) * m_kappa * np.sin(np.pi * x)
-                            + 2 * z * m_kappa * np.sin(np.pi * y)
-                            - 4 * x * z * m_kappa * np.sin(np.pi * y)
-                            - 2 * (z ** 2) * m_kappa * np.sin(np.pi * y)
-                            + 4 * x * (z ** 2) * m_kappa * np.sin(np.pi * y)
-                            - 2 * m_gamma * np.sin(np.pi * x) * np.sin(np.pi * y)
-                            - 2
-                            * (np.pi ** 2)
-                            * (1 - z)
-                            * z
-                            * m_gamma
-                            * np.sin(np.pi * x)
-                            * np.sin(np.pi * y)
-                            - 4 * z * m_kappa * np.sin(np.pi * x) * np.sin(np.pi * y)
-                            + 4 * (z ** 2) * m_kappa * np.sin(np.pi * x) * np.sin(
-                np.pi * y)
+            + 4 * y * z * m_kappa * np.sin(np.pi * x)
+            + 2 * (z**2) * m_kappa * np.sin(np.pi * x)
+            - 4 * y * (z**2) * m_kappa * np.sin(np.pi * x)
+            + 2 * z * m_kappa * np.sin(np.pi * y)
+            - 4 * x * z * m_kappa * np.sin(np.pi * y)
+            - 2 * (z**2) * m_kappa * np.sin(np.pi * y)
+            + 4 * x * (z**2) * m_kappa * np.sin(np.pi * y)
+            - 2 * m_gamma * np.sin(np.pi * x) * np.sin(np.pi * y)
+            - 2
+            * (np.pi**2)
+            * (1 - z)
+            * z
+            * m_gamma
+            * np.sin(np.pi * x)
+            * np.sin(np.pi * y)
+            - 4 * z * m_kappa * np.sin(np.pi * x) * np.sin(np.pi * y)
+            + 4 * (z**2) * m_kappa * np.sin(np.pi * x) * np.sin(np.pi * y)
         )
         f_rhs = lambda x, y, z: np.array(
             [
@@ -1075,7 +1095,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         )
 
     def scatter_form_data_ad(
-            i, m_lambda, m_mu, m_kappa, m_gamma, f_rhs, fields, cell_map, row, col, data
+        i, m_lambda, m_mu, m_kappa, m_gamma, f_rhs, fields, cell_map, row, col, data
     ):
 
         dim = fields[0].dimension
@@ -1107,7 +1127,12 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         dest_s = s_field.dof_map.destination_indices(cell.id)
         dest_m = m_field.dof_map.destination_indices(cell.id) + s_n_dof_g
         dest_u = u_field.dof_map.destination_indices(cell.id) + s_n_dof_g + m_n_dof_g
-        dest_t = t_field.dof_map.destination_indices(cell.id) + s_n_dof_g + m_n_dof_g + u_n_dof_g
+        dest_t = (
+            t_field.dof_map.destination_indices(cell.id)
+            + s_n_dof_g
+            + m_n_dof_g
+            + u_n_dof_g
+        )
         dest = np.concatenate([dest_s, dest_m, dest_u, dest_t])
         n_s_phi = s_phi_tab.shape[2]
         n_m_phi = m_phi_tab.shape[2]
@@ -1145,139 +1170,315 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             for c in range(t_components):
                 b = c + n_s_dof + n_m_dof + n_u_dof
                 e = b + n_t_dof
-                el_form[b:e:t_components] += -1.0 * phi_s_star @ f_val_star[c+u_components]
+                el_form[b:e:t_components] += (
+                    -1.0 * phi_s_star @ f_val_star[c + u_components]
+                )
 
             for i, omega in enumerate(weights):
                 if dim == 2:
                     inv_jac_m = np.vstack((inv_jac[i] @ e1, inv_jac[i] @ e2))
                 else:
                     inv_jac_m = np.vstack(
-                        (inv_jac[i] @ e1, inv_jac[i] @ e2, inv_jac[i] @ e3))
+                        (inv_jac[i] @ e1, inv_jac[i] @ e2, inv_jac[i] @ e3)
+                    )
 
                 if dim == 2:
 
                     c = 0
-                    a_sx = alpha[:, c:n_s_dof + c:s_components]
-                    a_ux = alpha[:, n_s_dof+n_m_dof + c:n_s_dof + n_m_dof + n_u_dof + c:u_components]
+                    a_sx = alpha[:, c : n_s_dof + c : s_components]
+                    a_ux = alpha[
+                        :,
+                        n_s_dof
+                        + n_m_dof
+                        + c : n_s_dof
+                        + n_m_dof
+                        + n_u_dof
+                        + c : u_components,
+                    ]
 
-                    a_m = alpha[:, n_s_dof + c:n_s_dof + n_m_dof + c:m_components]
-                    a_t = alpha[:, n_s_dof+n_m_dof+n_u_dof + c:n_s_dof + n_m_dof + n_u_dof + n_t_dof + c:t_components]
+                    a_m = alpha[:, n_s_dof + c : n_s_dof + n_m_dof + c : m_components]
+                    a_t = alpha[
+                        :,
+                        n_s_dof
+                        + n_m_dof
+                        + n_u_dof
+                        + c : n_s_dof
+                        + n_m_dof
+                        + n_u_dof
+                        + n_t_dof
+                        + c : t_components,
+                    ]
 
                     c = 1
-                    a_sy = alpha[:, c:n_s_dof + c:s_components]
-                    a_uy = alpha[:, n_s_dof+n_m_dof + c:n_s_dof + n_m_dof + n_u_dof + c:u_components]
+                    a_sy = alpha[:, c : n_s_dof + c : s_components]
+                    a_uy = alpha[
+                        :,
+                        n_s_dof
+                        + n_m_dof
+                        + c : n_s_dof
+                        + n_m_dof
+                        + n_u_dof
+                        + c : u_components,
+                    ]
 
                     sx_h = a_sx @ s_phi_tab[0, i, :, 0:dim]
                     sy_h = a_sy @ s_phi_tab[0, i, :, 0:dim]
-                    ux_h = a_ux @ u_phi_tab[0, i,:, 0:dim]
+                    ux_h = a_ux @ u_phi_tab[0, i, :, 0:dim]
                     uy_h = a_uy @ u_phi_tab[0, i, :, 0:dim]
 
                     mh = a_m @ m_phi_tab[0, i, :, 0:dim]
-                    gh = a_t @ t_phi_tab[0,i, :, 0:dim]
+                    gh = a_t @ t_phi_tab[0, i, :, 0:dim]
 
-                    u_h = VecValDer(np.hstack((ux_h.val, uy_h.val)),
-                                    np.hstack((ux_h.der, uy_h.der)))
+                    u_h = VecValDer(
+                        np.hstack((ux_h.val, uy_h.val)), np.hstack((ux_h.der, uy_h.der))
+                    )
 
-                    s_h = VecValDer(np.vstack((sx_h.val, sy_h.val)),
-                                    np.vstack((sx_h.der, sy_h.der)))
+                    s_h = VecValDer(
+                        np.vstack((sx_h.val, sy_h.val)), np.vstack((sx_h.der, sy_h.der))
+                    )
 
                     # symmetric part
                     Symm_sh = 0.5 * (s_h + s_h.T)
                     Skew_sh = 0.5 * (s_h - s_h.T)
 
                     tr_s_h = VecValDer(Symm_sh.val.trace(), Symm_sh.der.trace())
-                    A_sh = (1.0 / 2.0 * m_mu) * (Symm_sh - (
-                                m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat) - (1.0 / 2.0 * m_kappa) * Skew_sh
+                    A_sh = (1.0 / 2.0 * m_mu) * (
+                        Symm_sh
+                        - (m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat
+                    ) - (1.0 / 2.0 * m_kappa) * Skew_sh
 
                     A_mh = (1.0 / m_gamma) * mh
 
-                    grad_s_phi = s_phi_tab[1: s_phi_tab.shape[0] + 1, i, :, 0:dim]
-                    div_tau = np.array([[np.trace(grad_s_phi[:, j, :]) / det_jac[i] for j
-                                         in range(n_s_phi)]])
+                    grad_s_phi = s_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
+                    div_tau = np.array(
+                        [
+                            [
+                                np.trace(grad_s_phi[:, j, :]) / det_jac[i]
+                                for j in range(n_s_phi)
+                            ]
+                        ]
+                    )
 
-                    grad_m_phi = m_phi_tab[1: s_phi_tab.shape[0] + 1, i, :, 0:dim]
-                    div_v = np.array([[np.trace(grad_m_phi[:, j, :]) / det_jac[i] for j
-                                         in range(n_m_phi)]])
+                    grad_m_phi = m_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
+                    div_v = np.array(
+                        [
+                            [
+                                np.trace(grad_m_phi[:, j, :]) / det_jac[i]
+                                for j in range(n_m_phi)
+                            ]
+                        ]
+                    )
 
                     div_sh_x = a_sx @ div_tau.T
                     div_sh_y = a_sy @ div_tau.T
-                    div_sh = VecValDer(np.hstack((div_sh_x.val, div_sh_y.val)),
-                                       np.hstack((div_sh_x.der, div_sh_y.der)))
+                    div_sh = VecValDer(
+                        np.hstack((div_sh_x.val, div_sh_y.val)),
+                        np.hstack((div_sh_x.der, div_sh_y.der)),
+                    )
 
                     div_mh = a_m @ div_v.T
 
                     Gamma_outer = gh * np.array([[0.0, -1.0], [1.0, 0.0]])
-                    S_cross = - np.array([[Skew_sh[1, 0] - Skew_sh[0, 1]]])
+                    S_cross = np.array([[Skew_sh[1, 0] - Skew_sh[0, 1]]])
 
                 else:
 
                     inv_jac_m = np.vstack(
-                        (inv_jac[i] @ e1, inv_jac[i] @ e2, inv_jac[i] @ e3))
+                        (inv_jac[i] @ e1, inv_jac[i] @ e2, inv_jac[i] @ e3)
+                    )
 
-                    # c = 0
-                    # s_x =  alpha[:, c:n_s_dof + c:s_components] @ s_phi_tab[0, i, :, 0:dim]
-                    # ux_h = alpha[:,n_s_dof + c: n_s_dof + n_u_dof + c:u_components] @ u_phi_tab[0, i,:, 0:dim]
-                    # gx_h = alpha[:,n_s_dof + n_u_dof: n_s_dof + n_u_dof + n_t_dof + c:t_components] @ t_phi_tab[0, i, :, 0:dim]
-                    #
-                    # c = 1
-                    # s_y =  alpha[:, c:n_s_dof + c:s_components] @ s_phi_tab[0, i, :, 0:dim]
-                    # uy_h = alpha[:,n_s_dof + c:n_s_dof + n_u_dof + c:u_components] @ u_phi_tab[0,i, :, 0:dim]
-                    # gy_h = alpha[:,n_s_dof + n_u_dof + c: n_s_dof + n_u_dof + n_t_dof + c:t_components] @ t_phi_tab[0,i,:, 0:dim]
-                    #
-                    # c = 2
-                    # s_z =  alpha[:, c:n_s_dof + c:s_components] @ s_phi_tab[0, i, :, 0:dim]
-                    # uz_h = alpha[:,n_s_dof + c:n_s_dof + n_u_dof + c:u_components] @ u_phi_tab[0,i, :, 0:dim]
-                    # gz_h = alpha[:,n_s_dof + n_u_dof + c: n_s_dof + n_u_dof + n_t_dof + c:t_components] @ t_phi_tab[0,i,:,0:dim]
-                    #
-                    # u_h = VecValDer(np.hstack((ux_h.val, uy_h.val, uz_h.val)),
-                    #                 np.hstack((ux_h.der, uy_h.der, uz_h.der)))
-                    #
-                    # g_h = VecValDer(np.hstack((gx_h.val, gy_h.val, gz_h.val)),
-                    #                 np.hstack((gx_h.der, gy_h.der, gz_h.der)))
-                    #
-                    # s_h = VecValDer(np.vstack((s_x.val, s_y.val, s_z.val)),
-                    #                 np.vstack((s_x.der, s_y.der, s_z.der)))
-                    #
-                    # # symmetric part
-                    # Symm_sh = 0.5 * (s_h + s_h.T)
-                    # Skew_sh = 0.5 * (s_h - s_h.T)
-                    #
-                    # tr_s_h = VecValDer(Symm_sh.val.trace(), Symm_sh.der.trace())
-                    # A_sh = (1.0 / 2.0 * m_mu) * (Symm_sh - (
-                    #             m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat)
-                    #
-                    # grad_s_phi = s_phi_tab[1: s_phi_tab.shape[0] + 1, i, :, 0:dim]
-                    # div_tau = np.array([[np.trace(grad_s_phi[:, j, :]) / det_jac[i] for j
-                    #                      in range(n_s_phi)]])
-                    # c = 0
-                    # div_sh_x = alpha[:, c:n_s_dof + c:s_components] @ div_tau.T
-                    # c = 1
-                    # div_sh_y = alpha[:, c:n_s_dof + c:s_components] @ div_tau.T
-                    # c = 2
-                    # div_sh_z = alpha[:, c:n_s_dof + c:s_components] @ div_tau.T
-                    #
-                    # div_sh = VecValDer(np.hstack((div_sh_x.val, div_sh_y.val, div_sh_z.val)),
-                    #                    np.hstack((div_sh_x.der, div_sh_y.der, div_sh_z.der)))
-                    #
-                    # S_cross = np.array([[Skew_sh[1, 2] - Skew_sh[2, 1],
-                    #                      Skew_sh[2, 0] - Skew_sh[0, 2],
-                    #                      Skew_sh[0, 1] - Skew_sh[1, 0]]])
-                    #
-                    # Gamma_outer = np.array([[0.0*g_h[0,0], -g_h[0,2], +g_h[0,1]],
-                    #                         [+g_h[0,2], 0.0*g_h[0,0], -g_h[0,0]],
-                    #                         [-g_h[0,1], +g_h[0,0], 0.0*g_h[0,0]]])
+                    c = 0
+                    a_sx = alpha[:, c : n_s_dof + c : s_components]
+                    a_ux = alpha[
+                        :,
+                        n_s_dof
+                        + n_m_dof
+                        + c : n_s_dof
+                        + n_m_dof
+                        + n_u_dof
+                        + c : u_components,
+                    ]
+                    a_mx = alpha[:, n_s_dof + c : n_s_dof + n_m_dof + c : m_components]
+                    a_tx = alpha[
+                        :,
+                        n_s_dof
+                        + n_m_dof
+                        + n_u_dof
+                        + c : n_s_dof
+                        + n_m_dof
+                        + n_u_dof
+                        + n_t_dof
+                        + c : t_components,
+                    ]
 
+                    c = 1
+                    a_sy = alpha[:, c : n_s_dof + c : s_components]
+                    a_uy = alpha[
+                        :,
+                        n_s_dof
+                        + n_m_dof
+                        + c : n_s_dof
+                        + n_m_dof
+                        + n_u_dof
+                        + c : u_components,
+                    ]
+                    a_my = alpha[:, n_s_dof + c : n_s_dof + n_m_dof + c : m_components]
+                    a_ty = alpha[
+                        :,
+                        n_s_dof
+                        + n_m_dof
+                        + n_u_dof
+                        + c : n_s_dof
+                        + n_m_dof
+                        + n_u_dof
+                        + n_t_dof
+                        + c : t_components,
+                    ]
 
-                equ_1_integrand = (s_phi_tab[0, i, :, 0:dim] @ A_sh) + (div_tau.T @ u_h) + (s_phi_tab[0, i, :, 0:dim] @ Gamma_outer)
+                    c = 2
+                    a_sz = alpha[:, c : n_s_dof + c : s_components]
+                    a_uz = alpha[
+                        :,
+                        n_s_dof
+                        + n_m_dof
+                        + c : n_s_dof
+                        + n_m_dof
+                        + n_u_dof
+                        + c : u_components,
+                    ]
+                    a_mz = alpha[:, n_s_dof + c : n_s_dof + n_m_dof + c : m_components]
+                    a_tz = alpha[
+                        :,
+                        n_s_dof
+                        + n_m_dof
+                        + n_u_dof
+                        + c : n_s_dof
+                        + n_m_dof
+                        + n_u_dof
+                        + n_t_dof
+                        + c : t_components,
+                    ]
+
+                    sx_h = a_sx @ s_phi_tab[0, i, :, 0:dim]
+                    sy_h = a_sy @ s_phi_tab[0, i, :, 0:dim]
+                    sz_h = a_sz @ s_phi_tab[0, i, :, 0:dim]
+
+                    mx_h = a_mx @ m_phi_tab[0, i, :, 0:dim]
+                    my_h = a_my @ m_phi_tab[0, i, :, 0:dim]
+                    mz_h = a_mz @ m_phi_tab[0, i, :, 0:dim]
+
+                    ux_h = a_ux @ u_phi_tab[0, i, :, 0:dim]
+                    uy_h = a_uy @ u_phi_tab[0, i, :, 0:dim]
+                    uz_h = a_uz @ u_phi_tab[0, i, :, 0:dim]
+
+                    tx_h = a_tx @ t_phi_tab[0, i, :, 0:dim]
+                    ty_h = a_ty @ t_phi_tab[0, i, :, 0:dim]
+                    tz_h = a_tz @ t_phi_tab[0, i, :, 0:dim]
+
+                    u_h = VecValDer(
+                        np.hstack((ux_h.val, uy_h.val, uz_h.val)),
+                        np.hstack((ux_h.der, uy_h.der, uz_h.der)),
+                    )
+
+                    t_h = VecValDer(
+                        np.hstack((tx_h.val, ty_h.val, tz_h.val)),
+                        np.hstack((tx_h.der, ty_h.der, tz_h.der)),
+                    )
+
+                    s_h = VecValDer(
+                        np.vstack((sx_h.val, sy_h.val, sz_h.val)),
+                        np.vstack((sx_h.der, sy_h.der, sz_h.der)),
+                    )
+
+                    m_h = VecValDer(
+                        np.vstack((mx_h.val, my_h.val, mz_h.val)),
+                        np.vstack((mx_h.der, my_h.der, mz_h.der)),
+                    )
+
+                    # S decomposition
+                    Symm_sh = 0.5 * (s_h + s_h.T)
+                    Skew_sh = 0.5 * (s_h - s_h.T)
+
+                    # M decomposition
+                    Symm_mh = 0.5 * (m_h + m_h.T)
+
+                    tr_s_h = VecValDer(Symm_sh.val.trace(), Symm_sh.der.trace())
+                    A_sh = (1.0 / 2.0 * m_mu) * (
+                        Symm_sh
+                        - (m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat
+                    ) - (1.0 / 2.0 * m_kappa) * Skew_sh
+
+                    A_mh = (1.0 / m_gamma) * Symm_mh
+
+                    grad_s_phi = s_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
+                    div_tau = np.array(
+                        [
+                            [
+                                np.trace(grad_s_phi[:, j, :]) / det_jac[i]
+                                for j in range(n_s_phi)
+                            ]
+                        ]
+                    )
+                    c = 0
+                    div_sh_x = alpha[:, c : n_s_dof + c : s_components] @ div_tau.T
+                    c = 1
+                    div_sh_y = alpha[:, c : n_s_dof + c : s_components] @ div_tau.T
+                    c = 2
+                    div_sh_z = alpha[:, c : n_s_dof + c : s_components] @ div_tau.T
+
+                    div_sh = VecValDer(
+                        np.hstack((div_sh_x.val, div_sh_y.val, div_sh_z.val)),
+                        np.hstack((div_sh_x.der, div_sh_y.der, div_sh_z.der)),
+                    )
+
+                    Gamma_outer = np.array(
+                        [
+                            [0.0 * t_h[0, 0], -t_h[0, 2], +t_h[0, 1]],
+                            [+t_h[0, 2], 0.0 * t_h[0, 0], -t_h[0, 0]],
+                            [-t_h[0, 1], +t_h[0, 0], 0.0 * t_h[0, 0]],
+                        ]
+                    )
+
+                    S_cross = np.array(
+                        [
+                            [
+                                Skew_sh[1, 2] - Skew_sh[2, 1],
+                                Skew_sh[2, 0] - Skew_sh[0, 2],
+                                Skew_sh[0, 1] - Skew_sh[1, 0],
+                            ]
+                        ]
+                    )
+
+                equ_1_integrand = (
+                    (s_phi_tab[0, i, :, 0:dim] @ A_sh)
+                    + (div_tau.T @ u_h)
+                    + (s_phi_tab[0, i, :, 0:dim] @ Gamma_outer)
+                )
                 equ_2_integrand = (m_phi_tab[0, i, :, 0:dim] @ A_mh.T) + (div_v.T @ gh)
-                equ_3_integrand = (u_phi_tab[0, i, :, 0:dim] @ div_sh)
-                equ_4_integrand = (t_phi_tab[0, i, :, 0:dim] @ div_mh) + (t_phi_tab[0, i, :, 0:dim] @ S_cross)
+                equ_3_integrand = u_phi_tab[0, i, :, 0:dim] @ div_sh
+                equ_4_integrand = (t_phi_tab[0, i, :, 0:dim] @ div_mh) - (
+                    t_phi_tab[0, i, :, 0:dim] @ S_cross
+                )
 
                 multiphysic_integrand = np.zeros((1, n_dof))
-                multiphysic_integrand[:, 0:n_s_dof:1] = (equ_1_integrand).reshape((n_s_dof,))
-                multiphysic_integrand[:, n_s_dof:n_s_dof+n_m_dof:1] = (equ_2_integrand).reshape((n_m_dof,))
-                multiphysic_integrand[:, n_s_dof+n_m_dof:n_s_dof+n_m_dof+n_u_dof:1] = (equ_3_integrand).reshape((n_u_dof,))
-                multiphysic_integrand[:, n_s_dof+n_m_dof+n_u_dof:n_s_dof+n_m_dof+n_u_dof+n_t_dof:1] = (equ_4_integrand).reshape((n_t_dof,))
+                multiphysic_integrand[:, 0:n_s_dof:1] = (equ_1_integrand).reshape(
+                    (n_s_dof,)
+                )
+                multiphysic_integrand[:, n_s_dof : n_s_dof + n_m_dof : 1] = (
+                    equ_2_integrand
+                ).reshape((n_m_dof,))
+                multiphysic_integrand[
+                    :, n_s_dof + n_m_dof : n_s_dof + n_m_dof + n_u_dof : 1
+                ] = (equ_3_integrand).reshape((n_u_dof,))
+                multiphysic_integrand[
+                    :,
+                    n_s_dof
+                    + n_m_dof
+                    + n_u_dof : n_s_dof
+                    + n_m_dof
+                    + n_u_dof
+                    + n_t_dof : 1,
+                ] = (equ_4_integrand).reshape((n_t_dof,))
 
                 discrete_integrand = (multiphysic_integrand).reshape((n_dof,))
                 el_form += det_jac[i] * omega * discrete_integrand
@@ -1415,7 +1616,12 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
         # scattering dof
         dest_u = u_field.dof_map.destination_indices(cell.id) + s_n_dof_g + m_n_dof_g
-        dest_t = t_field.dof_map.destination_indices(cell.id) + s_n_dof_g + m_n_dof_g + u_n_dof_g
+        dest_t = (
+            t_field.dof_map.destination_indices(cell.id)
+            + s_n_dof_g
+            + m_n_dof_g
+            + u_n_dof_g
+        )
         dest = np.concatenate([dest_u, dest_t])
         u_alpha_l = alpha[dest_u]
         t_alpha_l = alpha[dest_t]
@@ -1428,7 +1634,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         t_alpha_star = np.array(np.split(t_alpha_l, t_n_phi))
         u_h_s = (u_phi_tab[0, :, :, 0] @ u_alpha_star).T
         t_h_s = (t_phi_tab[0, :, :, 0] @ t_alpha_star).T
-        p_h_s = np.vstack((u_h_s,t_h_s))
+        p_h_s = np.vstack((u_h_s, t_h_s))
         diff_p = p_e_s - p_h_s
         l2_error = np.sum(det_jac * weights * diff_p * diff_p)
         return l2_error
@@ -1462,8 +1668,15 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             element = cellid_to_element[pr_ids[0]]
 
             # scattering dof
-            dest_u = u_field.dof_map.destination_indices(cell.id) + s_n_dof_g + m_n_dof_g
-            dest_t = t_field.dof_map.destination_indices(cell.id) + s_n_dof_g + m_n_dof_g + u_n_dof_g
+            dest_u = (
+                u_field.dof_map.destination_indices(cell.id) + s_n_dof_g + m_n_dof_g
+            )
+            dest_t = (
+                t_field.dof_map.destination_indices(cell.id)
+                + s_n_dof_g
+                + m_n_dof_g
+                + u_n_dof_g
+            )
             dest = np.concatenate([dest_u, dest_t])
             alpha_l = alpha[dest]
 
@@ -1542,7 +1755,7 @@ def create_domain(dimension):
         return domain
 
 
-def create_conformal_mesher(domain: Domain, h, ref_l = 0):
+def create_conformal_mesher(domain: Domain, h, ref_l=0):
     mesher = ConformalMesher(dimension=domain.dimension)
     mesher.domain = domain
     mesher.generate_from_domain(h, ref_l)
@@ -1558,9 +1771,10 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
         gmesh.write_vtk()
     return gmesh
 
+
 def main():
 
-    k_order = 3
+    k_order = 1
     h = 1.0
     n_ref = 5
     dimension = 2

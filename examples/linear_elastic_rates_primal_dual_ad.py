@@ -491,6 +491,7 @@ def h1_elasticity(k_order, gmesh, write_vtk_q=False):
 
     return l2_error
 
+
 def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
 
     dim = gmesh.dimension
@@ -513,19 +514,35 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
     t_family = "Lagrange"
 
     # flux field
-    s_field = DiscreteField(dim, s_components, s_family, k_order, gmesh, integration_oder = 2 * k_order + 1)
+    s_field = DiscreteField(
+        dim, s_components, s_family, k_order, gmesh, integration_oder=2 * k_order + 1
+    )
     if dim == 2:
         s_field.build_structures([2, 3, 4, 5])
     elif dim == 3:
         s_field.build_structures([2, 3, 4, 5, 6, 7])
 
     # potential field
-    u_field = DiscreteField(dim, u_components, u_family, k_order - 1, gmesh, integration_oder = 2 * k_order + 1)
+    u_field = DiscreteField(
+        dim,
+        u_components,
+        u_family,
+        k_order - 1,
+        gmesh,
+        integration_oder=2 * k_order + 1,
+    )
     u_field.make_discontinuous()
     u_field.build_structures()
 
     # rotations field
-    t_field = DiscreteField(dim, t_components, t_family, k_order - 1, gmesh, integration_oder = 2 * k_order + 1)
+    t_field = DiscreteField(
+        dim,
+        t_components,
+        t_family,
+        k_order - 1,
+        gmesh,
+        integration_oder=2 * k_order + 1,
+    )
     t_field.make_discontinuous()
     t_field.build_structures()
 
@@ -699,7 +716,7 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
         )
 
     def scatter_form_data_ad(
-            i, m_lambda, m_mu, f_rhs, fields, cell_map, row, col, data
+        i, m_lambda, m_mu, f_rhs, fields, cell_map, row, col, data
     ):
 
         dim = fields[0].dimension
@@ -766,49 +783,74 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
                     inv_jac_m = np.vstack((inv_jac[i] @ e1, inv_jac[i] @ e2))
                 else:
                     inv_jac_m = np.vstack(
-                        (inv_jac[i] @ e1, inv_jac[i] @ e2, inv_jac[i] @ e3))
+                        (inv_jac[i] @ e1, inv_jac[i] @ e2, inv_jac[i] @ e3)
+                    )
 
                 if dim == 2:
                     c = 0
-                    s_x = alpha[:, c:n_s_dof + c:s_components] @ s_phi_tab[0, i, :, 0:dim]
-                    ux_h = alpha[:,
-                           n_s_dof:n_s_dof + n_u_dof + c:u_components] @ u_phi_tab[0, i,
-                                                                         :, 0:dim]
+                    s_x = (
+                        alpha[:, c : n_s_dof + c : s_components]
+                        @ s_phi_tab[0, i, :, 0:dim]
+                    )
+                    ux_h = (
+                        alpha[:, n_s_dof : n_s_dof + n_u_dof + c : u_components]
+                        @ u_phi_tab[0, i, :, 0:dim]
+                    )
                     c = 1
-                    s_y = alpha[:, c:n_s_dof + c:s_components] @ s_phi_tab[0, i, :, 0:dim]
-                    uy_h = alpha[:,
-                           n_s_dof + c:n_s_dof + n_u_dof + c:u_components] @ u_phi_tab[0,
-                                                                             i, :, 0:dim]
+                    s_y = (
+                        alpha[:, c : n_s_dof + c : s_components]
+                        @ s_phi_tab[0, i, :, 0:dim]
+                    )
+                    uy_h = (
+                        alpha[:, n_s_dof + c : n_s_dof + n_u_dof + c : u_components]
+                        @ u_phi_tab[0, i, :, 0:dim]
+                    )
 
-                    gamma_h = alpha[:,
-                              n_s_dof + n_u_dof: n_s_dof + n_u_dof + n_t_dof:t_components] @ t_phi_tab[
-                                                                                             0,
-                                                                                             i,
-                                                                                             :,
-                                                                                             0:dim]
+                    gamma_h = (
+                        alpha[
+                            :,
+                            n_s_dof
+                            + n_u_dof : n_s_dof
+                            + n_u_dof
+                            + n_t_dof : t_components,
+                        ]
+                        @ t_phi_tab[0, i, :, 0:dim]
+                    )
 
-                    u_h = VecValDer(np.hstack((ux_h.val, uy_h.val)),
-                                    np.hstack((ux_h.der, uy_h.der)))
-                    s_h = VecValDer(np.vstack((s_x.val, s_y.val)),
-                                    np.vstack((s_x.der, s_y.der)))
+                    u_h = VecValDer(
+                        np.hstack((ux_h.val, uy_h.val)), np.hstack((ux_h.der, uy_h.der))
+                    )
+                    s_h = VecValDer(
+                        np.vstack((s_x.val, s_y.val)), np.vstack((s_x.der, s_y.der))
+                    )
 
                     # symmetric part
                     Symm_sh = 0.5 * (s_h + s_h.T)
                     Skew_sh = 0.5 * (s_h - s_h.T)
 
                     tr_s_h = VecValDer(Symm_sh.val.trace(), Symm_sh.der.trace())
-                    A_sh = (1.0 / 2.0 * m_mu) * (Symm_sh - (
-                                m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat)
+                    A_sh = (1.0 / 2.0 * m_mu) * (
+                        Symm_sh
+                        - (m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat
+                    )
 
-                    grad_s_phi = s_phi_tab[1: s_phi_tab.shape[0] + 1, i, :, 0:dim]
-                    div_tau = np.array([[np.trace(grad_s_phi[:, j, :]) / det_jac[i] for j
-                                         in range(n_s_phi)]])
+                    grad_s_phi = s_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
+                    div_tau = np.array(
+                        [
+                            [
+                                np.trace(grad_s_phi[:, j, :]) / det_jac[i]
+                                for j in range(n_s_phi)
+                            ]
+                        ]
+                    )
                     c = 0
-                    div_sh_x = alpha[:, c:n_s_dof + c:s_components] @ div_tau.T
+                    div_sh_x = alpha[:, c : n_s_dof + c : s_components] @ div_tau.T
                     c = 1
-                    div_sh_y = alpha[:, c:n_s_dof + c:s_components] @ div_tau.T
-                    div_sh = VecValDer(np.hstack((div_sh_x.val, div_sh_y.val)),
-                                       np.hstack((div_sh_x.der, div_sh_y.der)))
+                    div_sh_y = alpha[:, c : n_s_dof + c : s_components] @ div_tau.T
+                    div_sh = VecValDer(
+                        np.hstack((div_sh_x.val, div_sh_y.val)),
+                        np.hstack((div_sh_x.der, div_sh_y.der)),
+                    )
 
                     Gamma_outer = gamma_h * np.array([[0.0, -1.0], [1.0, 0.0]])
                     S_cross = np.array([[Skew_sh[0, 1] - Skew_sh[1, 0]]])
@@ -816,68 +858,155 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
                 else:
 
                     inv_jac_m = np.vstack(
-                        (inv_jac[i] @ e1, inv_jac[i] @ e2, inv_jac[i] @ e3))
+                        (inv_jac[i] @ e1, inv_jac[i] @ e2, inv_jac[i] @ e3)
+                    )
 
                     c = 0
-                    s_x =  alpha[:, c:n_s_dof + c:s_components] @ s_phi_tab[0, i, :, 0:dim]
-                    ux_h = alpha[:,n_s_dof + c: n_s_dof + n_u_dof + c:u_components] @ u_phi_tab[0, i,:, 0:dim]
-                    gx_h = alpha[:,n_s_dof + n_u_dof: n_s_dof + n_u_dof + n_t_dof + c:t_components] @ t_phi_tab[0, i, :, 0:dim]
+                    s_x = (
+                        alpha[:, c : n_s_dof + c : s_components]
+                        @ s_phi_tab[0, i, :, 0:dim]
+                    )
+                    ux_h = (
+                        alpha[:, n_s_dof + c : n_s_dof + n_u_dof + c : u_components]
+                        @ u_phi_tab[0, i, :, 0:dim]
+                    )
+                    gx_h = (
+                        alpha[
+                            :,
+                            n_s_dof
+                            + n_u_dof : n_s_dof
+                            + n_u_dof
+                            + n_t_dof
+                            + c : t_components,
+                        ]
+                        @ t_phi_tab[0, i, :, 0:dim]
+                    )
 
                     c = 1
-                    s_y =  alpha[:, c:n_s_dof + c:s_components] @ s_phi_tab[0, i, :, 0:dim]
-                    uy_h = alpha[:,n_s_dof + c:n_s_dof + n_u_dof + c:u_components] @ u_phi_tab[0,i, :, 0:dim]
-                    gy_h = alpha[:,n_s_dof + n_u_dof + c: n_s_dof + n_u_dof + n_t_dof + c:t_components] @ t_phi_tab[0,i,:, 0:dim]
+                    s_y = (
+                        alpha[:, c : n_s_dof + c : s_components]
+                        @ s_phi_tab[0, i, :, 0:dim]
+                    )
+                    uy_h = (
+                        alpha[:, n_s_dof + c : n_s_dof + n_u_dof + c : u_components]
+                        @ u_phi_tab[0, i, :, 0:dim]
+                    )
+                    gy_h = (
+                        alpha[
+                            :,
+                            n_s_dof
+                            + n_u_dof
+                            + c : n_s_dof
+                            + n_u_dof
+                            + n_t_dof
+                            + c : t_components,
+                        ]
+                        @ t_phi_tab[0, i, :, 0:dim]
+                    )
 
                     c = 2
-                    s_z =  alpha[:, c:n_s_dof + c:s_components] @ s_phi_tab[0, i, :, 0:dim]
-                    uz_h = alpha[:,n_s_dof + c:n_s_dof + n_u_dof + c:u_components] @ u_phi_tab[0,i, :, 0:dim]
-                    gz_h = alpha[:,n_s_dof + n_u_dof + c: n_s_dof + n_u_dof + n_t_dof + c:t_components] @ t_phi_tab[0,i,:,0:dim]
+                    s_z = (
+                        alpha[:, c : n_s_dof + c : s_components]
+                        @ s_phi_tab[0, i, :, 0:dim]
+                    )
+                    uz_h = (
+                        alpha[:, n_s_dof + c : n_s_dof + n_u_dof + c : u_components]
+                        @ u_phi_tab[0, i, :, 0:dim]
+                    )
+                    gz_h = (
+                        alpha[
+                            :,
+                            n_s_dof
+                            + n_u_dof
+                            + c : n_s_dof
+                            + n_u_dof
+                            + n_t_dof
+                            + c : t_components,
+                        ]
+                        @ t_phi_tab[0, i, :, 0:dim]
+                    )
 
-                    u_h = VecValDer(np.hstack((ux_h.val, uy_h.val, uz_h.val)),
-                                    np.hstack((ux_h.der, uy_h.der, uz_h.der)))
+                    u_h = VecValDer(
+                        np.hstack((ux_h.val, uy_h.val, uz_h.val)),
+                        np.hstack((ux_h.der, uy_h.der, uz_h.der)),
+                    )
 
-                    g_h = VecValDer(np.hstack((gx_h.val, gy_h.val, gz_h.val)),
-                                    np.hstack((gx_h.der, gy_h.der, gz_h.der)))
+                    g_h = VecValDer(
+                        np.hstack((gx_h.val, gy_h.val, gz_h.val)),
+                        np.hstack((gx_h.der, gy_h.der, gz_h.der)),
+                    )
 
-                    s_h = VecValDer(np.vstack((s_x.val, s_y.val, s_z.val)),
-                                    np.vstack((s_x.der, s_y.der, s_z.der)))
+                    s_h = VecValDer(
+                        np.vstack((s_x.val, s_y.val, s_z.val)),
+                        np.vstack((s_x.der, s_y.der, s_z.der)),
+                    )
 
                     # symmetric part
                     Symm_sh = 0.5 * (s_h + s_h.T)
                     Skew_sh = 0.5 * (s_h - s_h.T)
 
                     tr_s_h = VecValDer(Symm_sh.val.trace(), Symm_sh.der.trace())
-                    A_sh = (1.0 / 2.0 * m_mu) * (Symm_sh - (
-                                m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat)
+                    A_sh = (1.0 / 2.0 * m_mu) * (
+                        Symm_sh
+                        - (m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat
+                    )
 
-                    grad_s_phi = s_phi_tab[1: s_phi_tab.shape[0] + 1, i, :, 0:dim]
-                    div_tau = np.array([[np.trace(grad_s_phi[:, j, :]) / det_jac[i] for j
-                                         in range(n_s_phi)]])
+                    grad_s_phi = s_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
+                    div_tau = np.array(
+                        [
+                            [
+                                np.trace(grad_s_phi[:, j, :]) / det_jac[i]
+                                for j in range(n_s_phi)
+                            ]
+                        ]
+                    )
                     c = 0
-                    div_sh_x = alpha[:, c:n_s_dof + c:s_components] @ div_tau.T
+                    div_sh_x = alpha[:, c : n_s_dof + c : s_components] @ div_tau.T
                     c = 1
-                    div_sh_y = alpha[:, c:n_s_dof + c:s_components] @ div_tau.T
+                    div_sh_y = alpha[:, c : n_s_dof + c : s_components] @ div_tau.T
                     c = 2
-                    div_sh_z = alpha[:, c:n_s_dof + c:s_components] @ div_tau.T
+                    div_sh_z = alpha[:, c : n_s_dof + c : s_components] @ div_tau.T
 
-                    div_sh = VecValDer(np.hstack((div_sh_x.val, div_sh_y.val, div_sh_z.val)),
-                                       np.hstack((div_sh_x.der, div_sh_y.der, div_sh_z.der)))
+                    div_sh = VecValDer(
+                        np.hstack((div_sh_x.val, div_sh_y.val, div_sh_z.val)),
+                        np.hstack((div_sh_x.der, div_sh_y.der, div_sh_z.der)),
+                    )
 
-                    S_cross = np.array([[Skew_sh[1, 2] - Skew_sh[2, 1],
-                                         Skew_sh[2, 0] - Skew_sh[0, 2],
-                                         Skew_sh[0, 1] - Skew_sh[1, 0]]])
+                    S_cross = np.array(
+                        [
+                            [
+                                Skew_sh[1, 2] - Skew_sh[2, 1],
+                                Skew_sh[2, 0] - Skew_sh[0, 2],
+                                Skew_sh[0, 1] - Skew_sh[1, 0],
+                            ]
+                        ]
+                    )
 
-                    Gamma_outer = np.array([[0.0*g_h[0,0], -g_h[0,2], +g_h[0,1]],
-                                            [+g_h[0,2], 0.0*g_h[0,0], -g_h[0,0]],
-                                            [-g_h[0,1], +g_h[0,0], 0.0*g_h[0,0]]])
+                    Gamma_outer = np.array(
+                        [
+                            [0.0 * g_h[0, 0], -g_h[0, 2], +g_h[0, 1]],
+                            [+g_h[0, 2], 0.0 * g_h[0, 0], -g_h[0, 0]],
+                            [-g_h[0, 1], +g_h[0, 0], 0.0 * g_h[0, 0]],
+                        ]
+                    )
 
-                equ_1_integrand = (s_phi_tab[0, i, :, 0:dim] @ A_sh) + (div_tau.T @ u_h) + (s_phi_tab[0, i, :, 0:dim] @ Gamma_outer)
-                equ_2_integrand = (u_phi_tab[0, i, :, 0:dim] @ div_sh)
-                equ_3_integrand = (t_phi_tab[0, i, :, 0:dim] @ S_cross)
+                equ_1_integrand = (
+                    (s_phi_tab[0, i, :, 0:dim] @ A_sh)
+                    + (div_tau.T @ u_h)
+                    + (s_phi_tab[0, i, :, 0:dim] @ Gamma_outer)
+                )
+                equ_2_integrand = u_phi_tab[0, i, :, 0:dim] @ div_sh
+                equ_3_integrand = t_phi_tab[0, i, :, 0:dim] @ S_cross
                 multiphysic_integrand = np.zeros((1, n_dof))
-                multiphysic_integrand[:, 0:n_s_dof:1] = (equ_1_integrand).reshape((n_s_dof,))
-                multiphysic_integrand[:, n_s_dof:n_s_dof + n_u_dof:1] = (equ_2_integrand).reshape((n_u_dof,))
-                multiphysic_integrand[:, n_s_dof + n_u_dof:n_s_dof + n_u_dof + n_t_dof:1] = (equ_3_integrand).reshape((n_t_dof,))
+                multiphysic_integrand[:, 0:n_s_dof:1] = (equ_1_integrand).reshape(
+                    (n_s_dof,)
+                )
+                multiphysic_integrand[:, n_s_dof : n_s_dof + n_u_dof : 1] = (
+                    equ_2_integrand
+                ).reshape((n_u_dof,))
+                multiphysic_integrand[
+                    :, n_s_dof + n_u_dof : n_s_dof + n_u_dof + n_t_dof : 1
+                ] = (equ_3_integrand).reshape((n_t_dof,))
 
                 discrete_integrand = (multiphysic_integrand).reshape((n_dof,))
                 el_form += det_jac[i] * omega * discrete_integrand
@@ -897,9 +1026,7 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
         data[block_sequ] += j_el.ravel()
 
     [
-        scatter_form_data_ad(
-            i, m_lambda, m_mu, f_rhs, fields, cell_map, row, col, data
-        )
+        scatter_form_data_ad(i, m_lambda, m_mu, f_rhs, fields, cell_map, row, col, data)
         for i in range(s_n_els)
     ]
 
@@ -1098,6 +1225,7 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
 
     return l2_error
 
+
 def create_domain(dimension):
 
     if dimension == 1:
@@ -1125,7 +1253,7 @@ def create_domain(dimension):
         return domain
 
 
-def create_conformal_mesher(domain: Domain, h, ref_l = 0):
+def create_conformal_mesher(domain: Domain, h, ref_l=0):
     mesher = ConformalMesher(dimension=domain.dimension)
     mesher.domain = domain
     mesher.generate_from_domain(h, ref_l)
@@ -1140,6 +1268,7 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
     if write_vtk_q:
         gmesh.write_vtk()
     return gmesh
+
 
 def main():
 

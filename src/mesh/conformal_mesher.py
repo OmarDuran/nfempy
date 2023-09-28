@@ -295,7 +295,7 @@ class ConformalMesher:
                 numNodes = 10
                 for tag_1d in tags_1d:
                     gmsh.model.mesh.setTransfiniteCurve(
-                        tag_1d, numNodes, "Bump", coef=0.125/2
+                        tag_1d, numNodes, "Bump", coef=0.125 / 2
                     )
         # embed entities
         if dimension > 2:

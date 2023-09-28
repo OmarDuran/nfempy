@@ -201,7 +201,7 @@ class DiscreteField:
             ]
 
         bc_familiy = self.family
-        if self.dimension - 1 < 2 :
+        if self.dimension - 1 < 2:
             bc_familiy = family_by_name("Lagrange")
 
         self.bc_elements = list(

@@ -119,9 +119,9 @@ def h1_elasticity(k_order, gmesh, write_vtk_q=False):
 
     st = time.time()
 
-    f_rhs = lambda x, y, z: np.array([(1-y), -(1-x)])
+    f_rhs = lambda x, y, z: np.array([(1 - y), -(1 - x)])
     if dim == 3:
-        f_rhs = lambda x, y, z: np.array([(1-y), -(1-x), 0.0 * z])
+        f_rhs = lambda x, y, z: np.array([(1 - y), -(1 - x), 0.0 * z])
 
     def scatter_form_data(
         element, m_lambda, m_mu, f_rhs, u_field, cell_map, row, col, data
@@ -284,7 +284,6 @@ def h1_elasticity(k_order, gmesh, write_vtk_q=False):
     elapsed_time = et - st
     print("Linear solver time:", elapsed_time, "seconds")
 
-
     if write_vtk_q:
         # post-process solution
         st = time.time()
@@ -357,7 +356,6 @@ def h1_elasticity(k_order, gmesh, write_vtk_q=False):
         et = time.time()
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
-
 
 
 def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
@@ -1025,21 +1023,21 @@ def create_domain(dimension, h_thickness):
     else:
         box_points = np.array(
             [
-                [0.0, 0.0, -h_thickness/2],
-                [1.0, 0.0, -h_thickness/2],
-                [1.0, 1.0, -h_thickness/2],
-                [0.0, 1.0, -h_thickness/2],
-                [0.0, 0.0, +h_thickness/2],
-                [1.0, 0.0, +h_thickness/2],
-                [1.0, 1.0, +h_thickness/2],
-                [0.0, 1.0, +h_thickness/2],
+                [0.0, 0.0, -h_thickness / 2],
+                [1.0, 0.0, -h_thickness / 2],
+                [1.0, 1.0, -h_thickness / 2],
+                [0.0, 1.0, -h_thickness / 2],
+                [0.0, 0.0, +h_thickness / 2],
+                [1.0, 0.0, +h_thickness / 2],
+                [1.0, 1.0, +h_thickness / 2],
+                [0.0, 1.0, +h_thickness / 2],
             ]
         )
         domain = build_box_3D(box_points)
         return domain
 
 
-def create_conformal_mesher(domain: Domain, h, ref_l = 0):
+def create_conformal_mesher(domain: Domain, h, ref_l=0):
     mesher = ConformalMesher(dimension=domain.dimension)
     mesher.domain = domain
     mesher.generate_from_domain(h, ref_l)
@@ -1054,6 +1052,7 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
     if write_vtk_q:
         gmesh.write_vtk()
     return gmesh
+
 
 def main():
 

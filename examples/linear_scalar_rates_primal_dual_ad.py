@@ -52,6 +52,7 @@ from spaces.dof_map import DoFMap
 from topology.mesh_topology import MeshTopology
 from numba import njit, types
 
+
 def matrix_plot(J, sparse_q=True):
 
     if sparse_q:
@@ -126,11 +127,15 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
 
     if dim == 3:
         f_exact = lambda x, y, z: np.array(
-            [(1.0 - x) * x * (1.0 - y) * y * (1.0 - z) * z])
+            [(1.0 - x) * x * (1.0 - y) * y * (1.0 - z) * z]
+        )
 
         f_rhs = lambda x, y, z: np.array(
-            [2 * (1 - x) * x * (1 - y) * y + 2 * (1 - x) * x * (1 - z) * z + 2 * (
-                        1 - y) * y * (1 - z) * z]
+            [
+                2 * (1 - x) * x * (1 - y) * y
+                + 2 * (1 - x) * x * (1 - z) * z
+                + 2 * (1 - y) * y * (1 - z) * z
+            ]
         )
 
     def scatter_form_data(
@@ -239,24 +244,26 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
         e3 = np.array([0, 0, 1])
         with ad.AutoDiff(alpha) as alpha:
 
-                el_form = np.zeros(n_dof)
-                for c in range(n_components):
-                    b = c
-                    e = (c + 1) * n_phi * n_components + 1
-                    el_form[b:e:n_components] += phi_s_star @ f_val_star[c]
+            el_form = np.zeros(n_dof)
+            for c in range(n_components):
+                b = c
+                e = (c + 1) * n_phi * n_components + 1
+                el_form[b:e:n_components] += phi_s_star @ f_val_star[c]
 
-                for i, omega in enumerate(weights):
-                    if dim == 2:
-                        inv_jac_m = np.vstack((inv_jac[i] @ e1, inv_jac[i] @ e2))
-                    else:
-                        inv_jac_m = np.vstack((inv_jac[i] @ e1, inv_jac[i] @ e2, inv_jac[i] @ e3))
-                    grad_phi = (inv_jac_m @ phi_tab[1: phi_tab.shape[0] + 1, i, :, 0]).T
-                    grad_uh = alpha @ grad_phi
-                    grad_uh *= m_kappa
-                    energy_h = (grad_phi @ grad_uh.T).reshape((n_dof,))
-                    el_form += det_jac[i] * omega * energy_h
+            for i, omega in enumerate(weights):
+                if dim == 2:
+                    inv_jac_m = np.vstack((inv_jac[i] @ e1, inv_jac[i] @ e2))
+                else:
+                    inv_jac_m = np.vstack(
+                        (inv_jac[i] @ e1, inv_jac[i] @ e2, inv_jac[i] @ e3)
+                    )
+                grad_phi = (inv_jac_m @ phi_tab[1 : phi_tab.shape[0] + 1, i, :, 0]).T
+                grad_uh = alpha @ grad_phi
+                grad_uh *= m_kappa
+                energy_h = (grad_phi @ grad_uh.T).reshape((n_dof,))
+                el_form += det_jac[i] * omega * energy_h
 
-        r_el, j_el = el_form.val, el_form.der.reshape((n_dof,n_dof))
+        r_el, j_el = el_form.val, el_form.der.reshape((n_dof, n_dof))
 
         # scattering data
         c_sequ = cell_map[cell.id]
@@ -271,12 +278,9 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
         data[block_sequ] += j_el.ravel()
 
     [
-        scatter_form_data_ad(
-            element, m_kappa, f_rhs, u_field, cell_map, row, col, data
-        )
+        scatter_form_data_ad(element, m_kappa, f_rhs, u_field, cell_map, row, col, data)
         for element in u_field.elements
     ]
-
 
     def scatter_bc_form_data(element, u_field, cell_map, row, col, data):
 
@@ -474,14 +478,23 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
     u_family = "Lagrange"
 
     # flux field
-    q_field = DiscreteField(dim, q_components, q_family, k_order, gmesh, integration_oder = 2 * k_order + 1)
+    q_field = DiscreteField(
+        dim, q_components, q_family, k_order, gmesh, integration_oder=2 * k_order + 1
+    )
     if dim == 2:
         q_field.build_structures([2, 3, 4, 5])
     elif dim == 3:
         q_field.build_structures([2, 3, 4, 5, 6, 7])
 
     # potential field
-    u_field = DiscreteField(dim, u_components, u_family, k_order - 1, gmesh, integration_oder = 2 * k_order + 1)
+    u_field = DiscreteField(
+        dim,
+        u_components,
+        u_family,
+        k_order - 1,
+        gmesh,
+        integration_oder=2 * k_order + 1,
+    )
     u_field.make_discontinuous()
     u_field.build_structures()
 
@@ -539,20 +552,28 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
 
     # exact solution
     f_exact = lambda x, y, z: np.array([(1.0 - x) * x * (1.0 - y) * y])
-    q_exact = lambda x, y, z: np.array([-((1 - x)*(1 - y)*y) + x*(1 - y)*y, -((1 - x)*x*(1 - y)) + (1 - x)*x*y])
+    q_exact = lambda x, y, z: np.array(
+        [
+            -((1 - x) * (1 - y) * y) + x * (1 - y) * y,
+            -((1 - x) * x * (1 - y)) + (1 - x) * x * y,
+        ]
+    )
     f_rhs = lambda x, y, z: np.array([2.0 * (1.0 - x) * x + 2.0 * (1.0 - y) * y])
 
     if dim == 3:
         f_exact = lambda x, y, z: np.array(
-            [(1.0 - x)*x*(1.0 - y)*y*(1.0 - z)*z])
-
-        f_rhs = lambda x, y, z: np.array(
-            [2.0*(1.0 - x)*x*(1.0 - y)*y + 2.0*(1.0 - x)*x*(1.0 - z)*z + 2.0*(1.0 - y)*y*(1.0 - z)*z]
+            [(1.0 - x) * x * (1.0 - y) * y * (1.0 - z) * z]
         )
 
-    def scatter_form_data_ad(
-            i, m_kappa, f_rhs, fields, cell_map, row, col, data
-    ):
+        f_rhs = lambda x, y, z: np.array(
+            [
+                2.0 * (1.0 - x) * x * (1.0 - y) * y
+                + 2.0 * (1.0 - x) * x * (1.0 - z) * z
+                + 2.0 * (1.0 - y) * y * (1.0 - z) * z
+            ]
+        )
+
+    def scatter_form_data_ad(i, m_kappa, f_rhs, fields, cell_map, row, col, data):
 
         dim = fields[0].dimension
         q_components = fields[0].n_comp
@@ -576,7 +597,7 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
         # destination indexes
         dest_q = q_field.dof_map.destination_indices(cell.id)
         dest_u = u_field.dof_map.destination_indices(cell.id) + q_n_dof_g
-        dest = np.concatenate([dest_q,dest_u])
+        dest = np.concatenate([dest_q, dest_u])
         n_q_phi = q_phi_tab.shape[2]
         n_u_phi = u_phi_tab.shape[2]
 
@@ -593,7 +614,7 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
         # Partial local vectorization
         f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
         phi_s_star = det_jac * weights * u_phi_tab[0, :, :, 0].T
-        
+
         q_val_star = q_exact(x[:, 0], x[:, 1], x[:, 2])
         u_val_star = f_exact(x[:, 0], x[:, 1], x[:, 2])
 
@@ -640,20 +661,23 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
                     inv_jac_m = np.vstack((inv_jac[i] @ e1, inv_jac[i] @ e2))
                 else:
                     inv_jac_m = np.vstack(
-                        (inv_jac[i] @ e1, inv_jac[i] @ e2, inv_jac[i] @ e3))
+                        (inv_jac[i] @ e1, inv_jac[i] @ e2, inv_jac[i] @ e3)
+                    )
 
                 qh = alpha[:, 0:n_q_dof:1] @ q_phi_tab[0, i, :, 0:dim]
-                qh *= (1.0 / m_kappa)
+                qh *= 1.0 / m_kappa
 
                 uh = alpha[:, n_q_dof:n_dof:1] @ u_phi_tab[0, i, :, 0:dim]
 
-                grad_qh = q_phi_tab[1: q_phi_tab.shape[0] + 1, i, :, 0:dim]
-                div_vh = np.array([[np.trace(grad_qh[:,j,:]) / det_jac[i] for j in range (n_q_dof)]])
+                grad_qh = q_phi_tab[1 : q_phi_tab.shape[0] + 1, i, :, 0:dim]
+                div_vh = np.array(
+                    [[np.trace(grad_qh[:, j, :]) / det_jac[i] for j in range(n_q_dof)]]
+                )
                 div_qh = alpha[:, 0:n_q_dof:1] @ div_vh.T
 
                 equ_1_integrand = (qh @ q_phi_tab[0, i, :, 0:dim].T) + (uh @ div_vh)
-                equ_2_integrand = (div_qh @ u_phi_tab[0, i, :, 0:dim].T)
-                multiphysic_integrand = np.zeros((1,n_dof))
+                equ_2_integrand = div_qh @ u_phi_tab[0, i, :, 0:dim].T
+                multiphysic_integrand = np.zeros((1, n_dof))
                 multiphysic_integrand[:, 0:n_q_dof:1] = equ_1_integrand
                 multiphysic_integrand[:, n_q_dof:n_dof:1] = equ_2_integrand
 
@@ -675,9 +699,7 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
         data[block_sequ] += j_el.ravel()
 
     [
-        scatter_form_data_ad(
-            i, m_kappa, f_rhs, fields, cell_map, row, col, data
-        )
+        scatter_form_data_ad(i, m_kappa, f_rhs, fields, cell_map, row, col, data)
         for i in range(q_n_els)
     ]
 
@@ -888,7 +910,7 @@ def create_domain(dimension):
         return domain
 
 
-def create_conformal_mesher(domain: Domain, h, ref_l = 0):
+def create_conformal_mesher(domain: Domain, h, ref_l=0):
     mesher = ConformalMesher(dimension=domain.dimension)
     mesher.domain = domain
     mesher.generate_from_domain(h, ref_l)
@@ -903,6 +925,7 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
     if write_vtk_q:
         gmesh.write_vtk()
     return gmesh
+
 
 def main():
 

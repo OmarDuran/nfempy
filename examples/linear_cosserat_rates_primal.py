@@ -1169,7 +1169,7 @@ def create_domain(dimension):
         return domain
 
 
-def create_conformal_mesher(domain: Domain, h, ref_l = 0):
+def create_conformal_mesher(domain: Domain, h, ref_l=0):
     mesher = ConformalMesher(dimension=domain.dimension)
     mesher.domain = domain
     mesher.generate_from_domain(h, ref_l)
@@ -1184,6 +1184,7 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
     if write_vtk_q:
         gmesh.write_vtk()
     return gmesh
+
 
 def main():
 

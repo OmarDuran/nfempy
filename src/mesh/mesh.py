@@ -577,7 +577,9 @@ class Mesh:
             if self.cells[id].dimension != dimension:
                 self.gather_graph_edges(dimension, self.cells[id], tuple_id_list)
 
-    def gather_graph_edges_on_physical_tags(self, physical_tags, dimension, mesh_cell, tuple_id_list):
+    def gather_graph_edges_on_physical_tags(
+        self, physical_tags, dimension, mesh_cell, tuple_id_list
+    ):
         if mesh_cell.id is None:
             return
 
@@ -601,7 +603,9 @@ class Mesh:
                 continue
             tuple_id_list.append((mesh_cell.id, id))
             if self.cells[id].dimension != dimension:
-                self.gather_graph_edges_on_physical_tags(physical_tags, dimension, self.cells[id], tuple_id_list)
+                self.gather_graph_edges_on_physical_tags(
+                    physical_tags, dimension, self.cells[id], tuple_id_list
+                )
 
     def build_graph(self, dimension, co_dimension):
         disjoint_cells = [
@@ -640,7 +644,9 @@ class Mesh:
 
         tuple_id_list = [[] for i in range(len(disjoint_cells))]
         for i, cell_i in enumerate(disjoint_cells):
-            self.gather_graph_edges_on_physical_tags(physical_tags, dimension - co_dimension, cell_i, tuple_id_list[i])
+            self.gather_graph_edges_on_physical_tags(
+                physical_tags, dimension - co_dimension, cell_i, tuple_id_list[i]
+            )
         tuple_id_list = list(itertools.chain(*tuple_id_list))
 
         graph = nx.from_edgelist(tuple_id_list, create_using=nx.DiGraph)
@@ -741,7 +747,9 @@ class Mesh:
                 mesh_cell.set_material_id(mat_id_p)
                 mesh_cell.set_physical_name("sp_" + str(mat_id))
                 mesh_cell.id = cell_id
-                mesh_cell.set_sub_cells_ids(mesh_cell.dimension, np.array([cell_id, f_cells[i].id]))
+                mesh_cell.set_sub_cells_ids(
+                    mesh_cell.dimension, np.array([cell_id, f_cells[i].id])
+                )
                 self.cells = np.append(self.cells, mesh_cell)
                 map_edge_p[f_cells[i].id] = cell_id
 
@@ -752,7 +760,9 @@ class Mesh:
                 mesh_cell.set_material_id(mat_id_n)
                 mesh_cell.set_physical_name("sm_" + str(mat_id))
                 mesh_cell.id = cell_id
-                mesh_cell.set_sub_cells_ids(mesh_cell.dimension, np.array([cell_id, f_cells[i].id]))
+                mesh_cell.set_sub_cells_ids(
+                    mesh_cell.dimension, np.array([cell_id, f_cells[i].id])
+                )
                 self.cells = np.append(self.cells, mesh_cell)
                 map_edge_n[f_cells[i].id] = cell_id
 
@@ -766,7 +776,6 @@ class Mesh:
 
             for cell_n_id in cells_n:
                 self.update_entity_with_dimension(1, cell_n_id, map_edge_n)
-
 
             # vertices duplication
             vertices = np.unique(
@@ -867,8 +876,6 @@ class Mesh:
             for cell_n_id in map_edge_n.values():
                 self.update_entity_with_dimension(0, cell_n_id, map_vertex_n)
                 self.update_nodes_ids(cell_n_id, map_node_n)
-
-
 
         return map_fracs_edge
 
@@ -1441,7 +1448,9 @@ class Mesh:
         self.next_d_m_1(seed_id, skin_cell_id, id, graph, closed_q)
         return closed_q
 
-    def next_d_m_1_cell(self, fracture_tags, seed_id, cell_id, cell_m_1_id, graph, closed_q):
+    def next_d_m_1_cell(
+        self, fracture_tags, seed_id, cell_id, cell_m_1_id, graph, closed_q
+    ):
 
         pc = list(graph.predecessors(cell_m_1_id))
         neighs = [id for id in pc if self.cells[id].material_id not in fracture_tags]
@@ -1464,7 +1473,9 @@ class Mesh:
             # print("cell_dimension  : ", self.cells[fcell_ids[0]].dimension)
             # print("cell_p_name  : ", self.cells[fcell_ids[0]].physical_name)
             # print("cell_xc  : ", barycenter(self.points[self.cells[fcell_ids[0]].node_tags]))
-            self.next_d_m_1_cell(fracture_tags, seed_id, fcell_ids[0], ids[0], graph, closed_q)
+            self.next_d_m_1_cell(
+                fracture_tags, seed_id, fcell_ids[0], ids[0], graph, closed_q
+            )
 
     def circulate_internal_bc_from_domain(self):
 
