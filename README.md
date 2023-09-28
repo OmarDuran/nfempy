@@ -1,6 +1,6 @@
 # Neat finite elements for python
 
-A lightweight library for defining finite elements and simulating multiphysics is being developed as part of this exploratory project.
+A lightweight library for defining finite elements and simulating multiphysics problems. It is being developed as part of this exploratory project in Python.
 
 This project aims to provide a general, yet simple, method for using finite elements methods in Python. 
 
