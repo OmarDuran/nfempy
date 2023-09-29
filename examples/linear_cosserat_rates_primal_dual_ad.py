@@ -1567,8 +1567,8 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
     # solving ls
     st = time.time()
-    alpha = sp.linalg.spsolve(jg, rg)
-    # alpha = sp_solver.spsolve(jg, rg)
+    # alpha = sp.linalg.spsolve(jg, rg)
+    alpha = sp_solver.spsolve(jg, rg)
     et = time.time()
     elapsed_time = et - st
     print("Linear solver time:", elapsed_time, "seconds")

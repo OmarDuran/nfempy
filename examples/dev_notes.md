@@ -169,9 +169,7 @@ for d in {0,1,2,3}:
 	Hdiv-tensors
 	Hcurl-tensors
 
-### PostProcessor:
-
-#### Discrete Field:
+#### Discrete Field -> Discrete space:
 	From cases:
 	* (1) scalar H1/L2-conforming functions
 	* (2) vector Hdiv-conforming functions
@@ -188,6 +186,9 @@ for d in {0,1,2,3}:
 	* DoFMap
 	* The number of subfields: 0 < n_components represents number of repeated instances of cases (1), (2) and (3)
 	* k_order: polynomial order of approximation
+#### A multiphysic:
+
+### PostProcessor:
 
 ### Notes on geometry representation and processing:
 The following refactors are needed: https://dev.opencascade.org/sites/default/files/pdf/Topology.pdf
