@@ -47,7 +47,7 @@ from geometry.shape_manipulation import ShapeManipulation
 from geometry.vertex import Vertex
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
-from spaces.discrete_field import DiscreteField
+from spaces.discrete_space import DiscreteSpace
 from spaces.dof_map import DoFMap
 from topology.mesh_topology import MeshTopology
 from numba import njit, types
@@ -77,13 +77,13 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
     discontinuous = True
     u_family = "Lagrange"
 
-    # potential field
-    u_field = DiscreteField(dim, n_components, u_family, k_order, gmesh)
+    # potential space
+    u_space = DiscreteSpace(dim, n_components, u_family, k_order, gmesh)
 
     if dim == 2:
-        u_field.build_structures([2, 3, 4, 5])
+        u_space.build_structures([2, 3, 4, 5])
     elif dim == 3:
-        u_field.build_structures([2, 3, 4, 5, 6, 7])
+        u_space.build_structures([2, 3, 4, 5, 6, 7])
 
     st = time.time()
     # Assembler
@@ -91,7 +91,7 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
     c_size = 0
     n_dof_g = 0
     cell_map = {}
-    for element in u_field.elements:
+    for element in u_space.elements:
         cell = element.data.cell
         n_dof = 0
         for n_entity_dofs in element.basis_generator.num_entity_dofs:
@@ -99,7 +99,7 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
         cell_map.__setitem__(cell.id, c_size)
         c_size = c_size + n_dof * n_dof
 
-    for element in u_field.bc_elements:
+    for element in u_space.bc_elements:
         cell = element.data.cell
         n_dof = 0
         for n_entity_dofs in element.basis_generator.num_entity_dofs:
@@ -111,7 +111,7 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
     col = np.zeros((c_size), dtype=np.int64)
     data = np.zeros((c_size), dtype=np.float64)
 
-    n_dof_g = u_field.dof_map.dof_number()
+    n_dof_g = u_space.dof_map.dof_number()
     rg = np.zeros(n_dof_g)
     print("n_dof: ", n_dof_g)
 
@@ -139,10 +139,10 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
         )
 
     def scatter_form_data(
-        element, m_lambda, m_mu, f_rhs, u_field, cell_map, row, col, data
+        element, m_lambda, m_mu, f_rhs, u_space, cell_map, row, col, data
     ):
 
-        n_components = u_field.n_comp
+        n_components = u_space.n_comp
         el_data: ElementData = element.data
 
         cell = el_data.cell
@@ -155,7 +155,7 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
         inv_jac = el_data.mapping.inv_jac
 
         # destination indexes
-        dest = u_field.dof_map.destination_indices(cell.id)
+        dest = u_space.dof_map.destination_indices(cell.id)
 
         n_phi = phi_tab.shape[2]
         n_dof = n_phi * n_components
@@ -208,10 +208,10 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
         data[block_sequ] += j_el.ravel()
 
     def scatter_form_data_ad(
-        element, m_kappa, f_rhs, u_field, cell_map, row, col, data
+        element, m_kappa, f_rhs, u_space, cell_map, row, col, data
     ):
 
-        n_components = u_field.n_comp
+        n_components = u_space.n_comp
         el_data: ElementData = element.data
 
         cell = el_data.cell
@@ -224,7 +224,7 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
         inv_jac = el_data.mapping.inv_jac
 
         # destination indexes
-        dest = u_field.dof_map.destination_indices(cell.id)
+        dest = u_space.dof_map.destination_indices(cell.id)
 
         n_phi = phi_tab.shape[2]
         n_dof = n_phi * n_components
@@ -278,13 +278,13 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
         data[block_sequ] += j_el.ravel()
 
     [
-        scatter_form_data_ad(element, m_kappa, f_rhs, u_field, cell_map, row, col, data)
-        for element in u_field.elements
+        scatter_form_data_ad(element, m_kappa, f_rhs, u_space, cell_map, row, col, data)
+        for element in u_space.elements
     ]
 
-    def scatter_bc_form_data(element, u_field, cell_map, row, col, data):
+    def scatter_bc_form_data(element, u_space, cell_map, row, col, data):
 
-        n_components = u_field.n_comp
+        n_components = u_space.n_comp
         el_data: ElementData = element.data
 
         cell = el_data.cell
@@ -297,7 +297,7 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
         inv_jac = el_data.mapping.inv_jac
 
         # find high-dimension neigh
-        entity_map = u_field.dof_map.mesh_topology.entity_map_by_dimension(
+        entity_map = u_space.dof_map.mesh_topology.entity_map_by_dimension(
             cell.dimension
         )
         neigh_list = list(entity_map.predecessors(cell.id))
@@ -305,12 +305,12 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
         assert neigh_check_q
 
         neigh_cell_id = neigh_list[0]
-        neigh_cell_index = u_field.id_to_element[neigh_cell_id]
-        neigh_cell = u_field.elements[neigh_cell_index].data.cell
+        neigh_cell_index = u_space.id_to_element[neigh_cell_id]
+        neigh_cell = u_space.elements[neigh_cell_index].data.cell
 
         # destination indexes
-        dest_neigh = u_field.dof_map.destination_indices(neigh_cell_id)
-        dest = u_field.dof_map.bc_destination_indices(neigh_cell_id, cell.id)
+        dest_neigh = u_space.dof_map.destination_indices(neigh_cell_id)
+        dest = u_space.dof_map.bc_destination_indices(neigh_cell_id, cell.id)
 
         n_phi = phi_tab.shape[2]
         n_dof = n_phi * n_components
@@ -339,8 +339,8 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
         data[block_sequ] += j_el.ravel()
 
     [
-        scatter_bc_form_data(element, u_field, cell_map, row, col, data)
-        for element in u_field.bc_elements
+        scatter_bc_form_data(element, u_space, cell_map, row, col, data)
+        for element in u_space.bc_elements
     ]
 
     jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
@@ -357,9 +357,9 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
     print("Linear solver time:", elapsed_time, "seconds")
 
     # Computing L2 error
-    def compute_l2_error(element, u_field):
+    def compute_l2_error(element, u_space):
         l2_error = 0.0
-        n_components = u_field.n_comp
+        n_components = u_space.n_comp
         el_data = element.data
         cell = el_data.cell
         points = el_data.quadrature.points
@@ -371,7 +371,7 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
         inv_jac = el_data.mapping.inv_jac
 
         # scattering dof
-        dest = u_field.dof_map.destination_indices(cell.id)
+        dest = u_space.dof_map.destination_indices(cell.id)
         alpha_l = alpha[dest]
 
         # vectorization
@@ -384,7 +384,7 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
         return l2_error
 
     st = time.time()
-    error_vec = [compute_l2_error(element, u_field) for element in u_field.elements]
+    error_vec = [compute_l2_error(element, u_space) for element in u_space.elements]
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
@@ -394,28 +394,28 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
     if write_vtk_q:
         # post-process solution
         st = time.time()
-        cellid_to_element = dict(zip(u_field.element_ids, u_field.elements))
+        cellid_to_element = dict(zip(u_space.element_ids, u_space.elements))
         # writing solution on mesh points
-        vertices = u_field.mesh_topology.entities_by_dimension(0)
+        vertices = u_space.mesh_topology.entities_by_dimension(0)
         fh_data = np.zeros((len(gmesh.points), n_components))
         fe_data = np.zeros((len(gmesh.points), n_components))
-        cell_vertex_map = u_field.mesh_topology.entity_map_by_dimension(0)
+        cell_vertex_map = u_space.mesh_topology.entity_map_by_dimension(0)
         for id in vertices:
             if not cell_vertex_map.has_node(id):
                 continue
 
             pr_ids = list(cell_vertex_map.predecessors(id))
             cell = gmesh.cells[pr_ids[0]]
-            if cell.dimension != u_field.dimension:
+            if cell.dimension != u_space.dimension:
                 continue
 
             element = cellid_to_element[pr_ids[0]]
 
             # scattering dof
-            dest = u_field.dof_map.destination_indices(cell.id)
+            dest = u_space.dof_map.destination_indices(cell.id)
             alpha_l = alpha[dest]
 
-            par_points = basix.geometry(u_field.element_type)
+            par_points = basix.geometry(u_space.element_type)
 
             target_node_id = gmesh.cells[id].node_tags[0]
             par_point_id = np.array(
@@ -427,7 +427,7 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
             )
 
             points = gmesh.points[target_node_id]
-            if u_field.dimension != 0:
+            if u_space.dimension != 0:
                 points = par_points[par_point_id]
 
             # evaluate mapping
@@ -444,9 +444,9 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
             fe_data[target_node_id] = f_e.ravel()
 
         mesh_points = gmesh.points
-        con_d = np.array([element.data.cell.node_tags for element in u_field.elements])
+        con_d = np.array([element.data.cell.node_tags for element in u_space.elements])
         meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
-        cells_dict = {meshio_cell_types[u_field.dimension]: con_d}
+        cells_dict = {meshio_cell_types[u_space.dimension]: con_d}
         p_data_dict = {"u_h": fh_data, "u_exact": fe_data}
 
         mesh = meshio.Mesh(
@@ -477,17 +477,17 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
     q_family = "BDM"
     u_family = "Lagrange"
 
-    # flux field
-    q_field = DiscreteField(
+    # flux space
+    q_space = DiscreteSpace(
         dim, q_components, q_family, k_order, gmesh, integration_oder=2 * k_order + 1
     )
     if dim == 2:
-        q_field.build_structures([2, 3, 4, 5])
+        q_space.build_structures([2, 3, 4, 5])
     elif dim == 3:
-        q_field.build_structures([2, 3, 4, 5, 6, 7])
+        q_space.build_structures([2, 3, 4, 5, 6, 7])
 
-    # potential field
-    u_field = DiscreteField(
+    # potential space
+    u_space = DiscreteSpace(
         dim,
         u_components,
         u_family,
@@ -495,8 +495,8 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
         gmesh,
         integration_oder=2 * k_order + 1,
     )
-    u_field.make_discontinuous()
-    u_field.build_structures()
+    u_space.make_discontinuous()
+    u_space.build_structures()
 
     st = time.time()
     # Assembler
@@ -505,16 +505,16 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
     n_dof_g = 0
     cell_map = {}
 
-    q_n_els = len(q_field.elements)
-    u_n_els = len(u_field.elements)
+    q_n_els = len(q_space.elements)
+    u_n_els = len(u_space.elements)
     assert q_n_els == u_n_els
 
     components = (q_components, u_components)
-    fields = (q_field, u_field)
+    spaces = (q_space, u_space)
 
     for i in range(q_n_els):
-        q_element = q_field.elements[i]
-        u_element = u_field.elements[i]
+        q_element = q_space.elements[i]
+        u_element = u_space.elements[i]
         cell = q_element.data.cell
         elements = (q_element, u_element)
 
@@ -526,7 +526,7 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
         cell_map.__setitem__(cell.id, c_size)
         c_size = c_size + n_dof * n_dof
 
-    for element in q_field.bc_elements:
+    for element in q_space.bc_elements:
         cell = element.data.cell
         n_dof = 0
         for n_entity_dofs in element.basis_generator.num_entity_dofs:
@@ -538,8 +538,8 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
     col = np.zeros((c_size), dtype=np.int64)
     data = np.zeros((c_size), dtype=np.float64)
 
-    q_n_dof_g = q_field.dof_map.dof_number()
-    u_n_dof_g = u_field.dof_map.dof_number()
+    q_n_dof_g = q_space.dof_map.dof_number()
+    u_n_dof_g = u_space.dof_map.dof_number()
     n_dof_g = q_n_dof_g + u_n_dof_g
     rg = np.zeros(n_dof_g)
     print("n_dof: ", n_dof_g)
@@ -573,14 +573,14 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
             ]
         )
 
-    def scatter_form_data_ad(i, m_kappa, f_rhs, fields, cell_map, row, col, data):
+    def scatter_form_data_ad(i, m_kappa, f_rhs, spaces, cell_map, row, col, data):
 
-        dim = fields[0].dimension
-        q_components = fields[0].n_comp
-        u_components = fields[1].n_comp
+        dim = spaces[0].dimension
+        q_components = spaces[0].n_comp
+        u_components = spaces[1].n_comp
 
-        q_data: ElementData = fields[0].elements[i].data
-        u_data: ElementData = fields[1].elements[i].data
+        q_data: ElementData = spaces[0].elements[i].data
+        u_data: ElementData = spaces[1].elements[i].data
 
         cell = q_data.cell
 
@@ -595,8 +595,8 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
         u_phi_tab = u_data.basis.phi
 
         # destination indexes
-        dest_q = q_field.dof_map.destination_indices(cell.id)
-        dest_u = u_field.dof_map.destination_indices(cell.id) + q_n_dof_g
+        dest_q = q_space.dof_map.destination_indices(cell.id)
+        dest_u = u_space.dof_map.destination_indices(cell.id) + q_n_dof_g
         dest = np.concatenate([dest_q, dest_u])
         n_q_phi = q_phi_tab.shape[2]
         n_u_phi = u_phi_tab.shape[2]
@@ -699,13 +699,13 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
         data[block_sequ] += j_el.ravel()
 
     [
-        scatter_form_data_ad(i, m_kappa, f_rhs, fields, cell_map, row, col, data)
+        scatter_form_data_ad(i, m_kappa, f_rhs, spaces, cell_map, row, col, data)
         for i in range(q_n_els)
     ]
 
-    # def scatter_bc_form_data(element, u_field, cell_map, row, col, data):
+    # def scatter_bc_form_data(element, u_space, cell_map, row, col, data):
     #
-    #     n_components = u_field.n_comp
+    #     n_components = u_space.n_comp
     #     el_data: ElementData = element.data
     #
     #     cell = el_data.cell
@@ -718,7 +718,7 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
     #     inv_jac = el_data.mapping.inv_jac
     #
     #     # find high-dimension neigh
-    #     entity_map = u_field.dof_map.mesh_topology.entity_map_by_dimension(
+    #     entity_map = u_space.dof_map.mesh_topology.entity_map_by_dimension(
     #         cell.dimension
     #     )
     #     neigh_list = list(entity_map.predecessors(cell.id))
@@ -726,12 +726,12 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
     #     assert neigh_check_q
     #
     #     neigh_cell_id = neigh_list[0]
-    #     neigh_cell_index = u_field.id_to_element[neigh_cell_id]
-    #     neigh_cell = u_field.elements[neigh_cell_index].data.cell
+    #     neigh_cell_index = u_space.id_to_element[neigh_cell_id]
+    #     neigh_cell = u_space.elements[neigh_cell_index].data.cell
     #
     #     # destination indexes
-    #     dest_neigh = u_field.dof_map.destination_indices(neigh_cell_id)
-    #     dest = u_field.dof_map.bc_destination_indices(neigh_cell_id, cell.id)
+    #     dest_neigh = u_space.dof_map.destination_indices(neigh_cell_id)
+    #     dest = u_space.dof_map.bc_destination_indices(neigh_cell_id, cell.id)
     #
     #     n_phi = phi_tab.shape[2]
     #     n_dof = n_phi * n_components
@@ -760,8 +760,8 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
     #     data[block_sequ] += j_el.ravel()
 
     # [
-    #     scatter_bc_form_data(element, u_field, cell_map, row, col, data)
-    #     for element in u_field.bc_elements
+    #     scatter_bc_form_data(element, u_space, cell_map, row, col, data)
+    #     for element in u_space.bc_elements
     # ]
 
     jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
@@ -778,9 +778,9 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
     print("Linear solver time:", elapsed_time, "seconds")
 
     # Computing L2 error
-    def compute_l2_error(element, u_field):
+    def compute_l2_error(element, u_space):
         l2_error = 0.0
-        n_components = u_field.n_comp
+        n_components = u_space.n_comp
         el_data = element.data
         cell = el_data.cell
         points = el_data.quadrature.points
@@ -792,7 +792,7 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
         inv_jac = el_data.mapping.inv_jac
 
         # scattering dof
-        dest = u_field.dof_map.destination_indices(cell.id) + q_n_dof_g
+        dest = u_space.dof_map.destination_indices(cell.id) + q_n_dof_g
         alpha_l = alpha[dest]
 
         # vectorization
@@ -804,7 +804,7 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
         return l2_error
 
     st = time.time()
-    error_vec = [compute_l2_error(element, u_field) for element in u_field.elements]
+    error_vec = [compute_l2_error(element, u_space) for element in u_space.elements]
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
@@ -814,28 +814,28 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
     if write_vtk_q:
         # post-process solution
         st = time.time()
-        cellid_to_element = dict(zip(u_field.element_ids, u_field.elements))
+        cellid_to_element = dict(zip(u_space.element_ids, u_space.elements))
         # writing solution on mesh points
-        vertices = u_field.mesh_topology.entities_by_dimension(0)
+        vertices = u_space.mesh_topology.entities_by_dimension(0)
         fh_data = np.zeros((len(gmesh.points), u_components))
         fe_data = np.zeros((len(gmesh.points), u_components))
-        cell_vertex_map = u_field.mesh_topology.entity_map_by_dimension(0)
+        cell_vertex_map = u_space.mesh_topology.entity_map_by_dimension(0)
         for id in vertices:
             if not cell_vertex_map.has_node(id):
                 continue
 
             pr_ids = list(cell_vertex_map.predecessors(id))
             cell = gmesh.cells[pr_ids[0]]
-            if cell.dimension != u_field.dimension:
+            if cell.dimension != u_space.dimension:
                 continue
 
             element = cellid_to_element[pr_ids[0]]
 
             # scattering dof
-            dest = u_field.dof_map.destination_indices(cell.id) + q_n_dof_g
+            dest = u_space.dof_map.destination_indices(cell.id) + q_n_dof_g
             alpha_l = alpha[dest]
 
-            par_points = basix.geometry(u_field.element_type)
+            par_points = basix.geometry(u_space.element_type)
 
             target_node_id = gmesh.cells[id].node_tags[0]
             par_point_id = np.array(
@@ -847,7 +847,7 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
             )
 
             points = gmesh.points[target_node_id]
-            if u_field.dimension != 0:
+            if u_space.dimension != 0:
                 points = par_points[par_point_id]
 
             # evaluate mapping
@@ -864,9 +864,9 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
             fe_data[target_node_id] = f_e.ravel()
 
         mesh_points = gmesh.points
-        con_d = np.array([element.data.cell.node_tags for element in u_field.elements])
+        con_d = np.array([element.data.cell.node_tags for element in u_space.elements])
         meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
-        cells_dict = {meshio_cell_types[u_field.dimension]: con_d}
+        cells_dict = {meshio_cell_types[u_space.dimension]: con_d}
         p_data_dict = {"u_h": fh_data, "u_exact": fe_data}
 
         mesh = meshio.Mesh(

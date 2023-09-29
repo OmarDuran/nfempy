@@ -13,7 +13,7 @@ from geometry.geometry_builder import GeometryBuilder
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
 from basis.element_data import ElementData
-from spaces.discrete_field import DiscreteField
+from spaces.discrete_space import DiscreteSpace
 
 
 k_orders = [1, 2, 3, 4, 5]
@@ -103,17 +103,17 @@ def test_h1_projector(k_order):
         for dim in [1, 2, 3]:
             gmesh = generate_mesh(h_cell, dim)
 
-            field = DiscreteField(dim, n_components, family, k_order, gmesh)
+            space = DiscreteSpace(dim, n_components, family, k_order, gmesh)
             if discontinuous:
-                field.make_discontinuous()
-            field.build_structures()
+                space.make_discontinuous()
+            space.build_structures()
 
             # Assembler
             # Triplets data
             c_size = 0
             n_dof_g = 0
             cell_map = {}
-            for element in field.elements:
+            for element in space.elements:
                 cell = element.data.cell
                 n_dof = 0
                 for n_entity_dofs in element.basis_generator.num_entity_dofs:
@@ -125,10 +125,10 @@ def test_h1_projector(k_order):
             col = np.zeros((c_size), dtype=np.int64)
             data = np.zeros((c_size), dtype=np.float64)
 
-            n_dof_g = field.dof_map.dof_number()
+            n_dof_g = space.dof_map.dof_number()
             rg = np.zeros(n_dof_g)
 
-            def scatter_el_data(element, fun, field, cell_map, row, col, data):
+            def scatter_el_data(element, fun, space, cell_map, row, col, data):
                 el_data: ElementData = element.data
                 cell = el_data.cell
                 points = el_data.quadrature.points
@@ -140,7 +140,7 @@ def test_h1_projector(k_order):
                 inv_jac = el_data.mapping.inv_jac
 
                 # destination indexes
-                dest = field.dof_map.destination_indices(cell.id)
+                dest = space.dof_map.destination_indices(cell.id)
 
                 n_dof = phi_tab.shape[2]
                 js = (n_dof, n_dof)
@@ -168,17 +168,17 @@ def test_h1_projector(k_order):
                 data[block_sequ] += j_el.ravel()
 
             [
-                scatter_el_data(element, fun, field, cell_map, row, col, data)
-                for element in field.elements
+                scatter_el_data(element, fun, space, cell_map, row, col, data)
+                for element in space.elements
             ]
 
             jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
             alpha = sp.linalg.spsolve(jg, rg)
 
             # Computing L2 error
-            def compute_l2_error(element, field):
+            def compute_l2_error(element, space):
                 l2_error = 0.0
-                n_components = field.n_comp
+                n_components = space.n_comp
                 el_data = element.data
                 cell = el_data.cell
                 points = el_data.quadrature.points
@@ -190,7 +190,7 @@ def test_h1_projector(k_order):
                 inv_jac = el_data.mapping.inv_jac
 
                 # scattering dof
-                dest = field.dof_map.destination_indices(cell.id)
+                dest = space.dof_map.destination_indices(cell.id)
                 alpha_l = alpha[dest]
                 for i, pt in enumerate(points):
                     p_e = fun(x[i, 0], x[i, 1], x[i, 2])
@@ -199,7 +199,7 @@ def test_h1_projector(k_order):
 
                 return l2_error
 
-            error_vec = [compute_l2_error(element, field) for element in field.elements]
+            error_vec = [compute_l2_error(element, space) for element in space.elements]
             l2_error = functools.reduce(lambda x, y: x + y, error_vec)
             l2_error_q = np.isclose(np.sqrt(l2_error), 0.0, atol=1.0e-14)
             assert l2_error_q
@@ -221,17 +221,17 @@ def test_hdiv_hcurl_projector(k_order):
                 if family in ["RT", "N1E"]:
                     k_order = k_order + 1
 
-                field = DiscreteField(dim, n_components, family, k_order, gmesh)
+                space = DiscreteSpace(dim, n_components, family, k_order, gmesh)
                 if discontinuous:
-                    field.make_discontinuous()
-                field.build_structures()
+                    space.make_discontinuous()
+                space.build_structures()
 
                 # Assembler
                 # Triplets data
                 c_size = 0
                 n_dof_g = 0
                 cell_map = {}
-                for element in field.elements:
+                for element in space.elements:
                     cell = element.data.cell
                     n_dof = 0
                     for n_entity_dofs in element.basis_generator.num_entity_dofs:
@@ -243,10 +243,10 @@ def test_hdiv_hcurl_projector(k_order):
                 col = np.zeros((c_size), dtype=np.int64)
                 data = np.zeros((c_size), dtype=np.float64)
 
-                n_dof_g = field.dof_map.dof_number()
+                n_dof_g = space.dof_map.dof_number()
                 rg = np.zeros(n_dof_g)
 
-                def scatter_el_data(element, fun, field, cell_map, row, col, data):
+                def scatter_el_data(element, fun, space, cell_map, row, col, data):
                     el_data: ElementData = element.data
                     cell = el_data.cell
                     points = el_data.quadrature.points
@@ -258,7 +258,7 @@ def test_hdiv_hcurl_projector(k_order):
                     inv_jac = el_data.mapping.inv_jac
 
                     # destination indexes
-                    dest = field.dof_map.destination_indices(cell.id)
+                    dest = space.dof_map.destination_indices(cell.id)
 
                     n_dof = phi_tab.shape[2]
                     js = (n_dof, n_dof)
@@ -287,17 +287,17 @@ def test_hdiv_hcurl_projector(k_order):
                     data[block_sequ] += j_el.ravel()
 
                 [
-                    scatter_el_data(element, fun, field, cell_map, row, col, data)
-                    for element in field.elements
+                    scatter_el_data(element, fun, space, cell_map, row, col, data)
+                    for element in space.elements
                 ]
 
                 jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
                 alpha = sp.linalg.spsolve(jg, rg)
 
                 # Computing L2 error
-                def compute_l2_error(element, field):
+                def compute_l2_error(element, space):
                     l2_error = 0.0
-                    n_components = field.n_comp
+                    n_components = space.n_comp
                     el_data = element.data
                     cell = el_data.cell
                     points = el_data.quadrature.points
@@ -309,7 +309,7 @@ def test_hdiv_hcurl_projector(k_order):
                     inv_jac = el_data.mapping.inv_jac
 
                     # scattering dof
-                    dest = field.dof_map.destination_indices(cell.id)
+                    dest = space.dof_map.destination_indices(cell.id)
                     alpha_l = alpha[dest]
                     for i, pt in enumerate(points):
                         u_e = fun(x[i, 0], x[i, 1], x[i, 2])
@@ -321,7 +321,7 @@ def test_hdiv_hcurl_projector(k_order):
                     return l2_error
 
                 error_vec = [
-                    compute_l2_error(element, field) for element in field.elements
+                    compute_l2_error(element, space) for element in space.elements
                 ]
                 l2_error = functools.reduce(lambda x, y: x + y, error_vec)
                 l2_error_q = np.isclose(np.sqrt(l2_error), 0.0, atol=1.0e-12)

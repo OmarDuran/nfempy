@@ -44,7 +44,7 @@ from geometry.shape_manipulation import ShapeManipulation
 from geometry.vertex import Vertex
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
-from spaces.discrete_field import DiscreteField
+from spaces.discrete_space import DiscreteSpace
 from spaces.dof_map import DoFMap
 from topology.mesh_topology import MeshTopology
 
@@ -97,10 +97,10 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
     discontinuous = True
     family = "Lagrange"
 
-    u_field = DiscreteField(dim, n_components, family, k_order, gmesh)
-    um_field = DiscreteField(dim - 1, n_components, family, k_order, gmesh)
-    up_field = DiscreteField(dim - 1, n_components, family, k_order, gmesh)
-    l_field = DiscreteField(
+    u_space = DiscreteSpace(dim, n_components, family, k_order, gmesh)
+    um_space = DiscreteSpace(dim - 1, n_components, family, k_order, gmesh)
+    up_space = DiscreteSpace(dim - 1, n_components, family, k_order, gmesh)
+    l_space = DiscreteSpace(
         dim - 1,
         n_components,
         family,
@@ -109,24 +109,24 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
         integration_oder=2 * k_order + 1,
     )
 
-    l_field.make_discontinuous()
-    # u_field.build_structures([2, 3])
+    l_space.make_discontinuous()
+    # u_space.build_structures([2, 3])
     if dim == 2:
-        u_field.build_structures([2, 4])
+        u_space.build_structures([2, 4])
     elif dim == 3:
-        u_field.build_structures([7])
-    up_field.build_structures_on_physical_tags(skin_p_physical_tags)
-    um_field.build_structures_on_physical_tags(skin_m_physical_tags)
-    l_field.build_structures_on_physical_tags(frac_physical_tags)
+        u_space.build_structures([7])
+    up_space.build_structures_on_physical_tags(skin_p_physical_tags)
+    um_space.build_structures_on_physical_tags(skin_m_physical_tags)
+    l_space.build_structures_on_physical_tags(frac_physical_tags)
 
     # make entitie maps equal
-    up_field.dof_map.vertex_map = u_field.dof_map.vertex_map
-    um_field.dof_map.vertex_map = u_field.dof_map.vertex_map
-    # l_field.dof_map.vertex_map = u_field.dof_map.vertex_map
+    up_space.dof_map.vertex_map = u_space.dof_map.vertex_map
+    um_space.dof_map.vertex_map = u_space.dof_map.vertex_map
+    # l_space.dof_map.vertex_map = u_space.dof_map.vertex_map
 
-    up_field.dof_map.edge_map = u_field.dof_map.edge_map
-    um_field.dof_map.edge_map = u_field.dof_map.edge_map
-    # l_field.dof_map.edge_map = u_field.dof_map.edge_map
+    up_space.dof_map.edge_map = u_space.dof_map.edge_map
+    um_space.dof_map.edge_map = u_space.dof_map.edge_map
+    # l_space.dof_map.edge_map = u_space.dof_map.edge_map
 
     st = time.time()
     # Assembler
@@ -134,7 +134,7 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
     c_size = 0
     n_dof_g = 0
     cell_map = {}
-    for element in u_field.elements:
+    for element in u_space.elements:
         cell = element.data.cell
         n_dof = 0
         for n_entity_dofs in element.basis_generator.num_entity_dofs:
@@ -142,7 +142,7 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
         cell_map.__setitem__(cell.id, c_size)
         c_size = c_size + n_dof * n_dof
 
-    for element in up_field.elements:
+    for element in up_space.elements:
         cell = element.data.cell
         n_dof = 0
         for n_entity_dofs in element.basis_generator.num_entity_dofs:
@@ -150,7 +150,7 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
         cell_map.__setitem__(cell.id, c_size)
         c_size = c_size + 3 * n_dof * n_dof
 
-    for element in um_field.elements:
+    for element in um_space.elements:
         cell = element.data.cell
         n_dof = 0
         for n_entity_dofs in element.basis_generator.num_entity_dofs:
@@ -158,7 +158,7 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
         cell_map.__setitem__(cell.id, c_size)
         c_size = c_size + 3 * n_dof * n_dof
 
-    for element in l_field.elements:
+    for element in l_space.elements:
         cell = element.data.cell
         n_dof = 0
         for n_entity_dofs in element.basis_generator.num_entity_dofs:
@@ -166,7 +166,7 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
         cell_map.__setitem__(cell.id, c_size)
         c_size = c_size + n_dof * n_dof
 
-    for element in u_field.bc_elements:
+    for element in u_space.bc_elements:
         cell = element.data.cell
         n_dof = 0
         for n_entity_dofs in element.basis_generator.num_entity_dofs:
@@ -178,7 +178,7 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
     col = np.zeros((c_size), dtype=np.int64)
     data = np.zeros((c_size), dtype=np.float64)
 
-    n_dof_g = u_field.dof_map.dof_number() + l_field.dof_map.dof_number()
+    n_dof_g = u_space.dof_map.dof_number() + l_space.dof_map.dof_number()
     rg = np.zeros(n_dof_g)
     print("n_dof: ", n_dof_g)
 
@@ -194,10 +194,10 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
         f_rhs = lambda x, y, z: np.array([(1 - y), -(1 - x), 0.0 * z])
 
     def scatter_form_data(
-        element, m_lambda, m_mu, f_rhs, u_field, cell_map, row, col, data
+        element, m_lambda, m_mu, f_rhs, u_space, cell_map, row, col, data
     ):
 
-        n_components = u_field.n_comp
+        n_components = u_space.n_comp
         el_data: ElementData = element.data
 
         cell = el_data.cell
@@ -210,7 +210,7 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
         inv_jac = el_data.mapping.inv_jac
 
         # destination indexes
-        dest = u_field.dof_map.destination_indices(cell.id)
+        dest = u_space.dof_map.destination_indices(cell.id)
 
         n_phi = phi_tab.shape[2]
         n_dof = n_phi * n_components
@@ -264,16 +264,16 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
 
     [
         scatter_form_data(
-            element, m_lambda, m_mu, f_rhs, u_field, cell_map, row, col, data
+            element, m_lambda, m_mu, f_rhs, u_space, cell_map, row, col, data
         )
-        for element in u_field.elements
+        for element in u_space.elements
     ]
 
     def scatter_K_skin_form_data(
-        element, m_lambda, m_mu, f_rhs, u_field, cell_map, row, col, data
+        element, m_lambda, m_mu, f_rhs, u_space, cell_map, row, col, data
     ):
 
-        n_components = u_field.n_comp
+        n_components = u_space.n_comp
         el_data: ElementData = element.data
 
         cell = el_data.cell
@@ -286,7 +286,7 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
         inv_jac = el_data.mapping.inv_jac
 
         # destination indexes
-        dest = u_field.dof_map.destination_indices(cell.id)
+        dest = u_space.dof_map.destination_indices(cell.id)
 
         n_phi = phi_tab.shape[2]
         n_dof = n_phi * n_components
@@ -344,23 +344,23 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
 
         [
             scatter_K_skin_form_data(
-                element, m_s_lambda, m_s_mu, f_rhs, up_field, cell_map, row, col, data
+                element, m_s_lambda, m_s_mu, f_rhs, up_space, cell_map, row, col, data
             )
-            for element in up_field.elements
+            for element in up_space.elements
         ]
 
         [
             scatter_K_skin_form_data(
-                element, m_s_lambda, m_s_mu, f_rhs, um_field, cell_map, row, col, data
+                element, m_s_lambda, m_s_mu, f_rhs, um_space, cell_map, row, col, data
             )
-            for element in um_field.elements
+            for element in um_space.elements
         ]
 
     def scatter_skin_form_data(
-        element, up_field, l_field, cell_map, row, col, data, sign
+        element, up_space, l_space, cell_map, row, col, data, sign
     ):
 
-        n_components = u_field.n_comp
+        n_components = u_space.n_comp
         el_data: ElementData = element.data
 
         cell = el_data.cell
@@ -374,8 +374,8 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
 
         # print("cell.sub_cells_ids: ", cell.sub_cells_ids)
         lm_cell_id = cell.sub_cells_ids[1][1]
-        lm_cell_index = l_field.id_to_element[lm_cell_id]
-        lm_el_data = l_field.elements[lm_cell_index].data
+        lm_cell_index = l_space.id_to_element[lm_cell_id]
+        lm_el_data = l_space.elements[lm_cell_index].data
 
         lm_points = lm_el_data.quadrature.points
         lm_weights = lm_el_data.quadrature.weights
@@ -384,7 +384,7 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
         lm_t = np.array([lm_n[1], -lm_n[0]])
 
         # find high-dimension neigh
-        entity_map = u_field.dof_map.mesh_topology.entity_map_by_dimension(
+        entity_map = u_space.dof_map.mesh_topology.entity_map_by_dimension(
             cell.dimension
         )
         neigh_list = list(entity_map.predecessors(cell.id))
@@ -392,13 +392,13 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
         assert neigh_check_q
 
         neigh_cell_id = neigh_list[0]
-        neigh_cell_index = u_field.id_to_element[neigh_cell_id]
-        neigh_cell = u_field.elements[neigh_cell_index].data.cell
+        neigh_cell_index = u_space.id_to_element[neigh_cell_id]
+        neigh_cell = u_space.elements[neigh_cell_index].data.cell
 
         # destination indexes
-        dest_neigh = u_field.dof_map.destination_indices(neigh_cell_id)
-        dest = u_field.dof_map.bc_destination_indices(neigh_cell_id, cell.id)
-        dest_lm = l_field.dof_map.destination_indices(lm_cell_id) + u_field.n_dof
+        dest_neigh = u_space.dof_map.destination_indices(neigh_cell_id)
+        dest = u_space.dof_map.bc_destination_indices(neigh_cell_id, cell.id)
+        dest_lm = l_space.dof_map.destination_indices(lm_cell_id) + u_space.n_dof
 
         n_phi = phi_tab.shape[2]
         n_phi_lm = lm_phi_tab.shape[2]
@@ -439,18 +439,18 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
         data[block_sequ] += j_el.T.ravel()
 
     [
-        scatter_skin_form_data(element, u_field, l_field, cell_map, row, col, data, -1)
-        for element in up_field.elements
+        scatter_skin_form_data(element, u_space, l_space, cell_map, row, col, data, -1)
+        for element in up_space.elements
     ]
 
     [
-        scatter_skin_form_data(element, u_field, l_field, cell_map, row, col, data, +1)
-        for element in um_field.elements
+        scatter_skin_form_data(element, u_space, l_space, cell_map, row, col, data, +1)
+        for element in um_space.elements
     ]
 
-    def scatter_lambda_form_data(A_n, A_t, element, l_field, cell_map, row, col, data):
+    def scatter_lambda_form_data(A_n, A_t, element, l_space, cell_map, row, col, data):
 
-        n_components = l_field.n_comp
+        n_components = l_space.n_comp
         el_data: ElementData = element.data
 
         cell = el_data.cell
@@ -463,7 +463,7 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
         inv_jac = el_data.mapping.inv_jac
 
         # destination indexes
-        dest = l_field.dof_map.destination_indices(cell.id) + u_field.n_dof
+        dest = l_space.dof_map.destination_indices(cell.id) + u_space.n_dof
 
         n_phi = phi_tab.shape[2]
         n_dof = n_phi * n_components
@@ -494,13 +494,13 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
         data[block_sequ] += j_el.ravel()
 
     [
-        scatter_lambda_form_data(A_n, A_t, element, l_field, cell_map, row, col, data)
-        for element in l_field.elements
+        scatter_lambda_form_data(A_n, A_t, element, l_space, cell_map, row, col, data)
+        for element in l_space.elements
     ]
 
-    def scatter_bc_form_data(element, u_field, cell_map, row, col, data):
+    def scatter_bc_form_data(element, u_space, cell_map, row, col, data):
 
-        n_components = u_field.n_comp
+        n_components = u_space.n_comp
         el_data: ElementData = element.data
 
         cell = el_data.cell
@@ -513,7 +513,7 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
         inv_jac = el_data.mapping.inv_jac
 
         # find high-dimension neigh
-        entity_map = u_field.dof_map.mesh_topology.entity_map_by_dimension(
+        entity_map = u_space.dof_map.mesh_topology.entity_map_by_dimension(
             cell.dimension
         )
         neigh_list = list(entity_map.predecessors(cell.id))
@@ -521,12 +521,12 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
         assert neigh_check_q
 
         neigh_cell_id = neigh_list[0]
-        neigh_cell_index = u_field.id_to_element[neigh_cell_id]
-        neigh_cell = u_field.elements[neigh_cell_index].data.cell
+        neigh_cell_index = u_space.id_to_element[neigh_cell_id]
+        neigh_cell = u_space.elements[neigh_cell_index].data.cell
 
         # destination indexes
-        dest_neigh = u_field.dof_map.destination_indices(neigh_cell_id)
-        dest = u_field.dof_map.bc_destination_indices(neigh_cell_id, cell.id)
+        dest_neigh = u_space.dof_map.destination_indices(neigh_cell_id)
+        dest = u_space.dof_map.bc_destination_indices(neigh_cell_id, cell.id)
 
         n_phi = phi_tab.shape[2]
         n_dof = n_phi * n_components
@@ -574,8 +574,8 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
         data[block_sequ] += j_el.ravel()
 
     [
-        scatter_bc_form_data(element, u_field, cell_map, row, col, data)
-        for element in u_field.bc_elements
+        scatter_bc_form_data(element, u_space, cell_map, row, col, data)
+        for element in u_space.bc_elements
     ]
 
     jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
@@ -587,8 +587,8 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
     st = time.time()
     if fixed_point_q:
         alpha = sp_solver.spsolve(jg, rg)
-        u_range = list(range(u_field.n_dof))
-        l_range = list(range(u_field.n_dof, u_field.n_dof + l_field.n_dof))
+        u_range = list(range(u_space.n_dof))
+        l_range = list(range(u_space.n_dof, u_space.n_dof + l_space.n_dof))
         jg_uu = jg[u_range, :][:, u_range]
         jg_lu = jg[l_range, :][:, u_range]
         jg_ul = jg[u_range, :][:, l_range]
@@ -608,7 +608,7 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
             # step 2: For all LM
             n = np.empty((0, 2), dtype=float)
             t = np.empty((0, 2), dtype=float)
-            for element in l_field.elements:
+            for element in l_space.elements:
                 el_data = element.data
                 ln = el_data.cell.normal[np.array([0, 1])]
                 lt = np.array([ln[1], -ln[0]])
@@ -646,27 +646,27 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
     if write_vtk_q:
         # post-process solution in d
         st = time.time()
-        cellid_to_element = dict(zip(u_field.element_ids, u_field.elements))
+        cellid_to_element = dict(zip(u_space.element_ids, u_space.elements))
         # writing solution on mesh points
-        vertices = u_field.mesh_topology.entities_by_dimension(0)
+        vertices = u_space.mesh_topology.entities_by_dimension(0)
         fh_data = np.zeros((len(gmesh.points), n_components))
-        cell_vertex_map = u_field.mesh_topology.entity_map_by_dimension(0)
+        cell_vertex_map = u_space.mesh_topology.entity_map_by_dimension(0)
         for id in vertices:
             if not cell_vertex_map.has_node(id):
                 continue
 
             pr_ids = list(cell_vertex_map.predecessors(id))
             cell = gmesh.cells[pr_ids[0]]
-            if cell.dimension != u_field.dimension:
+            if cell.dimension != u_space.dimension:
                 continue
 
             element = cellid_to_element[pr_ids[0]]
 
             # scattering dof
-            dest = u_field.dof_map.destination_indices(cell.id)
+            dest = u_space.dof_map.destination_indices(cell.id)
             alpha_l = alpha[dest]
 
-            par_points = basix.geometry(u_field.element_type)
+            par_points = basix.geometry(u_space.element_type)
 
             target_node_id = gmesh.cells[id].node_tags[0]
             par_point_id = np.array(
@@ -678,7 +678,7 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
             )
 
             points = gmesh.points[target_node_id]
-            if u_field.dimension != 0:
+            if u_space.dimension != 0:
                 points = par_points[par_point_id]
 
             # evaluate mapping
@@ -693,9 +693,9 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
             fh_data[target_node_id] = f_h.ravel()
 
         mesh_points = gmesh.points
-        con_d = np.array([element.data.cell.node_tags for element in u_field.elements])
+        con_d = np.array([element.data.cell.node_tags for element in u_space.elements])
         meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
-        cells_dict = {meshio_cell_types[u_field.dimension]: con_d}
+        cells_dict = {meshio_cell_types[u_space.dimension]: con_d}
         p_data_dict = {"u_h": fh_data}
 
         mesh = meshio.Mesh(
@@ -713,27 +713,27 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
 
         # post-process solution in d-1 positive skins
         st = time.time()
-        cellid_to_element = dict(zip(up_field.element_ids, up_field.elements))
+        cellid_to_element = dict(zip(up_space.element_ids, up_space.elements))
         # writing solution on mesh points
-        vertices = up_field.mesh_topology.entities_by_dimension(0)
+        vertices = up_space.mesh_topology.entities_by_dimension(0)
         fh_data = np.zeros((len(gmesh.points), n_components))
-        cell_vertex_map = up_field.mesh_topology.entity_map_by_dimension(0)
+        cell_vertex_map = up_space.mesh_topology.entity_map_by_dimension(0)
         for id in vertices:
             if not cell_vertex_map.has_node(id):
                 continue
 
             pr_ids = list(cell_vertex_map.predecessors(id))
             cell = gmesh.cells[pr_ids[0]]
-            if cell.dimension != up_field.dimension:
+            if cell.dimension != up_space.dimension:
                 continue
 
             element = cellid_to_element[pr_ids[0]]
 
             # scattering dof
-            dest = up_field.dof_map.destination_indices(cell.id)
+            dest = up_space.dof_map.destination_indices(cell.id)
             alpha_l = alpha[dest]
 
-            par_points = basix.geometry(up_field.element_type)
+            par_points = basix.geometry(up_space.element_type)
 
             target_node_id = gmesh.cells[id].node_tags[0]
             par_point_id = np.array(
@@ -745,7 +745,7 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
             )
 
             points = gmesh.points[target_node_id]
-            if up_field.dimension != 0:
+            if up_space.dimension != 0:
                 points = par_points[par_point_id]
 
             # evaluate mapping
@@ -760,9 +760,9 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
             fh_data[target_node_id] = f_h.ravel()
 
         mesh_points = gmesh.points
-        con_d = np.array([element.data.cell.node_tags for element in up_field.elements])
+        con_d = np.array([element.data.cell.node_tags for element in up_space.elements])
         meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
-        cells_dict = {meshio_cell_types[up_field.dimension]: con_d}
+        cells_dict = {meshio_cell_types[up_space.dimension]: con_d}
         p_data_dict = {"u_h": fh_data}
 
         mesh = meshio.Mesh(
@@ -780,27 +780,27 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
 
         # post-process solution in d-1 negative skins
         st = time.time()
-        cellid_to_element = dict(zip(um_field.element_ids, um_field.elements))
+        cellid_to_element = dict(zip(um_space.element_ids, um_space.elements))
         # writing solution on mesh points
-        vertices = um_field.mesh_topology.entities_by_dimension(0)
+        vertices = um_space.mesh_topology.entities_by_dimension(0)
         fh_data = np.zeros((len(gmesh.points), n_components))
-        cell_vertex_map = um_field.mesh_topology.entity_map_by_dimension(0)
+        cell_vertex_map = um_space.mesh_topology.entity_map_by_dimension(0)
         for id in vertices:
             if not cell_vertex_map.has_node(id):
                 continue
 
             pr_ids = list(cell_vertex_map.predecessors(id))
             cell = gmesh.cells[pr_ids[0]]
-            if cell.dimension != um_field.dimension:
+            if cell.dimension != um_space.dimension:
                 continue
 
             element = cellid_to_element[pr_ids[0]]
 
             # scattering dof
-            dest = um_field.dof_map.destination_indices(cell.id)
+            dest = um_space.dof_map.destination_indices(cell.id)
             alpha_l = alpha[dest]
 
-            par_points = basix.geometry(um_field.element_type)
+            par_points = basix.geometry(um_space.element_type)
 
             target_node_id = gmesh.cells[id].node_tags[0]
             par_point_id = np.array(
@@ -812,7 +812,7 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
             )
 
             points = gmesh.points[target_node_id]
-            if um_field.dimension != 0:
+            if um_space.dimension != 0:
                 points = par_points[par_point_id]
 
             # evaluate mapping
@@ -827,9 +827,9 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
             fh_data[target_node_id] = f_h.ravel()
 
         mesh_points = gmesh.points
-        con_d = np.array([element.data.cell.node_tags for element in um_field.elements])
+        con_d = np.array([element.data.cell.node_tags for element in um_space.elements])
         meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
-        cells_dict = {meshio_cell_types[um_field.dimension]: con_d}
+        cells_dict = {meshio_cell_types[um_space.dimension]: con_d}
         p_data_dict = {"u_h": fh_data}
 
         mesh = meshio.Mesh(
@@ -847,27 +847,27 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
 
         # post-process solution in d-1 LM
         st = time.time()
-        cellid_to_element = dict(zip(l_field.element_ids, l_field.elements))
+        cellid_to_element = dict(zip(l_space.element_ids, l_space.elements))
         # writing solution on mesh points
-        vertices = l_field.mesh_topology.entities_by_dimension(0)
+        vertices = l_space.mesh_topology.entities_by_dimension(0)
         fh_data = np.zeros((len(gmesh.points), n_components))
-        cell_vertex_map = l_field.mesh_topology.entity_map_by_dimension(0)
+        cell_vertex_map = l_space.mesh_topology.entity_map_by_dimension(0)
         for id in vertices:
             if not cell_vertex_map.has_node(id):
                 continue
 
             pr_ids = list(cell_vertex_map.predecessors(id))
             cell = gmesh.cells[pr_ids[0]]
-            if cell.dimension != l_field.dimension:
+            if cell.dimension != l_space.dimension:
                 continue
 
             element = cellid_to_element[pr_ids[0]]
 
             # scattering dof
-            dest = l_field.dof_map.destination_indices(cell.id) + u_field.n_dof
+            dest = l_space.dof_map.destination_indices(cell.id) + u_space.n_dof
             alpha_l = alpha[dest]
 
-            par_points = basix.geometry(l_field.element_type)
+            par_points = basix.geometry(l_space.element_type)
 
             target_node_id = gmesh.cells[id].node_tags[0]
             par_point_id = np.array(
@@ -879,7 +879,7 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
             )
 
             points = gmesh.points[target_node_id]
-            if l_field.dimension != 0:
+            if l_space.dimension != 0:
                 points = par_points[par_point_id]
 
             # evaluate mapping
@@ -894,9 +894,9 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
             fh_data[target_node_id] = f_h.ravel()
 
         mesh_points = gmesh.points
-        con_d = np.array([element.data.cell.node_tags for element in l_field.elements])
+        con_d = np.array([element.data.cell.node_tags for element in l_space.elements])
         meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
-        cells_dict = {meshio_cell_types[l_field.dimension]: con_d}
+        cells_dict = {meshio_cell_types[l_space.dimension]: con_d}
         p_data_dict = {"l_h": fh_data}
 
         mesh = meshio.Mesh(
@@ -956,10 +956,10 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     discontinuous = True
     family = "Lagrange"
 
-    u_field = DiscreteField(dim, n_components, family, k_order, gmesh)
-    um_field = DiscreteField(dim - 1, n_components, family, k_order, gmesh)
-    up_field = DiscreteField(dim - 1, n_components, family, k_order, gmesh)
-    l_field = DiscreteField(
+    u_space = DiscreteSpace(dim, n_components, family, k_order, gmesh)
+    um_space = DiscreteSpace(dim - 1, n_components, family, k_order, gmesh)
+    up_space = DiscreteSpace(dim - 1, n_components, family, k_order, gmesh)
+    l_space = DiscreteSpace(
         dim - 1,
         n_components,
         family,
@@ -968,24 +968,24 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         integration_oder=2 * k_order + 1,
     )
 
-    l_field.make_discontinuous()
-    # u_field.build_structures([2, 3])
+    l_space.make_discontinuous()
+    # u_space.build_structures([2, 3])
     if dim == 2:
-        u_field.build_structures([2, 4])
+        u_space.build_structures([2, 4])
     elif dim == 3:
-        u_field.build_structures([7])
-    up_field.build_structures_on_physical_tags(skin_p_physical_tags)
-    um_field.build_structures_on_physical_tags(skin_m_physical_tags)
-    l_field.build_structures_on_physical_tags(frac_physical_tags)
+        u_space.build_structures([7])
+    up_space.build_structures_on_physical_tags(skin_p_physical_tags)
+    um_space.build_structures_on_physical_tags(skin_m_physical_tags)
+    l_space.build_structures_on_physical_tags(frac_physical_tags)
 
     # make entitie maps equal
-    up_field.dof_map.vertex_map = u_field.dof_map.vertex_map
-    um_field.dof_map.vertex_map = u_field.dof_map.vertex_map
-    # l_field.dof_map.vertex_map = u_field.dof_map.vertex_map
+    up_space.dof_map.vertex_map = u_space.dof_map.vertex_map
+    um_space.dof_map.vertex_map = u_space.dof_map.vertex_map
+    # l_space.dof_map.vertex_map = u_space.dof_map.vertex_map
 
-    up_field.dof_map.edge_map = u_field.dof_map.edge_map
-    um_field.dof_map.edge_map = u_field.dof_map.edge_map
-    # l_field.dof_map.edge_map = u_field.dof_map.edge_map
+    up_space.dof_map.edge_map = u_space.dof_map.edge_map
+    um_space.dof_map.edge_map = u_space.dof_map.edge_map
+    # l_space.dof_map.edge_map = u_space.dof_map.edge_map
 
     st = time.time()
     # Assembler
@@ -993,7 +993,7 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     c_size = 0
     n_dof_g = 0
     cell_map = {}
-    for element in u_field.elements:
+    for element in u_space.elements:
         cell = element.data.cell
         n_dof = 0
         for n_entity_dofs in element.basis_generator.num_entity_dofs:
@@ -1001,7 +1001,7 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         cell_map.__setitem__(cell.id, c_size)
         c_size = c_size + n_dof * n_dof
 
-    for element in up_field.elements:
+    for element in up_space.elements:
         cell = element.data.cell
         n_dof = 0
         for n_entity_dofs in element.basis_generator.num_entity_dofs:
@@ -1009,7 +1009,7 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         cell_map.__setitem__(cell.id, c_size)
         c_size = c_size + 3 * n_dof * n_dof
 
-    for element in um_field.elements:
+    for element in um_space.elements:
         cell = element.data.cell
         n_dof = 0
         for n_entity_dofs in element.basis_generator.num_entity_dofs:
@@ -1017,7 +1017,7 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         cell_map.__setitem__(cell.id, c_size)
         c_size = c_size + 3 * n_dof * n_dof
 
-    for element in l_field.elements:
+    for element in l_space.elements:
         cell = element.data.cell
         n_dof = 0
         for n_entity_dofs in element.basis_generator.num_entity_dofs:
@@ -1025,7 +1025,7 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         cell_map.__setitem__(cell.id, c_size)
         c_size = c_size + n_dof * n_dof
 
-    for element in u_field.bc_elements:
+    for element in u_space.bc_elements:
         cell = element.data.cell
         n_dof = 0
         for n_entity_dofs in element.basis_generator.num_entity_dofs:
@@ -1037,7 +1037,7 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     col = np.zeros((c_size), dtype=np.int64)
     data = np.zeros((c_size), dtype=np.float64)
 
-    n_dof_g = u_field.dof_map.dof_number() + l_field.dof_map.dof_number()
+    n_dof_g = u_space.dof_map.dof_number() + l_space.dof_map.dof_number()
     rg = np.zeros(n_dof_g)
     print("n_dof: ", n_dof_g)
 
@@ -1060,19 +1060,19 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         m_kappa,
         m_gamma,
         f_rhs,
-        u_field,
+        u_space,
         cell_map,
         row,
         col,
         data,
     ):
 
-        n_components = u_field.n_comp
+        n_components = u_space.n_comp
         el_data: ElementData = element.data
 
         n_comp_u = 2
         n_comp_t = 1
-        if u_field.dimension == 3:
+        if u_space.dimension == 3:
             n_comp_u = 3
             n_comp_t = 3
 
@@ -1086,7 +1086,7 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         inv_jac = el_data.mapping.inv_jac
 
         # destination indexes
-        dest = u_field.dof_map.destination_indices(cell.id)
+        dest = u_space.dof_map.destination_indices(cell.id)
 
         n_phi = phi_tab.shape[2]
         n_dof = n_phi * n_components
@@ -1104,7 +1104,7 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         assymetric_block = np.zeros((n_phi * n_comp_t, n_phi * n_comp_u))
         axial_pairs_idx = [[1, 0]]
         axial_dest_pairs_idx = [[0, 1]]
-        if u_field.dimension == 3:
+        if u_space.dimension == 3:
             axial_pairs_idx = [[2, 1], [0, 2], [1, 0]]
             axial_dest_pairs_idx = [[1, 2], [2, 0], [0, 1]]
 
@@ -1204,13 +1204,13 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             m_kappa,
             m_gamma,
             f_rhs,
-            u_field,
+            u_space,
             cell_map,
             row,
             col,
             data,
         )
-        for element in u_field.elements
+        for element in u_space.elements
     ]
 
     def scatter_K_skin_form_data(
@@ -1220,19 +1220,19 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         m_s_kappa,
         m_s_gamma,
         f_rhs,
-        u_field,
+        u_space,
         cell_map,
         row,
         col,
         data,
     ):
 
-        n_components = u_field.n_comp
+        n_components = u_space.n_comp
         el_data: ElementData = element.data
 
         n_comp_u = 2
         n_comp_t = 1
-        if u_field.dimension == 3:
+        if u_space.dimension == 3:
             n_comp_u = 3
             n_comp_t = 3
 
@@ -1246,7 +1246,7 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         inv_jac = el_data.mapping.inv_jac
 
         # destination indexes
-        dest = u_field.dof_map.destination_indices(cell.id)
+        dest = u_space.dof_map.destination_indices(cell.id)
 
         n_phi = phi_tab.shape[2]
         n_dof = n_phi * n_components
@@ -1264,7 +1264,7 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         assymetric_block = np.zeros((n_phi * n_comp_t, n_phi * n_comp_u))
         axial_pairs_idx = [[1, 0]]
         axial_dest_pairs_idx = [[0, 1]]
-        if u_field.dimension == 3:
+        if u_space.dimension == 3:
             axial_pairs_idx = [[2, 1], [0, 2], [1, 0]]
             axial_dest_pairs_idx = [[1, 2], [2, 0], [0, 1]]
 
@@ -1368,13 +1368,13 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
                 m_s_kappa,
                 m_s_gamma,
                 f_rhs,
-                up_field,
+                up_space,
                 cell_map,
                 row,
                 col,
                 data,
             )
-            for element in up_field.elements
+            for element in up_space.elements
         ]
 
         [
@@ -1385,20 +1385,20 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
                 m_s_kappa,
                 m_s_gamma,
                 f_rhs,
-                um_field,
+                um_space,
                 cell_map,
                 row,
                 col,
                 data,
             )
-            for element in um_field.elements
+            for element in um_space.elements
         ]
 
     def scatter_skin_form_data(
-        element, up_field, l_field, cell_map, row, col, data, sign
+        element, up_space, l_space, cell_map, row, col, data, sign
     ):
 
-        n_components = u_field.n_comp
+        n_components = u_space.n_comp
         el_data: ElementData = element.data
 
         cell = el_data.cell
@@ -1412,8 +1412,8 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
         # print("cell.sub_cells_ids: ", cell.sub_cells_ids)
         lm_cell_id = cell.sub_cells_ids[1][1]
-        lm_cell_index = l_field.id_to_element[lm_cell_id]
-        lm_el_data = l_field.elements[lm_cell_index].data
+        lm_cell_index = l_space.id_to_element[lm_cell_id]
+        lm_el_data = l_space.elements[lm_cell_index].data
 
         lm_points = lm_el_data.quadrature.points
         lm_weights = lm_el_data.quadrature.weights
@@ -1422,7 +1422,7 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         lm_t = np.array([lm_n[1], -lm_n[0]])
 
         # find high-dimension neigh
-        entity_map = u_field.dof_map.mesh_topology.entity_map_by_dimension(
+        entity_map = u_space.dof_map.mesh_topology.entity_map_by_dimension(
             cell.dimension
         )
         neigh_list = list(entity_map.predecessors(cell.id))
@@ -1430,13 +1430,13 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         assert neigh_check_q
 
         neigh_cell_id = neigh_list[0]
-        neigh_cell_index = u_field.id_to_element[neigh_cell_id]
-        neigh_cell = u_field.elements[neigh_cell_index].data.cell
+        neigh_cell_index = u_space.id_to_element[neigh_cell_id]
+        neigh_cell = u_space.elements[neigh_cell_index].data.cell
 
         # destination indexes
-        dest_neigh = u_field.dof_map.destination_indices(neigh_cell_id)
-        dest = u_field.dof_map.bc_destination_indices(neigh_cell_id, cell.id)
-        dest_lm = l_field.dof_map.destination_indices(lm_cell_id) + u_field.n_dof
+        dest_neigh = u_space.dof_map.destination_indices(neigh_cell_id)
+        dest = u_space.dof_map.bc_destination_indices(neigh_cell_id, cell.id)
+        dest_lm = l_space.dof_map.destination_indices(lm_cell_id) + u_space.n_dof
 
         n_phi = phi_tab.shape[2]
         n_phi_lm = lm_phi_tab.shape[2]
@@ -1477,20 +1477,20 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         data[block_sequ] += j_el.T.ravel()
 
     [
-        scatter_skin_form_data(element, u_field, l_field, cell_map, row, col, data, -1)
-        for element in up_field.elements
+        scatter_skin_form_data(element, u_space, l_space, cell_map, row, col, data, -1)
+        for element in up_space.elements
     ]
 
     [
-        scatter_skin_form_data(element, u_field, l_field, cell_map, row, col, data, +1)
-        for element in um_field.elements
+        scatter_skin_form_data(element, u_space, l_space, cell_map, row, col, data, +1)
+        for element in um_space.elements
     ]
 
     def scatter_lambda_form_data(
-        A_n, A_t, A_r, element, l_field, cell_map, row, col, data
+        A_n, A_t, A_r, element, l_space, cell_map, row, col, data
     ):
 
-        n_components = l_field.n_comp
+        n_components = l_space.n_comp
         el_data: ElementData = element.data
 
         cell = el_data.cell
@@ -1503,7 +1503,7 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         inv_jac = el_data.mapping.inv_jac
 
         # destination indexes
-        dest = l_field.dof_map.destination_indices(cell.id) + u_field.n_dof
+        dest = l_space.dof_map.destination_indices(cell.id) + u_space.n_dof
 
         n_phi = phi_tab.shape[2]
         n_dof = n_phi * n_components
@@ -1535,14 +1535,14 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
     [
         scatter_lambda_form_data(
-            A_n, A_t, A_r, element, l_field, cell_map, row, col, data
+            A_n, A_t, A_r, element, l_space, cell_map, row, col, data
         )
-        for element in l_field.elements
+        for element in l_space.elements
     ]
 
-    def scatter_bc_form_data(element, u_field, cell_map, row, col, data):
+    def scatter_bc_form_data(element, u_space, cell_map, row, col, data):
 
-        n_components = u_field.n_comp
+        n_components = u_space.n_comp
         el_data: ElementData = element.data
 
         cell = el_data.cell
@@ -1555,7 +1555,7 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         inv_jac = el_data.mapping.inv_jac
 
         # find high-dimension neigh
-        entity_map = u_field.dof_map.mesh_topology.entity_map_by_dimension(
+        entity_map = u_space.dof_map.mesh_topology.entity_map_by_dimension(
             cell.dimension
         )
         neigh_list = list(entity_map.predecessors(cell.id))
@@ -1563,12 +1563,12 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         assert neigh_check_q
 
         neigh_cell_id = neigh_list[0]
-        neigh_cell_index = u_field.id_to_element[neigh_cell_id]
-        neigh_cell = u_field.elements[neigh_cell_index].data.cell
+        neigh_cell_index = u_space.id_to_element[neigh_cell_id]
+        neigh_cell = u_space.elements[neigh_cell_index].data.cell
 
         # destination indexes
-        dest_neigh = u_field.dof_map.destination_indices(neigh_cell_id)
-        dest = u_field.dof_map.bc_destination_indices(neigh_cell_id, cell.id)
+        dest_neigh = u_space.dof_map.destination_indices(neigh_cell_id)
+        dest = u_space.dof_map.bc_destination_indices(neigh_cell_id, cell.id)
 
         n_phi = phi_tab.shape[2]
         n_dof = n_phi * n_components
@@ -1616,8 +1616,8 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         data[block_sequ] += j_el.ravel()
 
     [
-        scatter_bc_form_data(element, u_field, cell_map, row, col, data)
-        for element in u_field.bc_elements
+        scatter_bc_form_data(element, u_space, cell_map, row, col, data)
+        for element in u_space.bc_elements
     ]
 
     jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
@@ -1629,8 +1629,8 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     st = time.time()
     if fixed_point_q:
         alpha = sp_solver.spsolve(jg, rg)
-        u_range = list(range(u_field.n_dof))
-        l_range = list(range(u_field.n_dof, u_field.n_dof + l_field.n_dof))
+        u_range = list(range(u_space.n_dof))
+        l_range = list(range(u_space.n_dof, u_space.n_dof + l_space.n_dof))
         jg_uu = jg[u_range, :][:, u_range]
         jg_lu = jg[l_range, :][:, u_range]
         jg_ul = jg[u_range, :][:, l_range]
@@ -1650,7 +1650,7 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             # step 2: For all LM
             n = np.empty((0, 2), dtype=float)
             t = np.empty((0, 2), dtype=float)
-            for element in l_field.elements:
+            for element in l_space.elements:
                 el_data = element.data
                 ln = el_data.cell.normal[np.array([0, 1])]
                 lt = np.array([ln[1], -ln[0]])
@@ -1688,27 +1688,27 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     if write_vtk_q:
         # post-process solution in d
         st = time.time()
-        cellid_to_element = dict(zip(u_field.element_ids, u_field.elements))
+        cellid_to_element = dict(zip(u_space.element_ids, u_space.elements))
         # writing solution on mesh points
-        vertices = u_field.mesh_topology.entities_by_dimension(0)
+        vertices = u_space.mesh_topology.entities_by_dimension(0)
         fh_data = np.zeros((len(gmesh.points), n_components))
-        cell_vertex_map = u_field.mesh_topology.entity_map_by_dimension(0)
+        cell_vertex_map = u_space.mesh_topology.entity_map_by_dimension(0)
         for id in vertices:
             if not cell_vertex_map.has_node(id):
                 continue
 
             pr_ids = list(cell_vertex_map.predecessors(id))
             cell = gmesh.cells[pr_ids[0]]
-            if cell.dimension != u_field.dimension:
+            if cell.dimension != u_space.dimension:
                 continue
 
             element = cellid_to_element[pr_ids[0]]
 
             # scattering dof
-            dest = u_field.dof_map.destination_indices(cell.id)
+            dest = u_space.dof_map.destination_indices(cell.id)
             alpha_l = alpha[dest]
 
-            par_points = basix.geometry(u_field.element_type)
+            par_points = basix.geometry(u_space.element_type)
 
             target_node_id = gmesh.cells[id].node_tags[0]
             par_point_id = np.array(
@@ -1720,7 +1720,7 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             )
 
             points = gmesh.points[target_node_id]
-            if u_field.dimension != 0:
+            if u_space.dimension != 0:
                 points = par_points[par_point_id]
 
             # evaluate mapping
@@ -1735,9 +1735,9 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             fh_data[target_node_id] = f_h.ravel()
 
         mesh_points = gmesh.points
-        con_d = np.array([element.data.cell.node_tags for element in u_field.elements])
+        con_d = np.array([element.data.cell.node_tags for element in u_space.elements])
         meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
-        cells_dict = {meshio_cell_types[u_field.dimension]: con_d}
+        cells_dict = {meshio_cell_types[u_space.dimension]: con_d}
         p_data_dict = {"u_h": fh_data}
 
         mesh = meshio.Mesh(
@@ -1755,27 +1755,27 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
         # post-process solution in d-1 positive skins
         st = time.time()
-        cellid_to_element = dict(zip(up_field.element_ids, up_field.elements))
+        cellid_to_element = dict(zip(up_space.element_ids, up_space.elements))
         # writing solution on mesh points
-        vertices = up_field.mesh_topology.entities_by_dimension(0)
+        vertices = up_space.mesh_topology.entities_by_dimension(0)
         fh_data = np.zeros((len(gmesh.points), n_components))
-        cell_vertex_map = up_field.mesh_topology.entity_map_by_dimension(0)
+        cell_vertex_map = up_space.mesh_topology.entity_map_by_dimension(0)
         for id in vertices:
             if not cell_vertex_map.has_node(id):
                 continue
 
             pr_ids = list(cell_vertex_map.predecessors(id))
             cell = gmesh.cells[pr_ids[0]]
-            if cell.dimension != up_field.dimension:
+            if cell.dimension != up_space.dimension:
                 continue
 
             element = cellid_to_element[pr_ids[0]]
 
             # scattering dof
-            dest = up_field.dof_map.destination_indices(cell.id)
+            dest = up_space.dof_map.destination_indices(cell.id)
             alpha_l = alpha[dest]
 
-            par_points = basix.geometry(up_field.element_type)
+            par_points = basix.geometry(up_space.element_type)
 
             target_node_id = gmesh.cells[id].node_tags[0]
             par_point_id = np.array(
@@ -1787,7 +1787,7 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             )
 
             points = gmesh.points[target_node_id]
-            if up_field.dimension != 0:
+            if up_space.dimension != 0:
                 points = par_points[par_point_id]
 
             # evaluate mapping
@@ -1802,9 +1802,9 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             fh_data[target_node_id] = f_h.ravel()
 
         mesh_points = gmesh.points
-        con_d = np.array([element.data.cell.node_tags for element in up_field.elements])
+        con_d = np.array([element.data.cell.node_tags for element in up_space.elements])
         meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
-        cells_dict = {meshio_cell_types[up_field.dimension]: con_d}
+        cells_dict = {meshio_cell_types[up_space.dimension]: con_d}
         p_data_dict = {"u_h": fh_data}
 
         mesh = meshio.Mesh(
@@ -1822,27 +1822,27 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
         # post-process solution in d-1 negative skins
         st = time.time()
-        cellid_to_element = dict(zip(um_field.element_ids, um_field.elements))
+        cellid_to_element = dict(zip(um_space.element_ids, um_space.elements))
         # writing solution on mesh points
-        vertices = um_field.mesh_topology.entities_by_dimension(0)
+        vertices = um_space.mesh_topology.entities_by_dimension(0)
         fh_data = np.zeros((len(gmesh.points), n_components))
-        cell_vertex_map = um_field.mesh_topology.entity_map_by_dimension(0)
+        cell_vertex_map = um_space.mesh_topology.entity_map_by_dimension(0)
         for id in vertices:
             if not cell_vertex_map.has_node(id):
                 continue
 
             pr_ids = list(cell_vertex_map.predecessors(id))
             cell = gmesh.cells[pr_ids[0]]
-            if cell.dimension != um_field.dimension:
+            if cell.dimension != um_space.dimension:
                 continue
 
             element = cellid_to_element[pr_ids[0]]
 
             # scattering dof
-            dest = um_field.dof_map.destination_indices(cell.id)
+            dest = um_space.dof_map.destination_indices(cell.id)
             alpha_l = alpha[dest]
 
-            par_points = basix.geometry(um_field.element_type)
+            par_points = basix.geometry(um_space.element_type)
 
             target_node_id = gmesh.cells[id].node_tags[0]
             par_point_id = np.array(
@@ -1854,7 +1854,7 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             )
 
             points = gmesh.points[target_node_id]
-            if um_field.dimension != 0:
+            if um_space.dimension != 0:
                 points = par_points[par_point_id]
 
             # evaluate mapping
@@ -1869,9 +1869,9 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             fh_data[target_node_id] = f_h.ravel()
 
         mesh_points = gmesh.points
-        con_d = np.array([element.data.cell.node_tags for element in um_field.elements])
+        con_d = np.array([element.data.cell.node_tags for element in um_space.elements])
         meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
-        cells_dict = {meshio_cell_types[um_field.dimension]: con_d}
+        cells_dict = {meshio_cell_types[um_space.dimension]: con_d}
         p_data_dict = {"u_h": fh_data}
 
         mesh = meshio.Mesh(
@@ -1889,27 +1889,27 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
         # post-process solution in d-1 LM
         st = time.time()
-        cellid_to_element = dict(zip(l_field.element_ids, l_field.elements))
+        cellid_to_element = dict(zip(l_space.element_ids, l_space.elements))
         # writing solution on mesh points
-        vertices = l_field.mesh_topology.entities_by_dimension(0)
+        vertices = l_space.mesh_topology.entities_by_dimension(0)
         fh_data = np.zeros((len(gmesh.points), n_components))
-        cell_vertex_map = l_field.mesh_topology.entity_map_by_dimension(0)
+        cell_vertex_map = l_space.mesh_topology.entity_map_by_dimension(0)
         for id in vertices:
             if not cell_vertex_map.has_node(id):
                 continue
 
             pr_ids = list(cell_vertex_map.predecessors(id))
             cell = gmesh.cells[pr_ids[0]]
-            if cell.dimension != l_field.dimension:
+            if cell.dimension != l_space.dimension:
                 continue
 
             element = cellid_to_element[pr_ids[0]]
 
             # scattering dof
-            dest = l_field.dof_map.destination_indices(cell.id) + u_field.n_dof
+            dest = l_space.dof_map.destination_indices(cell.id) + u_space.n_dof
             alpha_l = alpha[dest]
 
-            par_points = basix.geometry(l_field.element_type)
+            par_points = basix.geometry(l_space.element_type)
 
             target_node_id = gmesh.cells[id].node_tags[0]
             par_point_id = np.array(
@@ -1921,7 +1921,7 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             )
 
             points = gmesh.points[target_node_id]
-            if l_field.dimension != 0:
+            if l_space.dimension != 0:
                 points = par_points[par_point_id]
 
             # evaluate mapping
@@ -1936,9 +1936,9 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             fh_data[target_node_id] = f_h.ravel()
 
         mesh_points = gmesh.points
-        con_d = np.array([element.data.cell.node_tags for element in l_field.elements])
+        con_d = np.array([element.data.cell.node_tags for element in l_space.elements])
         meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
-        cells_dict = {meshio_cell_types[l_field.dimension]: con_d}
+        cells_dict = {meshio_cell_types[l_space.dimension]: con_d}
         p_data_dict = {"l_h": fh_data}
 
         mesh = meshio.Mesh(

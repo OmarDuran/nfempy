@@ -11,8 +11,8 @@ from spaces.dof_map import DoFMap
 from topology.mesh_topology import MeshTopology
 
 
-class DiscreteField:
-    # The discrete variable representation
+class DiscreteSpace:
+    # The discrete space representation
     def __init__(
         self, dimension, n_components, family, k_order, mesh, integration_oder=0
     ):
@@ -87,7 +87,7 @@ class DiscreteField:
         self.n_dof = self.dof_map.dof_number()
         et = time.time()
         elapsed_time = et - st
-        print("DiscreteField:: DoFMap construction time:", elapsed_time, "seconds")
+        print("DiscreteSpace:: DoFMap construction time:", elapsed_time, "seconds")
 
     def _build_dof_map_on_physical_tags(self, physical_tags=[]):
         st = time.time()
@@ -122,7 +122,7 @@ class DiscreteField:
         self.n_dof = self.dof_map.dof_number()
         et = time.time()
         elapsed_time = et - st
-        print("DiscreteField:: DoFMap construction time:", elapsed_time, "seconds")
+        print("DiscreteSpace:: DoFMap construction time:", elapsed_time, "seconds")
 
     def _build_elements(self, parallel_run_q=False):
         st = time.time()
@@ -183,8 +183,8 @@ class DiscreteField:
         et = time.time()
         elapsed_time = et - st
         n_d_cells = len(self.elements)
-        print("DiscreteField:: Number of processed elements:", n_d_cells)
-        print("DiscreteField:: Elements construction time:", elapsed_time, "seconds")
+        print("DiscreteSpace:: Number of processed elements:", n_d_cells)
+        print("DiscreteSpace:: Elements construction time:", elapsed_time, "seconds")
 
     def _build_bc_elements(self, physical_tags):
         st = time.time()
@@ -226,9 +226,9 @@ class DiscreteField:
         et = time.time()
         elapsed_time = et - st
         n_d_cells = len(self.bc_elements)
-        print("DiscreteField:: Number of processed bc elements:", n_d_cells)
+        print("DiscreteSpace:: Number of processed bc elements:", n_d_cells)
         print(
-            "DiscreteField:: Boundary Elements construction time:",
+            "DiscreteSpace:: Boundary Elements construction time:",
             elapsed_time,
             "seconds",
         )
