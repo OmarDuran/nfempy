@@ -49,6 +49,7 @@ from mesh.mesh import Mesh
 from spaces.discrete_space import DiscreteSpace
 from spaces.dof_map import DoFMap
 from topology.mesh_topology import MeshTopology
+import strong_solution_elasticity as le
 
 
 def matrix_plot(J, sparse_q=True):
@@ -121,119 +122,10 @@ def h1_elasticity(k_order, gmesh, write_vtk_q=False):
 
     st = time.time()
 
-    # facturated solution for
-    f_exact = lambda x, y, z: np.array(
-        [np.sin(np.pi * x) * y * (1 - y), np.sin(np.pi * y) * x * (1 - x)]
-    )
-    f_rhs_x = lambda x, y, z: -(
-        np.pi * (-1 + 2 * x) * (m_lambda + m_mu) * np.cos(np.pi * y)
-    ) + (-2 * m_mu + (np.pi**2) * (-1 + y) * y * (m_lambda + 2 * m_mu)) * np.sin(
-        np.pi * x
-    )
-    f_rhs_y = lambda x, y, z: -(
-        np.pi * (-1 + 2 * y) * (m_lambda + m_mu) * np.cos(np.pi * x)
-    ) + (-2 * m_mu + (np.pi**2) * (-1 + x) * x * (m_lambda + 2 * m_mu)) * np.sin(
-        np.pi * y
-    )
-    f_rhs = lambda x, y, z: np.array([-f_rhs_x(x, y, z), -f_rhs_y(x, y, z)])
-    if dim == 3:
-        f_exact = lambda x, y, z: np.array(
-            [
-                np.sin(np.pi * x) * y * (1 - y) * z * (1 - z),
-                np.sin(np.pi * y) * x * (1 - x) * z * (1 - z),
-                np.sin(np.pi * z) * x * (1 - x) * y * (1 - y),
-            ]
-        )
-        f_rhs_x = (
-            lambda x, y, z: -2
-            * (np.pi**2)
-            * (-1 + y)
-            * y
-            * (-1 + z)
-            * z
-            * m_mu
-            * np.sin(np.pi * x)
-            + (-1 + z)
-            * z
-            * m_mu
-            * (np.pi * (-1 + 2 * x) * np.cos(np.pi * y) + 2 * np.sin(np.pi * x))
-            + (-1 + y)
-            * y
-            * m_mu
-            * (np.pi * (-1 + 2 * x) * np.cos(np.pi * z) + 2 * np.sin(np.pi * x))
-            + np.pi
-            * m_lambda
-            * (
-                (-1 + 2 * x) * (-1 + z) * z * np.cos(np.pi * y)
-                + (-1 + y)
-                * y
-                * (
-                    (-1 + 2 * x) * np.cos(np.pi * z)
-                    - np.pi * (-1 + z) * z * np.sin(np.pi * x)
-                )
-            )
-        )
-        f_rhs_y = (
-            lambda x, y, z: -2
-            * (np.pi**2)
-            * (-1 + x)
-            * x
-            * (-1 + z)
-            * z
-            * m_mu
-            * np.sin(np.pi * y)
-            + (-1 + z)
-            * z
-            * m_mu
-            * (np.pi * (-1 + 2 * y) * np.cos(np.pi * x) + 2 * np.sin(np.pi * y))
-            + (-1 + x)
-            * x
-            * m_mu
-            * (np.pi * (-1 + 2 * y) * np.cos(np.pi * z) + 2 * np.sin(np.pi * y))
-            + np.pi
-            * m_lambda
-            * (
-                (-1 + 2 * y) * (-1 + z) * z * np.cos(np.pi * x)
-                + (-1 + x)
-                * x
-                * (
-                    (-1 + 2 * y) * np.cos(np.pi * z)
-                    - np.pi * (-1 + z) * z * np.sin(np.pi * y)
-                )
-            )
-        )
-        f_rhs_z = (
-            lambda x, y, z: -2
-            * (np.pi**2)
-            * (-1 + x)
-            * x
-            * (-1 + y)
-            * y
-            * m_mu
-            * np.sin(np.pi * z)
-            + (-1 + y)
-            * y
-            * m_mu
-            * (np.pi * (-1 + 2 * z) * np.cos(np.pi * x) + 2 * np.sin(np.pi * z))
-            + (-1 + x)
-            * x
-            * m_mu
-            * (np.pi * (-1 + 2 * z) * np.cos(np.pi * y) + 2 * np.sin(np.pi * z))
-            + np.pi
-            * m_lambda
-            * (
-                (-1 + y) * y * (-1 + 2 * z) * np.cos(np.pi * x)
-                + (-1 + x)
-                * x
-                * (
-                    (-1 + 2 * z) * np.cos(np.pi * y)
-                    - np.pi * (-1 + y) * y * np.sin(np.pi * z)
-                )
-            )
-        )
-        f_rhs = lambda x, y, z: np.array(
-            [-f_rhs_x(x, y, z), -f_rhs_y(x, y, z), -f_rhs_z(x, y, z)]
-        )
+    # exact solution
+    u_exact = le.displacement(m_lambda, m_mu, dim)
+    s_exact = le.stress(m_lambda, m_mu, dim)
+    f_rhs = le.rhs(m_lambda, m_mu, dim)
 
     def scatter_form_data(
         element, m_lambda, m_mu, f_rhs, u_space, cell_map, row, col, data
@@ -268,7 +160,7 @@ def h1_elasticity(k_order, gmesh, write_vtk_q=False):
         for c in range(n_components):
             b = c
             e = (c + 1) * n_phi * n_components + 1
-            r_el[b:e:n_components] += phi_s_star @ f_val_star[c]
+            r_el[b:e:n_components] += -1.0 * phi_s_star @ f_val_star[c]
 
         # vectorized blocks
         phi_star_dirs = [[1, 2], [0, 2], [0, 1]]
@@ -385,8 +277,8 @@ def h1_elasticity(k_order, gmesh, write_vtk_q=False):
     elapsed_time = et - st
     print("Linear solver time:", elapsed_time, "seconds")
 
-    # Computing L2 error
-    def compute_l2_error(element, u_space):
+    # Computing displacement L2 error
+    def compute_u_l2_error(element, u_space):
         l2_error = 0.0
         n_components = u_space.n_comp
         el_data = element.data
@@ -405,20 +297,57 @@ def h1_elasticity(k_order, gmesh, write_vtk_q=False):
 
         # vectorization
         n_phi = phi_tab.shape[2]
-        p_e_s = f_exact(x[:, 0], x[:, 1], x[:, 2])
+        p_e_s = u_exact(x[:, 0], x[:, 1], x[:, 2])
         alpha_star = np.array(np.split(alpha_l, n_phi))
         p_h_s = (phi_tab[0, :, :, 0] @ alpha_star).T
         diff_p = p_e_s - p_h_s
         l2_error = np.sum(det_jac * weights * diff_p * diff_p)
         return l2_error
 
+    # Computing stress L2 error
+    def compute_s_l2_error(element, u_space, m_mu, m_lambda, dim):
+        l2_error = 0.0
+        n_components = u_space.n_comp
+        el_data = element.data
+        cell = el_data.cell
+        points = el_data.quadrature.points
+        weights = el_data.quadrature.weights
+        phi_tab = el_data.basis.phi
+
+        x = el_data.mapping.x
+        det_jac = el_data.mapping.det_jac
+        inv_jac = el_data.mapping.inv_jac
+
+        # scattering dof
+        dest = u_space.dof_map.destination_indices(cell.id)
+        alpha_l = alpha[dest]
+
+        # for each integration point
+        n_phi = phi_tab.shape[2]
+        alpha_star = np.array(np.split(alpha_l, n_phi))
+        for i, omega in enumerate(weights):
+            s_e = s_exact(x[i, 0], x[i, 1], x[i, 2])
+            grad_phi = inv_jac[i].T @ phi_tab[1 : phi_tab.shape[0] + 1, i, :, 0]
+            grad_uh = grad_phi[0:dim] @ alpha_star
+            eps_h = 0.5 * (grad_uh + grad_uh.T)
+            s_h = 2.0 * m_mu * eps_h + m_lambda * eps_h.trace() * np.identity(dim)
+            diff_s = s_e - s_h
+            l2_error += det_jac[i] * weights[i] * np.trace(diff_s.T @ diff_s)
+        return l2_error
+
     st = time.time()
-    error_vec = [compute_l2_error(element, u_space) for element in u_space.elements]
+    u_error_vec = [compute_u_l2_error(element, u_space) for element in u_space.elements]
+    s_error_vec = [
+        compute_s_l2_error(element, u_space, m_mu, m_lambda, dim)
+        for element in u_space.elements
+    ]
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
-    l2_error = np.sqrt(functools.reduce(lambda x, y: x + y, error_vec))
-    print("L2-error: ", l2_error)
+    u_l2_error = np.sqrt(functools.reduce(lambda x, y: x + y, u_error_vec))
+    s_l2_error = np.sqrt(functools.reduce(lambda x, y: x + y, s_error_vec))
+    print("L2-error displacement: ", u_l2_error)
+    print("L2-error stress: ", s_l2_error)
 
     if write_vtk_q:
         # post-process solution
@@ -466,7 +395,7 @@ def h1_elasticity(k_order, gmesh, write_vtk_q=False):
             )
             phi_tab = element.evaluate_basis(points)
             n_phi = phi_tab.shape[2]
-            f_e = f_exact(x[:, 0], x[:, 1], x[:, 2])
+            f_e = u_exact(x[:, 0], x[:, 1], x[:, 2])
             alpha_star = np.array(np.split(alpha_l, n_phi))
             f_h = (phi_tab[0, :, :, 0] @ alpha_star).T
             fh_data[target_node_id] = f_h.ravel()
@@ -489,7 +418,7 @@ def h1_elasticity(k_order, gmesh, write_vtk_q=False):
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
 
-    return l2_error
+    return np.array([u_l2_error, s_l2_error])
 
 
 def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
@@ -601,119 +530,17 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
 
     st = time.time()
 
-    # facturated solution for
-    f_exact = lambda x, y, z: np.array(
-        [np.sin(np.pi * x) * y * (1 - y), np.sin(np.pi * y) * x * (1 - x)]
-    )
-    f_rhs_x = lambda x, y, z: -(
-        np.pi * (-1 + 2 * x) * (m_lambda + m_mu) * np.cos(np.pi * y)
-    ) + (-2 * m_mu + (np.pi**2) * (-1 + y) * y * (m_lambda + 2 * m_mu)) * np.sin(
-        np.pi * x
-    )
-    f_rhs_y = lambda x, y, z: -(
-        np.pi * (-1 + 2 * y) * (m_lambda + m_mu) * np.cos(np.pi * x)
-    ) + (-2 * m_mu + (np.pi**2) * (-1 + x) * x * (m_lambda + 2 * m_mu)) * np.sin(
-        np.pi * y
-    )
-    f_rhs = lambda x, y, z: np.array([-f_rhs_x(x, y, z), -f_rhs_y(x, y, z)])
-    if dim == 3:
-        f_exact = lambda x, y, z: np.array(
-            [
-                np.sin(np.pi * x) * y * (1 - y) * z * (1 - z),
-                np.sin(np.pi * y) * x * (1 - x) * z * (1 - z),
-                np.sin(np.pi * z) * x * (1 - x) * y * (1 - y),
-            ]
-        )
-        f_rhs_x = (
-            lambda x, y, z: -2
-            * (np.pi**2)
-            * (-1 + y)
-            * y
-            * (-1 + z)
-            * z
-            * m_mu
-            * np.sin(np.pi * x)
-            + (-1 + z)
-            * z
-            * m_mu
-            * (np.pi * (-1 + 2 * x) * np.cos(np.pi * y) + 2 * np.sin(np.pi * x))
-            + (-1 + y)
-            * y
-            * m_mu
-            * (np.pi * (-1 + 2 * x) * np.cos(np.pi * z) + 2 * np.sin(np.pi * x))
-            + np.pi
-            * m_lambda
-            * (
-                (-1 + 2 * x) * (-1 + z) * z * np.cos(np.pi * y)
-                + (-1 + y)
-                * y
-                * (
-                    (-1 + 2 * x) * np.cos(np.pi * z)
-                    - np.pi * (-1 + z) * z * np.sin(np.pi * x)
-                )
-            )
-        )
-        f_rhs_y = (
-            lambda x, y, z: -2
-            * (np.pi**2)
-            * (-1 + x)
-            * x
-            * (-1 + z)
-            * z
-            * m_mu
-            * np.sin(np.pi * y)
-            + (-1 + z)
-            * z
-            * m_mu
-            * (np.pi * (-1 + 2 * y) * np.cos(np.pi * x) + 2 * np.sin(np.pi * y))
-            + (-1 + x)
-            * x
-            * m_mu
-            * (np.pi * (-1 + 2 * y) * np.cos(np.pi * z) + 2 * np.sin(np.pi * y))
-            + np.pi
-            * m_lambda
-            * (
-                (-1 + 2 * y) * (-1 + z) * z * np.cos(np.pi * x)
-                + (-1 + x)
-                * x
-                * (
-                    (-1 + 2 * y) * np.cos(np.pi * z)
-                    - np.pi * (-1 + z) * z * np.sin(np.pi * y)
-                )
-            )
-        )
-        f_rhs_z = (
-            lambda x, y, z: -2
-            * (np.pi**2)
-            * (-1 + x)
-            * x
-            * (-1 + y)
-            * y
-            * m_mu
-            * np.sin(np.pi * z)
-            + (-1 + y)
-            * y
-            * m_mu
-            * (np.pi * (-1 + 2 * z) * np.cos(np.pi * x) + 2 * np.sin(np.pi * z))
-            + (-1 + x)
-            * x
-            * m_mu
-            * (np.pi * (-1 + 2 * z) * np.cos(np.pi * y) + 2 * np.sin(np.pi * z))
-            + np.pi
-            * m_lambda
-            * (
-                (-1 + y) * y * (-1 + 2 * z) * np.cos(np.pi * x)
-                + (-1 + x)
-                * x
-                * (
-                    (-1 + 2 * z) * np.cos(np.pi * y)
-                    - np.pi * (-1 + y) * y * np.sin(np.pi * z)
-                )
-            )
-        )
-        f_rhs = lambda x, y, z: np.array(
-            [-f_rhs_x(x, y, z), -f_rhs_y(x, y, z), -f_rhs_z(x, y, z)]
-        )
+    # exact solution
+    u_exact = le.displacement(m_lambda, m_mu, dim)
+    t_exact = le.rotations(m_lambda, m_mu, dim)
+    s_exact = le.stress(m_lambda, m_mu, dim)
+    f_rhs = le.rhs(m_lambda, m_mu, dim)
+
+    # print("displacement: ", u_exact(0.25,0.5,0.75))
+    # print("rotation: ", t_exact(0.25, 0.5, 0.75))
+    # print("stress: ", s_exact(0.25, 0.5, 0.75))
+    # print("rhs: ", f_rhs(0.25, 0.5, 0.75))
+    # aka = 0
 
     def scatter_form_data_ad(
         i, m_lambda, m_mu, f_rhs, spaces, cell_map, row, col, data
@@ -776,15 +603,9 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
             for c in range(u_components):
                 b = c + n_s_dof
                 e = b + n_u_dof
-                el_form[b:e:u_components] += -1.0 * phi_s_star @ f_val_star[c]
+                el_form[b:e:u_components] += 1.0 * phi_s_star @ f_val_star[c]
 
             for i, omega in enumerate(weights):
-                if dim == 2:
-                    inv_jac_m = np.vstack((inv_jac[i] @ e1, inv_jac[i] @ e2))
-                else:
-                    inv_jac_m = np.vstack(
-                        (inv_jac[i] @ e1, inv_jac[i] @ e2, inv_jac[i] @ e3)
-                    )
 
                 if dim == 2:
                     c = 0
@@ -832,7 +653,7 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
                     A_sh = (1.0 / 2.0 * m_mu) * (
                         Symm_sh
                         - (m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat
-                    )
+                    ) - (1.0 / 2.0 * m_mu) * Skew_sh
 
                     grad_s_phi = s_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
                     div_tau = np.array(
@@ -852,14 +673,10 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
                         np.hstack((div_sh_x.der, div_sh_y.der)),
                     )
 
-                    Gamma_outer = gamma_h * np.array([[0.0, -1.0], [1.0, 0.0]])
+                    Gamma_outer = -gamma_h * np.array([[0.0, -1.0], [1.0, 0.0]])
                     S_cross = np.array([[Skew_sh[0, 1] - Skew_sh[1, 0]]])
 
                 else:
-
-                    inv_jac_m = np.vstack(
-                        (inv_jac[i] @ e1, inv_jac[i] @ e2, inv_jac[i] @ e3)
-                    )
 
                     c = 0
                     s_x = (
@@ -874,7 +691,8 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
                         alpha[
                             :,
                             n_s_dof
-                            + n_u_dof : n_s_dof
+                            + n_u_dof
+                            + c : n_s_dof
                             + n_u_dof
                             + n_t_dof
                             + c : t_components,
@@ -949,7 +767,7 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
                     A_sh = (1.0 / 2.0 * m_mu) * (
                         Symm_sh
                         - (m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat
-                    )
+                    ) - (1.0 / 2.0 * m_mu) * Skew_sh
 
                     grad_s_phi = s_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
                     div_tau = np.array(
@@ -972,6 +790,14 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
                         np.hstack((div_sh_x.der, div_sh_y.der, div_sh_z.der)),
                     )
 
+                    Gamma_outer = -np.array(
+                        [
+                            [0.0 * g_h[0, 0], -g_h[0, 2], +g_h[0, 1]],
+                            [+g_h[0, 2], 0.0 * g_h[0, 0], -g_h[0, 0]],
+                            [-g_h[0, 1], +g_h[0, 0], 0.0 * g_h[0, 0]],
+                        ]
+                    )
+
                     S_cross = np.array(
                         [
                             [
@@ -982,14 +808,6 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
                         ]
                     )
 
-                    Gamma_outer = np.array(
-                        [
-                            [0.0 * g_h[0, 0], -g_h[0, 2], +g_h[0, 1]],
-                            [+g_h[0, 2], 0.0 * g_h[0, 0], -g_h[0, 0]],
-                            [-g_h[0, 1], +g_h[0, 0], 0.0 * g_h[0, 0]],
-                        ]
-                    )
-
                 equ_1_integrand = (
                     (s_phi_tab[0, i, :, 0:dim] @ A_sh)
                     + (div_tau.T @ u_h)
@@ -997,6 +815,7 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
                 )
                 equ_2_integrand = u_phi_tab[0, i, :, 0:dim] @ div_sh
                 equ_3_integrand = t_phi_tab[0, i, :, 0:dim] @ S_cross
+
                 multiphysic_integrand = np.zeros((1, n_dof))
                 multiphysic_integrand[:, 0:n_s_dof:1] = (equ_1_integrand).reshape(
                     (n_s_dof,)
@@ -1030,82 +849,6 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
         for i in range(s_n_els)
     ]
 
-    # def scatter_form_data(
-    #     element, m_lambda, m_mu, f_rhs, u_space, cell_map, row, col, data
-    # ):
-    #
-    #     n_components = u_space.n_comp
-    #     el_data: ElementData = element.data
-    #
-    #     cell = el_data.cell
-    #     points = el_data.quadrature.points
-    #     weights = el_data.quadrature.weights
-    #     phi_tab = el_data.basis.phi
-    #
-    #     x = el_data.mapping.x
-    #     det_jac = el_data.mapping.det_jac
-    #     inv_jac = el_data.mapping.inv_jac
-    #
-    #     # destination indexes
-    #     dest = u_space.dof_map.destination_indices(cell.id)
-    #
-    #     n_phi = phi_tab.shape[2]
-    #     n_dof = n_phi * n_components
-    #     js = (n_dof, n_dof)
-    #     rs = n_dof
-    #     j_el = np.zeros(js)
-    #     r_el = np.zeros(rs)
-    #
-    #     # Partial local vectorization
-    #     f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
-    #     phi_s_star = det_jac * weights * phi_tab[0, :, :, 0].T
-    #
-    #     for c in range(n_components):
-    #         b = c
-    #         e = (c + 1) * n_phi * n_components + 1
-    #         r_el[b:e:n_components] += phi_s_star @ f_val_star[c]
-    #
-    #     # vectorized blocks
-    #     phi_star_dirs = [[1, 2], [0, 2], [0, 1]]
-    #     for i, omega in enumerate(weights):
-    #         grad_phi = inv_jac[i].T @ phi_tab[1 : phi_tab.shape[0] + 1, i, :, 0]
-    #
-    #         for i_d in range(n_components):
-    #             for j_d in range(n_components):
-    #                 phi_outer = np.outer(grad_phi[j_d], grad_phi[i_d])
-    #                 stress_grad = m_mu * phi_outer
-    #                 if i_d == j_d:
-    #                     phi_outer_star = np.zeros((n_phi, n_phi))
-    #                     for d in phi_star_dirs[i_d]:
-    #                         phi_outer_star += np.outer(grad_phi[d], grad_phi[d])
-    #                     stress_grad += (
-    #                         m_lambda + m_mu
-    #                     ) * phi_outer + m_mu * phi_outer_star
-    #                 else:
-    #                     stress_grad += m_lambda * np.outer(grad_phi[i_d], grad_phi[j_d])
-    #                 j_el[
-    #                     i_d : n_dof + 1 : n_components, j_d : n_dof + 1 : n_components
-    #                 ] += (det_jac[i] * omega * stress_grad)
-    #
-    #     # scattering data
-    #     c_sequ = cell_map[cell.id]
-    #
-    #     # contribute rhs
-    #     rg[dest] += r_el
-    #
-    #     # contribute lhs
-    #     block_sequ = np.array(range(0, len(dest) * len(dest))) + c_sequ
-    #     row[block_sequ] += np.repeat(dest, len(dest))
-    #     col[block_sequ] += np.tile(dest, len(dest))
-    #     data[block_sequ] += j_el.ravel()
-    #
-    # [
-    #     scatter_form_data(
-    #         element, m_lambda, m_mu, f_rhs, u_space, cell_map, row, col, data
-    #     )
-    #     for element in u_space.elements
-    # ]
-
     jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
     et = time.time()
     elapsed_time = et - st
@@ -1119,8 +862,8 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
     elapsed_time = et - st
     print("Linear solver time:", elapsed_time, "seconds")
 
-    # Computing L2 error
-    def compute_l2_error(element, u_space):
+    # Computing displacement L2 error
+    def compute_u_l2_error(element, u_space):
         l2_error = 0.0
         n_components = u_space.n_comp
         el_data = element.data
@@ -1139,20 +882,104 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
 
         # vectorization
         n_phi = phi_tab.shape[2]
-        p_e_s = f_exact(x[:, 0], x[:, 1], x[:, 2])
+        p_e_s = u_exact(x[:, 0], x[:, 1], x[:, 2])
         alpha_star = np.array(np.split(alpha_l, n_phi))
         p_h_s = (phi_tab[0, :, :, 0] @ alpha_star).T
         diff_p = p_e_s - p_h_s
         l2_error = np.sum(det_jac * weights * diff_p * diff_p)
         return l2_error
 
+    # Computing rotation L2 error
+    def compute_t_l2_error(element, t_space):
+        l2_error = 0.0
+        n_components = t_space.n_comp
+        el_data = element.data
+        cell = el_data.cell
+        points = el_data.quadrature.points
+        weights = el_data.quadrature.weights
+        phi_tab = el_data.basis.phi
+
+        x = el_data.mapping.x
+        det_jac = el_data.mapping.det_jac
+        inv_jac = el_data.mapping.inv_jac
+
+        # scattering dof
+        dest = t_space.dof_map.destination_indices(cell.id) + s_n_dof_g + u_n_dof_g
+        alpha_l = alpha[dest]
+
+        # vectorization
+        n_phi = phi_tab.shape[2]
+        alpha_star = np.array(np.split(alpha_l, n_phi))
+        t_h_s = (phi_tab[0, :, :, 0] @ alpha_star).T
+        for i, omega in enumerate(weights):
+            t_e = t_exact(x[i, 0], x[i, 1], x[i, 2])
+            if dim == 2:
+                t_h = np.array([[0.0, -t_h_s[0, i]], [t_h_s[0, i], 0.0]])
+            else:
+                t_h = np.array(
+                    [
+                        [0.0, -t_h_s[2, i], +t_h_s[1, i]],
+                        [+t_h_s[2, i], 0.0, -t_h_s[0, i]],
+                        [-t_h_s[1, i], +t_h_s[0, i], 0.0],
+                    ]
+                )
+
+            diff_t = t_e - t_h
+            l2_error += det_jac[i] * weights[i] * np.trace(diff_t.T @ diff_t)
+        return l2_error
+
+    # Computing stress L2 error
+    def compute_s_l2_error(element, s_space, dim):
+        l2_error = 0.0
+        n_components = s_space.n_comp
+        el_data = element.data
+        cell = el_data.cell
+        points = el_data.quadrature.points
+        weights = el_data.quadrature.weights
+        phi_tab = el_data.basis.phi
+
+        x = el_data.mapping.x
+        det_jac = el_data.mapping.det_jac
+        inv_jac = el_data.mapping.inv_jac
+
+        # scattering dof
+        dest = s_space.dof_map.destination_indices(cell.id)
+        alpha_l = alpha[dest]
+
+        # vectorization
+        n_phi = phi_tab.shape[2]
+
+        c = 0
+        alpha_x = alpha_l[c: n_phi * s_components + c: s_components]
+        c = 1
+        alpha_y = alpha_l[c: n_phi * s_components + c: s_components]
+        c = 2
+        alpha_z = alpha_l[c: n_phi * s_components + c: s_components]
+        alpha_star = np.array(np.split(alpha_l, n_phi))
+        for i, omega in enumerate(weights):
+            s_e = s_exact(x[i, 0], x[i, 1], x[i, 2])
+            s_h = np.vstack(
+                tuple([phi_tab[0, i, :, 0:dim].T @ alpha_star[:, d] for d in range(dim)])
+            )
+            diff_s = s_e - s_h
+            l2_error += det_jac[i] * weights[i] * np.trace(diff_s.T @ diff_s)
+        return l2_error
+
     st = time.time()
-    error_vec = [compute_l2_error(element, u_space) for element in u_space.elements]
+    s_error_vec = [
+        compute_s_l2_error(element, s_space, dim) for element in s_space.elements
+    ]
+    u_error_vec = [compute_u_l2_error(element, u_space) for element in u_space.elements]
+    t_error_vec = [compute_t_l2_error(element, t_space) for element in t_space.elements]
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
-    l2_error = np.sqrt(functools.reduce(lambda x, y: x + y, error_vec))
-    print("L2-error: ", l2_error)
+    s_l2_error = np.sqrt(functools.reduce(lambda x, y: x + y, s_error_vec))
+    u_l2_error = np.sqrt(functools.reduce(lambda x, y: x + y, u_error_vec))
+    t_l2_error = np.sqrt(functools.reduce(lambda x, y: x + y, t_error_vec))
+    print("L2-error stress: ", s_l2_error)
+    print("L2-error displacement: ", u_l2_error)
+    print("L2-error rotation: ", t_l2_error)
 
     if write_vtk_q:
         # post-process solution
@@ -1200,7 +1027,7 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
             )
             phi_tab = element.evaluate_basis(points)
             n_phi = phi_tab.shape[2]
-            f_e = f_exact(x[:, 0], x[:, 1], x[:, 2])
+            f_e = u_exact(x[:, 0], x[:, 1], x[:, 2])
             alpha_star = np.array(np.split(alpha_l, n_phi))
             f_h = (phi_tab[0, :, :, 0] @ alpha_star).T
             fh_data[target_node_id] = f_h.ravel()
@@ -1223,7 +1050,7 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
 
-    return l2_error
+    return np.array([s_l2_error, u_l2_error, t_l2_error])
 
 
 def create_domain(dimension):
@@ -1272,29 +1099,39 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 def main():
 
-    k_order = 3
+    k_order = 2
     h = 1.0
-    n_ref = 5
-    dimension = 2
+    n_ref = 3
+    dimension = 3
     ref_l = 0
+    mixed_form_q = True
 
     domain = create_domain(dimension)
-    error_data = np.empty((0, 2), float)
+    n_data = -1
+    if mixed_form_q:
+        n_data = 4
+    else:
+        n_data = 3
+
+    error_data = np.empty((0, n_data), float)
     for l in range(n_ref):
         h_val = h * (2**-l)
         mesher = create_conformal_mesher(domain, h, l)
         gmesh = create_mesh(dimension, mesher, False)
-        # error_val = h1_elasticity(k_order, gmesh, False)
-        error_val = hdiv_elasticity(k_order, gmesh, True)
-        error_data = np.append(error_data, np.array([[h_val, error_val]]), axis=0)
+        if mixed_form_q:
+            error_vals = hdiv_elasticity(k_order, gmesh, True)
+        else:
+            error_vals = h1_elasticity(k_order, gmesh, True)
+        chunk = np.concatenate([[h_val], error_vals])
+        error_data = np.append(error_data, np.array([chunk]), axis=0)
 
-    rates_data = np.empty((0, 1), float)
+    rates_data = np.empty((0, n_data - 1), float)
     for i in range(error_data.shape[0] - 1):
         chunk_b = np.log(error_data[i])
         chunk_e = np.log(error_data[i + 1])
         h_step = chunk_e[0] - chunk_b[0]
         partial = (chunk_e - chunk_b) / h_step
-        rates_data = np.append(rates_data, np.array([list(partial[1:2])]), axis=0)
+        rates_data = np.append(rates_data, np.array([list(partial[1:n_data])]), axis=0)
 
     print("error data: ", error_data)
     print("error rates data: ", rates_data)
