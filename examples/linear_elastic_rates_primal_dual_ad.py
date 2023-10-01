@@ -357,8 +357,8 @@ def h1_elasticity(k_order, gmesh, write_vtk_q=False):
         vertices = u_space.mesh_topology.entities_by_dimension(0)
         uh_data = np.zeros((len(gmesh.points), n_components))
         ue_data = np.zeros((len(gmesh.points), n_components))
-        sh_data = np.zeros((len(gmesh.points), dim*dim))
-        se_data = np.zeros((len(gmesh.points), dim*dim))
+        sh_data = np.zeros((len(gmesh.points), dim * dim))
+        se_data = np.zeros((len(gmesh.points), dim * dim))
         cell_vertex_map = u_space.mesh_topology.entity_map_by_dimension(0)
         for id in vertices:
             if not cell_vertex_map.has_node(id):
@@ -416,7 +416,12 @@ def h1_elasticity(k_order, gmesh, write_vtk_q=False):
         con_d = np.array([element.data.cell.node_tags for element in u_space.elements])
         meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
         cells_dict = {meshio_cell_types[u_space.dimension]: con_d}
-        p_data_dict = {"u_h": uh_data, "u_exact": ue_data, "s_h": sh_data,"s_exact": se_data}
+        p_data_dict = {
+            "u_h": uh_data,
+            "u_exact": ue_data,
+            "s_h": sh_data,
+            "s_exact": se_data,
+        }
 
         mesh = meshio.Mesh(
             points=mesh_points,
@@ -648,8 +653,7 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
 
                     tr_s_h = VecValDer(s_h.val.trace(), s_h.der.trace())
                     A_sh = (1.0 / 2.0 * m_mu) * (
-                        s_h
-                        - (m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat
+                        s_h - (m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat
                     )
 
                     grad_s_phi = s_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
@@ -746,8 +750,7 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
 
                     tr_s_h = VecValDer(s_h.val.trace(), s_h.der.trace())
                     A_sh = (1.0 / 2.0 * m_mu) * (
-                        s_h
-                        - (m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat
+                        s_h - (m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat
                     )
 
                     grad_s_phi = s_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
@@ -971,9 +974,9 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
         uh_data = np.zeros((len(gmesh.points), u_components))
         ue_data = np.zeros((len(gmesh.points), u_components))
         sh_data = np.zeros((len(gmesh.points), dim * dim))
-        se_data = np.zeros((len(gmesh.points), dim*dim))
-        th_data = np.zeros((len(gmesh.points), dim*dim))
-        te_data = np.zeros((len(gmesh.points), dim*dim))
+        se_data = np.zeros((len(gmesh.points), dim * dim))
+        th_data = np.zeros((len(gmesh.points), dim * dim))
+        te_data = np.zeros((len(gmesh.points), dim * dim))
 
         # displacement
         vertices = u_space.mesh_topology.entities_by_dimension(0)
@@ -1122,7 +1125,11 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
             n_phi = phi_tab.shape[2]
             s_e = s_exact(x[:, 0], x[:, 1], x[:, 2])
             alpha_star = np.array(np.split(alpha_l, n_phi))
-            s_h = np.vstack(tuple([phi_tab[0, 0, :, 0:dim].T @ alpha_star[:, d] for d in range(dim)]))
+            s_h = np.vstack(
+                tuple(
+                    [phi_tab[0, 0, :, 0:dim].T @ alpha_star[:, d] for d in range(dim)]
+                )
+            )
             sh_data[target_node_id] = s_h.ravel()
             se_data[target_node_id] = s_e.ravel()
 
@@ -1130,7 +1137,14 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
         con_d = np.array([element.data.cell.node_tags for element in u_space.elements])
         meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
         cells_dict = {meshio_cell_types[u_space.dimension]: con_d}
-        p_data_dict = {"u_h": uh_data, "u_exact": ue_data, "t_h": th_data, "t_exact": te_data, "s_h": sh_data,"s_exact": se_data}
+        p_data_dict = {
+            "u_h": uh_data,
+            "u_exact": ue_data,
+            "t_h": th_data,
+            "t_exact": te_data,
+            "s_h": sh_data,
+            "s_exact": se_data,
+        }
 
         mesh = meshio.Mesh(
             points=mesh_points,
