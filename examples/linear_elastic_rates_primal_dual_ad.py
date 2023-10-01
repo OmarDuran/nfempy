@@ -355,8 +355,10 @@ def h1_elasticity(k_order, gmesh, write_vtk_q=False):
         cellid_to_element = dict(zip(u_space.element_ids, u_space.elements))
         # writing solution on mesh points
         vertices = u_space.mesh_topology.entities_by_dimension(0)
-        fh_data = np.zeros((len(gmesh.points), n_components))
-        fe_data = np.zeros((len(gmesh.points), n_components))
+        uh_data = np.zeros((len(gmesh.points), n_components))
+        ue_data = np.zeros((len(gmesh.points), n_components))
+        sh_data = np.zeros((len(gmesh.points), dim*dim))
+        se_data = np.zeros((len(gmesh.points), dim*dim))
         cell_vertex_map = u_space.mesh_topology.entity_map_by_dimension(0)
         for id in vertices:
             if not cell_vertex_map.has_node(id):
@@ -395,17 +397,26 @@ def h1_elasticity(k_order, gmesh, write_vtk_q=False):
             )
             phi_tab = element.evaluate_basis(points)
             n_phi = phi_tab.shape[2]
-            f_e = u_exact(x[:, 0], x[:, 1], x[:, 2])
+            u_e = u_exact(x[:, 0], x[:, 1], x[:, 2])
+            s_e = s_exact(x[:, 0], x[:, 1], x[:, 2])
             alpha_star = np.array(np.split(alpha_l, n_phi))
-            f_h = (phi_tab[0, :, :, 0] @ alpha_star).T
-            fh_data[target_node_id] = f_h.ravel()
-            fe_data[target_node_id] = f_e.ravel()
+            u_h = (phi_tab[0, :, :, 0] @ alpha_star).T
+
+            grad_phi = inv_jac[0].T @ phi_tab[1 : phi_tab.shape[0] + 1, 0, :, 0]
+            grad_uh = grad_phi[0:dim] @ alpha_star
+            eps_h = 0.5 * (grad_uh + grad_uh.T)
+            s_h = 2.0 * m_mu * eps_h + m_lambda * eps_h.trace() * np.identity(dim)
+
+            uh_data[target_node_id] = u_h.ravel()
+            ue_data[target_node_id] = u_e.ravel()
+            sh_data[target_node_id] = s_h.ravel()
+            se_data[target_node_id] = s_e.ravel()
 
         mesh_points = gmesh.points
         con_d = np.array([element.data.cell.node_tags for element in u_space.elements])
         meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
         cells_dict = {meshio_cell_types[u_space.dimension]: con_d}
-        p_data_dict = {"u_h": fh_data, "u_exact": fe_data}
+        p_data_dict = {"u_h": uh_data, "u_exact": ue_data, "s_h": sh_data,"s_exact": se_data}
 
         mesh = meshio.Mesh(
             points=mesh_points,
@@ -954,11 +965,19 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
     if write_vtk_q:
         # post-process solution
         st = time.time()
-        cellid_to_element = dict(zip(u_space.element_ids, u_space.elements))
+
         # writing solution on mesh points
         vertices = u_space.mesh_topology.entities_by_dimension(0)
-        fh_data = np.zeros((len(gmesh.points), u_components))
-        fe_data = np.zeros((len(gmesh.points), u_components))
+        uh_data = np.zeros((len(gmesh.points), u_components))
+        ue_data = np.zeros((len(gmesh.points), u_components))
+        sh_data = np.zeros((len(gmesh.points), dim * dim))
+        se_data = np.zeros((len(gmesh.points), dim*dim))
+        th_data = np.zeros((len(gmesh.points), dim*dim))
+        te_data = np.zeros((len(gmesh.points), dim*dim))
+
+        # displacement
+        vertices = u_space.mesh_topology.entities_by_dimension(0)
+        cellid_to_element = dict(zip(u_space.element_ids, u_space.elements))
         cell_vertex_map = u_space.mesh_topology.entity_map_by_dimension(0)
         for id in vertices:
             if not cell_vertex_map.has_node(id):
@@ -997,17 +1016,121 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
             )
             phi_tab = element.evaluate_basis(points)
             n_phi = phi_tab.shape[2]
-            f_e = u_exact(x[:, 0], x[:, 1], x[:, 2])
+            u_e = u_exact(x[:, 0], x[:, 1], x[:, 2])
             alpha_star = np.array(np.split(alpha_l, n_phi))
-            f_h = (phi_tab[0, :, :, 0] @ alpha_star).T
-            fh_data[target_node_id] = f_h.ravel()
-            fe_data[target_node_id] = f_e.ravel()
+            u_h = (phi_tab[0, :, :, 0] @ alpha_star).T
+            uh_data[target_node_id] = u_h.ravel()
+            ue_data[target_node_id] = u_e.ravel()
+
+        # rotation
+        vertices = t_space.mesh_topology.entities_by_dimension(0)
+        cellid_to_element = dict(zip(t_space.element_ids, t_space.elements))
+        cell_vertex_map = t_space.mesh_topology.entity_map_by_dimension(0)
+        for id in vertices:
+            if not cell_vertex_map.has_node(id):
+                continue
+
+            pr_ids = list(cell_vertex_map.predecessors(id))
+            cell = gmesh.cells[pr_ids[0]]
+            if cell.dimension != t_space.dimension:
+                continue
+
+            element = cellid_to_element[pr_ids[0]]
+
+            # scattering dof
+            dest = t_space.dof_map.destination_indices(cell.id) + s_n_dof_g + u_n_dof_g
+            alpha_l = alpha[dest]
+
+            par_points = basix.geometry(t_space.element_type)
+
+            target_node_id = gmesh.cells[id].node_tags[0]
+            par_point_id = np.array(
+                [
+                    i
+                    for i, node_id in enumerate(cell.node_tags)
+                    if node_id == target_node_id
+                ]
+            )
+
+            points = gmesh.points[target_node_id]
+            if t_space.dimension != 0:
+                points = par_points[par_point_id]
+
+            # evaluate mapping
+            phi_shapes = evaluate_linear_shapes(points, element.data)
+            (x, jac, det_jac, inv_jac) = evaluate_mapping(
+                cell.dimension, phi_shapes, gmesh.points[cell.node_tags]
+            )
+            phi_tab = element.evaluate_basis(points)
+            n_phi = phi_tab.shape[2]
+            t_e = t_exact(x[:, 0], x[:, 1], x[:, 2])
+            alpha_star = np.array(np.split(alpha_l, n_phi))
+            t_h_s = (phi_tab[0, :, :, 0] @ alpha_star).T
+            if dim == 2:
+                t_h = np.array([[0.0, -t_h_s[0, 0]], [t_h_s[0, 0], 0.0]])
+            else:
+                t_h = np.array(
+                    [
+                        [0.0, -t_h_s[2, 0], +t_h_s[1, 0]],
+                        [+t_h_s[2, 0], 0.0, -t_h_s[0, 0]],
+                        [-t_h_s[1, 0], +t_h_s[0, 0], 0.0],
+                    ]
+                )
+            th_data[target_node_id] = t_h.ravel()
+            te_data[target_node_id] = t_e.ravel()
+
+        # stress
+        vertices = s_space.mesh_topology.entities_by_dimension(0)
+        cellid_to_element = dict(zip(s_space.element_ids, s_space.elements))
+        cell_vertex_map = s_space.mesh_topology.entity_map_by_dimension(0)
+        for id in vertices:
+            if not cell_vertex_map.has_node(id):
+                continue
+
+            pr_ids = list(cell_vertex_map.predecessors(id))
+            cell = gmesh.cells[pr_ids[0]]
+            if cell.dimension != s_space.dimension:
+                continue
+
+            element = cellid_to_element[pr_ids[0]]
+
+            # scattering dof
+            dest = s_space.dof_map.destination_indices(cell.id)
+            alpha_l = alpha[dest]
+
+            par_points = basix.geometry(s_space.element_type)
+
+            target_node_id = gmesh.cells[id].node_tags[0]
+            par_point_id = np.array(
+                [
+                    i
+                    for i, node_id in enumerate(cell.node_tags)
+                    if node_id == target_node_id
+                ]
+            )
+
+            points = gmesh.points[target_node_id]
+            if s_space.dimension != 0:
+                points = par_points[par_point_id]
+
+            # evaluate mapping
+            phi_shapes = evaluate_linear_shapes(points, element.data)
+            (x, jac, det_jac, inv_jac) = evaluate_mapping(
+                cell.dimension, phi_shapes, gmesh.points[cell.node_tags]
+            )
+            phi_tab = element.evaluate_basis(points)
+            n_phi = phi_tab.shape[2]
+            s_e = s_exact(x[:, 0], x[:, 1], x[:, 2])
+            alpha_star = np.array(np.split(alpha_l, n_phi))
+            s_h = np.vstack(tuple([phi_tab[0, 0, :, 0:dim].T @ alpha_star[:, d] for d in range(dim)]))
+            sh_data[target_node_id] = s_h.ravel()
+            se_data[target_node_id] = s_e.ravel()
 
         mesh_points = gmesh.points
         con_d = np.array([element.data.cell.node_tags for element in u_space.elements])
         meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
         cells_dict = {meshio_cell_types[u_space.dimension]: con_d}
-        p_data_dict = {"u_h": fh_data, "u_exact": fe_data}
+        p_data_dict = {"u_h": uh_data, "u_exact": ue_data, "t_h": th_data, "t_exact": te_data, "s_h": sh_data,"s_exact": se_data}
 
         mesh = meshio.Mesh(
             points=mesh_points,
@@ -1069,7 +1192,7 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 def main():
 
-    k_order = 1
+    k_order = 2
     h = 1.0
     n_ref = 3
     dimension = 3
