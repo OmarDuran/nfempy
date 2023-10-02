@@ -931,12 +931,6 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
         # vectorization
         n_phi = phi_tab.shape[2]
 
-        c = 0
-        alpha_x = alpha_l[c : n_phi * s_components + c : s_components]
-        c = 1
-        alpha_y = alpha_l[c : n_phi * s_components + c : s_components]
-        c = 2
-        alpha_z = alpha_l[c : n_phi * s_components + c : s_components]
         alpha_star = np.array(np.split(alpha_l, n_phi))
         for i, omega in enumerate(weights):
             s_e = s_exact(x[i, 0], x[i, 1], x[i, 2])
