@@ -1234,12 +1234,24 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
     # solving ls
     st = time.time()
-    alpha = sp.linalg.spsolve(jg, -rg)
+    # alpha = sp.linalg.spsolve(jg, -rg)
     # alpha = sp_solver.spsolve(jg, -rg)
+    #
+    # np.savetxt("matrix.txt", jg.todense())
+    # np.savetxt("k_ss_inv.txt", Kss_inv.todense())
+
+    jg_iLU = sp.linalg.spilu(jg.tocsc(),drop_tol=1e-3)
+    P = sp.linalg.LinearOperator(jg.shape, jg_iLU.solve)
+    alpha, check = sp.linalg.gmres(jg, -rg, M=P,tol=1e-10)
+    print("successful exit:", check)
+
+    # pydiso
+    # alpha_p = sp_solver.spsolve(jg_r, -rg_r)
     et = time.time()
     elapsed_time = et - st
     print("Linear solver time:", elapsed_time, "seconds")
 
+    aka = 0
     # Computing displacement L2 error
     def compute_u_l2_error(i, spaces, dim):
 
