@@ -234,7 +234,6 @@ class ConformalMesher:
                                 1, [curve_stride + curve.tag + 1], curve.physical_tag
                             )
                     elif self.domain.dimension == 2:
-
                         if self.domain.dimension > 1:
                             tags_0d = [
                                 vertex.tag + 1

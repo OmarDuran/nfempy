@@ -162,7 +162,6 @@ def matrix_plot(A):
 
 
 def h1_gen_projector(gmesh):
-
     # FESpace: data
     # polynomial order
     n_components = 3
@@ -212,7 +211,6 @@ def h1_gen_projector(gmesh):
     st = time.time()
 
     def scatter_el_data(element, fun, u_space, cell_map, row, col, data):
-
         n_components = u_space.n_comp
         cell = element.cell
         points, weights = element.quadrature
@@ -370,7 +368,6 @@ def h1_gen_projector(gmesh):
 
 
 def matrix_plot(J, sparse_q=True):
-
     if sparse_q:
         plot.matshow(J.todense())
     else:
@@ -381,7 +378,6 @@ def matrix_plot(J, sparse_q=True):
 
 
 def hdiv_gen_projector(gmesh):
-
     # FESpace: data
     # polynomial order
     n_components = 1
@@ -439,7 +435,6 @@ def hdiv_gen_projector(gmesh):
     st = time.time()
 
     def scatter_el_data(element, fun, u_space, cell_map, row, col, data):
-
         n_components = u_space.n_comp
         cell = element.cell
         points, weights = element.quadrature
@@ -635,7 +630,6 @@ def hdiv_gen_projector(gmesh):
 
 
 def generate_mesh_1d():
-
     h_cell = 1.0 / (1.0)
 
     theta_x = 0.0 * (np.pi / 180)
@@ -690,7 +684,6 @@ def generate_mesh_1d():
 
 
 def generate_mesh_2d():
-
     h_cell = 1.0 / (5.0)
     l = 0
     # higher dimension domain geometry
@@ -799,7 +792,6 @@ def generate_mesh_2d():
 
 
 def generate_mesh_3d():
-
     h_cell = 1.0 / (1.0)
     l = 3
 
@@ -866,7 +858,6 @@ def generate_mesh_3d():
 
 
 def md_h1_laplace(gmesh):
-
     # FESpace: data
     n_components = 1
     dim = gmesh.dimension
@@ -935,7 +926,6 @@ def md_h1_laplace(gmesh):
     # f_rhs = lambda x, y, z: np.array([rhs_3d(x,y,z),rhs_3d(x,y,z),rhs_3d(x,y,z),rhs_3d(x,y,z),rhs_3d(x,y,z),rhs_3d(x,y,z)])
 
     def scatter_form_data(element, f_rhs, u_space, cell_map, row, col, data):
-
         n_components = u_space.n_comp
         el_data: ElementData = element.data
 
@@ -993,7 +983,6 @@ def md_h1_laplace(gmesh):
     ]
 
     def scatter_bc_form_data(element, u_space, cell_map, row, col, data):
-
         n_components = u_space.n_comp
         el_data: ElementData = element.data
 
@@ -1166,7 +1155,6 @@ def md_h1_laplace(gmesh):
 
 
 def md_h1_elasticity(gmesh):
-
     dim = gmesh.dimension
     # Material data
 
@@ -1342,7 +1330,6 @@ def md_h1_elasticity(gmesh):
     def scatter_form_data(
         element, m_lambda, m_mu, f_rhs, u_space, cell_map, row, col, data
     ):
-
         n_components = u_space.n_comp
         el_data: ElementData = element.data
 
@@ -1416,7 +1403,6 @@ def md_h1_elasticity(gmesh):
     ]
 
     def scatter_bc_form_data(element, u_space, cell_map, row, col, data):
-
         n_components = u_space.n_comp
         el_data: ElementData = element.data
 
@@ -1589,7 +1575,6 @@ def md_h1_elasticity(gmesh):
 
 
 def md_h1_cosserat_elasticity(gmesh):
-
     dim = gmesh.dimension
     # Material data
 
@@ -1915,7 +1900,6 @@ def md_h1_cosserat_elasticity(gmesh):
         col,
         data,
     ):
-
         n_components = u_space.n_comp
         el_data: ElementData = element.data
 
@@ -2063,7 +2047,6 @@ def md_h1_cosserat_elasticity(gmesh):
     ]
 
     def scatter_bc_form_data(element, u_space, cell_map, row, col, data):
-
         n_components = u_space.n_comp
         el_data: ElementData = element.data
 
@@ -2236,7 +2219,6 @@ def md_h1_cosserat_elasticity(gmesh):
 
 
 def Geometry():
-
     # box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
     # domain = build_box_2D(box_points)
     # domain.build_grahp()

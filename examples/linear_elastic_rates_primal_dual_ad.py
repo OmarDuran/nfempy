@@ -53,7 +53,6 @@ import strong_solution_elasticity as le
 
 
 def matrix_plot(J, sparse_q=True):
-
     if sparse_q:
         plot.matshow(J.todense())
     else:
@@ -64,7 +63,6 @@ def matrix_plot(J, sparse_q=True):
 
 
 def h1_elasticity(k_order, gmesh, write_vtk_q=False):
-
     dim = gmesh.dimension
     # Material data
 
@@ -130,7 +128,6 @@ def h1_elasticity(k_order, gmesh, write_vtk_q=False):
     def scatter_form_data(
         element, m_lambda, m_mu, f_rhs, u_space, cell_map, row, col, data
     ):
-
         n_components = u_space.n_comp
         el_data: ElementData = element.data
 
@@ -204,7 +201,6 @@ def h1_elasticity(k_order, gmesh, write_vtk_q=False):
     ]
 
     def scatter_bc_form_data(element, u_space, cell_map, row, col, data):
-
         n_components = u_space.n_comp
         el_data: ElementData = element.data
 
@@ -438,7 +434,6 @@ def h1_elasticity(k_order, gmesh, write_vtk_q=False):
 
 
 def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
-
     dim = gmesh.dimension
     # Material data
 
@@ -561,7 +556,6 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
     def scatter_form_data_ad(
         i, m_lambda, m_mu, f_rhs, spaces, cell_map, row, col, data
     ):
-
         dim = spaces[0].dimension
         s_components = spaces[0].n_comp
         u_components = spaces[1].n_comp
@@ -614,7 +608,6 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
         e3 = np.array([0, 0, 1])
         Imat = np.identity(dim)
         with ad.AutoDiff(alpha) as alpha:
-
             el_form = np.zeros(n_dof)
             for c in range(u_components):
                 b = c + n_s_dof
@@ -622,7 +615,6 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
                 el_form[b:e:u_components] += -1.0 * phi_s_star @ f_val_star[c]
 
             for i, omega in enumerate(weights):
-
                 if dim == 2:
                     c = 0
                     a_sx = alpha[:, c : n_s_dof + c : s_components]
@@ -678,7 +670,6 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
                     S_cross = np.array([[Skew_sh[1, 0] - Skew_sh[0, 1]]])
 
                 else:
-
                     c = 0
                     a_sx = alpha[:, c : n_s_dof + c : s_components]
                     a_ux = alpha[:, n_s_dof + c : n_s_dof + n_u_dof + c : u_components]
@@ -1155,7 +1146,6 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
 
 
 def create_domain(dimension):
-
     if dimension == 1:
         box_points = np.array([[0, 0, 0], [1, 0, 0]])
         domain = build_box_1D(box_points)
@@ -1199,7 +1189,6 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 
 def main():
-
     k_order = 2
     h = 1.0
     n_ref = 3

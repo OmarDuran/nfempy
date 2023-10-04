@@ -55,7 +55,6 @@ class ShapeManipulation:
 
     @staticmethod
     def embed_vertex_in_edge(vertices: np.ndarray, edge: Edge, tag_shift=0):
-
         # unify vertices
         points = np.array([vertex.point for vertex in vertices])
         unique_points, indices = np.unique(points, return_index=True, axis=0)

@@ -54,7 +54,6 @@ from numba import njit, types
 
 
 def matrix_plot(J, sparse_q=True):
-
     if sparse_q:
         plot.matshow(J.todense())
     else:
@@ -65,7 +64,6 @@ def matrix_plot(J, sparse_q=True):
 
 
 def h1_laplace(k_order, gmesh, write_vtk_q=False):
-
     dim = gmesh.dimension
     # Material data
 
@@ -141,7 +139,6 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
     def scatter_form_data(
         element, m_lambda, m_mu, f_rhs, u_space, cell_map, row, col, data
     ):
-
         n_components = u_space.n_comp
         el_data: ElementData = element.data
 
@@ -210,7 +207,6 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
     def scatter_form_data_ad(
         element, m_kappa, f_rhs, u_space, cell_map, row, col, data
     ):
-
         n_components = u_space.n_comp
         el_data: ElementData = element.data
 
@@ -243,7 +239,6 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
         e2 = np.array([0, 1, 0])
         e3 = np.array([0, 0, 1])
         with ad.AutoDiff(alpha) as alpha:
-
             el_form = np.zeros(n_dof)
             for c in range(n_components):
                 b = c
@@ -283,7 +278,6 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
     ]
 
     def scatter_bc_form_data(element, u_space, cell_map, row, col, data):
-
         n_components = u_space.n_comp
         el_data: ElementData = element.data
 
@@ -464,7 +458,6 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
 
 
 def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
-
     dim = gmesh.dimension
     # Material data
 
@@ -574,7 +567,6 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
         )
 
     def scatter_form_data_ad(i, m_kappa, f_rhs, spaces, cell_map, row, col, data):
-
         dim = spaces[0].dimension
         q_components = spaces[0].n_comp
         u_components = spaces[1].n_comp
@@ -651,7 +643,6 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
         e2 = np.array([0, 1, 0])
         e3 = np.array([0, 0, 1])
         with ad.AutoDiff(alpha) as alpha:
-
             el_form = np.zeros(n_dof)
             for c in range(u_components):
                 el_form[n_q_dof:n_dof:1] += -1.0 * phi_s_star @ f_val_star[c]
@@ -884,7 +875,6 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
 
 
 def create_domain(dimension):
-
     if dimension == 1:
         box_points = np.array([[0, 0, 0], [1, 0, 0]])
         domain = build_box_1D(box_points)
@@ -928,7 +918,6 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 
 def main():
-
     k_order = 2
     h = 1.0
     n_ref = 4

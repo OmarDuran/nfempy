@@ -275,7 +275,6 @@ def build_disjoint_planes(
 
 
 def build_box_3D_with_planes(box_points, planes_file, physical_tags=None):
-
     if physical_tags is None:
         physical_tags = {
             "solid": 1,

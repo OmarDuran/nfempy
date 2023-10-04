@@ -50,7 +50,6 @@ from topology.mesh_topology import MeshTopology
 
 
 def matrix_plot(J, sparse_q=True):
-
     if sparse_q:
         plot.matshow(J.todense())
     else:
@@ -61,7 +60,6 @@ def matrix_plot(J, sparse_q=True):
 
 
 def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
-
     #
     fixed_point_q = True
     skin_stiffness_q = True
@@ -196,7 +194,6 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
     def scatter_form_data(
         element, m_lambda, m_mu, f_rhs, u_space, cell_map, row, col, data
     ):
-
         n_components = u_space.n_comp
         el_data: ElementData = element.data
 
@@ -272,7 +269,6 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
     def scatter_K_skin_form_data(
         element, m_lambda, m_mu, f_rhs, u_space, cell_map, row, col, data
     ):
-
         n_components = u_space.n_comp
         el_data: ElementData = element.data
 
@@ -341,7 +337,6 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
         data[block_sequ] += j_el.ravel()
 
     if skin_stiffness_q:
-
         [
             scatter_K_skin_form_data(
                 element, m_s_lambda, m_s_mu, f_rhs, up_space, cell_map, row, col, data
@@ -359,7 +354,6 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
     def scatter_skin_form_data(
         element, up_space, l_space, cell_map, row, col, data, sign
     ):
-
         n_components = u_space.n_comp
         el_data: ElementData = element.data
 
@@ -449,7 +443,6 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
     ]
 
     def scatter_lambda_form_data(A_n, A_t, element, l_space, cell_map, row, col, data):
-
         n_components = l_space.n_comp
         el_data: ElementData = element.data
 
@@ -499,7 +492,6 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
     ]
 
     def scatter_bc_form_data(element, u_space, cell_map, row, col, data):
-
         n_components = u_space.n_comp
         el_data: ElementData = element.data
 
@@ -914,7 +906,6 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
 
 
 def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
-
     #
     fixed_point_q = False
     skin_stiffness_q = True
@@ -1066,7 +1057,6 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         col,
         data,
     ):
-
         n_components = u_space.n_comp
         el_data: ElementData = element.data
 
@@ -1226,7 +1216,6 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         col,
         data,
     ):
-
         n_components = u_space.n_comp
         el_data: ElementData = element.data
 
@@ -1359,7 +1348,6 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         data[block_sequ] += j_el.ravel()
 
     if skin_stiffness_q:
-
         [
             scatter_K_skin_form_data(
                 element,
@@ -1397,7 +1385,6 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     def scatter_skin_form_data(
         element, up_space, l_space, cell_map, row, col, data, sign
     ):
-
         n_components = u_space.n_comp
         el_data: ElementData = element.data
 
@@ -1489,7 +1476,6 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     def scatter_lambda_form_data(
         A_n, A_t, A_r, element, l_space, cell_map, row, col, data
     ):
-
         n_components = l_space.n_comp
         el_data: ElementData = element.data
 
@@ -1541,7 +1527,6 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     ]
 
     def scatter_bc_form_data(element, u_space, cell_map, row, col, data):
-
         n_components = u_space.n_comp
         el_data: ElementData = element.data
 
@@ -1956,7 +1941,6 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
 
 def create_md_domain(dimension):
-
     if dimension == 1:
         box_points = np.array([[0, 0, 0], [1, 0, 0]])
         domain = build_box_1D(box_points)
@@ -2007,7 +1991,6 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 
 def main():
-
     dimension = 2
     k_order = 2
     h = 1.0
