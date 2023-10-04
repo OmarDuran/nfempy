@@ -10,6 +10,10 @@ from basis.finite_element import FiniteElement
 from spaces.dof_map import DoFMap
 from topology.mesh_topology import MeshTopology
 
+# import psutil
+# import ray
+# num_cpus = psutil.cpu_count(logical=False)
+# ray.init(num_cpus=num_cpus)
 
 class DiscreteSpace:
     # The discrete space representation

@@ -53,6 +53,13 @@ from topology.mesh_topology import MeshTopology
 from numba import njit, types
 import strong_solution_cosserat_elasticity as lce
 
+import psutil
+num_cpus = psutil.cpu_count(logical=False)
+
+import ray
+ray.init(num_cpus=num_cpus)
+
+# from joblib import Parallel, delayed
 
 def matrix_plot(J, sparse_q=True):
 
@@ -689,6 +696,7 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
 def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
+    parallel_assembly_q = True
     dim = gmesh.dimension
     # Material data
 
@@ -820,19 +828,16 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     f_rhs = lce.rhs(m_lambda, m_mu, m_kappa, m_gamma, dim)
 
     def scatter_form_data_ad(
-        i, m_lambda, m_mu, m_kappa, m_gamma, f_rhs, spaces, cell_map, row, col, data
+        i, args
     ):
 
-        dim = spaces[0].dimension
-        s_components = spaces[0].n_comp
-        m_components = spaces[1].n_comp
-        u_components = spaces[2].n_comp
-        t_components = spaces[3].n_comp
+        dim, components, element_data, destinations, m_lambda, m_mu, m_kappa, m_gamma, f_rhs, cell_map, row, col, data = args
 
-        s_data: ElementData = spaces[0].elements[i].data
-        m_data: ElementData = spaces[1].elements[i].data
-        u_data: ElementData = spaces[2].elements[i].data
-        t_data: ElementData = spaces[3].elements[i].data
+        s_components, m_components, u_components, t_components = components
+        s_data: ElementData = element_data[i][0]
+        m_data: ElementData = element_data[i][1]
+        u_data: ElementData = element_data[i][2]
+        t_data: ElementData = element_data[i][3]
 
         cell = s_data.cell
 
@@ -849,15 +854,11 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         t_phi_tab = t_data.basis.phi
 
         # destination indexes
-        dest_s = s_space.dof_map.destination_indices(cell.id)
-        dest_m = m_space.dof_map.destination_indices(cell.id) + s_n_dof_g
-        dest_u = u_space.dof_map.destination_indices(cell.id) + s_n_dof_g + m_n_dof_g
-        dest_t = (
-            t_space.dof_map.destination_indices(cell.id)
-            + s_n_dof_g
-            + m_n_dof_g
-            + u_n_dof_g
-        )
+        dest_s = destinations[0][i]
+        dest_m = destinations[1][i]
+        dest_u = destinations[2][i]
+        dest_t = destinations[3][i]
+
         dest = np.concatenate([dest_s, dest_m, dest_u, dest_t])
         n_s_phi = s_phi_tab.shape[2]
         n_m_phi = m_phi_tab.shape[2]
@@ -1208,9 +1209,67 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
         r_el, j_el = el_form.val, el_form.der.reshape((n_dof, n_dof))
 
-        # scattering data
-        c_sequ = cell_map[cell.id]
+        return (r_el, j_el)
+        # # scattering data
+        # c_sequ = cell_map[cell.id]
+        #
+        # # contribute rhs
+        # rg[dest] += r_el
+        #
+        # # contribute lhs
+        # block_sequ = np.array(range(0, len(dest) * len(dest))) + c_sequ
+        # row[block_sequ] += np.repeat(dest, len(dest))
+        # col[block_sequ] += np.tile(dest, len(dest))
+        # data[block_sequ] += j_el.ravel()
 
+    # collect destination indexes
+    dest_s = [s_space.dof_map.destination_indices(spaces[0].elements[i].data.cell.id) for
+              i in range(s_n_els)]
+    dest_m = [m_space.dof_map.destination_indices(spaces[1].elements[i].data.cell.id) + s_n_dof_g for
+              i in range(m_n_els)]
+    dest_u = [u_space.dof_map.destination_indices(spaces[2].elements[i].data.cell.id) + s_n_dof_g +  m_n_dof_g for
+              i in range(u_n_els)]
+    dest_t = [t_space.dof_map.destination_indices(spaces[3].elements[i].data.cell.id) + s_n_dof_g + m_n_dof_g + u_n_dof_g for
+              i in range(t_n_els)]
+
+    destinations = (dest_s, dest_m, dest_u, dest_t)
+    # collect data
+    element_data = [(spaces[0].elements[i].data ,spaces[1].elements[i].data, spaces[2].elements[i].data ,spaces[3].elements[i].data) for i in range(s_n_els) ]
+    args = (dim, components, element_data, destinations, m_lambda, m_mu, m_kappa, m_gamma, f_rhs, cell_map, row, col, data)
+
+    indexes = np.array([i for i in range(s_n_els)])
+    collection = np.array_split(indexes,num_cpus)
+
+    if parallel_assembly_q:
+        @ray.remote
+        def scatter_form_data_on_cells(indexes, args):
+            return [scatter_form_data_ad(i, args) for i in indexes]
+
+        streaming_actors = [scatter_form_data_on_cells.remote(index_set, args) for index_set in collection]
+        results = ray.get(streaming_actors)
+    else:
+        def scatter_form_data_on_cells(indexes, args):
+            return [scatter_form_data_ad(i, args) for i in indexes]
+
+        results = [scatter_form_data_on_cells(index_set, args) for
+                            index_set in collection]
+
+    array_data = [pair for chunk in results for pair in chunk]
+    args = (array_data, element_data, destinations, cell_map, row, col, data)
+
+    def scatter_residual_jacobian(i, args):
+        array_data, element_data, destinations, cell_map, row, col, data = args
+        s_data: ElementData = element_data[i][0]
+        c_sequ = cell_map[s_data.cell.id]
+
+        # destination indexes
+        dest_s = destinations[0][i]
+        dest_m = destinations[1][i]
+        dest_u = destinations[2][i]
+        dest_t = destinations[3][i]
+
+        dest = np.concatenate([dest_s, dest_m, dest_u, dest_t])
+        r_el, j_el = array_data[i]
         # contribute rhs
         rg[dest] += r_el
 
@@ -1220,12 +1279,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         col[block_sequ] += np.tile(dest, len(dest))
         data[block_sequ] += j_el.ravel()
 
-    [
-        scatter_form_data_ad(
-            i, m_lambda, m_mu, m_kappa, m_gamma, f_rhs, spaces, cell_map, row, col, data
-        )
-        for i in range(s_n_els)
-    ]
+    [scatter_residual_jacobian(i, args) for i in indexes]
 
     jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
     et = time.time()
@@ -1720,7 +1774,7 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 def main():
 
     k_order = 2
-    h = 1.0
+    h = 1
     n_ref = 3
     dimension = 3
     ref_l = 0
