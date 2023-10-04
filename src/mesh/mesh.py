@@ -691,7 +691,6 @@ class Mesh:
             self.embed_shape_normals[embed_shape.physical_tag] = (n, xc)
 
     def cut_conformity_on_embed_shapes(self):
-
         # As alternative skins can be identified with
         # for the positive side sp_<physical_tag>
         # for the negative side sm_<physical_tag>
@@ -1451,7 +1450,6 @@ class Mesh:
     def next_d_m_1_cell(
         self, fracture_tags, seed_id, cell_id, cell_m_1_id, graph, closed_q
     ):
-
         pc = list(graph.predecessors(cell_m_1_id))
         neighs = [id for id in pc if self.cells[id].material_id not in fracture_tags]
         assert len(neighs) == 2
@@ -1478,7 +1476,6 @@ class Mesh:
             )
 
     def circulate_internal_bc_from_domain(self):
-
         assert self.dimension == 2
         domain: Domain = self.conformal_mesher.domain
         shapes = domain.shapes[self.dimension]

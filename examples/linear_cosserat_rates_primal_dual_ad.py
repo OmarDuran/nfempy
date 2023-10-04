@@ -55,7 +55,6 @@ import strong_solution_cosserat_elasticity as lce
 
 
 def matrix_plot(J, sparse_q=True):
-
     if sparse_q:
         plot.matshow(J.todense())
     else:
@@ -66,7 +65,6 @@ def matrix_plot(J, sparse_q=True):
 
 
 def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
-
     dim = gmesh.dimension
     # Material data
 
@@ -144,7 +142,6 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         col,
         data,
     ):
-
         n_components = u_space.n_comp
         el_data: ElementData = element.data
 
@@ -292,7 +289,6 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     ]
 
     def scatter_bc_form_data(element, u_space, cell_map, row, col, data):
-
         n_components = u_space.n_comp
         el_data: ElementData = element.data
 
@@ -688,7 +684,6 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
 
 def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
-
     dim = gmesh.dimension
     # Material data
 
@@ -822,7 +817,6 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     def scatter_form_data_ad(
         i, m_lambda, m_mu, m_kappa, m_gamma, f_rhs, spaces, cell_map, row, col, data
     ):
-
         dim = spaces[0].dimension
         s_components = spaces[0].n_comp
         m_components = spaces[1].n_comp
@@ -886,7 +880,6 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         e3 = np.array([0, 0, 1])
         Imat = np.identity(dim)
         with ad.AutoDiff(alpha) as alpha:
-
             el_form = np.zeros(n_dof)
             for c in range(u_components):
                 b = c + n_s_dof + n_m_dof
@@ -997,7 +990,6 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
                     S_cross = np.array([[Skew_sh[1, 0] - Skew_sh[0, 1]]])
 
                 else:
-
                     c = 0
                     a_sx = alpha[:, c : n_s_dof + c : s_components]
                     a_ux = alpha[
@@ -1240,9 +1232,9 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     # np.savetxt("matrix.txt", jg.todense())
     # np.savetxt("k_ss_inv.txt", Kss_inv.todense())
 
-    jg_iLU = sp.linalg.spilu(jg.tocsc(),drop_tol=1e-3)
+    jg_iLU = sp.linalg.spilu(jg.tocsc(), drop_tol=1e-3)
     P = sp.linalg.LinearOperator(jg.shape, jg_iLU.solve)
-    alpha, check = sp.linalg.gmres(jg, -rg, M=P,tol=1e-10)
+    alpha, check = sp.linalg.gmres(jg, -rg, M=P, tol=1e-10)
     print("successful exit:", check)
 
     # pydiso
@@ -1252,9 +1244,9 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     print("Linear solver time:", elapsed_time, "seconds")
 
     aka = 0
+
     # Computing displacement L2 error
     def compute_u_l2_error(i, spaces, dim):
-
         l2_error = 0.0
 
         u_data: ElementData = spaces[2].elements[i].data
@@ -1674,7 +1666,6 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
 
 def create_domain(dimension):
-
     if dimension == 1:
         box_points = np.array([[0, 0, 0], [1, 0, 0]])
         domain = build_box_1D(box_points)
@@ -1719,12 +1710,13 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 def main():
 
-    k_order = 2
+    k_order = 3
     h = 1.0
-    n_ref = 3
-    dimension = 3
-    ref_l = 0
+    n_ref = 5
+    dimension = 2
     mixed_form_q = True
+    write_geometry_vtk = True
+    write_vtk = True
 
     domain = create_domain(dimension)
     n_data = 5
@@ -1733,11 +1725,11 @@ def main():
     for l in range(n_ref):
         h_val = h * (2**-l)
         mesher = create_conformal_mesher(domain, h, l)
-        gmesh = create_mesh(dimension, mesher, False)
+        gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
         if mixed_form_q:
-            error_vals = hdiv_cosserat_elasticity(k_order, gmesh, True)
+            error_vals = hdiv_cosserat_elasticity(k_order, gmesh, write_vtk)
         else:
-            error_vals = h1_cosserat_elasticity(k_order, gmesh, True)
+            error_vals = h1_cosserat_elasticity(k_order, gmesh, write_vtk)
         chunk = np.concatenate([[h_val], error_vals])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
 
@@ -1749,12 +1741,67 @@ def main():
         partial = (chunk_e - chunk_b) / h_step
         rates_data = np.append(rates_data, np.array([list(partial[1:n_data])]), axis=0)
 
+    # minimal report
     print("error data: ", error_data)
     print("error rates data: ", rates_data)
-
-    np.set_printoptions(precision=4)
+    np.set_printoptions(precision=3)
     print("rounded error data: ", error_data)
     print("rounded error rates data: ", rates_data)
+    if mixed_form_q:
+        np.savetxt(
+            "dual_problem_l2_error_data.txt",
+            error_data,
+            delimiter=",",
+            header="element size, displacement, rotation, stress, couple stress",
+        )
+        np.savetxt(
+            "dual_problem_l2_expected_order_convergence.txt",
+            rates_data,
+            delimiter=",",
+            header="displacement, rotation, stress, couple stress",
+        )
+        np.savetxt(
+            "dual_problem_l2_error_data_rounded.txt",
+            error_data,
+            fmt="%1.3e",
+            delimiter=",",
+            header="element size, displacement, rotation, stress, couple stress",
+        )
+        np.savetxt(
+            "dual_problem_l2_expected_order_convergence_rounded.txt",
+            rates_data,
+            fmt="%1.3f",
+            delimiter=",",
+            header="displacement, rotation, stress, couple stress",
+        )
+
+    else:
+        np.savetxt(
+            "primal_problem_l2_error_data.txt",
+            error_data,
+            delimiter=",",
+            header="element size, displacement, rotation, stress, couple stress",
+        )
+        np.savetxt(
+            "primal_problem_l2_expected_order_convergence.txt",
+            rates_data,
+            delimiter=",",
+            header="displacement, rotation, stress, couple stress",
+        )
+        np.savetxt(
+            "primal_problem_l2_error_data_rounded.txt",
+            error_data,
+            fmt="%1.3e",
+            delimiter=",",
+            header="element size, displacement, rotation, stress, couple stress",
+        )
+        np.savetxt(
+            "primal_problem_l2_expected_order_convergence_rounded.txt",
+            rates_data,
+            fmt="%1.3f",
+            delimiter=",",
+            header="displacement, rotation, stress, couple stress",
+        )
 
     return
 
