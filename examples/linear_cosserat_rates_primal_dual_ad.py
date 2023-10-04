@@ -50,13 +50,16 @@ from mesh.mesh import Mesh
 from spaces.discrete_space import DiscreteSpace
 from spaces.dof_map import DoFMap
 from topology.mesh_topology import MeshTopology
+
 # from numba import njit, types
 import strong_solution_cosserat_elasticity as lce
 
 import psutil
+
 num_cpus = psutil.cpu_count(logical=False)
 
 import ray
+
 ray.init(num_cpus=num_cpus)
 
 from pydiso.mkl_solver import (
@@ -67,6 +70,7 @@ from pydiso.mkl_solver import (
     set_mkl_threads,
     set_mkl_pardiso_threads,
 )
+
 
 def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
@@ -688,7 +692,6 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
 
 def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
-
     parallel_assembly_q = False
 
     dim = gmesh.dimension
@@ -821,11 +824,22 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     m_exact = lce.couple_stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
     f_rhs = lce.rhs(m_lambda, m_mu, m_kappa, m_gamma, dim)
 
-    def scatter_form_data_ad(
-        i, args
-    ):
-
-        dim, components, element_data, destinations, m_lambda, m_mu, m_kappa, m_gamma, f_rhs, cell_map, row, col, data = args
+    def scatter_form_data_ad(i, args):
+        (
+            dim,
+            components,
+            element_data,
+            destinations,
+            m_lambda,
+            m_mu,
+            m_kappa,
+            m_gamma,
+            f_rhs,
+            cell_map,
+            row,
+            col,
+            data,
+        ) = args
 
         s_components, m_components, u_components, t_components = components
         s_data: ElementData = element_data[i][0]
@@ -1215,36 +1229,78 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         # data[block_sequ] += j_el.ravel()
 
     # collect destination indexes
-    dest_s = [s_space.dof_map.destination_indices(spaces[0].elements[i].data.cell.id) for
-              i in range(s_n_els)]
-    dest_m = [m_space.dof_map.destination_indices(spaces[1].elements[i].data.cell.id) + s_n_dof_g for
-              i in range(m_n_els)]
-    dest_u = [u_space.dof_map.destination_indices(spaces[2].elements[i].data.cell.id) + s_n_dof_g +  m_n_dof_g for
-              i in range(u_n_els)]
-    dest_t = [t_space.dof_map.destination_indices(spaces[3].elements[i].data.cell.id) + s_n_dof_g + m_n_dof_g + u_n_dof_g for
-              i in range(t_n_els)]
+    dest_s = [
+        s_space.dof_map.destination_indices(spaces[0].elements[i].data.cell.id)
+        for i in range(s_n_els)
+    ]
+    dest_m = [
+        m_space.dof_map.destination_indices(spaces[1].elements[i].data.cell.id)
+        + s_n_dof_g
+        for i in range(m_n_els)
+    ]
+    dest_u = [
+        u_space.dof_map.destination_indices(spaces[2].elements[i].data.cell.id)
+        + s_n_dof_g
+        + m_n_dof_g
+        for i in range(u_n_els)
+    ]
+    dest_t = [
+        t_space.dof_map.destination_indices(spaces[3].elements[i].data.cell.id)
+        + s_n_dof_g
+        + m_n_dof_g
+        + u_n_dof_g
+        for i in range(t_n_els)
+    ]
 
     destinations = (dest_s, dest_m, dest_u, dest_t)
     # collect data
-    element_data = [(spaces[0].elements[i].data ,spaces[1].elements[i].data, spaces[2].elements[i].data ,spaces[3].elements[i].data) for i in range(s_n_els) ]
-    args = (dim, components, element_data, destinations, m_lambda, m_mu, m_kappa, m_gamma, f_rhs, cell_map, row, col, data)
+    element_data = [
+        (
+            spaces[0].elements[i].data,
+            spaces[1].elements[i].data,
+            spaces[2].elements[i].data,
+            spaces[3].elements[i].data,
+        )
+        for i in range(s_n_els)
+    ]
+    args = (
+        dim,
+        components,
+        element_data,
+        destinations,
+        m_lambda,
+        m_mu,
+        m_kappa,
+        m_gamma,
+        f_rhs,
+        cell_map,
+        row,
+        col,
+        data,
+    )
 
     indexes = np.array([i for i in range(s_n_els)])
-    collection = np.array_split(indexes,num_cpus)
+    collection = np.array_split(indexes, num_cpus)
 
     if parallel_assembly_q:
+
         @ray.remote
         def scatter_form_data_on_cells(indexes, args):
             return [scatter_form_data_ad(i, args) for i in indexes]
 
-        streaming_actors = [scatter_form_data_on_cells.remote(index_set, args) for index_set in collection]
+        streaming_actors = [
+            scatter_form_data_on_cells.remote(index_set, args)
+            for index_set in collection
+        ]
         results = ray.get(streaming_actors)
     else:
+
         def scatter_form_data_on_cells(indexes, args):
             return [scatter_form_data_ad(i, args) for i in indexes]
 
-        results = [scatter_form_data_on_cells(index_set, args) for
-                            index_set in collection]
+        results = [
+            scatter_form_data_on_cells(index_set, args) for index_set in collection
+        ]
 
     array_data = [pair for chunk in results for pair in chunk]
     args = (array_data, element_data, destinations, cell_map, row, col, data)
@@ -1293,7 +1349,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     # print("successful exit:", check)
 
     # pydiso
-    solver = Solver(jg, matrix_type='real_symmetric_indefinite', factor=True)
+    solver = Solver(jg, matrix_type="real_symmetric_indefinite", factor=True)
     alpha = solver.solve(-rg)
     et = time.time()
     elapsed_time = et - st
