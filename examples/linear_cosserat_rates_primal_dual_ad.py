@@ -54,16 +54,6 @@ from numba import njit, types
 import strong_solution_cosserat_elasticity as lce
 
 
-def matrix_plot(J, sparse_q=True):
-    if sparse_q:
-        plot.matshow(J.todense())
-    else:
-        plot.matshow(J)
-    plot.colorbar(orientation="vertical")
-    plot.set_cmap("seismic")
-    plot.show()
-
-
 def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
     # Material data
@@ -1708,19 +1698,25 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
     return gmesh
 
 
-def main():
+def perform_convergence_test(configuration: dict):
+    # retrieve parameters from dictionary
+    k_order = configuration.get("k_order")
+    n_ref = configuration.get("n_refinements")
+    dimension = configuration.get("dimension")
+    mixed_form_q = configuration.get("dual_problem_Q", False)
+    write_geometry_vtk = configuration.get("write_geometry_Q", False)
+    write_vtk = configuration.get("write_vtk_Q", False)
+    report_full_precision_data = configuration.get(
+        "report_full_precision_data_Q", False
+    )
 
-    k_order = 3
+    # The initial element size
     h = 1.0
-    n_ref = 5
-    dimension = 2
-    mixed_form_q = True
-    write_geometry_vtk = True
-    write_vtk = True
 
+    # Create a unit squared or a unit cube
     domain = create_domain(dimension)
-    n_data = 5
 
+    n_data = 5
     error_data = np.empty((0, n_data), float)
     for l in range(n_ref):
         h_val = h * (2**-l)
@@ -1742,33 +1738,59 @@ def main():
         rates_data = np.append(rates_data, np.array([list(partial[1:n_data])]), axis=0)
 
     # minimal report
-    print("error data: ", error_data)
-    print("error rates data: ", rates_data)
+    if report_full_precision_data:
+        print("error data: ", error_data)
+        print("error rates data: ", rates_data)
+
     np.set_printoptions(precision=3)
+    if mixed_form_q:
+        print("Dual problem")
+    else:
+        print("Primal problem")
+    print("Polynomial order: ", k_order)
+    print("Dimension: ", dimension)
     print("rounded error data: ", error_data)
     print("rounded error rates data: ", rates_data)
+    print(" ")
     if mixed_form_q:
+        if report_full_precision_data:
+            np.savetxt(
+                "dual_problem_k"
+                + str(k_order)
+                + "_"
+                + str(dimension)
+                + "d_l2_error_data.txt",
+                error_data,
+                delimiter=",",
+                header="element size, displacement, rotation, stress, couple stress",
+            )
+            np.savetxt(
+                "dual_problem_k"
+                + str(k_order)
+                + "_"
+                + str(dimension)
+                + "d_l2_expected_order_convergence.txt",
+                rates_data,
+                delimiter=",",
+                header="displacement, rotation, stress, couple stress",
+            )
         np.savetxt(
-            "dual_problem_l2_error_data.txt",
-            error_data,
-            delimiter=",",
-            header="element size, displacement, rotation, stress, couple stress",
-        )
-        np.savetxt(
-            "dual_problem_l2_expected_order_convergence.txt",
-            rates_data,
-            delimiter=",",
-            header="displacement, rotation, stress, couple stress",
-        )
-        np.savetxt(
-            "dual_problem_l2_error_data_rounded.txt",
+            "dual_problem_k"
+            + str(k_order)
+            + "_"
+            + str(dimension)
+            + "d_l2_error_data_rounded.txt",
             error_data,
             fmt="%1.3e",
             delimiter=",",
             header="element size, displacement, rotation, stress, couple stress",
         )
         np.savetxt(
-            "dual_problem_l2_expected_order_convergence_rounded.txt",
+            "dual_problem_k"
+            + str(k_order)
+            + "_"
+            + str(dimension)
+            + "d_l2_expected_order_convergence_rounded.txt",
             rates_data,
             fmt="%1.3f",
             delimiter=",",
@@ -1776,27 +1798,44 @@ def main():
         )
 
     else:
+        if report_full_precision_data:
+            np.savetxt(
+                "primal_problem_k"
+                + str(k_order)
+                + "_"
+                + str(dimension)
+                + "d_l2_error_data.txt",
+                error_data,
+                delimiter=",",
+                header="element size, displacement, rotation, stress, couple stress",
+            )
+            np.savetxt(
+                "primal_problem_k"
+                + str(k_order)
+                + "_"
+                + str(dimension)
+                + "d_l2_expected_order_convergence.txt",
+                rates_data,
+                delimiter=",",
+                header="displacement, rotation, stress, couple stress",
+            )
         np.savetxt(
-            "primal_problem_l2_error_data.txt",
-            error_data,
-            delimiter=",",
-            header="element size, displacement, rotation, stress, couple stress",
-        )
-        np.savetxt(
-            "primal_problem_l2_expected_order_convergence.txt",
-            rates_data,
-            delimiter=",",
-            header="displacement, rotation, stress, couple stress",
-        )
-        np.savetxt(
-            "primal_problem_l2_error_data_rounded.txt",
+            "primal_problem_k"
+            + str(k_order)
+            + "_"
+            + str(dimension)
+            + "d_l2_error_data_rounded.txt",
             error_data,
             fmt="%1.3e",
             delimiter=",",
             header="element size, displacement, rotation, stress, couple stress",
         )
         np.savetxt(
-            "primal_problem_l2_expected_order_convergence_rounded.txt",
+            "primal_problem_k"
+            + str(k_order)
+            + "_"
+            + str(dimension)
+            + "d_l2_expected_order_convergence_rounded.txt",
             rates_data,
             fmt="%1.3f",
             delimiter=",",
@@ -1804,6 +1843,40 @@ def main():
         )
 
     return
+
+
+def main():
+    write_vtk_files_Q = False
+    report_full_precision_data_Q = False
+
+    primal_configuration = {
+        "n_refinements": 4,
+        "write_geometry_Q": write_vtk_files_Q,
+        "write_vtk_Q": write_vtk_files_Q,
+        "report_full_precision_data_Q": report_full_precision_data_Q,
+    }
+
+    # primal problem
+    for k in [1, 2, 3]:
+        for d in [2]:
+            primal_configuration.__setitem__("k_order", k)
+            primal_configuration.__setitem__("dimension", d)
+            perform_convergence_test(primal_configuration)
+
+    dual_configuration = {
+        "n_refinements": 4,
+        "dual_problem_Q": True,
+        "write_geometry_Q": write_vtk_files_Q,
+        "write_vtk_Q": write_vtk_files_Q,
+        "report_full_precision_data_Q": report_full_precision_data_Q,
+    }
+
+    # dual problem
+    for k in [1, 2, 3]:
+        for d in [2]:
+            dual_configuration.__setitem__("k_order", k)
+            dual_configuration.__setitem__("dimension", d)
+            perform_convergence_test(dual_configuration)
 
 
 if __name__ == "__main__":
