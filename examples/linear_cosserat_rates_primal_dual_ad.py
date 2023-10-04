@@ -50,7 +50,7 @@ from mesh.mesh import Mesh
 from spaces.discrete_space import DiscreteSpace
 from spaces.dof_map import DoFMap
 from topology.mesh_topology import MeshTopology
-from numba import njit, types
+# from numba import njit, types
 import strong_solution_cosserat_elasticity as lce
 
 import psutil
@@ -59,7 +59,14 @@ num_cpus = psutil.cpu_count(logical=False)
 import ray
 ray.init(num_cpus=num_cpus)
 
-# from joblib import Parallel, delayed
+from pydiso.mkl_solver import (
+    MKLPardisoSolver as Solver,
+    get_mkl_max_threads,
+    get_mkl_pardiso_max_threads,
+    get_mkl_version,
+    set_mkl_threads,
+    set_mkl_pardiso_threads,
+)
 
 def matrix_plot(J, sparse_q=True):
 
@@ -696,7 +703,7 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
 def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
-    parallel_assembly_q = True
+    parallel_assembly_q = False
     dim = gmesh.dimension
     # Material data
 
@@ -1282,6 +1289,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     [scatter_residual_jacobian(i, args) for i in indexes]
 
     jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
+    array_data.clear()
     et = time.time()
     elapsed_time = et - st
     print("Assembly time:", elapsed_time, "seconds")
@@ -1294,13 +1302,14 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     # np.savetxt("matrix.txt", jg.todense())
     # np.savetxt("k_ss_inv.txt", Kss_inv.todense())
 
-    jg_iLU = sp.linalg.spilu(jg.tocsc(),drop_tol=1e-3)
-    P = sp.linalg.LinearOperator(jg.shape, jg_iLU.solve)
-    alpha, check = sp.linalg.gmres(jg, -rg, M=P,tol=1e-10)
-    print("successful exit:", check)
+    # jg_iLU = sp.linalg.spilu(jg.tocsc(),drop_tol=1e-2)
+    # P = sp.linalg.LinearOperator(jg.shape, jg_iLU.solve)
+    # alpha, check = sp.linalg.gmres(jg, -rg, M=P,tol=1e-10)
+    # print("successful exit:", check)
 
     # pydiso
-    # alpha_p = sp_solver.spsolve(jg_r, -rg_r)
+    solver = Solver(jg, matrix_type='real_symmetric_indefinite', factor=True)
+    alpha = solver.solve(-rg)
     et = time.time()
     elapsed_time = et - st
     print("Linear solver time:", elapsed_time, "seconds")
@@ -1773,7 +1782,7 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 def main():
 
-    k_order = 2
+    k_order = 3
     h = 1
     n_ref = 3
     dimension = 3
