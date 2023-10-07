@@ -76,10 +76,10 @@ def torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
     # Material data
 
-    m_lambda = 1.0
-    m_mu = 1.0
-    m_kappa = 1.0
-    m_gamma = 1.0
+    m_lambda = 0.5769
+    m_mu = 0.3846
+    m_kappa = m_mu
+    m_gamma = 1.0e+2
 
     # FESpace: data
     n_components = 3
@@ -93,7 +93,8 @@ def torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     if dim == 2:
         u_space.build_structures([2, 3, 4, 5])
     elif dim == 3:
-        u_space.build_structures([2, 3, 4, 5, 6, 7])
+        # u_space.build_structures([2, 3, 4, 5, 6, 7])
+        u_space.build_structures([6, 7]) # only top and bottom
 
     st = time.time()
     # Assembler
@@ -179,7 +180,7 @@ def torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         r_el = np.zeros(rs)
 
         # Partial local vectorization
-        f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
+        f_val_star = 0.0 * f_rhs(x[:, 0], x[:, 1], x[:, 2])
         phi_s_star = det_jac * weights * phi_tab[0, :, :, 0].T
 
         # rotation part
@@ -329,21 +330,37 @@ def torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         n_dof = n_phi * n_components
         js = (n_dof, n_dof)
         j_el = np.zeros(js)
-
-        # local blocks
-        beta = 1.0e12
-        jac_block = np.zeros((n_phi, n_phi))
-        for i, omega in enumerate(weights):
-            phi = phi_tab[0, i, :, 0]
-            jac_block += beta * det_jac[i] * omega * np.outer(phi, phi)
-
-        for c in range(n_components):
-            b = c
-            e = (c + 1) * n_phi * n_components + 1
-            j_el[b:e:n_components, b:e:n_components] += jac_block
+        r_el = np.zeros(n_dof)
 
         # scattering data
         c_sequ = cell_map[cell.id]
+
+        beta = 1.0e12
+        if cell.material_id == 7:
+            component_list = [5]
+            u_D = np.array([0.0, 0.0, 0.0, 0.0, 0.0, np.pi / 90.0])
+            jac_block = np.zeros((n_phi, n_phi))
+            for i, omega in enumerate(weights):
+                phi = phi_tab[0, i, :, 0]
+                for c in component_list:
+                    b = c
+                    e = n_phi * n_components + c
+                    r_el[b:e:n_components] += beta * det_jac[i] * omega * u_D[c] * phi
+                    j_el[b:e:n_components, b:e:n_components] += beta * det_jac[i] * omega * np.outer(phi, phi)
+            # contribute rhs
+            rg[dest] += r_el
+        else:
+
+            jac_block = np.zeros((n_phi, n_phi))
+            for i, omega in enumerate(weights):
+                phi = phi_tab[0, i, :, 0]
+                jac_block += beta * det_jac[i] * omega * np.outer(phi, phi)
+            for c in range(n_components):
+                b = c
+                e = n_phi * n_components + c
+                j_el[b:e:n_components, b:e:n_components] += jac_block
+
+
 
         # contribute lhs
         block_sequ = np.array(range(0, len(dest) * len(dest))) + c_sequ
