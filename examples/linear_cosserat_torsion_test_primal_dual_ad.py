@@ -58,9 +58,8 @@ import psutil
 
 num_cpus = psutil.cpu_count(logical=False)
 
-import ray
-
-ray.init(num_cpus=num_cpus)
+# import ray
+# ray.init(num_cpus=num_cpus)
 
 from pydiso.mkl_solver import (
     MKLPardisoSolver as Solver,
@@ -72,7 +71,8 @@ from pydiso.mkl_solver import (
 )
 
 
-def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
+def torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
+
     dim = gmesh.dimension
     # Material data
 
@@ -395,164 +395,6 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         l2_error = np.sum(det_jac * weights * (p_e_s - p_h_s) * (p_e_s - p_h_s))
         return l2_error
 
-    # Computing rotation L2 error
-    def compute_t_l2_error(element, u_space, dim):
-        l2_error = 0.0
-        n_components = u_space.n_comp
-        el_data = element.data
-        cell = el_data.cell
-        points = el_data.quadrature.points
-        weights = el_data.quadrature.weights
-        phi_tab = el_data.basis.phi
-
-        x = el_data.mapping.x
-        det_jac = el_data.mapping.det_jac
-        inv_jac = el_data.mapping.inv_jac
-
-        # scattering dof
-        dest = u_space.dof_map.destination_indices(cell.id)
-        alpha_l = alpha[dest]
-
-        # for each integration point
-        n_phi = phi_tab.shape[2]
-        alpha_star = np.array(np.split(alpha_l, n_phi))
-        t_e_s = u_exact(x[:, 0], x[:, 1], x[:, 2])[dim:n_components, :]
-        t_h_s = (phi_tab[0, :, :, 0] @ alpha_star[:, dim:n_components]).T
-        for i, omega in enumerate(weights):
-            if dim == 2:
-                t_e = np.array([[0.0, -t_e_s[0, i]], [t_e_s[0, i], 0.0]])
-                t_h = np.array([[0.0, -t_h_s[0, i]], [t_h_s[0, i], 0.0]])
-            else:
-                t_e = np.array(
-                    [
-                        [0.0, -t_e_s[2, i], +t_e_s[1, i]],
-                        [+t_e_s[2, i], 0.0, -t_e_s[0, i]],
-                        [-t_e_s[1, i], +t_e_s[0, i], 0.0],
-                    ]
-                )
-                t_h = np.array(
-                    [
-                        [0.0, -t_h_s[2, i], +t_h_s[1, i]],
-                        [+t_h_s[2, i], 0.0, -t_h_s[0, i]],
-                        [-t_h_s[1, i], +t_h_s[0, i], 0.0],
-                    ]
-                )
-            diff_s = t_e - t_h
-            l2_error += det_jac[i] * weights[i] * np.trace(diff_s.T @ diff_s)
-        return l2_error
-
-    # Computing stress L2 error
-    def compute_s_l2_error(element, u_space, m_mu, m_lambda, m_kappa, dim):
-        l2_error = 0.0
-        n_components = u_space.n_comp
-        el_data = element.data
-        cell = el_data.cell
-        points = el_data.quadrature.points
-        weights = el_data.quadrature.weights
-        phi_tab = el_data.basis.phi
-
-        x = el_data.mapping.x
-        det_jac = el_data.mapping.det_jac
-        inv_jac = el_data.mapping.inv_jac
-
-        # scattering dof
-        dest = u_space.dof_map.destination_indices(cell.id)
-        alpha_l = alpha[dest]
-
-        # for each integration point
-        n_phi = phi_tab.shape[2]
-        alpha_star = np.array(np.split(alpha_l, n_phi))
-        t_h_s = (phi_tab[0, :, :, 0] @ alpha_star[:, dim:n_components]).T
-        for i, omega in enumerate(weights):
-            s_e = s_exact(x[i, 0], x[i, 1], x[i, 2])
-            grad_phi = inv_jac[i].T @ phi_tab[1 : phi_tab.shape[0] + 1, i, :, 0]
-            grad_uh = grad_phi[0:dim] @ alpha_star[:, 0:dim]
-            if dim == 2:
-                t_h = np.array([[0.0, -t_h_s[0, i]], [t_h_s[0, i], 0.0]])
-            else:
-                t_h = np.array(
-                    [
-                        [0.0, -t_h_s[2, i], +t_h_s[1, i]],
-                        [+t_h_s[2, i], 0.0, -t_h_s[0, i]],
-                        [-t_h_s[1, i], +t_h_s[0, i], 0.0],
-                    ]
-                )
-            eps_h = grad_uh.T + t_h
-            symm_eps = 0.5 * (eps_h + eps_h.T)
-            skew_eps = 0.5 * (eps_h - eps_h.T)
-            s_h = (
-                2.0 * m_mu * symm_eps
-                + 2.0 * m_kappa * skew_eps
-                + m_lambda * symm_eps.trace() * np.identity(dim)
-            )
-            diff_s = s_e - s_h
-            l2_error += det_jac[i] * weights[i] * np.trace(diff_s.T @ diff_s)
-        return l2_error
-
-    # Computing couple stress L2 error
-    def compute_m_l2_error(element, u_space, m_gamma, dim):
-        l2_error = 0.0
-        n_components = u_space.n_comp
-        el_data = element.data
-        cell = el_data.cell
-        points = el_data.quadrature.points
-        weights = el_data.quadrature.weights
-        phi_tab = el_data.basis.phi
-
-        x = el_data.mapping.x
-        det_jac = el_data.mapping.det_jac
-        inv_jac = el_data.mapping.inv_jac
-
-        # scattering dof
-        dest = u_space.dof_map.destination_indices(cell.id)
-        alpha_l = alpha[dest]
-
-        # for each integration point
-        n_phi = phi_tab.shape[2]
-        alpha_star = np.array(np.split(alpha_l, n_phi))
-        for i, omega in enumerate(weights):
-            m_e = m_exact(x[i, 0], x[i, 1], x[i, 2])
-            grad_phi = inv_jac[i].T @ phi_tab[1 : phi_tab.shape[0] + 1, i, :, 0]
-            grad_th = grad_phi[0:dim] @ alpha_star[:, dim:n_components]
-            if dim == 2:
-                m_h = m_gamma * grad_th
-            else:
-                m_h = m_gamma * grad_th.T
-
-            diff_m = m_e - m_h
-            if dim == 2:
-                l2_error += det_jac[i] * weights[i] * (diff_m.T @ diff_m)[0, 0]
-            else:
-                l2_error += det_jac[i] * weights[i] * np.trace(diff_m.T @ diff_m)
-        return l2_error
-
-    st = time.time()
-    u_error_vec = [
-        compute_u_l2_error(element, u_space, dim) for element in u_space.elements
-    ]
-    t_error_vec = [
-        compute_t_l2_error(element, u_space, dim) for element in u_space.elements
-    ]
-    s_error_vec = [
-        compute_s_l2_error(element, u_space, m_mu, m_lambda, m_kappa, dim)
-        for element in u_space.elements
-    ]
-    m_error_vec = [
-        compute_m_l2_error(element, u_space, m_gamma, dim)
-        for element in u_space.elements
-    ]
-    et = time.time()
-    elapsed_time = et - st
-    print("L2-error time:", elapsed_time, "seconds")
-    u_l2_error = np.sqrt(functools.reduce(lambda x, y: x + y, u_error_vec))
-    t_l2_error = np.sqrt(functools.reduce(lambda x, y: x + y, t_error_vec))
-    s_l2_error = np.sqrt(functools.reduce(lambda x, y: x + y, s_error_vec))
-    m_l2_error = np.sqrt(functools.reduce(lambda x, y: x + y, m_error_vec))
-    print("L2-error displacement: ", u_l2_error)
-    print("L2-error rotation: ", u_l2_error)
-    print("L2-error stress: ", s_l2_error)
-    print("L2-error couple stress: ", m_l2_error)
-
     if write_vtk_q:
         # post-process solution
         st = time.time()
@@ -683,15 +525,15 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             # Optionally provide extra data on points, cells, etc.
             point_data=p_data_dict,
         )
-        mesh.write("rates_h1_cosserat_elasticity.vtk")
+        mesh.write("torsion_h1_cosserat_elasticity.vtk")
         et = time.time()
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
 
-    return np.array([u_l2_error, t_l2_error, s_l2_error, m_l2_error])
+    return
 
 
-def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
+def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     parallel_assembly_q = False
 
     dim = gmesh.dimension
@@ -1355,171 +1197,6 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     elapsed_time = et - st
     print("Linear solver time:", elapsed_time, "seconds")
 
-    aka = 0
-
-    # Computing displacement L2 error
-    def compute_u_l2_error(i, spaces, dim):
-        l2_error = 0.0
-
-        u_data: ElementData = spaces[2].elements[i].data
-        t_data: ElementData = spaces[3].elements[i].data
-
-        u_components = u_space.n_comp
-        t_components = t_space.n_comp
-
-        cell = u_data.cell
-        points = u_data.quadrature.points
-        weights = u_data.quadrature.weights
-        u_phi_tab = u_data.basis.phi
-        t_phi_tab = t_data.basis.phi
-
-        x = u_data.mapping.x
-        det_jac = u_data.mapping.det_jac
-        inv_jac = u_data.mapping.inv_jac
-
-        # scattering dof
-        dest_u = u_space.dof_map.destination_indices(cell.id) + s_n_dof_g + m_n_dof_g
-        u_alpha_l = alpha[dest_u]
-
-        # vectorization
-        u_n_phi = u_phi_tab.shape[2]
-        t_n_phi = t_phi_tab.shape[2]
-        u_e_s = u_exact(x[:, 0], x[:, 1], x[:, 2])[0:dim, :]
-        u_alpha_star = np.array(np.split(u_alpha_l, u_n_phi))
-        u_h_s = (u_phi_tab[0, :, :, 0] @ u_alpha_star).T
-        diff_p = u_e_s - u_h_s
-        l2_error = np.sum(det_jac * weights * diff_p * diff_p)
-        return l2_error
-
-    # Computing rotation L2 error
-    def compute_t_l2_error(i, spaces, dim):
-        l2_error = 0.0
-
-        u_data: ElementData = spaces[2].elements[i].data
-        t_data: ElementData = spaces[3].elements[i].data
-
-        u_components = u_space.n_comp
-        t_components = t_space.n_comp
-
-        cell = u_data.cell
-        points = u_data.quadrature.points
-        weights = u_data.quadrature.weights
-        u_phi_tab = u_data.basis.phi
-        t_phi_tab = t_data.basis.phi
-
-        x = u_data.mapping.x
-        det_jac = u_data.mapping.det_jac
-        inv_jac = u_data.mapping.inv_jac
-
-        # scattering dof
-        dest_t = (
-            t_space.dof_map.destination_indices(cell.id)
-            + s_n_dof_g
-            + m_n_dof_g
-            + u_n_dof_g
-        )
-        t_alpha_l = alpha[dest_t]
-
-        # vectorization
-        t_n_phi = t_phi_tab.shape[2]
-        t_e_s = u_exact(x[:, 0], x[:, 1], x[:, 2])[dim : u_components + t_components, :]
-        t_alpha_star = np.array(np.split(t_alpha_l, t_n_phi))
-        t_h_s = (t_phi_tab[0, :, :, 0] @ t_alpha_star).T
-        diff_p = t_e_s - t_h_s
-        l2_error = np.sum(det_jac * weights * diff_p * diff_p)
-        return l2_error
-
-    # Computing stress L2 error
-    def compute_s_l2_error(i, spaces, dim):
-        l2_error = 0.0
-        n_components = s_space.n_comp
-        el_data: ElementData = spaces[0].elements[i].data
-        cell = el_data.cell
-        points = el_data.quadrature.points
-        weights = el_data.quadrature.weights
-        phi_tab = el_data.basis.phi
-
-        x = el_data.mapping.x
-        det_jac = el_data.mapping.det_jac
-        inv_jac = el_data.mapping.inv_jac
-
-        # scattering dof
-        dest = s_space.dof_map.destination_indices(cell.id)
-        alpha_l = alpha[dest]
-
-        # vectorization
-        n_phi = phi_tab.shape[2]
-
-        alpha_star = np.array(np.split(alpha_l, n_phi))
-        for i, omega in enumerate(weights):
-            s_e = s_exact(x[i, 0], x[i, 1], x[i, 2])
-            s_h = np.vstack(
-                tuple(
-                    [phi_tab[0, i, :, 0:dim].T @ alpha_star[:, d] for d in range(dim)]
-                )
-            )
-            diff_s = s_e - s_h
-            l2_error += det_jac[i] * weights[i] * np.trace(diff_s.T @ diff_s)
-        return l2_error
-
-    # Computing couple stress L2 error
-    def compute_m_l2_error(i, spaces, dim):
-        l2_error = 0.0
-        n_components = m_space.n_comp
-        el_data: ElementData = spaces[1].elements[i].data
-        cell = el_data.cell
-        points = el_data.quadrature.points
-        weights = el_data.quadrature.weights
-        phi_tab = el_data.basis.phi
-
-        x = el_data.mapping.x
-        det_jac = el_data.mapping.det_jac
-        inv_jac = el_data.mapping.inv_jac
-
-        # scattering dof
-        dest = m_space.dof_map.destination_indices(cell.id) + s_n_dof_g
-        alpha_l = alpha[dest]
-
-        # vectorization
-        n_phi = phi_tab.shape[2]
-
-        alpha_star = np.array(np.split(alpha_l, n_phi))
-        for i, omega in enumerate(weights):
-            m_e = m_exact(x[i, 0], x[i, 1], x[i, 2])
-            m_h = np.vstack(
-                tuple(
-                    [
-                        phi_tab[0, i, :, 0:dim].T @ alpha_star[:, d]
-                        for d in range(n_components)
-                    ]
-                )
-            )
-            if dim == 2:
-                m_h = m_h.T
-            diff_m = m_e - m_h
-            if dim == 2:
-                l2_error += det_jac[i] * weights[i] * (diff_m.T @ diff_m)[0, 0]
-            else:
-                l2_error += det_jac[i] * weights[i] * np.trace(diff_m.T @ diff_m)
-        return l2_error
-
-    st = time.time()
-    u_error_vec = [compute_u_l2_error(i, spaces, dim) for i in range(u_n_els)]
-    t_error_vec = [compute_t_l2_error(i, spaces, dim) for i in range(u_n_els)]
-    s_error_vec = [compute_s_l2_error(i, spaces, dim) for i in range(s_n_els)]
-    m_error_vec = [compute_m_l2_error(i, spaces, dim) for i in range(m_n_els)]
-    et = time.time()
-    elapsed_time = et - st
-    print("L2-error time:", elapsed_time, "seconds")
-    u_l2_error = np.sqrt(functools.reduce(lambda x, y: x + y, u_error_vec))
-    t_l2_error = np.sqrt(functools.reduce(lambda x, y: x + y, t_error_vec))
-    s_l2_error = np.sqrt(functools.reduce(lambda x, y: x + y, s_error_vec))
-    m_l2_error = np.sqrt(functools.reduce(lambda x, y: x + y, m_error_vec))
-    print("L2-error displacement: ", u_l2_error)
-    print("L2-error rotation: ", t_l2_error)
-    print("L2-error stress: ", s_l2_error)
-    print("L2-error couple stress: ", m_l2_error)
-
     if write_vtk_q:
         # post-process solution
         st = time.time()
@@ -1769,12 +1446,12 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             # Optionally provide extra data on points, cells, etc.
             point_data=p_data_dict,
         )
-        mesh.write("rates_hdiv_cosserat_elasticity.vtk")
+        mesh.write("torsion_hdiv_cosserat_elasticity.vtk")
         et = time.time()
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
 
-    return np.array([u_l2_error, t_l2_error, s_l2_error, m_l2_error])
+    return
 
 
 def create_domain(dimension):
@@ -1803,202 +1480,38 @@ def create_domain(dimension):
         return domain
 
 
-def create_conformal_mesher(domain: Domain, h, ref_l=0):
-    mesher = ConformalMesher(dimension=domain.dimension)
-    mesher.domain = domain
-    mesher.generate_from_domain(h, ref_l)
-    mesher.write_mesh("gmesh.msh")
+def create_conformal_mesher_from_file(file_name,dim):
+    mesher = ConformalMesher(dimension=dim)
+    mesher.write_mesh(file_name)
     return mesher
 
 
-def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
-    gmesh = Mesh(dimension=dimension, file_name="gmesh.msh")
-    gmesh.set_conformal_mesher(mesher)
+def create_mesh_from_file(file_name, dim, write_vtk_q=False):
+    gmesh = Mesh(dimension=dim, file_name=file_name)
     gmesh.build_conformal_mesh()
     if write_vtk_q:
         gmesh.write_vtk()
     return gmesh
 
 
-def perform_convergence_test(configuration: dict):
-    # retrieve parameters from dictionary
-    k_order = configuration.get("k_order")
-    n_ref = configuration.get("n_refinements")
-    dimension = configuration.get("dimension")
-    mixed_form_q = configuration.get("dual_problem_Q", False)
-    write_geometry_vtk = configuration.get("write_geometry_Q", False)
-    write_vtk = configuration.get("write_vtk_Q", False)
-    report_full_precision_data = configuration.get(
-        "report_full_precision_data_Q", False
-    )
+def main():
 
-    # The initial element size
-    h = 1.0
+    k_order = 2
+    write_geometry_vtk = True
+    write_vtk = True
+    mesh_file = "gmsh_files/cylinder.msh"
 
-    # Create a unit squared or a unit cube
-    domain = create_domain(dimension)
+    # mesher = create_conformal_mesher_from_file(file_name=mesh_file, dim=3)
+    gmesh = create_mesh_from_file(mesh_file, 3, write_geometry_vtk)
+    torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk)
+    # torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk)
 
-    n_data = 5
-    error_data = np.empty((0, n_data), float)
-    for l in range(n_ref):
-        h_val = h * (2**-l)
-        mesher = create_conformal_mesher(domain, h, l)
-        gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
-        if mixed_form_q:
-            error_vals = hdiv_cosserat_elasticity(k_order, gmesh, write_vtk)
-        else:
-            error_vals = h1_cosserat_elasticity(k_order, gmesh, write_vtk)
-        chunk = np.concatenate([[h_val], error_vals])
-        error_data = np.append(error_data, np.array([chunk]), axis=0)
-
-    rates_data = np.empty((0, n_data - 1), float)
-    for i in range(error_data.shape[0] - 1):
-        chunk_b = np.log(error_data[i])
-        chunk_e = np.log(error_data[i + 1])
-        h_step = chunk_e[0] - chunk_b[0]
-        partial = (chunk_e - chunk_b) / h_step
-        rates_data = np.append(rates_data, np.array([list(partial[1:n_data])]), axis=0)
-
-    # minimal report
-    if report_full_precision_data:
-        print("error data: ", error_data)
-        print("error rates data: ", rates_data)
-
-    np.set_printoptions(precision=3)
-    if mixed_form_q:
-        print("Dual problem")
-    else:
-        print("Primal problem")
-    print("Polynomial order: ", k_order)
-    print("Dimension: ", dimension)
-    print("rounded error data: ", error_data)
-    print("rounded error rates data: ", rates_data)
-    print(" ")
-    if mixed_form_q:
-        if report_full_precision_data:
-            np.savetxt(
-                "dual_problem_k"
-                + str(k_order)
-                + "_"
-                + str(dimension)
-                + "d_l2_error_data.txt",
-                error_data,
-                delimiter=",",
-                header="element size, displacement, rotation, stress, couple stress",
-            )
-            np.savetxt(
-                "dual_problem_k"
-                + str(k_order)
-                + "_"
-                + str(dimension)
-                + "d_l2_expected_order_convergence.txt",
-                rates_data,
-                delimiter=",",
-                header="displacement, rotation, stress, couple stress",
-            )
-        np.savetxt(
-            "dual_problem_k"
-            + str(k_order)
-            + "_"
-            + str(dimension)
-            + "d_l2_error_data_rounded.txt",
-            error_data,
-            fmt="%1.3e",
-            delimiter=",",
-            header="element size, displacement, rotation, stress, couple stress",
-        )
-        np.savetxt(
-            "dual_problem_k"
-            + str(k_order)
-            + "_"
-            + str(dimension)
-            + "d_l2_expected_order_convergence_rounded.txt",
-            rates_data,
-            fmt="%1.3f",
-            delimiter=",",
-            header="displacement, rotation, stress, couple stress",
-        )
-
-    else:
-        if report_full_precision_data:
-            np.savetxt(
-                "primal_problem_k"
-                + str(k_order)
-                + "_"
-                + str(dimension)
-                + "d_l2_error_data.txt",
-                error_data,
-                delimiter=",",
-                header="element size, displacement, rotation, stress, couple stress",
-            )
-            np.savetxt(
-                "primal_problem_k"
-                + str(k_order)
-                + "_"
-                + str(dimension)
-                + "d_l2_expected_order_convergence.txt",
-                rates_data,
-                delimiter=",",
-                header="displacement, rotation, stress, couple stress",
-            )
-        np.savetxt(
-            "primal_problem_k"
-            + str(k_order)
-            + "_"
-            + str(dimension)
-            + "d_l2_error_data_rounded.txt",
-            error_data,
-            fmt="%1.3e",
-            delimiter=",",
-            header="element size, displacement, rotation, stress, couple stress",
-        )
-        np.savetxt(
-            "primal_problem_k"
-            + str(k_order)
-            + "_"
-            + str(dimension)
-            + "d_l2_expected_order_convergence_rounded.txt",
-            rates_data,
-            fmt="%1.3f",
-            delimiter=",",
-            header="displacement, rotation, stress, couple stress",
-        )
+    # if mixed_form_q:
+    #     torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk)
+    # else:
+    #     torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk)
 
     return
-
-
-def main():
-    write_vtk_files_Q = False
-    report_full_precision_data_Q = False
-
-    primal_configuration = {
-        "n_refinements": 4,
-        "write_geometry_Q": write_vtk_files_Q,
-        "write_vtk_Q": write_vtk_files_Q,
-        "report_full_precision_data_Q": report_full_precision_data_Q,
-    }
-
-    # primal problem
-    for k in [1, 2, 3]:
-        for d in [2]:
-            primal_configuration.__setitem__("k_order", k)
-            primal_configuration.__setitem__("dimension", d)
-            perform_convergence_test(primal_configuration)
-
-    dual_configuration = {
-        "n_refinements": 4,
-        "dual_problem_Q": True,
-        "write_geometry_Q": write_vtk_files_Q,
-        "write_vtk_Q": write_vtk_files_Q,
-        "report_full_precision_data_Q": report_full_precision_data_Q,
-    }
-
-    # dual problem
-    for k in [1, 2, 3]:
-        for d in [2]:
-            dual_configuration.__setitem__("k_order", k)
-            dual_configuration.__setitem__("dimension", d)
-            perform_convergence_test(dual_configuration)
 
 
 if __name__ == "__main__":
