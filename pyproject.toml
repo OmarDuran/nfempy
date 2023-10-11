@@ -1,5 +1,45 @@
 [build-system]
-# These are the assumed default build requirements from pip:
-# https://pip.pypa.io/en/stable/reference/pip/#pep-517-and-518-support
-requires = ["setuptools>=43.0.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+
+[tool.pdm]
+package-dir = "src"
+
+[project]
+name = "nfempy"
+version = "0.0.0"
+description = "Neat finite elements in python"
+keywords = ["Finite Elements", "Nonlinear mappings", "science"]
+readme = "README.md"
+authors = [
+    {name = "Omar Duran Developer", email = "omar.duran@uib.no"},
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU General Public License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Topic :: Software Development :: Build Tools",
+]
+requires-python = ">=3.7, <4"
+
+[project.urls]
+Homepage = "https://github.com/OmarDuran/nfempy/tree/main"
+"Bug Reports" = "https://github.com/OmarDuran/nfempy/issues"
+Funding = "https://www.uib.no/en/rg/pmg/143885/mathematical-and-numerical-modelling-process-structure-interaction-fractured"
+Source = "https://github.com/OmarDuran/nfempy/tree/main"
+
+[project.optional-dependencies]
+dev = [
+    "check-manifest",
+]
+test = [
+    "pytest",
+]
+
+[project.scripts]
+nfempy = "nfempy:main"
