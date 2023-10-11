@@ -55,22 +55,21 @@ from topology.mesh_topology import MeshTopology
 import strong_solution_cosserat_elasticity as lce
 
 import psutil
-
 num_cpus = psutil.cpu_count(logical=False)
+# import ray
+# ray.init(num_cpus=num_cpus)
 
-import ray
+# from pydiso.mkl_solver import (
+#     MKLPardisoSolver as Solver,
+#     get_mkl_max_threads,
+#     get_mkl_pardiso_max_threads,
+#     get_mkl_version,
+#     set_mkl_threads,
+#     set_mkl_pardiso_threads,
+# )
 
-ray.init(num_cpus=num_cpus)
-
-from pydiso.mkl_solver import (
-    MKLPardisoSolver as Solver,
-    get_mkl_max_threads,
-    get_mkl_pardiso_max_threads,
-    get_mkl_version,
-    set_mkl_threads,
-    set_mkl_pardiso_threads,
-)
-
+from petsc4py import PETSc
+from matplotlib import pyplot as plt
 
 def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
@@ -800,8 +799,8 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         cell_map.__setitem__(cell.id, c_size)
         c_size = c_size + n_dof * n_dof
 
-    row = np.zeros((c_size), dtype=np.int64)
-    col = np.zeros((c_size), dtype=np.int64)
+    row = np.zeros((c_size), dtype=np.int32)
+    col = np.zeros((c_size), dtype=np.int32)
     data = np.zeros((c_size), dtype=np.float64)
 
     s_n_dof_g = s_space.dof_map.dof_number()
@@ -1332,33 +1331,51 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
     [scatter_residual_jacobian(i, args) for i in indexes]
 
-    jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
-    array_data.clear()
+    # jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
+    # array_data.clear()
     et = time.time()
     elapsed_time = et - st
     print("Assembly time:", elapsed_time, "seconds")
 
     # solving ls
     st = time.time()
-    alpha = sp.linalg.spsolve(jg, -rg)
+    # alpha = sp.linalg.spsolve(jg, -rg)
     # alpha = sp_solver.spsolve(jg, -rg)
-    #
-    # np.savetxt("matrix.txt", jg.todense())
-    # np.savetxt("k_ss_inv.txt", Kss_inv.todense())
 
     # jg_iLU = sp.linalg.spilu(jg.tocsc(),drop_tol=1e-2)
     # P = sp.linalg.LinearOperator(jg.shape, jg_iLU.solve)
     # alpha, check = sp.linalg.gmres(jg, -rg, M=P,tol=1e-10)
     # print("successful exit:", check)
 
-    # pydiso
-    # solver = Solver(jg, matrix_type="real_symmetric_indefinite", factor=True)
-    # alpha = solver.solve(-rg)
+    A = PETSc.Mat()
+    A.createAIJ([n_dof_g, n_dof_g])
+
+    nnz = data.shape[0]
+    for k in range(nnz):
+        A.setValue(row = row[k], col = col[k], value = data[k], addv = True )
+    A.assemble()
+
+    ksp = PETSc.KSP().create()
+    ksp.setOperators(A)
+    b = A.createVecLeft()
+    b.array[:] = -rg
+    x = A.createVecRight()
+
+    ksp = PETSc.KSP().create()
+    ksp.create(PETSc.COMM_WORLD)
+    ksp.setOperators(A)
+    ksp.setType('fgmres')
+    ksp.setConvergenceHistory()
+    ksp.getPC().setType('ilu')
+    ksp.solve(b, x)
+    alpha = x.array
+
+    # residuals = ksp.getConvergenceHistory()
+    # plt.semilogy(residuals)
+
     et = time.time()
     elapsed_time = et - st
     print("Linear solver time:", elapsed_time, "seconds")
-
-    aka = 0
 
     # Computing displacement L2 error
     def compute_u_l2_error(i, spaces, dim):
