@@ -79,7 +79,7 @@ def torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     m_lambda = 0.5769
     m_mu = 0.3846
     m_kappa = m_mu
-    m_gamma = 1.0e+2
+    m_gamma = 1.0e-1
 
     # FESpace: data
     n_components = 3
@@ -337,15 +337,22 @@ def torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
         beta = 1.0e12
         if cell.material_id == 7:
-            component_list = [5]
-            u_D = np.array([0.0, 0.0, 0.0, 0.0, 0.0, np.pi / 90.0])
+            component_list = [0,1,2,3,4]
+            angle = 20.0*np.pi/180.0
+            R_mat = np.array([[np.cos(angle), np.sin(angle), 0.0],
+                              [-np.sin(angle), np.cos(angle), 0.0],
+                              [0.0, 0.0, 1.0]])
             jac_block = np.zeros((n_phi, n_phi))
             for i, omega in enumerate(weights):
+
+                u_D = R_mat @ x[i] - x[i]
+                theta_D = np.array([0.0, 0.0, angle])
+                ug_D = np.concatenate((u_D,theta_D))
                 phi = phi_tab[0, i, :, 0]
                 for c in component_list:
                     b = c
                     e = n_phi * n_components + c
-                    r_el[b:e:n_components] += beta * det_jac[i] * omega * u_D[c] * phi
+                    r_el[b:e:n_components] += beta * det_jac[i] * omega * ug_D[c] * phi
                     j_el[b:e:n_components, b:e:n_components] += beta * det_jac[i] * omega * np.outer(phi, phi)
             # contribute rhs
             rg[dest] += r_el
@@ -556,10 +563,10 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
     # Material data
 
-    m_lambda = 1.0
-    m_mu = 1.0
-    m_kappa = 1.0
-    m_gamma = 1.0
+    m_lambda = 0.5769
+    m_mu = 0.3846
+    m_kappa = m_mu
+    m_gamma = 1.0e-10
 
     # FESpace: data
     s_components = 2
@@ -651,11 +658,22 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         cell_map.__setitem__(cell.id, c_size)
         c_size = c_size + n_dof * n_dof
 
-    for element in s_space.bc_elements:
-        cell = element.data.cell
+
+    s_n_bc_els = len(s_space.bc_elements)
+    m_n_bc_els = len(m_space.bc_elements)
+    assert s_n_bc_els == m_n_bc_els
+    for i in range(s_n_bc_els):
+        s_element = s_space.bc_elements[i]
+        m_element = m_space.bc_elements[i]
+        assert s_element.data.cell.id == m_element.data.cell.id
+        cell = s_element.data.cell
+        elements = (s_element, m_element)
+
         n_dof = 0
-        for n_entity_dofs in element.basis_generator.num_entity_dofs:
-            n_dof = n_dof + sum(n_entity_dofs) * s_components
+        for j, element in enumerate(elements):
+            for n_entity_dofs in element.basis_generator.num_entity_dofs:
+                n_dof = n_dof + sum(n_entity_dofs) * components[j]
+
         cell_map.__setitem__(cell.id, c_size)
         c_size = c_size + n_dof * n_dof
 
@@ -758,12 +776,12 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             for c in range(u_components):
                 b = c + n_s_dof + n_m_dof
                 e = b + n_u_dof
-                el_form[b:e:u_components] += -1.0 * phi_s_star @ f_val_star[c]
+                el_form[b:e:u_components] += 0.0 * phi_s_star @ f_val_star[c]
             for c in range(t_components):
                 b = c + n_s_dof + n_m_dof + n_u_dof
                 e = b + n_t_dof
                 el_form[b:e:t_components] += (
-                    -1.0 * phi_s_star @ f_val_star[c + u_components]
+                    0.0 * phi_s_star @ f_val_star[c + u_components]
                 )
 
             for i, omega in enumerate(weights):
@@ -822,12 +840,13 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
                     )
 
                     # Stress decomposition
+                    Symm_sh = 0.5 * (sh + sh.T)
                     Skew_sh = 0.5 * (sh - sh.T)
 
                     tr_s_h = VecValDer(sh.val.trace(), sh.der.trace())
                     A_sh = (1.0 / 2.0 * m_mu) * (
-                        sh - (m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat
-                    )
+                        Symm_sh - (m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat
+                    ) + (1.0 / 2.0 * m_kappa) * Skew_sh
 
                     A_mh = (1.0 / m_gamma) * mh
 
@@ -973,12 +992,13 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
                     )
 
                     # Stress decomposition
+                    Symm_sh = 0.5 * (sh + sh.T)
                     Skew_sh = 0.5 * (sh - sh.T)
 
                     tr_s_h = VecValDer(sh.val.trace(), sh.der.trace())
                     A_sh = (1.0 / 2.0 * m_mu) * (
-                        sh - (m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat
-                    )
+                        Symm_sh - (m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat
+                    ) + (1.0 / 2.0 * m_kappa) * Skew_sh
 
                     A_mh = (1.0 / m_gamma) * mh
 
@@ -1188,6 +1208,163 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
     [scatter_residual_jacobian(i, args) for i in indexes]
 
+    def scatter_s_bc_form_data(element, s_space, cell_map, row, col, data):
+        n_components = s_space.n_comp
+        el_data: ElementData = element.data
+
+        cell = el_data.cell
+        points = el_data.quadrature.points
+        weights = el_data.quadrature.weights
+        phi_tab = el_data.basis.phi
+
+        x = el_data.mapping.x
+        det_jac = el_data.mapping.det_jac
+        inv_jac = el_data.mapping.inv_jac
+
+        # find high-dimension neigh
+        entity_map = s_space.dof_map.mesh_topology.entity_map_by_dimension(
+            cell.dimension
+        )
+        neigh_list = list(entity_map.predecessors(cell.id))
+        neigh_check_q = len(neigh_list) > 0
+        assert neigh_check_q
+
+        neigh_cell_id = neigh_list[0]
+        neigh_cell_index = s_space.id_to_element[neigh_cell_id]
+        neigh_cell = s_space.elements[neigh_cell_index].data.cell
+        det_jac_vol = np.mean(s_space.elements[neigh_cell_index].data.mapping.det_jac)
+
+        # destination indexes
+        dest_neigh = s_space.dof_map.destination_indices(neigh_cell_id)
+        dest = s_space.dof_map.bc_destination_indices(neigh_cell_id, cell.id)
+
+        n_phi = phi_tab.shape[2]
+        n_dof = n_phi * n_components
+        js = (n_dof, n_dof)
+        j_el = np.zeros(js)
+        r_el = np.zeros(n_dof)
+
+        # scattering data
+        c_sequ = cell_map[cell.id]
+        # print("bc cell id: ", cell.id)
+        if cell.material_id in [6, 7]:
+            component_list = [0,1,2]
+            angle = 20.0*np.pi/180.0
+            R_mat = np.array([[np.cos(angle), np.sin(angle), 0.0],
+                              [-np.sin(angle), np.cos(angle), 0.0],
+                              [0.0, 0.0, 1.0]])
+            jac_block = np.zeros((n_phi, n_phi))
+            scale = 0.0
+            if cell.material_id == 7:
+                print("bc cell id: ", cell.id)
+                scale = 1.0
+            for i, omega in enumerate(weights):
+                u_D = scale * np.array([0,0,-0.1])#R_mat @ x[i] - x[i]
+                phi = phi_tab[0, i, :, 0]
+                for c in component_list:
+                    b = c
+                    e = n_phi * n_components + c
+                    r_el[b:e:n_components] += -(1.0/(det_jac_vol)) * det_jac[i] * omega * u_D[c] * phi
+
+            # contribute rhs
+            rg[dest] += r_el
+        else:
+
+            beta = 1.0e12
+            jac_block = np.zeros((n_phi, n_phi))
+            for i, omega in enumerate(weights):
+                phi = phi_tab[0, i, :, 0]
+                jac_block += beta * (1.0/(det_jac_vol**2)) * det_jac[i] * omega * np.outer(phi, phi)
+            for c in range(n_components):
+                b = c
+                e = n_phi * n_components + c
+                j_el[b:e:n_components, b:e:n_components] += jac_block
+
+            # contribute lhs
+            block_sequ = np.array(range(0, len(dest) * len(dest))) + c_sequ
+            row[block_sequ] += np.repeat(dest, len(dest))
+            col[block_sequ] += np.tile(dest, len(dest))
+            data[block_sequ] += j_el.ravel()
+
+    def scatter_m_bc_form_data(element, m_space, cell_map, row, col, data):
+        n_components = m_space.n_comp
+        el_data: ElementData = element.data
+
+        cell = el_data.cell
+        points = el_data.quadrature.points
+        weights = el_data.quadrature.weights
+        phi_tab = el_data.basis.phi
+
+        x = el_data.mapping.x
+        det_jac = el_data.mapping.det_jac
+        inv_jac = el_data.mapping.inv_jac
+
+        # find high-dimension neigh
+        entity_map = m_space.dof_map.mesh_topology.entity_map_by_dimension(
+            cell.dimension
+        )
+        neigh_list = list(entity_map.predecessors(cell.id))
+        neigh_check_q = len(neigh_list) > 0
+        assert neigh_check_q
+
+        neigh_cell_id = neigh_list[0]
+        neigh_cell_index = m_space.id_to_element[neigh_cell_id]
+        neigh_cell = m_space.elements[neigh_cell_index].data.cell
+
+        # destination indexes
+        dest_neigh = m_space.dof_map.destination_indices(neigh_cell_id) + s_n_dof_g
+        dest = m_space.dof_map.bc_destination_indices(neigh_cell_id, cell.id) + s_n_dof_g
+
+        n_phi = phi_tab.shape[2]
+        n_dof = n_phi * n_components
+        js = (n_dof, n_dof)
+        j_el = np.zeros(js)
+        r_el = np.zeros(n_dof)
+
+        # scattering data
+        c_sequ = cell_map[cell.id] + 9 * 9
+
+        if cell.material_id in [6, 7]:
+            component_list = [0, 1, 2]
+            jac_block = np.zeros((n_phi, n_phi))
+            for i, omega in enumerate(weights):
+                theta_D = np.array([0.0, 0.0, 0.0])
+                phi = phi_tab[0, i, :, 0]
+                for c in component_list:
+                    b = c
+                    e = n_phi * n_components + c
+                    r_el[b:e:n_components] += det_jac[i] * omega * theta_D[c] * phi
+
+            # contribute rhs
+            rg[dest] += r_el
+        else:
+
+            beta = 1.0e12
+            jac_block = np.zeros((n_phi, n_phi))
+            for i, omega in enumerate(weights):
+                phi = phi_tab[0, i, :, 0]
+                jac_block += beta * det_jac[i] * omega * np.outer(phi, phi)
+            for c in range(n_components):
+                b = c
+                e = n_phi * n_components + c
+                j_el[b:e:n_components, b:e:n_components] += jac_block
+
+            # contribute lhs
+            block_sequ = np.array(range(0, len(dest) * len(dest))) + c_sequ
+            row[block_sequ] += np.repeat(dest, len(dest))
+            col[block_sequ] += np.tile(dest, len(dest))
+            data[block_sequ] += j_el.ravel()
+
+    [
+        scatter_s_bc_form_data(element, s_space, cell_map, row, col, data)
+        for element in s_space.bc_elements
+    ]
+
+    # [
+    #     scatter_m_bc_form_data(element, m_space, cell_map, row, col, data)
+    #     for element in m_space.bc_elements
+    # ]
+
     jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
     array_data.clear()
     et = time.time()
@@ -1196,7 +1373,7 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
     # solving ls
     st = time.time()
-    # alpha = sp.linalg.spsolve(jg, -rg)
+    alpha = sp.linalg.spsolve(jg, -rg)
     # alpha = sp_solver.spsolve(jg, -rg)
     #
     # np.savetxt("matrix.txt", jg.todense())
@@ -1208,8 +1385,8 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     # print("successful exit:", check)
 
     # pydiso
-    solver = Solver(jg, matrix_type="real_symmetric_indefinite", factor=True)
-    alpha = solver.solve(-rg)
+    # solver = Solver(jg, matrix_type="real_symmetric_indefinite", factor=True)
+    # alpha = solver.solve(-rg)
     et = time.time()
     elapsed_time = et - st
     print("Linear solver time:", elapsed_time, "seconds")
@@ -1510,6 +1687,21 @@ def create_mesh_from_file(file_name, dim, write_vtk_q=False):
         gmesh.write_vtk()
     return gmesh
 
+def create_conformal_mesher(domain: Domain, h, ref_l=0):
+    mesher = ConformalMesher(dimension=domain.dimension)
+    mesher.domain = domain
+    mesher.generate_from_domain(h, ref_l)
+    mesher.write_mesh("gmesh.msh")
+    return mesher
+
+
+def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
+    gmesh = Mesh(dimension=dimension, file_name="gmesh.msh")
+    gmesh.set_conformal_mesher(mesher)
+    gmesh.build_conformal_mesh()
+    if write_vtk_q:
+        gmesh.write_vtk()
+    return gmesh
 
 def main():
 
@@ -1518,8 +1710,13 @@ def main():
     write_vtk = True
     mesh_file = "gmsh_files/cylinder.msh"
 
-    # mesher = create_conformal_mesher_from_file(file_name=mesh_file, dim=3)
     gmesh = create_mesh_from_file(mesh_file, 3, write_geometry_vtk)
+
+    # h = 0.5
+    # domain = create_domain(3)
+    # mesher = create_conformal_mesher(domain, h, 0)
+    # gmesh = create_mesh(3, mesher, write_geometry_vtk)
+
     torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk)
     # torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk)
 

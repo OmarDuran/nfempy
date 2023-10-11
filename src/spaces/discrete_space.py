@@ -204,18 +204,30 @@ class DiscreteSpace:
                 if mesh.cells[id].material_id in physical_tags
             ]
 
+        bc_discontinuous = self.discontinuous
+        bc_k_order = self.k_order
         bc_familiy = self.family
         if self.dimension - 1 < 2:
             bc_familiy = family_by_name("Lagrange")
+
+        if family_by_name("BDM") == self.family:
+            bc_k_order = self.k_order
+            bc_familiy = family_by_name("Lagrange")
+            bc_discontinuous = True
+
+        if family_by_name("RT") == self.family:
+            bc_k_order = self.k_order - 1
+            bc_familiy = family_by_name("Lagrange")
+            bc_discontinuous = True
 
         self.bc_elements = list(
             map(
                 partial(
                     FiniteElement,
                     family=bc_familiy,
-                    k_order=self.k_order,
+                    k_order=bc_k_order,
                     mesh=self.mesh_topology.mesh,
-                    discontinuous=self.discontinuous,
+                    discontinuous=bc_discontinuous,
                     integration_oder=self.integration_oder,
                 ),
                 self.bc_element_ids,

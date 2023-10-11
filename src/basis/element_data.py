@@ -74,6 +74,18 @@ class DoFData:
         dest: np.ndarray = np.empty(0)
         return DoFData(entity_dofs, transformations_are_identity, transformations, dest)
 
+class BCEntities:
+    def __init__(
+        self,
+        bc_entities: np.ndarray = np.empty(0),
+    ):
+        # basis
+        self.bc_entities: np.ndarray = bc_entities
+
+    @classmethod
+    def copy(self):
+        bc_entities: np.ndarray = np.empty(0)
+        return BCEntities(bc_entities)
 
 class BasisData:
     def __init__(
@@ -97,6 +109,7 @@ class ElementData:
         self.quadrature: QuadratureData = QuadratureData()
         self.mapping: MappingData = MappingData()
         self.dof: DoFData = DoFData()
+        self.bc_entities: BCEntities = BCEntities()
         self.basis: BasisData = BasisData()
 
     @classmethod

@@ -963,12 +963,14 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
                     )
 
                     # Stress decomposition
+                    Symm_sh = 0.5 * (sh + sh.T)
                     Skew_sh = 0.5 * (sh - sh.T)
 
                     tr_s_h = VecValDer(sh.val.trace(), sh.der.trace())
                     A_sh = (1.0 / 2.0 * m_mu) * (
-                        sh - (m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat
-                    )
+                        Symm_sh - (m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat
+                    ) + (1.0 / 2.0 * m_kappa) * Skew_sh
+
 
                     A_mh = (1.0 / m_gamma) * mh
 
@@ -1114,12 +1116,13 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
                     )
 
                     # Stress decomposition
+                    Symm_sh = 0.5 * (sh + sh.T)
                     Skew_sh = 0.5 * (sh - sh.T)
 
                     tr_s_h = VecValDer(sh.val.trace(), sh.der.trace())
                     A_sh = (1.0 / 2.0 * m_mu) * (
-                        sh - (m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat
-                    )
+                        Symm_sh - (m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat
+                    ) + (1.0 / 2.0 * m_kappa) * Skew_sh
 
                     A_mh = (1.0 / m_gamma) * mh
 
@@ -1337,7 +1340,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
     # solving ls
     st = time.time()
-    # alpha = sp.linalg.spsolve(jg, -rg)
+    alpha = sp.linalg.spsolve(jg, -rg)
     # alpha = sp_solver.spsolve(jg, -rg)
     #
     # np.savetxt("matrix.txt", jg.todense())
@@ -1349,8 +1352,8 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     # print("successful exit:", check)
 
     # pydiso
-    solver = Solver(jg, matrix_type="real_symmetric_indefinite", factor=True)
-    alpha = solver.solve(-rg)
+    # solver = Solver(jg, matrix_type="real_symmetric_indefinite", factor=True)
+    # alpha = solver.solve(-rg)
     et = time.time()
     elapsed_time = et - st
     print("Linear solver time:", elapsed_time, "seconds")
@@ -1972,21 +1975,21 @@ def main():
     report_full_precision_data_Q = False
 
     primal_configuration = {
-        "n_refinements": 4,
+        "n_refinements": 3,
         "write_geometry_Q": write_vtk_files_Q,
         "write_vtk_Q": write_vtk_files_Q,
         "report_full_precision_data_Q": report_full_precision_data_Q,
     }
 
-    # primal problem
-    for k in [1, 2, 3]:
-        for d in [2]:
-            primal_configuration.__setitem__("k_order", k)
-            primal_configuration.__setitem__("dimension", d)
-            perform_convergence_test(primal_configuration)
+    # # primal problem
+    # for k in [1, 2, 3]:
+    #     for d in [2]:
+    #         primal_configuration.__setitem__("k_order", k)
+    #         primal_configuration.__setitem__("dimension", d)
+    #         perform_convergence_test(primal_configuration)
 
     dual_configuration = {
-        "n_refinements": 4,
+        "n_refinements": 3,
         "dual_problem_Q": True,
         "write_geometry_Q": write_vtk_files_Q,
         "write_vtk_Q": write_vtk_files_Q,
@@ -1994,8 +1997,8 @@ def main():
     }
 
     # dual problem
-    for k in [1, 2, 3]:
-        for d in [2]:
+    for k in [1]:
+        for d in [3]:
             dual_configuration.__setitem__("k_order", k)
             dual_configuration.__setitem__("dimension", d)
             perform_convergence_test(dual_configuration)
