@@ -4,7 +4,7 @@ import functools
 import marshal
 import sys
 import time
-
+from petsc4py import PETSc
 # from itertools import permutations
 from functools import partial, reduce
 
@@ -17,7 +17,6 @@ import matplotlib.pyplot as plot
 import meshio
 import networkx as nx
 import numpy as np
-import pypardiso as sp_solver
 import scipy.sparse as sp
 import auto_diff as ad
 from auto_diff.vecvalder import VecValDer
@@ -68,8 +67,8 @@ num_cpus = psutil.cpu_count(logical=False)
 #     set_mkl_pardiso_threads,
 # )
 
-from petsc4py import PETSc
-from matplotlib import pyplot as plt
+
+# from matplotlib import pyplot as plt
 
 def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
