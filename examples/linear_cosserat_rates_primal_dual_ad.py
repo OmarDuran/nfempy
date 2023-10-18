@@ -4,12 +4,14 @@ import functools
 import marshal
 import sys
 import time
+
 # from itertools import permutations
 from functools import partial, reduce
 
 import auto_diff as ad
 import basix
 import matplotlib.colors as mcolors
+
 # import matplotlib.pyplot as plt
 import matplotlib.pyplot as plt
 import matplotlib.pyplot as plot
@@ -18,6 +20,7 @@ import networkx as nx
 import numpy as np
 import psutil
 import scipy.sparse as sp
+
 # from numba import njit, types
 import strong_solution_cosserat_elasticity as lce
 from auto_diff.vecvalder import VecValDer
@@ -30,15 +33,19 @@ import geometry.fracture_network as fn
 from basis.element_data import ElementData
 from basis.finite_element import FiniteElement
 from geometry.domain import Domain
-from geometry.domain_market import (build_box_1D, build_box_2D,
-                                    build_box_2D_with_lines, build_box_3D,
-                                    build_box_3D_with_planes,
-                                    build_disjoint_lines, read_fractures_file)
+from geometry.domain_market import (
+    build_box_1D,
+    build_box_2D,
+    build_box_2D_with_lines,
+    build_box_3D,
+    build_box_3D_with_planes,
+    build_disjoint_lines,
+    read_fractures_file,
+)
 from geometry.edge import Edge
 from geometry.geometry_builder import GeometryBuilder
 from geometry.geometry_cell import GeometryCell
-from geometry.mapping import (evaluate_linear_shapes, evaluate_mapping,
-                              store_mapping)
+from geometry.mapping import evaluate_linear_shapes, evaluate_mapping, store_mapping
 from geometry.shape_manipulation import ShapeManipulation
 from geometry.vertex import Vertex
 from mesh.conformal_mesher import ConformalMesher
@@ -702,8 +709,8 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         # writing solution on mesh points
         uh_data = np.zeros((len(gmesh.points), dim))
         ue_data = np.zeros((len(gmesh.points), dim))
-        th_data = np.zeros((len(gmesh.points), n_components - dim))
-        te_data = np.zeros((len(gmesh.points), n_components - dim))
+        th_data = np.zeros((len(gmesh.points), t_components))
+        te_data = np.zeros((len(gmesh.points), t_components))
         sh_data = np.zeros((len(gmesh.points), dim * dim))
         se_data = np.zeros((len(gmesh.points), dim * dim))
         if dim == 2:
@@ -714,7 +721,8 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             me_data = np.zeros((len(gmesh.points), dim * dim))
 
         # generalized displacements
-        cellid_to_element = dict(zip(u_space.element_ids, u_space.elements))
+        cellid_to_u_element = dict(zip(u_space.element_ids, u_space.elements))
+        cellid_to_t_element = dict(zip(t_space.element_ids, t_space.elements))
         vertices = u_space.mesh_topology.entities_by_dimension(0)
         cell_vertex_map = u_space.mesh_topology.entity_map_by_dimension(0)
         for id in vertices:
@@ -726,11 +734,14 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             if cell.dimension != u_space.dimension:
                 continue
 
-            element = cellid_to_element[pr_ids[0]]
+            u_element = cellid_to_u_element[pr_ids[0]]
+            t_element = cellid_to_t_element[pr_ids[0]]
 
             # scattering dof
-            dest = u_space.dof_map.destination_indices(cell.id)
-            alpha_l = alpha[dest]
+            dest_u = u_space.dof_map.destination_indices(cell.id)
+            dest_t = t_space.dof_map.destination_indices(cell.id) + u_n_dof_g
+            alpha_u_l = alpha[dest_u]
+            alpha_t_l = alpha[dest_t]
 
             par_points = basix.geometry(u_space.element_type)
 
@@ -748,25 +759,31 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
                 points = par_points[par_point_id]
 
             # evaluate mapping
-            phi_shapes = evaluate_linear_shapes(points, element.data)
+            phi_shapes = evaluate_linear_shapes(points, u_element.data)
             (x, jac, det_jac, inv_jac) = evaluate_mapping(
                 cell.dimension, phi_shapes, gmesh.points[cell.node_tags]
             )
-            phi_tab = element.evaluate_basis(points)
-            n_phi = phi_tab.shape[2]
-            alpha_star = np.array(np.split(alpha_l, n_phi))
+            u_phi_tab = u_element.evaluate_basis(points)
+            t_phi_tab = t_element.evaluate_basis(points)
+            n_u_phi = u_phi_tab.shape[2]
+            n_t_phi = t_phi_tab.shape[2]
+
+            alpha_star_u = np.array(np.split(alpha_u_l, n_u_phi))
+            alpha_star_t = np.array(np.split(alpha_t_l, n_t_phi))
 
             # Generalized displacement
             u_e = u_exact(x[:, 0], x[:, 1], x[:, 2])[0:dim, :]
-            t_e = u_exact(x[:, 0], x[:, 1], x[:, 2])[dim:n_components, :]
-            u_h = (phi_tab[0, :, :, 0] @ alpha_star[:, 0:dim]).T
-            t_h = (phi_tab[0, :, :, 0] @ alpha_star[:, dim:n_components]).T
+            t_e = u_exact(x[:, 0], x[:, 1], x[:, 2])[
+                dim : u_components + t_components, :
+            ]
+            u_h = (u_phi_tab[0, :, :, 0] @ alpha_star_u[:, 0:dim]).T
+            t_h = (t_phi_tab[0, :, :, 0] @ alpha_star_t[:, 0:t_components]).T
 
             # stress and couple stress
             i = 0
             s_e = s_exact(x[i, 0], x[i, 1], x[i, 2])
-            grad_phi = inv_jac[i].T @ phi_tab[1 : phi_tab.shape[0] + 1, i, :, 0]
-            grad_uh = grad_phi[0:dim] @ alpha_star[:, 0:dim]
+            grad_phi = inv_jac[i].T @ u_phi_tab[1 : u_phi_tab.shape[0] + 1, i, :, 0]
+            grad_uh = grad_phi[0:dim] @ alpha_star_u[:, 0:dim]
             if dim == 2:
                 th = np.array([[0.0, -t_h[0, i]], [t_h[0, i], 0.0]])
             else:
@@ -787,8 +804,8 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             )
 
             m_e = m_exact(x[i, 0], x[i, 1], x[i, 2])
-            grad_phi = inv_jac[i].T @ phi_tab[1 : phi_tab.shape[0] + 1, i, :, 0]
-            grad_th = grad_phi[0:dim] @ alpha_star[:, dim:n_components]
+            grad_phi = inv_jac[i].T @ t_phi_tab[1 : t_phi_tab.shape[0] + 1, i, :, 0]
+            grad_th = grad_phi[0:dim] @ alpha_star_t[:, 0:t_components]
             if dim == 2:
                 m_h = m_gamma * grad_th
             else:
@@ -2141,11 +2158,11 @@ def perform_convergence_test(configuration: dict):
 
 
 def main():
-    write_vtk_files_Q = False
+    write_vtk_files_Q = True
     report_full_precision_data_Q = False
 
     primal_configuration = {
-        "n_refinements": 4,
+        "n_refinements": 3,
         "write_geometry_Q": write_vtk_files_Q,
         "write_vtk_Q": write_vtk_files_Q,
         "report_full_precision_data_Q": report_full_precision_data_Q,
