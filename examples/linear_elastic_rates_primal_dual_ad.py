@@ -4,13 +4,12 @@ import functools
 import marshal
 import sys
 import time
-
 # from itertools import permutations
 from functools import partial, reduce
 
+import auto_diff as ad
 import basix
 import matplotlib.colors as mcolors
-
 # import matplotlib.pyplot as plt
 import matplotlib.pyplot as plt
 import matplotlib.pyplot as plot
@@ -19,29 +18,25 @@ import networkx as nx
 import numpy as np
 import pypardiso as sp_solver
 import scipy.sparse as sp
+import strong_solution_elasticity as le
+from auto_diff.vecvalder import VecValDer
 from numpy import linalg as la
 from scipy.sparse import coo_matrix
 from shapely.geometry import LineString
-import auto_diff as ad
-from auto_diff.vecvalder import VecValDer
 
 import geometry.fracture_network as fn
 from basis.element_data import ElementData
 from basis.finite_element import FiniteElement
 from geometry.domain import Domain
-from geometry.domain_market import (
-    build_box_1D,
-    build_box_2D,
-    build_box_2D_with_lines,
-    build_box_3D,
-    build_box_3D_with_planes,
-    build_disjoint_lines,
-    read_fractures_file,
-)
+from geometry.domain_market import (build_box_1D, build_box_2D,
+                                    build_box_2D_with_lines, build_box_3D,
+                                    build_box_3D_with_planes,
+                                    build_disjoint_lines, read_fractures_file)
 from geometry.edge import Edge
 from geometry.geometry_builder import GeometryBuilder
 from geometry.geometry_cell import GeometryCell
-from geometry.mapping import evaluate_linear_shapes, evaluate_mapping, store_mapping
+from geometry.mapping import (evaluate_linear_shapes, evaluate_mapping,
+                              store_mapping)
 from geometry.shape_manipulation import ShapeManipulation
 from geometry.vertex import Vertex
 from mesh.conformal_mesher import ConformalMesher
@@ -49,7 +44,6 @@ from mesh.mesh import Mesh
 from spaces.discrete_space import DiscreteSpace
 from spaces.dof_map import DoFMap
 from topology.mesh_topology import MeshTopology
-import strong_solution_elasticity as le
 
 
 def matrix_plot(J, sparse_q=True):

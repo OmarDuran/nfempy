@@ -399,7 +399,7 @@ class Mesh:
                         ": ",
                         *cells_ids_dim,
                         sep=" ",
-                        file=file
+                        file=file,
                     )
                 print("", file=file)
 

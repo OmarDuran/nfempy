@@ -4,24 +4,24 @@ import functools
 import marshal
 import sys
 import time
-
 # from itertools import permutations
 from functools import partial, reduce
 
+import auto_diff as ad
 import basix
 import matplotlib.colors as mcolors
-
 # import matplotlib.pyplot as plt
 import matplotlib.pyplot as plt
 import matplotlib.pyplot as plot
 import meshio
 import networkx as nx
 import numpy as np
+import psutil
 import pypardiso as sp_solver
 import scipy.sparse as sp
-import auto_diff as ad
+# from numba import njit, types
+import strong_solution_cosserat_elasticity as lce
 from auto_diff.vecvalder import VecValDer
-
 from numpy import linalg as la
 from scipy.sparse import coo_matrix
 from shapely.geometry import LineString
@@ -30,19 +30,15 @@ import geometry.fracture_network as fn
 from basis.element_data import ElementData
 from basis.finite_element import FiniteElement
 from geometry.domain import Domain
-from geometry.domain_market import (
-    build_box_1D,
-    build_box_2D,
-    build_box_2D_with_lines,
-    build_box_3D,
-    build_box_3D_with_planes,
-    build_disjoint_lines,
-    read_fractures_file,
-)
+from geometry.domain_market import (build_box_1D, build_box_2D,
+                                    build_box_2D_with_lines, build_box_3D,
+                                    build_box_3D_with_planes,
+                                    build_disjoint_lines, read_fractures_file)
 from geometry.edge import Edge
 from geometry.geometry_builder import GeometryBuilder
 from geometry.geometry_cell import GeometryCell
-from geometry.mapping import evaluate_linear_shapes, evaluate_mapping, store_mapping
+from geometry.mapping import (evaluate_linear_shapes, evaluate_mapping,
+                              store_mapping)
 from geometry.shape_manipulation import ShapeManipulation
 from geometry.vertex import Vertex
 from mesh.conformal_mesher import ConformalMesher
@@ -51,28 +47,18 @@ from spaces.discrete_space import DiscreteSpace
 from spaces.dof_map import DoFMap
 from topology.mesh_topology import MeshTopology
 
-# from numba import njit, types
-import strong_solution_cosserat_elasticity as lce
-
-import psutil
-
 num_cpus = psutil.cpu_count(logical=False)
 
 # import ray
 # ray.init(num_cpus=num_cpus)
 
-from pydiso.mkl_solver import (
-    MKLPardisoSolver as Solver,
-    get_mkl_max_threads,
-    get_mkl_pardiso_max_threads,
-    get_mkl_version,
-    set_mkl_threads,
-    set_mkl_pardiso_threads,
-)
+from pydiso.mkl_solver import MKLPardisoSolver as Solver
+from pydiso.mkl_solver import (get_mkl_max_threads,
+                               get_mkl_pardiso_max_threads, get_mkl_version,
+                               set_mkl_pardiso_threads, set_mkl_threads)
 
 
 def torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
-
     dim = gmesh.dimension
     # Material data
 
@@ -94,7 +80,7 @@ def torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         u_space.build_structures([2, 3, 4, 5])
     elif dim == 3:
         # u_space.build_structures([2, 3, 4, 5, 6, 7])
-        u_space.build_structures([6, 7]) # only top and bottom
+        u_space.build_structures([6, 7])  # only top and bottom
 
     st = time.time()
     # Assembler
@@ -337,27 +323,31 @@ def torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
         beta = 1.0e12
         if cell.material_id == 7:
-            component_list = [0,1,2,3,4]
-            angle = 20.0*np.pi/180.0
-            R_mat = np.array([[np.cos(angle), np.sin(angle), 0.0],
-                              [-np.sin(angle), np.cos(angle), 0.0],
-                              [0.0, 0.0, 1.0]])
+            component_list = [0, 1, 2, 3, 4]
+            angle = 20.0 * np.pi / 180.0
+            R_mat = np.array(
+                [
+                    [np.cos(angle), np.sin(angle), 0.0],
+                    [-np.sin(angle), np.cos(angle), 0.0],
+                    [0.0, 0.0, 1.0],
+                ]
+            )
             jac_block = np.zeros((n_phi, n_phi))
             for i, omega in enumerate(weights):
-
                 u_D = R_mat @ x[i] - x[i]
                 theta_D = np.array([0.0, 0.0, angle])
-                ug_D = np.concatenate((u_D,theta_D))
+                ug_D = np.concatenate((u_D, theta_D))
                 phi = phi_tab[0, i, :, 0]
                 for c in component_list:
                     b = c
                     e = n_phi * n_components + c
                     r_el[b:e:n_components] += beta * det_jac[i] * omega * ug_D[c] * phi
-                    j_el[b:e:n_components, b:e:n_components] += beta * det_jac[i] * omega * np.outer(phi, phi)
+                    j_el[b:e:n_components, b:e:n_components] += (
+                        beta * det_jac[i] * omega * np.outer(phi, phi)
+                    )
             # contribute rhs
             rg[dest] += r_el
         else:
-
             jac_block = np.zeros((n_phi, n_phi))
             for i, omega in enumerate(weights):
                 phi = phi_tab[0, i, :, 0]
@@ -366,8 +356,6 @@ def torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
                 b = c
                 e = n_phi * n_components + c
                 j_el[b:e:n_components, b:e:n_components] += jac_block
-
-
 
         # contribute lhs
         block_sequ = np.array(range(0, len(dest) * len(dest))) + c_sequ
@@ -658,7 +646,6 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         cell_map.__setitem__(cell.id, c_size)
         c_size = c_size + n_dof * n_dof
 
-
     s_n_bc_els = len(s_space.bc_elements)
     m_n_bc_els = len(m_space.bc_elements)
     assert s_n_bc_els == m_n_bc_els
@@ -845,7 +832,8 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
                     tr_s_h = VecValDer(sh.val.trace(), sh.der.trace())
                     A_sh = (1.0 / 2.0 * m_mu) * (
-                        Symm_sh - (m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat
+                        Symm_sh
+                        - (m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat
                     ) + (1.0 / 2.0 * m_kappa) * Skew_sh
 
                     A_mh = (1.0 / m_gamma) * mh
@@ -997,7 +985,8 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
                     tr_s_h = VecValDer(sh.val.trace(), sh.der.trace())
                     A_sh = (1.0 / 2.0 * m_mu) * (
-                        Symm_sh - (m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat
+                        Symm_sh
+                        - (m_lambda / (2.0 * m_mu + dim * m_lambda)) * tr_s_h * Imat
                     ) + (1.0 / 2.0 * m_kappa) * Skew_sh
 
                     A_mh = (1.0 / m_gamma) * mh
@@ -1248,33 +1237,44 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         c_sequ = cell_map[cell.id]
         # print("bc cell id: ", cell.id)
         if cell.material_id in [6, 7]:
-            component_list = [0,1,2]
-            angle = 20.0*np.pi/180.0
-            R_mat = np.array([[np.cos(angle), np.sin(angle), 0.0],
-                              [-np.sin(angle), np.cos(angle), 0.0],
-                              [0.0, 0.0, 1.0]])
+            component_list = [0, 1, 2]
+            angle = 20.0 * np.pi / 180.0
+            R_mat = np.array(
+                [
+                    [np.cos(angle), np.sin(angle), 0.0],
+                    [-np.sin(angle), np.cos(angle), 0.0],
+                    [0.0, 0.0, 1.0],
+                ]
+            )
             jac_block = np.zeros((n_phi, n_phi))
             scale = 0.0
             if cell.material_id == 7:
                 print("bc cell id: ", cell.id)
                 scale = 1.0
             for i, omega in enumerate(weights):
-                u_D = scale * np.array([0,0,-0.1])#R_mat @ x[i] - x[i]
+                u_D = scale * np.array([0, 0, -0.1])  # R_mat @ x[i] - x[i]
                 phi = phi_tab[0, i, :, 0]
                 for c in component_list:
                     b = c
                     e = n_phi * n_components + c
-                    r_el[b:e:n_components] += -(1.0/(det_jac_vol)) * det_jac[i] * omega * u_D[c] * phi
+                    r_el[b:e:n_components] += (
+                        -(1.0 / (det_jac_vol)) * det_jac[i] * omega * u_D[c] * phi
+                    )
 
             # contribute rhs
             rg[dest] += r_el
         else:
-
             beta = 1.0e12
             jac_block = np.zeros((n_phi, n_phi))
             for i, omega in enumerate(weights):
                 phi = phi_tab[0, i, :, 0]
-                jac_block += beta * (1.0/(det_jac_vol**2)) * det_jac[i] * omega * np.outer(phi, phi)
+                jac_block += (
+                    beta
+                    * (1.0 / (det_jac_vol**2))
+                    * det_jac[i]
+                    * omega
+                    * np.outer(phi, phi)
+                )
             for c in range(n_components):
                 b = c
                 e = n_phi * n_components + c
@@ -1313,7 +1313,9 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
         # destination indexes
         dest_neigh = m_space.dof_map.destination_indices(neigh_cell_id) + s_n_dof_g
-        dest = m_space.dof_map.bc_destination_indices(neigh_cell_id, cell.id) + s_n_dof_g
+        dest = (
+            m_space.dof_map.bc_destination_indices(neigh_cell_id, cell.id) + s_n_dof_g
+        )
 
         n_phi = phi_tab.shape[2]
         n_dof = n_phi * n_components
@@ -1338,7 +1340,6 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             # contribute rhs
             rg[dest] += r_el
         else:
-
             beta = 1.0e12
             jac_block = np.zeros((n_phi, n_phi))
             for i, omega in enumerate(weights):
@@ -1674,7 +1675,7 @@ def create_domain(dimension):
         return domain
 
 
-def create_conformal_mesher_from_file(file_name,dim):
+def create_conformal_mesher_from_file(file_name, dim):
     mesher = ConformalMesher(dimension=dim)
     mesher.write_mesh(file_name)
     return mesher
@@ -1686,6 +1687,7 @@ def create_mesh_from_file(file_name, dim, write_vtk_q=False):
     if write_vtk_q:
         gmesh.write_vtk()
     return gmesh
+
 
 def create_conformal_mesher(domain: Domain, h, ref_l=0):
     mesher = ConformalMesher(dimension=domain.dimension)
@@ -1703,8 +1705,8 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
         gmesh.write_vtk()
     return gmesh
 
-def main():
 
+def main():
     k_order = 2
     write_geometry_vtk = True
     write_vtk = True

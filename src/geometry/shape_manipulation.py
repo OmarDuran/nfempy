@@ -3,14 +3,13 @@ from numpy import linalg as la
 
 import geometry.polygon_polygon_intersection_test as pp_intersector
 import geometry.triangle_triangle_intersection_test as tt_intersector
-
-from geometry.shape import Shape
-from geometry.vertex import Vertex
 from geometry.edge import Edge
-from geometry.wire import Wire
 from geometry.face import Face
+from geometry.shape import Shape
 from geometry.shell import Shell
 from geometry.solid import Solid
+from geometry.vertex import Vertex
+from geometry.wire import Wire
 
 
 class ShapeManipulation:

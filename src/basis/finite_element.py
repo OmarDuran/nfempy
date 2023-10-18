@@ -83,9 +83,12 @@ class FiniteElement:
         )
         self.data.dof.transformations = self.basis_generator.entity_transformations()
         c1_sub_cells_ids = self.data.cell.sub_cells_ids[self.data.dimension - 1]
-        self.data.bc_entities = np.array([self.mesh.cells[id].get_material_id() is not None for id in
-                  c1_sub_cells_ids])
-
+        self.data.bc_entities = np.array(
+            [
+                self.mesh.cells[id].get_material_id() is not None
+                for id in c1_sub_cells_ids
+            ]
+        )
 
     def _set_integration_order(self):
         if self.integration_oder == 0:

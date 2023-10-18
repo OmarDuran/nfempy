@@ -74,6 +74,7 @@ class DoFData:
         dest: np.ndarray = np.empty(0)
         return DoFData(entity_dofs, transformations_are_identity, transformations, dest)
 
+
 class BCEntities:
     def __init__(
         self,
@@ -86,6 +87,7 @@ class BCEntities:
     def copy(self):
         bc_entities: np.ndarray = np.empty(0)
         return BCEntities(bc_entities)
+
 
 class BasisData:
     def __init__(
