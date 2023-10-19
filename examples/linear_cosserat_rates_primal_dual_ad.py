@@ -86,11 +86,12 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
     family = "Lagrange"
 
+    u_k_order = k_order + 1
     u_space = DiscreteSpace(
-        dim, u_components, family, k_order + 1, gmesh, integration_oder=2 * k_order + 1
+        dim, u_components, family, u_k_order, gmesh, integration_oder=2 * u_k_order + 1
     )
     t_space = DiscreteSpace(
-        dim, t_components, family, k_order, gmesh, integration_oder=2 * k_order + 1
+        dim, t_components, family, k_order, gmesh, integration_oder=2 * u_k_order + 1
     )
     if dim == 2:
         u_space.build_structures([2, 3, 4, 5])
@@ -2144,7 +2145,7 @@ def main():
     }
 
     # primal problem
-    for k in [2]:
+    for k in [1]:
         for d in [2]:
             primal_configuration.__setitem__("k_order", k)
             primal_configuration.__setitem__("dimension", d)

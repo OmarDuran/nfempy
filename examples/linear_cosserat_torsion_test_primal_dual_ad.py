@@ -69,7 +69,7 @@ def torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     m_lambda = 0.5769
     m_mu = 0.3846
     m_kappa = m_mu
-    m_gamma = 10.0
+    m_gamma = 1.0e+6
 
     # FESpace: data
     u_components = 2
@@ -80,11 +80,12 @@ def torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
     family = "Lagrange"
 
+    u_k_order = k_order + 1
     u_space = DiscreteSpace(
-        dim, u_components, family, k_order + 1, gmesh, integration_oder=2 * k_order + 1
+        dim, u_components, family, u_k_order, gmesh, integration_oder=2 * u_k_order + 1
     )
     t_space = DiscreteSpace(
-        dim, t_components, family, k_order, gmesh, integration_oder=2 * k_order + 1
+        dim, t_components, family, k_order, gmesh, integration_oder=2 * u_k_order + 1
     )
     if dim == 2:
         u_space.build_structures([2, 3, 4, 5])
@@ -1825,7 +1826,7 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 
 def main():
-    k_order = 2
+    k_order = 1
     write_geometry_vtk = True
     write_vtk = True
     mesh_file = "gmsh_files/cylinder.msh"
