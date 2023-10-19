@@ -105,32 +105,6 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
     st = time.time()
     # Assembler
-    # Triplets data
-    # c_size = 0
-    # n_d    # c_size = 0
-    #     # n_dof_g = 0
-    #     # cell_map = {}of_g = 0
-    # cell_map = {}
-
-    # for element in u_space.elements:
-    #     cell = element.data.cell
-    #     n_dof = 0
-    #     for n_entity_dofs in element.basis_generator.num_entity_dofs:
-    #         n_dof = n_dof + sum(n_entity_dofs) * n_components
-    #     cell_map.__setitem__(cell.id, c_size)
-    #     c_size = c_size + n_dof * n_dof
-    #
-    # for element in u_space.bc_elements:
-    #     cell = element.data.cell
-    #     n_dof = 0
-    #     for n_entity_dofs in element.basis_generator.num_entity_dofs:
-    #         n_dof = n_dof + sum(n_entity_dofs) * n_components
-    #     cell_map.__setitem__(cell.id, c_size)
-    #     c_size = c_size + n_dof * n_dof
-
-    # row = np.zeros((c_size), dtype=np.int64)
-    # col = np.zeros((c_size), dtype=np.int64)
-    # data = np.zeros((c_size), dtype=np.float64)
 
     u_n_dof_g = u_space.dof_map.dof_number()
     t_n_dof_g = t_space.dof_map.dof_number()
@@ -491,6 +465,7 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     # solving ls
     A.assemble()
 
+    st = time.time()
     ksp = PETSc.KSP().create()
     ksp.setOperators(A)
     b = A.createVecLeft()
@@ -2162,21 +2137,21 @@ def main():
     report_full_precision_data_Q = False
 
     primal_configuration = {
-        "n_refinements": 3,
+        "n_refinements": 5,
         "write_geometry_Q": write_vtk_files_Q,
         "write_vtk_Q": write_vtk_files_Q,
         "report_full_precision_data_Q": report_full_precision_data_Q,
     }
 
     # primal problem
-    for k in [1]:
-        for d in [3]:
+    for k in [2]:
+        for d in [2]:
             primal_configuration.__setitem__("k_order", k)
             primal_configuration.__setitem__("dimension", d)
             perform_convergence_test(primal_configuration)
 
     dual_configuration = {
-        "n_refinements": 3,
+        "n_refinements": 4,
         "dual_problem_Q": True,
         "write_geometry_Q": write_vtk_files_Q,
         "write_vtk_Q": write_vtk_files_Q,
