@@ -911,34 +911,6 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     components = (s_components, m_components, u_components, t_components)
     spaces = (s_space, m_space, u_space, t_space)
 
-    # for i in range(s_n_els):
-    #     s_element = s_space.elements[i]
-    #     m_element = m_space.elements[i]
-    #     u_element = u_space.elements[i]
-    #     t_element = t_space.elements[i]
-    #     cell = s_element.data.cell
-    #     elements = (s_element, m_element, u_element, t_element)
-    #
-    #     n_dof = 0
-    #     for j, element in enumerate(elements):
-    #         for n_entity_dofs in element.basis_generator.num_entity_dofs:
-    #             n_dof = n_dof + sum(n_entity_dofs) * components[j]
-    #
-    #     cell_map.__setitem__(cell.id, c_size)
-    #     c_size = c_size + n_dof * n_dof
-    #
-    # for element in s_space.bc_elements:
-    #     cell = element.data.cell
-    #     n_dof = 0
-    #     for n_entity_dofs in element.basis_generator.num_entity_dofs:
-    #         n_dof = n_dof + sum(n_entity_dofs) * s_components
-    #     cell_map.__setitem__(cell.id, c_size)
-    #     c_size = c_size + n_dof * n_dof
-
-    # row = np.zeros((c_size), dtype=np.int32)
-    # col = np.zeros((c_size), dtype=np.int32)
-    # data = np.zeros((c_size), dtype=np.float64)
-
     s_n_dof_g = s_space.dof_map.dof_number()
     m_n_dof_g = m_space.dof_map.dof_number()
     u_n_dof_g = u_space.dof_map.dof_number()
@@ -1359,19 +1331,10 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
         r_el, j_el = el_form.val, el_form.der.reshape((n_dof, n_dof))
 
-        # return (r_el, j_el)
-        # scattering data
-        # c_sequ = cell_map[cell.id]
-
         # contribute rhs
         rg[dest] += r_el
 
         # contribute lhs
-        # block_sequ = np.array(range(0, len(dest) * len(dest))) + c_sequ
-        # row[block_sequ] += np.repeat(dest, len(dest))
-        # col[block_sequ] += np.tile(dest, len(dest))
-        # data[block_sequ] += j_el.ravel()
-
         data = j_el.ravel()
         row = np.repeat(dest, len(dest))
         col = np.tile(dest, len(dest))
@@ -1430,76 +1393,20 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     indexes = np.array([i for i in range(s_n_els)])
     collection = np.array_split(indexes, num_cpus)
 
-    if parallel_assembly_q:
+    def scatter_form_data_on_cells(indexes, args):
+        return [scatter_form_data_ad(i, args) for i in indexes]
 
-        @ray.remote
-        def scatter_form_data_on_cells(indexes, args):
-            return [scatter_form_data_ad(i, args) for i in indexes]
+    results = [
+        scatter_form_data_on_cells(index_set, args) for index_set in collection
+    ]
 
-        streaming_actors = [
-            scatter_form_data_on_cells.remote(index_set, args)
-            for index_set in collection
-        ]
-        results = ray.get(streaming_actors)
-    else:
-
-        def scatter_form_data_on_cells(indexes, args):
-            return [scatter_form_data_ad(i, args) for i in indexes]
-
-        results = [
-            scatter_form_data_on_cells(index_set, args) for index_set in collection
-        ]
-
-    # array_data = [pair for chunk in results for pair in chunk]
-    # args = (array_data, element_data, destinations, cell_map, row, col, data)
-
-    # def scatter_residual_jacobian(i, args):
-    #     array_data, element_data, destinations, cell_map, row, col, data = args
-    #     s_data: ElementData = element_data[i][0]
-    #     c_sequ = cell_map[s_data.cell.id]
-    #
-    #     # destination indexes
-    #     dest_s = destinations[0][i]
-    #     dest_m = destinations[1][i]
-    #     dest_u = destinations[2][i]
-    #     dest_t = destinations[3][i]
-    #
-    #     dest = np.concatenate([dest_s, dest_m, dest_u, dest_t])
-    #     r_el, j_el = array_data[i]
-    #     # contribute rhs
-    #     rg[dest] += r_el
-    #
-    #     # contribute lhs
-    #     block_sequ = np.array(range(0, len(dest) * len(dest))) + c_sequ
-    #     row[block_sequ] += np.repeat(dest, len(dest))
-    #     col[block_sequ] += np.tile(dest, len(dest))
-    #     data[block_sequ] += j_el.ravel()
-    #
-    # [scatter_residual_jacobian(i, args) for i in indexes]
-
-    # jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
-    # array_data.clear()
+    A.assemble()
     et = time.time()
     elapsed_time = et - st
     print("Assembly time:", elapsed_time, "seconds")
 
     # solving ls
     st = time.time()
-    # alpha = sp.linalg.spsolve(jg, -rg)
-    # alpha = sp_solver.spsolve(jg, -rg)
-
-    # jg_iLU = sp.linalg.spilu(jg.tocsc(),drop_tol=1e-2)
-    # P = sp.linalg.LinearOperator(jg.shape, jg_iLU.solve)
-    # alpha, check = sp.linalg.gmres(jg, -rg, M=P,tol=1e-10)
-    # print("successful exit:", check)
-
-    # A = PETSc.Mat()
-    # A.createAIJ([n_dof_g, n_dof_g])
-
-    # nnz = data.shape[0]
-    # for k in range(nnz):
-    #     A.setValue(row = row[k], col = col[k], value = data[k], addv = True )
-    A.assemble()
 
     ksp = PETSc.KSP().create()
     ksp.setOperators(A)
@@ -2138,7 +2045,7 @@ def main():
     report_full_precision_data_Q = False
 
     primal_configuration = {
-        "n_refinements": 5,
+        "n_refinements": 4,
         "write_geometry_Q": write_vtk_files_Q,
         "write_vtk_Q": write_vtk_files_Q,
         "report_full_precision_data_Q": report_full_precision_data_Q,
