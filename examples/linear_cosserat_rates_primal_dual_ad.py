@@ -252,13 +252,13 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
                     c = 0
                     a_ux = alpha[:, c : n_u_dof + c : u_components]
-                    a_tx = alpha[:, c + n_u_dof : n_u_dof + n_t_dof + c : u_components]
+                    a_tx = alpha[:, c + n_u_dof : n_u_dof + n_t_dof + c : t_components]
                     c = 1
                     a_uy = alpha[:, c : n_u_dof + c : u_components]
-                    a_ty = alpha[:, c + n_u_dof : n_u_dof + n_t_dof + c : u_components]
+                    a_ty = alpha[:, c + n_u_dof : n_u_dof + n_t_dof + c : t_components]
                     c = 2
                     a_uz = alpha[:, c : n_u_dof + c : u_components]
-                    a_tz = alpha[:, c + n_u_dof : n_u_dof + n_t_dof + c : u_components]
+                    a_tz = alpha[:, c + n_u_dof : n_u_dof + n_t_dof + c : t_components]
 
                     ux_h = a_ux @ u_phi_tab[0, i, :, 0:dim]
                     uy_h = a_uy @ u_phi_tab[0, i, :, 0:dim]
@@ -278,7 +278,7 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
                     grad_th_y = a_ty @ grad_phi_t
                     grad_th_z = a_tz @ grad_phi_t
                     grad_th = VecValDer(
-                        np.vstack((grad_th_x.val, grad_th_y.val, grad_uh_z.val)),
+                        np.vstack((grad_th_x.val, grad_th_y.val, grad_th_z.val)),
                         np.vstack((grad_th_x.der, grad_th_y.der, grad_th_z.der)),
                     )
 
@@ -2045,7 +2045,7 @@ def main():
     report_full_precision_data_Q = False
 
     primal_configuration = {
-        "n_refinements": 4,
+        "n_refinements": 3,
         "write_geometry_Q": write_vtk_files_Q,
         "write_vtk_Q": write_vtk_files_Q,
         "report_full_precision_data_Q": report_full_precision_data_Q,
@@ -2053,7 +2053,7 @@ def main():
 
     # primal problem
     for k in [1]:
-        for d in [2]:
+        for d in [3]:
             primal_configuration.__setitem__("k_order", k)
             primal_configuration.__setitem__("dimension", d)
             perform_convergence_test(primal_configuration)

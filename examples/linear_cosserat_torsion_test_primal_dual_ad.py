@@ -70,7 +70,7 @@ def torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     m_lambda = 0.5769
     m_mu = 0.3846
     m_kappa = m_mu
-    m_gamma = 1.0
+    m_gamma = 1.0e-6
 
     # FESpace: data
     u_components = 2
@@ -232,6 +232,7 @@ def torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
                     ).reshape((n_t_dof,))
 
                 else:
+
                     inv_jac_m = np.vstack(
                         (inv_jac[i] @ e1, inv_jac[i] @ e2, inv_jac[i] @ e3)
                     )
@@ -244,13 +245,13 @@ def torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
                     c = 0
                     a_ux = alpha[:, c : n_u_dof + c : u_components]
-                    a_tx = alpha[:, c + n_u_dof : n_u_dof + n_t_dof + c : u_components]
+                    a_tx = alpha[:, c + n_u_dof : n_u_dof + n_t_dof + c : t_components]
                     c = 1
                     a_uy = alpha[:, c : n_u_dof + c : u_components]
-                    a_ty = alpha[:, c + n_u_dof : n_u_dof + n_t_dof + c : u_components]
+                    a_ty = alpha[:, c + n_u_dof : n_u_dof + n_t_dof + c : t_components]
                     c = 2
                     a_uz = alpha[:, c : n_u_dof + c : u_components]
-                    a_tz = alpha[:, c + n_u_dof : n_u_dof + n_t_dof + c : u_components]
+                    a_tz = alpha[:, c + n_u_dof : n_u_dof + n_t_dof + c : t_components]
 
                     ux_h = a_ux @ u_phi_tab[0, i, :, 0:dim]
                     uy_h = a_uy @ u_phi_tab[0, i, :, 0:dim]
@@ -270,7 +271,7 @@ def torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
                     grad_th_y = a_ty @ grad_phi_t
                     grad_th_z = a_tz @ grad_phi_t
                     grad_th = VecValDer(
-                        np.vstack((grad_th_x.val, grad_th_y.val, grad_uh_z.val)),
+                        np.vstack((grad_th_x.val, grad_th_y.val, grad_th_z.val)),
                         np.vstack((grad_th_x.der, grad_th_y.der, grad_th_z.der)),
                     )
 
@@ -378,11 +379,28 @@ def torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
         neigh_cell_id = neigh_list[0]
         neigh_cell_index = u_space.id_to_element[neigh_cell_id]
-        neigh_cell = u_space.elements[neigh_cell_index].data.cell
+        neigh_element = u_space.elements[neigh_cell_index]
+        neigh_cell = neigh_element.data.cell
 
         # destination indexes
         dest_neigh = u_space.dof_map.destination_indices(neigh_cell_id)
         dest_u = u_space.dof_map.bc_destination_indices(neigh_cell_id, cell.id)
+
+        # compute trace space
+        facet_index = neigh_cell.sub_cells_ids[2].tolist().index(cell.id)
+        vertices = basix.geometry(CellType.tetrahedron)
+        facet_sub_entities = [basix.cell.sub_entity_connectivity(CellType.tetrahedron)[cell.dimension][
+             facet_index][d] for d in range(cell.dimension + 1)]
+        facet_nodes = facet_sub_entities[0]
+        mapped_points = np.array([
+            vertices[facet_nodes[0]] * (1 - x - y) + vertices[facet_nodes[1]] * x + vertices[
+                facet_nodes[2]] * y
+            for x, y in points
+        ])
+        el_dofs = neigh_element.data.dof.entity_dofs
+        facet_dofs = [el_dofs[d][i] for d in range(cell.dimension + 1) for i in facet_sub_entities[d]]
+        dof_u_index = [dof[0] for dof in facet_dofs if len(dof) != 0]
+        un_phi_tab = neigh_element.evaluate_basis(mapped_points, False)
 
         # find high-dimension neigh
         entity_map = t_space.dof_map.mesh_topology.entity_map_by_dimension(
@@ -394,13 +412,30 @@ def torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
         neigh_cell_id = neigh_list[0]
         neigh_cell_index = t_space.id_to_element[neigh_cell_id]
-        neigh_cell = t_space.elements[neigh_cell_index].data.cell
+        neigh_element = t_space.elements[neigh_cell_index]
+        neigh_cell = neigh_element.data.cell
 
         # destination indexes
-        dest_neigh = t_space.dof_map.destination_indices(neigh_cell_id)
+        dest_neigh = t_space.dof_map.destination_indices(neigh_cell_id) + u_n_dof_g
         dest_t = (
                 t_space.dof_map.bc_destination_indices(neigh_cell_id, cell.id) + u_n_dof_g
         )
+
+        # compute trace space
+        facet_index = neigh_cell.sub_cells_ids[2].tolist().index(cell.id)
+        vertices = basix.geometry(CellType.tetrahedron)
+        facet_sub_entities = [basix.cell.sub_entity_connectivity(CellType.tetrahedron)[cell.dimension][
+             facet_index][d] for d in range(cell.dimension + 1)]
+        facet_nodes = facet_sub_entities[0]
+        mapped_points = np.array([
+            vertices[facet_nodes[0]] * (1 - x - y) + vertices[facet_nodes[1]] * x + vertices[
+                facet_nodes[2]] * y
+            for x, y in points
+        ])
+        el_dofs = neigh_element.data.dof.entity_dofs
+        facet_dofs = [el_dofs[d][i] for d in range(cell.dimension + 1) for i in facet_sub_entities[d]]
+        dof_t_index = [dof[0] for dof in facet_dofs if len(dof) != 0]
+        tn_phi_tab = neigh_element.evaluate_basis(mapped_points, False)
 
         dest = np.concatenate([dest_u, dest_t])
 
@@ -429,25 +464,33 @@ def torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             )
 
             for i, omega in enumerate(weights):
-                u_D = R_mat @ x[i] - x[i]
-                u_phi = u_phi_tab[0, i, :, 0]
+                u_D =  R_mat @ x[i] - x[i]
+                u_phi = un_phi_tab[0, i, dof_u_index, 0]
                 for c in u_component_list:
                     b = c
                     e = b + n_u_dof
                     r_el[b:e:u_components] += -1.0 * beta * det_jac[i] * omega * u_D[c] * u_phi
-                    j_el[b:e:u_components, b:e:u_components] += beta * det_jac[i] * omega * np.outer(u_phi, u_phi)
+                    j_el[b:e:u_components, b:e:u_components] += +1.0 * beta * det_jac[i] * omega * np.outer(u_phi, u_phi)
 
                 t_component_list = [0, 1]
                 theta_D = np.array([0.0, 0.0, 0.0])
-                t_phi = t_phi_tab[0, i, :, 0]
+                t_phi = tn_phi_tab[0, i, dof_t_index, 0]
                 for c in t_component_list:
                     b = c + n_u_dof
                     e = b + n_t_dof
                     r_el[b:e:t_components] += -1.0 * beta * det_jac[i] * omega * theta_D[c] * t_phi
-                    j_el[b:e:t_components, b:e:t_components] += beta * det_jac[i] * omega * np.outer(t_phi, t_phi)
+                    j_el[b:e:t_components, b:e:t_components] += +1.0 * beta * det_jac[i] * omega * np.outer(t_phi, t_phi)
 
             # contribute rhs
             rg[dest] += r_el
+
+            # contribute lhs
+            data = j_el.ravel()
+            row = np.repeat(dest, len(dest))
+            col = np.tile(dest, len(dest))
+            nnz = data.shape[0]
+            for k in range(nnz):
+                A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
         elif cell.material_id == 6:
 
@@ -455,12 +498,12 @@ def torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             beta = 1.0e12
             jac_block_u = np.zeros((n_u_phi, n_u_phi))
             for i, omega in enumerate(weights):
-                phi = u_phi_tab[0, i, :, 0]
+                phi = un_phi_tab[0, i, dof_u_index, 0]
                 jac_block_u += beta * det_jac[i] * omega * np.outer(phi, phi)
 
             jac_block_t = np.zeros((n_t_phi, n_t_phi))
             for i, omega in enumerate(weights):
-                phi = t_phi_tab[0, i, :, 0]
+                phi = tn_phi_tab[0, i, dof_t_index, 0]
                 jac_block_t += beta * det_jac[i] * omega * np.outer(phi, phi)
 
             for c in range(u_components):
@@ -473,13 +516,26 @@ def torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
                 e = b + n_t_dof
                 j_el[b:e:t_components, b:e:t_components] += jac_block_t
 
-        # contribute lhs
-        data = j_el.ravel()
-        row = np.repeat(dest, len(dest))
-        col = np.tile(dest, len(dest))
-        nnz = data.shape[0]
-        for k in range(nnz):
-            A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
+            # contribute lhs
+            data = j_el.ravel()
+            row = np.repeat(dest, len(dest))
+            col = np.tile(dest, len(dest))
+            nnz = data.shape[0]
+            for k in range(nnz):
+                A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
+
+        else:
+            # print("cell.material_id: ", cell.material_id)
+            return
+
+        # # contribute lhs
+        # if cell.material_id in [6 , 7]:
+        #     data = j_el.ravel()
+        #     row = np.repeat(dest, len(dest))
+        #     col = np.tile(dest, len(dest))
+        #     nnz = data.shape[0]
+        #     for k in range(nnz):
+        #         A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
     [
         scatter_bc_form_data(A, i, u_space, t_space)
@@ -487,13 +543,12 @@ def torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     ]
 
     # jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
+    A.assemble()
     et = time.time()
     elapsed_time = et - st
     print("Assembly time:", elapsed_time, "seconds")
 
     # solving ls
-    A.assemble()
-
     st = time.time()
     ksp = PETSc.KSP().create()
     ksp.setOperators(A)
@@ -581,7 +636,7 @@ def torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             alpha_star_t = np.array(np.split(alpha_t_l, n_t_phi))
 
             # Generalized displacement
-            u_h = (u_phi_tab[0, :, :, 0] @ alpha_star_u[:, 0:dim]).T
+            u_h = (u_phi_tab[0, :, :, 0] @ alpha_star_u[:, 0:u_components]).T
             t_h = (t_phi_tab[0, :, :, 0] @ alpha_star_t[:, 0:t_components]).T
 
             # stress and couple stress
@@ -654,7 +709,7 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     m_lambda = 0.5769
     m_mu = 0.3846
     m_kappa = m_mu
-    m_gamma = 1.0
+    m_gamma = 1.0e-8
 
     # FESpace: data
     s_components = 2
@@ -1315,7 +1370,11 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
         if cell.material_id in [6, 7]:
             component_list = [0, 1, 2]
-            angle = 20.0 * np.pi / 180.0
+
+            angle = 5.0 * np.pi / 180.0
+            if cell.material_id == 6:
+                angle *= 0.0
+
             R_mat = np.array(
                 [
                     [np.cos(angle), np.sin(angle), 0.0],
@@ -1323,18 +1382,17 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
                     [0.0, 0.0, 1.0],
                 ]
             )
+            for i, omega in enumerate(weights):
+                u_D = R_mat @ x[i] - x[i]
+                phi = sn_phi_tab[0, i, dof_n_index, 0:s_components] @ normal
+                for c in component_list:
+                    b = c
+                    e = b + n_dof
+                    r_el[b:e:n_components] += det_jac[i] * omega * u_D[c] * phi
 
-            if cell.material_id == 7:
-                for i, omega in enumerate(weights):
-                    u_D = R_mat @ x[i] - x[i]
-                    phi = sn_phi_tab[0, i, dof_n_index, 0:s_components] @ normal
-                    for c in component_list:
-                        b = c
-                        e = b + n_dof
-                        r_el[b:e:n_components] += - 1.0 * det_jac[i] * omega * u_D[c] * phi
+            # contribute rhs
+            rg[dest] += r_el
 
-                # contribute rhs
-                rg[dest] += r_el
         else:
             beta = 1.0e12
             jac_block = np.zeros((n_phi, n_phi))
@@ -1398,7 +1456,7 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         r_el = np.zeros(n_dof)
 
         # compute trace space
-        facet_index = neigh_cell.sub_cells_ids[2].tolist().index(cell.id)
+        facet_index = neigh_cell.sub_cells_ids[cell.dimension].tolist().index(cell.id)
         vertices = basix.geometry(CellType.tetrahedron)
         facet = basix.cell.sub_entity_connectivity(CellType.tetrahedron)[cell.dimension][
             facet_index][0]
@@ -1469,10 +1527,10 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         for i in range(len(s_space.bc_elements))
     ]
 
-    [
-        scatter_m_bc_form_data(A, i, m_space)
-        for i in range(len(m_space.bc_elements))
-    ]
+    # [
+    #     scatter_m_bc_form_data(A, i, m_space)
+    #     for i in range(len(m_space.bc_elements))
+    # ]
 
     A.assemble()
     et = time.time()
@@ -1811,7 +1869,7 @@ def main():
     # mesher = create_conformal_mesher(domain, h, 0)
     # gmesh = create_mesh(3, mesher, write_geometry_vtk)
 
-    torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk)
+    # torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk)
     torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk)
 
     # if mixed_form_q:
