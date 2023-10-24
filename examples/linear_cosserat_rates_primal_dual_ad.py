@@ -835,7 +835,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     m_lambda = 1.0
     m_mu = 1.0
     m_kappa = 1.0
-    m_gamma = 1.0
+    m_gamma = 1.0e+6
 
     # FESpace: data
     s_components = 2
@@ -864,7 +864,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
     # couple stress space
     m_space = DiscreteSpace(
-        dim, m_components, m_family, k_order, gmesh, integration_oder=2 * k_order + 1
+        dim, m_components, m_family, 1, gmesh, integration_oder=2 * k_order + 1
     )
     if dim == 2:
         m_space.build_structures([2, 3, 4, 5])
@@ -994,6 +994,8 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
         # Partial local vectorization
         f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
+        u_phi_s_star = det_jac * weights * u_phi_tab[0, :, :, 0].T
+        t_phi_s_star = det_jac * weights * t_phi_tab[0, :, :, 0].T
 
         # constant directors
         e1 = np.array([1, 0, 0])
@@ -1005,18 +1007,12 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             for c in range(u_components):
                 b = c + n_s_dof + n_m_dof
                 e = b + n_u_dof
-                el_form[b:e:u_components] += (
-                    -1.0 * det_jac * weights * u_phi_tab[0, :, :, 0].T @ f_val_star[c]
-                )
+                el_form[b:e:u_components] += -1.0 * u_phi_s_star @ f_val_star[c]
             for c in range(t_components):
                 b = c + n_s_dof + n_m_dof + n_u_dof
                 e = b + n_t_dof
                 el_form[b:e:t_components] += (
-                    -1.0
-                    * det_jac
-                    * weights
-                    * t_phi_tab[0, :, :, 0].T
-                    @ f_val_star[c + u_components]
+                    -1.0 * t_phi_s_star @ f_val_star[c + u_components]
                 )
 
             for i, omega in enumerate(weights):
@@ -1414,14 +1410,22 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     b.array[:] = -rg
     x = A.createVecRight()
 
+    petsc_options = {'rtol': 1e-10, 'atol': 1e-12}
     ksp = PETSc.KSP().create()
     ksp.create(PETSc.COMM_WORLD)
     ksp.setOperators(A)
-    ksp.setType("fgmres")
+    ksp.setType('fgmres')
+    ksp.setTolerances(**petsc_options)
     ksp.setConvergenceHistory()
     ksp.getPC().setType("ilu")
     ksp.solve(b, x)
     alpha = x.array
+
+    # viewer = PETSc.Viewer().createASCII("ksp_output.txt")
+    # ksp.view(viewer)
+    # solver_output = open("ksp_output.txt", "r")
+    # for line in solver_output.readlines():
+    #     print(line)
 
     # residuals = ksp.getConvergenceHistory()
     # plt.semilogy(residuals)
@@ -2066,12 +2070,12 @@ def main():
         "report_full_precision_data_Q": report_full_precision_data_Q,
     }
 
-    # # dual problem
-    # for k in [1]:
-    #     for d in [3]:
-    #         dual_configuration.__setitem__("k_order", k)
-    #         dual_configuration.__setitem__("dimension", d)
-    #         perform_convergence_test(dual_configuration)
+    # dual problem
+    for k in [1, 2, 3]:
+        for d in [2]:
+            dual_configuration.__setitem__("k_order", k)
+            dual_configuration.__setitem__("dimension", d)
+            perform_convergence_test(dual_configuration)
 
 
 if __name__ == "__main__":
