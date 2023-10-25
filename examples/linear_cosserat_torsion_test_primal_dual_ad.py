@@ -700,7 +700,7 @@ def torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     return
 
 
-def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
+def torsion_hdiv_cosserat_elasticity(L_c ,k_order, gmesh, write_vtk_q=False):
     parallel_assembly_q = False
 
     dim = gmesh.dimension
@@ -709,7 +709,7 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     m_lambda = 0.5769
     m_mu = 0.3846
     m_kappa = m_mu
-    m_gamma = 1.0e-8
+    m_gamma = m_mu * L_c * L_c
 
     # FESpace: data
     s_components = 2
@@ -1025,7 +1025,7 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
                     div_mh = a_m @ div_v.T
 
                     Gamma_outer = th * np.array([[0.0, -1.0], [1.0, 0.0]])
-                    S_cross = np.array([[Skew_sh[1, 0] - Skew_sh[0, 1]]])
+                    S_cross = np.array([[sh[1, 0] - sh[0, 1]]])
 
                 else:
                     c = 0
@@ -1197,9 +1197,9 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
                     S_cross = np.array(
                         [
                             [
-                                Skew_sh[2, 1] - Skew_sh[1, 2],
-                                Skew_sh[0, 2] - Skew_sh[2, 0],
-                                Skew_sh[1, 0] - Skew_sh[0, 1],
+                                sh[2, 1] - sh[1, 2],
+                                sh[0, 2] - sh[2, 0],
+                                sh[1, 0] - sh[0, 1],
                             ]
                         ]
                     )
@@ -1371,7 +1371,7 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         if cell.material_id in [6, 7]:
             component_list = [0, 1, 2]
 
-            angle = 5.0 * np.pi / 180.0
+            angle = 13.0 * np.pi / 180.0
             if cell.material_id == 6:
                 angle *= 0.0
 
@@ -1383,7 +1383,7 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
                 ]
             )
             for i, omega in enumerate(weights):
-                u_D = R_mat @ x[i] - x[i]
+                u_D = (R_mat @ x[i] - x[i])
                 phi = sn_phi_tab[0, i, dof_n_index, 0:s_components] @ normal
                 for c in component_list:
                     b = c
@@ -1480,30 +1480,28 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
         if cell.material_id in [6, 7]:
             component_list = [0, 1, 2]
+
+            angle = 0.0 * np.pi / 180.0
+            if cell.material_id == 6:
+                angle *= 0.0
+
             for i, omega in enumerate(weights):
-                theta_D = np.array([0.0, 0.0, 0.0])
+                xv = x[i]
+                tx = 0.0 #angle*(-xv[0]*np.cos(angle) + xv[1]*np.sin(angle))/20.0
+                ty = 0.0 #-angle*(xv[1]*np.cos(angle) + xv[0]*np.sin(angle))/20.0
+                tz = np.sin(angle)
+                theta_D = np.array([tx, ty, tz])
                 phi = mn_phi_tab[0, i, dof_n_index, 0:m_components] @ normal
                 for c in component_list:
                     b = c
                     e = b + n_dof
-                    r_el[b:e:m_components] += -1.0 * det_jac[i] * omega * theta_D[c] * phi
+                    r_el[b:e:m_components] += det_jac[i] * omega * theta_D[c] * phi
 
             # contribute rhs
             rg[dest] += r_el
 
-            if cell.material_id == 7:
-                beta = 1.0e12
-                jac_block = np.zeros((n_phi, n_phi))
-                component_list = [2]
-                for i, omega in enumerate(weights):
-                    phi = mn_phi_tab[0, i, dof_n_index, 0:m_components] @ normal
-                    jac_block += beta * det_jac[i] * omega * np.outer(phi, phi)
-                for c in component_list:
-                    b = c
-                    e = b + n_dof
-                    j_el[b:e:n_components, b:e:n_components] += jac_block
-
         else:
+
             beta = 1.0e12
             jac_block = np.zeros((n_phi, n_phi))
             for i, omega in enumerate(weights):
@@ -1514,23 +1512,23 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
                 e = b + n_dof
                 j_el[b:e:n_components, b:e:n_components] += jac_block
 
-        # contribute lhs
-        data = j_el.ravel()
-        row = np.repeat(dest, len(dest))
-        col = np.tile(dest, len(dest))
-        nnz = data.shape[0]
-        for k in range(nnz):
-            A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
+            # contribute lhs
+            data = j_el.ravel()
+            row = np.repeat(dest, len(dest))
+            col = np.tile(dest, len(dest))
+            nnz = data.shape[0]
+            for k in range(nnz):
+                A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
     [
         scatter_s_bc_form_data(A, i, s_space)
         for i in range(len(s_space.bc_elements))
     ]
 
-    # [
-    #     scatter_m_bc_form_data(A, i, m_space)
-    #     for i in range(len(m_space.bc_elements))
-    # ]
+    [
+        scatter_m_bc_form_data(A, i, m_space)
+        for i in range(len(m_space.bc_elements))
+    ]
 
     A.assemble()
     et = time.time()
@@ -1546,10 +1544,12 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     b.array[:] = -rg
     x = A.createVecRight()
 
+    petsc_options = {'rtol': 1e-10, 'atol': 1e-12}
     ksp = PETSc.KSP().create()
     ksp.create(PETSc.COMM_WORLD)
     ksp.setOperators(A)
-    ksp.setType("fgmres")
+    ksp.setType('fgmres')
+    ksp.setTolerances(**petsc_options)
     ksp.setConvergenceHistory()
     ksp.getPC().setType("ilu")
     ksp.solve(b, x)
@@ -1561,6 +1561,150 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     et = time.time()
     elapsed_time = et - st
     print("Linear solver time:", elapsed_time, "seconds")
+
+
+    def integrate_M_t_strain(i, s_space):
+
+        n_components = s_space.n_comp
+        el_data: ElementData = s_space.bc_elements[i].data
+
+        cell = el_data.cell
+        points = el_data.quadrature.points
+        weights = el_data.quadrature.weights
+        phi_tab = el_data.basis.phi
+
+        x = el_data.mapping.x
+        det_jac = el_data.mapping.det_jac
+        inv_jac = el_data.mapping.inv_jac
+
+        # find high-dimension neigh
+        entity_map = s_space.dof_map.mesh_topology.entity_map_by_dimension(
+            cell.dimension
+        )
+        neigh_list = list(entity_map.predecessors(cell.id))
+        neigh_check_q = len(neigh_list) > 0
+        assert neigh_check_q
+
+        neigh_cell_id = neigh_list[0]
+        neigh_cell_index = s_space.id_to_element[neigh_cell_id]
+        neigh_element = s_space.elements[neigh_cell_index]
+        neigh_cell = neigh_element.data.cell
+
+        # destination indexes
+        dest_neigh = s_space.dof_map.destination_indices(neigh_cell_id)
+        dest = s_space.dof_map.bc_destination_indices(neigh_cell_id, cell.id)
+
+        n_phi = phi_tab.shape[2]
+        n_dof = n_phi * n_components
+        js = (n_dof, n_dof)
+        j_el = np.zeros(js)
+        r_el = np.zeros(n_dof)
+
+        # compute trace space
+        facet_index = neigh_cell.sub_cells_ids[2].tolist().index(cell.id)
+        vertices = basix.geometry(CellType.tetrahedron)
+        facet = basix.cell.sub_entity_connectivity(CellType.tetrahedron)[cell.dimension][
+            facet_index][0]
+        mapped_points = np.array([
+            vertices[facet[0]] * (1 - x - y) + vertices[facet[1]] * x + vertices[
+                facet[2]] * y
+            for x, y in points
+        ])
+        dof_n_index = neigh_element.data.dof.entity_dofs[cell.dimension][facet_index]
+        sn_phi_tab = neigh_element.evaluate_basis(mapped_points, False)
+        n_phi = sn_phi_tab.shape[2]
+        M_t = 0.0
+        if cell.material_id in [7]:
+            alpha_l = alpha[dest_neigh]
+            alpha_star = np.array(np.split(alpha_l, n_phi))
+            for i, omega in enumerate(weights):
+                xv = x[i, 0], x[i, 1], x[i, 2]
+                s_h = np.vstack(
+                    tuple(
+                        [sn_phi_tab[0, i, :, 0:dim].T @ alpha_star[:, d] for d in range(dim)]
+                    )
+                )
+                M_t += det_jac[i] * omega * (xv[0] * s_h[2,1] - xv[1] * s_h[2,0])
+
+        return M_t
+
+    def integrate_M_t_curvature(i, m_space):
+
+        n_components = m_space.n_comp
+        el_data: ElementData = m_space.bc_elements[i].data
+
+        cell = el_data.cell
+        points = el_data.quadrature.points
+        weights = el_data.quadrature.weights
+        phi_tab = el_data.basis.phi
+
+        x = el_data.mapping.x
+        det_jac = el_data.mapping.det_jac
+        inv_jac = el_data.mapping.inv_jac
+
+        # find high-dimension neigh
+        entity_map = m_space.dof_map.mesh_topology.entity_map_by_dimension(
+            cell.dimension
+        )
+        neigh_list = list(entity_map.predecessors(cell.id))
+        neigh_check_q = len(neigh_list) > 0
+        assert neigh_check_q
+
+        neigh_cell_id = neigh_list[0]
+        neigh_cell_index = m_space.id_to_element[neigh_cell_id]
+        neigh_element = m_space.elements[neigh_cell_index]
+        neigh_cell = neigh_element.data.cell
+
+        # destination indexes
+        dest_neigh = m_space.dof_map.destination_indices(neigh_cell_id) + s_n_dof_g
+        dest = m_space.dof_map.bc_destination_indices(neigh_cell_id, cell.id) + s_n_dof_g
+
+        n_phi = phi_tab.shape[2]
+        n_dof = n_phi * n_components
+        js = (n_dof, n_dof)
+        j_el = np.zeros(js)
+        r_el = np.zeros(n_dof)
+
+        # compute trace space
+        facet_index = neigh_cell.sub_cells_ids[2].tolist().index(cell.id)
+        vertices = basix.geometry(CellType.tetrahedron)
+        facet = basix.cell.sub_entity_connectivity(CellType.tetrahedron)[cell.dimension][
+            facet_index][0]
+        mapped_points = np.array([
+            vertices[facet[0]] * (1 - x - y) + vertices[facet[1]] * x + vertices[
+                facet[2]] * y
+            for x, y in points
+        ])
+        dof_n_index = neigh_element.data.dof.entity_dofs[cell.dimension][facet_index]
+        mn_phi_tab = neigh_element.evaluate_basis(mapped_points, False)
+        n_phi = mn_phi_tab.shape[2]
+        M_t = 0.0
+        if cell.material_id in [7]:
+            alpha_l = alpha[dest_neigh]
+            alpha_star = np.array(np.split(alpha_l, n_phi))
+            for i, omega in enumerate(weights):
+                xv = x[i, 0], x[i, 1], x[i, 2]
+                m_h = np.vstack(
+                    tuple(
+                        [mn_phi_tab[0, i, :, 0:dim].T @ alpha_star[:, d] for d in range(dim)]
+                    )
+                )
+                M_t += det_jac[i] * omega * (m_h[2,2])
+
+        return M_t
+
+    st = time.time()
+    M_t_strain_vec = [
+        integrate_M_t_strain(i, s_space) for i in range(len(m_space.bc_elements))
+    ]
+    M_t_curvature_vec = [
+        integrate_M_t_curvature(i, m_space) for i in range(len(m_space.bc_elements))
+    ]
+    et = time.time()
+    elapsed_time = et - st
+    print("Integrate M_t time:", elapsed_time, "seconds")
+    M_t_strain = functools.reduce(lambda x, y: x + y, M_t_strain_vec)
+    M_t_curvature = functools.reduce(lambda x, y: x + y, M_t_curvature_vec)
 
     if write_vtk_q:
         # post-process solution
@@ -1796,7 +1940,7 @@ def torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
 
-    return
+    return M_t_strain, M_t_curvature
 
 
 def create_domain(dimension):
@@ -1855,8 +1999,7 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
         gmesh.write_vtk()
     return gmesh
 
-
-def main():
+def old_main():
     k_order = 2
     write_geometry_vtk = True
     write_vtk = True
@@ -1868,14 +2011,24 @@ def main():
     # domain = create_domain(3)
     # mesher = create_conformal_mesher(domain, h, 0)
     # gmesh = create_mesh(3, mesher, write_geometry_vtk)
-
     # torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk)
-    torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk)
+    # torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk)
 
-    # if mixed_form_q:
-    #     torsion_hdiv_cosserat_elasticity(k_order, gmesh, write_vtk)
-    # else:
-    #     torsion_h1_cosserat_elasticity(k_order, gmesh, write_vtk)
+def main():
+
+    k_order = 2
+    write_geometry_vtk = True
+    write_vtk = True
+    mesh_file = "gmsh_files/cylinder.msh"
+    gmesh = create_mesh_from_file(mesh_file, 3, write_geometry_vtk)
+
+    l_cvalues = np.logspace(-5,5,num=20,  endpoint=True)
+    m_t_values = []
+    for L_c in l_cvalues:
+        m_t_val = torsion_hdiv_cosserat_elasticity(L_c, k_order, gmesh, write_vtk)
+        m_t_values.append(m_t_val)
+    scatter_data = np.insert(np.array(m_t_values), 0, np.array(l_cvalues), axis = 1)
+    np.savetxt("torsion_test_k" + str(k_order) + "_lc_torque_diagram.txt",scatter_data,delimiter=",", header="Lc, M_t_strain, M_t_curvature")
 
     return
 

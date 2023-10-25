@@ -1112,7 +1112,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
                     div_mh = a_m @ div_v.T
 
                     Gamma_outer = th * np.array([[0.0, -1.0], [1.0, 0.0]])
-                    S_cross = np.array([[Skew_sh[1, 0] - Skew_sh[0, 1]]])
+                    S_cross = np.array([[sh[1, 0] - sh[0, 1]]])
 
                 else:
                     c = 0
@@ -1284,9 +1284,9 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
                     S_cross = np.array(
                         [
                             [
-                                Skew_sh[2, 1] - Skew_sh[1, 2],
-                                Skew_sh[0, 2] - Skew_sh[2, 0],
-                                Skew_sh[1, 0] - Skew_sh[0, 1],
+                                sh[2, 1] - sh[1, 2],
+                                sh[0, 2] - sh[2, 0],
+                                sh[1, 0] - sh[0, 1],
                             ]
                         ]
                     )
