@@ -72,7 +72,7 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
     # Material data
 
-    m_lambda = 1.0
+    m_lambda = 200.0
     m_mu = 1.0
     m_kappa = 1.0
     m_gamma = 1.0
@@ -473,10 +473,12 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     b.array[:] = -rg
     x = A.createVecRight()
 
+    petsc_options = {'rtol': 1e-12, 'atol': 1e-14}
     ksp = PETSc.KSP().create()
     ksp.create(PETSc.COMM_WORLD)
     ksp.setOperators(A)
     ksp.setType("fgmres")
+    ksp.setTolerances(**petsc_options)
     ksp.setConvergenceHistory()
     ksp.getPC().setType("ilu")
     ksp.solve(b, x)
@@ -835,7 +837,8 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     m_lambda = 1.0
     m_mu = 1.0
     m_kappa = 1.0
-    m_gamma = 1.0e+6
+    Lc = 1.0
+    m_gamma = m_mu * Lc * Lc
 
     # FESpace: data
     s_components = 2
@@ -853,9 +856,12 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     u_family = "Lagrange"
     t_family = "Lagrange"
 
+    s_k_order = k_order
+    m_k_order = k_order + 1
+    k_int_order = np.max([s_k_order, m_k_order])
     # stress space
     s_space = DiscreteSpace(
-        dim, s_components, s_family, k_order, gmesh, integration_oder=2 * k_order + 1
+        dim, s_components, s_family, s_k_order, gmesh, integration_oder=2 * k_int_order + 1
     )
     if dim == 2:
         s_space.build_structures([2, 3, 4, 5])
@@ -864,7 +870,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
     # couple stress space
     m_space = DiscreteSpace(
-        dim, m_components, m_family, 1, gmesh, integration_oder=2 * k_order + 1
+        dim, m_components, m_family, m_k_order, gmesh, integration_oder=2 * k_int_order + 1
     )
     if dim == 2:
         m_space.build_structures([2, 3, 4, 5])
@@ -876,9 +882,9 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         dim,
         u_components,
         u_family,
-        k_order - 1,
+        s_k_order - 1,
         gmesh,
-        integration_oder=2 * k_order + 1,
+        integration_oder=2 * k_int_order + 1,
     )
     u_space.make_discontinuous()
     u_space.build_structures()
@@ -888,9 +894,9 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         dim,
         t_components,
         t_family,
-        k_order - 1,
+        m_k_order - 1,
         gmesh,
-        integration_oder=2 * k_order + 1,
+        integration_oder=2 * k_int_order + 1,
     )
     t_space.make_discontinuous()
     t_space.build_structures()
@@ -1410,12 +1416,14 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     b.array[:] = -rg
     x = A.createVecRight()
 
-    petsc_options = {'rtol': 1e-10, 'atol': 1e-12}
+    petsc_options = {'rtol': 1e-10, 'atol': 1e-12, 'divtol': 200, 'max_it': 500}
     ksp = PETSc.KSP().create()
     ksp.create(PETSc.COMM_WORLD)
     ksp.setOperators(A)
     ksp.setType('fgmres')
-    ksp.setTolerances(**petsc_options)
+    # ksp.setTolerances(**petsc_options)
+    # ksp.setTolerances(1e-10)
+    ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=500, max_it=2000)
     ksp.setConvergenceHistory()
     ksp.getPC().setType("ilu")
     ksp.solve(b, x)
@@ -1426,7 +1434,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     # solver_output = open("ksp_output.txt", "r")
     # for line in solver_output.readlines():
     #     print(line)
-
+    #
     # residuals = ksp.getConvergenceHistory()
     # plt.semilogy(residuals)
 
@@ -2049,21 +2057,21 @@ def main():
     report_full_precision_data_Q = False
 
     primal_configuration = {
-        "n_refinements": 3,
+        "n_refinements": 5,
         "write_geometry_Q": write_vtk_files_Q,
         "write_vtk_Q": write_vtk_files_Q,
         "report_full_precision_data_Q": report_full_precision_data_Q,
     }
 
     # primal problem
-    for k in [1]:
-        for d in [3]:
+    for k in [1, 2, 3]:
+        for d in [2]:
             primal_configuration.__setitem__("k_order", k)
             primal_configuration.__setitem__("dimension", d)
-            perform_convergence_test(primal_configuration)
+            # perform_convergence_test(primal_configuration)
 
     dual_configuration = {
-        "n_refinements": 4,
+        "n_refinements": 5,
         "dual_problem_Q": True,
         "write_geometry_Q": write_vtk_files_Q,
         "write_vtk_Q": write_vtk_files_Q,
@@ -2071,7 +2079,7 @@ def main():
     }
 
     # dual problem
-    for k in [1, 2, 3]:
+    for k in [3]:
         for d in [2]:
             dual_configuration.__setitem__("k_order", k)
             dual_configuration.__setitem__("dimension", d)
