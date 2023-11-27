@@ -2023,6 +2023,7 @@ def main():
     gmesh = create_mesh_from_file(mesh_file, 3, write_geometry_vtk)
 
     l_cvalues = np.logspace(-5,5,num=20,  endpoint=True)
+    l_cvalues = [1.0]
     m_t_values = []
     for L_c in l_cvalues:
         m_t_val = torsion_hdiv_cosserat_elasticity(L_c, k_order, gmesh, write_vtk)

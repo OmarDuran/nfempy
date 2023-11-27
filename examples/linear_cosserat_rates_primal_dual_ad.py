@@ -2071,7 +2071,7 @@ def main():
             # perform_convergence_test(primal_configuration)
 
     dual_configuration = {
-        "n_refinements": 5,
+        "n_refinements": 4,
         "dual_problem_Q": True,
         "write_geometry_Q": write_vtk_files_Q,
         "write_vtk_Q": write_vtk_files_Q,
@@ -2079,8 +2079,8 @@ def main():
     }
 
     # dual problem
-    for k in [3]:
-        for d in [2]:
+    for k in [1]:
+        for d in [3]:
             dual_configuration.__setitem__("k_order", k)
             dual_configuration.__setitem__("dimension", d)
             perform_convergence_test(dual_configuration)
