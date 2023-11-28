@@ -4,12 +4,14 @@ import functools
 import marshal
 import sys
 import time
+
 # from itertools import permutations
 from functools import partial, reduce
 
 import auto_diff as ad
 import basix
 import matplotlib.colors as mcolors
+
 # import matplotlib.pyplot as plt
 import matplotlib.pyplot as plt
 import matplotlib.pyplot as plot
@@ -18,6 +20,7 @@ import networkx as nx
 import numpy as np
 import psutil
 import scipy.sparse as sp
+
 # from numba import njit, types
 import strong_solution_cosserat_elasticity as lce
 from auto_diff.vecvalder import VecValDer
@@ -30,15 +33,19 @@ import geometry.fracture_network as fn
 from basis.element_data import ElementData
 from basis.finite_element import FiniteElement
 from geometry.domain import Domain
-from geometry.domain_market import (build_box_1D, build_box_2D,
-                                    build_box_2D_with_lines, build_box_3D,
-                                    build_box_3D_with_planes,
-                                    build_disjoint_lines, read_fractures_file)
+from geometry.domain_market import (
+    build_box_1D,
+    build_box_2D,
+    build_box_2D_with_lines,
+    build_box_3D,
+    build_box_3D_with_planes,
+    build_disjoint_lines,
+    read_fractures_file,
+)
 from geometry.edge import Edge
 from geometry.geometry_builder import GeometryBuilder
 from geometry.geometry_cell import GeometryCell
-from geometry.mapping import (evaluate_linear_shapes, evaluate_mapping,
-                              store_mapping)
+from geometry.mapping import evaluate_linear_shapes, evaluate_mapping, store_mapping
 from geometry.shape_manipulation import ShapeManipulation
 from geometry.vertex import Vertex
 from mesh.conformal_mesher import ConformalMesher

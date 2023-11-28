@@ -1,59 +1,23 @@
-import copy
-import csv
 import functools
-import marshal
-import sys
 import time
-# from itertools import permutations
-from functools import partial, reduce
 
-import auto_diff as ad
-import basix
-import matplotlib.colors as mcolors
-# import matplotlib.pyplot as plt
-import matplotlib.pyplot as plt
-import matplotlib.pyplot as plot
-import meshio
-import networkx as nx
 import numpy as np
-import psutil
-import scipy.sparse as sp
-# from numba import njit, types
 import strong_solution_cosserat_elasticity as lce
-from auto_diff.vecvalder import VecValDer
-from numpy import linalg as la
 from petsc4py import PETSc
-from scipy.sparse import coo_matrix
-from shapely.geometry import LineString
 
-import geometry.fracture_network as fn
 from basis.element_data import ElementData
-from basis.finite_element import FiniteElement
 from geometry.domain import Domain
-from geometry.domain_market import (build_box_1D, build_box_2D,
-                                    build_box_2D_with_lines, build_box_3D,
-                                    build_box_3D_with_planes,
-                                    build_disjoint_lines, read_fractures_file)
-from geometry.edge import Edge
-from geometry.geometry_builder import GeometryBuilder
-from geometry.geometry_cell import GeometryCell
-from geometry.mapping import (evaluate_linear_shapes, evaluate_mapping,
-                              store_mapping)
-from geometry.shape_manipulation import ShapeManipulation
-from geometry.vertex import Vertex
+from geometry.domain_market import build_box_1D, build_box_2D, build_box_3D
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
-from spaces.discrete_space import DiscreteSpace
-from spaces.dof_map import DoFMap
-from spaces.product_space import ProductSpace
-from topology.mesh_topology import MeshTopology
-from weak_forms.lce_primal_weak_form import (LCEPrimalWeakForm,
-                                             LCEPrimalWeakFormBCDirichlet)
-from weak_forms.lce_dual_weak_form import LCEDualWeakForm
-
 from postprocess.l2_error_post_processor import l2_error
 from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
-num_cpus = psutil.cpu_count(logical=False)
+from spaces.product_space import ProductSpace
+from weak_forms.lce_dual_weak_form import LCEDualWeakForm, LCEDualWeakFormBCDirichlet
+from weak_forms.lce_primal_weak_form import (
+    LCEPrimalWeakForm,
+    LCEPrimalWeakFormBCDirichlet,
+)
 
 
 def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
@@ -119,10 +83,17 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     m_exact = lce.couple_stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
     f_rhs = lce.rhs(m_lambda, m_mu, m_kappa, m_gamma, dim)
 
-    f_lambda = lambda x, y, z: m_lambda
-    f_mu = lambda x, y, z: m_mu
-    f_kappa = lambda x, y, z: m_kappa
-    f_gamma = lambda x, y, z: m_gamma
+    def f_lambda(x, y, z):
+        return m_lambda
+
+    def f_mu(x, y, z):
+        return m_mu
+
+    def f_kappa(x, y, z):
+        return m_kappa
+
+    def f_gamma(x, y, z):
+        return m_gamma
 
     m_functions = {
         "rhs": f_rhs,
@@ -133,8 +104,8 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     }
 
     exact_functions = {
-        'u': u_exact,
-        't': t_exact,
+        "u": u_exact,
+        "t": t_exact,
     }
 
     weak_form = LCEPrimalWeakForm(fe_space)
@@ -146,7 +117,7 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
-        r_el, j_el = weak_form.evaluate_form(i, alpha)
+        r_el, j_el = weak_form.evaluate_form(i, alpha_l)
 
         # contribute rhs
         rg[dest] += r_el
@@ -162,7 +133,7 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     def scatter_bc_form(A, i, bc_weak_form):
         dest = fe_space.bc_destination_indexes(i)
         alpha_l = alpha[dest]
-        r_el, j_el = bc_weak_form.evaluate_form(i, alpha)
+        r_el, j_el = bc_weak_form.evaluate_form(i, alpha_l)
 
         # contribute rhs
         rg[dest] += r_el
@@ -218,15 +189,11 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         u_space = fe_space.discrete_spaces["u"]
         t_space = fe_space.discrete_spaces["t"]
 
-        u_components = u_space.n_comp
         t_components = t_space.n_comp
         u_data: ElementData = u_space.elements[i].data
         t_data: ElementData = t_space.elements[i].data
 
-        cell = u_data.cell
-        points = u_data.quadrature.points
-        weights = u_data.quadrature.weights
-        phi_tab = u_data.basis.phi
+        weights = u_data.quadrature.weightsl
 
         x = u_data.mapping.x
         det_jac = u_data.mapping.det_jac
@@ -236,9 +203,6 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         t_phi_tab = t_data.basis.phi
         n_u_phi = u_phi_tab.shape[2]
         n_t_phi = t_phi_tab.shape[2]
-
-        n_u_dof = n_u_phi * u_components
-        n_t_dof = n_t_phi * t_components
 
         # destination indexes
         dest_u = fe_space.discrete_spaces_destination_indexes(i)["u"]
@@ -284,8 +248,7 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
         n_components = t_space.n_comp
         el_data = t_space.elements[i].data
-        cell = el_data.cell
-        points = el_data.quadrature.points
+
         weights = el_data.quadrature.weights
         phi_tab = el_data.basis.phi
 
@@ -328,7 +291,9 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     if write_vtk_q:
         st = time.time()
         file_name = "rates_h1_cosserat_elasticity.vtk"
-        write_vtk_file_with_exact_solution(file_name, gmesh,fe_space,exact_functions,alpha)
+        write_vtk_file_with_exact_solution(
+            file_name, gmesh, fe_space, exact_functions, alpha
+        )
         et = time.time()
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
@@ -337,7 +302,6 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
 
 def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
-
     dim = gmesh.dimension
 
     # FESpace: data
@@ -393,7 +357,6 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     fe_space.make_subspaces_discontinuous(discrete_spaces_disc)
     fe_space.build_structures(discrete_spaces_bc_physical_tags)
 
-
     n_dof_g = fe_space.n_dof
     rg = np.zeros(n_dof_g)
     alpha = np.zeros(n_dof_g)
@@ -419,10 +382,17 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     m_exact = lce.couple_stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
     f_rhs = lce.rhs(m_lambda, m_mu, m_kappa, m_gamma, dim)
 
-    f_lambda = lambda x, y, z: m_lambda
-    f_mu = lambda x, y, z: m_mu
-    f_kappa = lambda x, y, z: m_kappa
-    f_gamma = lambda x, y, z: m_gamma
+    def f_lambda(x, y, z):
+        return m_lambda
+
+    def f_mu(x, y, z):
+        return m_mu
+
+    def f_kappa(x, y, z):
+        return m_kappa
+
+    def f_gamma(x, y, z):
+        return m_gamma
 
     m_functions = {
         "rhs": f_rhs,
@@ -433,22 +403,22 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     }
 
     exact_functions = {
-        's': s_exact,
-        'm': m_exact,
-        'u': u_exact,
-        't': t_exact,
+        "s": s_exact,
+        "m": m_exact,
+        "u": u_exact,
+        "t": t_exact,
     }
 
     weak_form = LCEDualWeakForm(fe_space)
     weak_form.functions = m_functions
-    # bc_weak_form = LCEDualWeakFormBCDirichlet(fe_space)
-    # bc_weak_form.functions = exact_functions
+    bc_weak_form = LCEDualWeakFormBCDirichlet(fe_space)
+    bc_weak_form.functions = exact_functions
 
     def scatter_form_data(A, i, weak_form):
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
-        r_el, j_el = weak_form.evaluate_form(i, alpha)
+        r_el, j_el = weak_form.evaluate_form(i, alpha_l)
 
         # contribute rhs
         rg[dest] += r_el
@@ -464,7 +434,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     def scatter_bc_form(A, i, bc_weak_form):
         dest = fe_space.bc_destination_indexes(i)
         alpha_l = alpha[dest]
-        r_el, j_el = bc_weak_form.evaluate_form(i, alpha)
+        r_el, j_el = bc_weak_form.evaluate_form(i, alpha_l)
 
         # contribute rhs
         rg[dest] += r_el
@@ -498,7 +468,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     b.array[:] = -rg
     x = A.createVecRight()
 
-    petsc_options = {"rtol": 1e-10, "atol": 1e-12, "divtol": 200, "max_it": 500}
+    # petsc_options = {"rtol": 1e-10, "atol": 1e-12, "divtol": 200, "max_it": 500}
     ksp = PETSc.KSP().create()
     ksp.create(PETSc.COMM_WORLD)
     ksp.setOperators(A)
@@ -525,8 +495,9 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     print("Linear solver time:", elapsed_time, "seconds")
 
     st = time.time()
-    s_l2_error, m_l2_error, u_l2_error, t_l2_error = l2_error(dim, fe_space,
-                                                              exact_functions, alpha)
+    s_l2_error, m_l2_error, u_l2_error, t_l2_error = l2_error(
+        dim, fe_space, exact_functions, alpha
+    )
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
@@ -536,14 +507,14 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     print("L2-error couple stress: ", m_l2_error)
 
     if write_vtk_q:
-
         st = time.time()
         file_name = "rates_hdiv_cosserat_elasticity.vtk"
-        write_vtk_file_with_exact_solution(file_name, gmesh,fe_space,exact_functions,alpha)
+        write_vtk_file_with_exact_solution(
+            file_name, gmesh, fe_space, exact_functions, alpha
+        )
         et = time.time()
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
-
 
     return np.array([u_l2_error, t_l2_error, s_l2_error, m_l2_error])
 
@@ -611,9 +582,9 @@ def perform_convergence_test(configuration: dict):
 
     n_data = 5
     error_data = np.empty((0, n_data), float)
-    for l in range(n_ref):
-        h_val = h * (2**-l)
-        mesher = create_conformal_mesher(domain, h, l)
+    for lh in range(n_ref):
+        h_val = h * (2**-lh)
+        mesher = create_conformal_mesher(domain, h, lh)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
         if mixed_form_q:
             error_vals = hdiv_cosserat_elasticity(k_order, gmesh, write_vtk)
@@ -739,7 +710,6 @@ def perform_convergence_test(configuration: dict):
 
 
 def main():
-
     write_vtk_files_Q = True
     report_full_precision_data_Q = False
 

@@ -7,9 +7,7 @@ from weak_forms.weak_from import WeakForm
 
 
 class LCEPrimalWeakForm(WeakForm):
-
     def evaluate_form(self, element_index, alpha):
-
         i = element_index
         if self.space is None or self.functions is None:
             raise ValueError
@@ -232,9 +230,7 @@ class LCEPrimalWeakForm(WeakForm):
 
 
 class LCEPrimalWeakFormBCDirichlet(WeakForm):
-
     def evaluate_form(self, element_index, alpha):
-
         u_D = self.functions["u"]
         t_D = self.functions["t"]
 

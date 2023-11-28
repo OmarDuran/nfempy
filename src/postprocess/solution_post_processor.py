@@ -1,15 +1,20 @@
+import basix
+import meshio
 import numpy as np
 
-import basix
 from basis.element_family import family_by_name
 from geometry.mapping import evaluate_linear_shapes, evaluate_mapping
 from spaces.product_space import ProductSpace
-import meshio
+
 
 def write_vtk_file(file_name, gmesh, fe_space, alpha):
-
     dim = gmesh.dimension
-    vec_families = [family_by_name("RT"), family_by_name("BDM"),family_by_name("N1E"),family_by_name("N2E")]
+    vec_families = [
+        family_by_name("RT"),
+        family_by_name("BDM"),
+        family_by_name("N1E"),
+        family_by_name("N2E"),
+    ]
     p_data_dict = {}
 
     for item in fe_space.discrete_spaces.items():
@@ -77,7 +82,6 @@ def write_vtk_file(file_name, gmesh, fe_space, alpha):
     meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
     cells_dict = {meshio_cell_types[gmesh.dimension]: con_d}
 
-
     mesh = meshio.Mesh(
         points=mesh_points,
         cells=cells_dict,
@@ -86,10 +90,15 @@ def write_vtk_file(file_name, gmesh, fe_space, alpha):
     )
     mesh.write(file_name)
 
-def write_vtk_file_with_exact_solution(file_name, gmesh, fe_space, functions, alpha):
 
+def write_vtk_file_with_exact_solution(file_name, gmesh, fe_space, functions, alpha):
     dim = gmesh.dimension
-    vec_families = [family_by_name("RT"), family_by_name("BDM"),family_by_name("N1E"),family_by_name("N2E")]
+    vec_families = [
+        family_by_name("RT"),
+        family_by_name("BDM"),
+        family_by_name("N1E"),
+        family_by_name("N2E"),
+    ]
     p_data_dict = {}
 
     for item in fe_space.discrete_spaces.items():
@@ -156,8 +165,10 @@ def write_vtk_file_with_exact_solution(file_name, gmesh, fe_space, functions, al
                 f_e = f_exact(x[0, 0], x[0, 1], x[0, 2])
                 f_h = np.vstack(
                     tuple(
-                        [phi_tab[0, 0, :, 0:dim].T @ alpha_star[:, c] for c in
-                         range(n_comp)]
+                        [
+                            phi_tab[0, 0, :, 0:dim].T @ alpha_star[:, c]
+                            for c in range(n_comp)
+                        ]
                     )
                 )
             fh_data[target_node_id] = f_h.ravel()
@@ -171,7 +182,6 @@ def write_vtk_file_with_exact_solution(file_name, gmesh, fe_space, functions, al
     con_d = np.array([cell.node_tags for cell in cells])
     meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
     cells_dict = {meshio_cell_types[gmesh.dimension]: con_d}
-
 
     mesh = meshio.Mesh(
         points=mesh_points,

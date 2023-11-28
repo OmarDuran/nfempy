@@ -5,10 +5,9 @@ from auto_diff.vecvalder import VecValDer
 from basis.element_data import ElementData
 from weak_forms.weak_from import WeakForm
 
+
 class LCEDualWeakForm(WeakForm):
-
     def evaluate_form(self, element_index, alpha):
-
         i = element_index
         if self.space is None or self.functions is None:
             raise ValueError
@@ -47,7 +46,7 @@ class LCEDualWeakForm(WeakForm):
         m_phi_tab = m_data.basis.phi
         u_phi_tab = u_data.basis.phi
         t_phi_tab = t_data.basis.phi
-        
+
         n_s_phi = s_phi_tab.shape[2]
         n_m_phi = m_phi_tab.shape[2]
         n_u_phi = u_phi_tab.shape[2]
@@ -85,48 +84,48 @@ class LCEDualWeakForm(WeakForm):
                 b = c + n_s_dof + n_m_dof + n_u_dof
                 e = b + n_t_dof
                 el_form[b:e:t_components] += (
-                        -1.0 * t_phi_s_star @ f_val_star[c + u_components]
+                    -1.0 * t_phi_s_star @ f_val_star[c + u_components]
                 )
 
             for i, omega in enumerate(weights):
                 xv = x[i]
                 if dim == 2:
                     c = 0
-                    a_sx = alpha[:, c: n_s_dof + c: s_components]
+                    a_sx = alpha[:, c : n_s_dof + c : s_components]
                     a_ux = alpha[
-                           :,
-                           n_s_dof
-                           + n_m_dof
-                           + c: n_s_dof
-                                + n_m_dof
-                                + n_u_dof
-                                + c: u_components,
-                           ]
+                        :,
+                        n_s_dof
+                        + n_m_dof
+                        + c : n_s_dof
+                        + n_m_dof
+                        + n_u_dof
+                        + c : u_components,
+                    ]
 
-                    a_m = alpha[:, n_s_dof + c: n_s_dof + n_m_dof + c: m_components]
+                    a_m = alpha[:, n_s_dof + c : n_s_dof + n_m_dof + c : m_components]
                     a_t = alpha[
-                          :,
-                          n_s_dof
-                          + n_m_dof
-                          + n_u_dof
-                          + c: n_s_dof
-                               + n_m_dof
-                               + n_u_dof
-                               + n_t_dof
-                               + c: t_components,
-                          ]
+                        :,
+                        n_s_dof
+                        + n_m_dof
+                        + n_u_dof
+                        + c : n_s_dof
+                        + n_m_dof
+                        + n_u_dof
+                        + n_t_dof
+                        + c : t_components,
+                    ]
 
                     c = 1
-                    a_sy = alpha[:, c: n_s_dof + c: s_components]
+                    a_sy = alpha[:, c : n_s_dof + c : s_components]
                     a_uy = alpha[
-                           :,
-                           n_s_dof
-                           + n_m_dof
-                           + c: n_s_dof
-                                + n_m_dof
-                                + n_u_dof
-                                + c: u_components,
-                           ]
+                        :,
+                        n_s_dof
+                        + n_m_dof
+                        + c : n_s_dof
+                        + n_m_dof
+                        + n_u_dof
+                        + c : u_components,
+                    ]
 
                     sx_h = a_sx @ s_phi_tab[0, i, :, 0:dim]
                     sy_h = a_sy @ s_phi_tab[0, i, :, 0:dim]
@@ -150,13 +149,21 @@ class LCEDualWeakForm(WeakForm):
 
                     tr_s_h = VecValDer(sh.val.trace(), sh.der.trace())
                     A_sh = (1.0 / 2.0 * f_mu(xv[0], xv[1], xv[2])) * (
-                            Symm_sh
-                            - (f_lambda(xv[0], xv[1], xv[2]) / (2.0 * f_mu(xv[0], xv[1], xv[2]) + dim * f_lambda(xv[0], xv[1], xv[2]))) * tr_s_h * Imat
+                        Symm_sh
+                        - (
+                            f_lambda(xv[0], xv[1], xv[2])
+                            / (
+                                2.0 * f_mu(xv[0], xv[1], xv[2])
+                                + dim * f_lambda(xv[0], xv[1], xv[2])
+                            )
+                        )
+                        * tr_s_h
+                        * Imat
                     ) + (1.0 / 2.0 * f_kappa(xv[0], xv[1], xv[2])) * Skew_sh
 
                     A_mh = (1.0 / f_gamma(xv[0], xv[1], xv[2])) * mh
 
-                    grad_s_phi = s_phi_tab[1: s_phi_tab.shape[0] + 1, i, :, 0:dim]
+                    grad_s_phi = s_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
                     div_tau = np.array(
                         [
                             [
@@ -166,7 +173,7 @@ class LCEDualWeakForm(WeakForm):
                         ]
                     )
 
-                    grad_m_phi = m_phi_tab[1: s_phi_tab.shape[0] + 1, i, :, 0:dim]
+                    grad_m_phi = m_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
                     div_v = np.array(
                         [
                             [
@@ -190,76 +197,76 @@ class LCEDualWeakForm(WeakForm):
 
                 else:
                     c = 0
-                    a_sx = alpha[:, c: n_s_dof + c: s_components]
+                    a_sx = alpha[:, c : n_s_dof + c : s_components]
                     a_ux = alpha[
-                           :,
-                           n_s_dof
-                           + n_m_dof
-                           + c: n_s_dof
-                                + n_m_dof
-                                + n_u_dof
-                                + c: u_components,
-                           ]
-                    a_mx = alpha[:, n_s_dof + c: n_s_dof + n_m_dof + c: m_components]
+                        :,
+                        n_s_dof
+                        + n_m_dof
+                        + c : n_s_dof
+                        + n_m_dof
+                        + n_u_dof
+                        + c : u_components,
+                    ]
+                    a_mx = alpha[:, n_s_dof + c : n_s_dof + n_m_dof + c : m_components]
                     a_tx = alpha[
-                           :,
-                           n_s_dof
-                           + n_m_dof
-                           + n_u_dof
-                           + c: n_s_dof
-                                + n_m_dof
-                                + n_u_dof
-                                + n_t_dof
-                                + c: t_components,
-                           ]
+                        :,
+                        n_s_dof
+                        + n_m_dof
+                        + n_u_dof
+                        + c : n_s_dof
+                        + n_m_dof
+                        + n_u_dof
+                        + n_t_dof
+                        + c : t_components,
+                    ]
 
                     c = 1
-                    a_sy = alpha[:, c: n_s_dof + c: s_components]
+                    a_sy = alpha[:, c : n_s_dof + c : s_components]
                     a_uy = alpha[
-                           :,
-                           n_s_dof
-                           + n_m_dof
-                           + c: n_s_dof
-                                + n_m_dof
-                                + n_u_dof
-                                + c: u_components,
-                           ]
-                    a_my = alpha[:, n_s_dof + c: n_s_dof + n_m_dof + c: m_components]
+                        :,
+                        n_s_dof
+                        + n_m_dof
+                        + c : n_s_dof
+                        + n_m_dof
+                        + n_u_dof
+                        + c : u_components,
+                    ]
+                    a_my = alpha[:, n_s_dof + c : n_s_dof + n_m_dof + c : m_components]
                     a_ty = alpha[
-                           :,
-                           n_s_dof
-                           + n_m_dof
-                           + n_u_dof
-                           + c: n_s_dof
-                                + n_m_dof
-                                + n_u_dof
-                                + n_t_dof
-                                + c: t_components,
-                           ]
+                        :,
+                        n_s_dof
+                        + n_m_dof
+                        + n_u_dof
+                        + c : n_s_dof
+                        + n_m_dof
+                        + n_u_dof
+                        + n_t_dof
+                        + c : t_components,
+                    ]
 
                     c = 2
-                    a_sz = alpha[:, c: n_s_dof + c: s_components]
+                    a_sz = alpha[:, c : n_s_dof + c : s_components]
                     a_uz = alpha[
-                           :,
-                           n_s_dof
-                           + n_m_dof
-                           + c: n_s_dof
-                                + n_m_dof
-                                + n_u_dof
-                                + c: u_components,
-                           ]
-                    a_mz = alpha[:, n_s_dof + c: n_s_dof + n_m_dof + c: m_components]
+                        :,
+                        n_s_dof
+                        + n_m_dof
+                        + c : n_s_dof
+                        + n_m_dof
+                        + n_u_dof
+                        + c : u_components,
+                    ]
+                    a_mz = alpha[:, n_s_dof + c : n_s_dof + n_m_dof + c : m_components]
                     a_tz = alpha[
-                           :,
-                           n_s_dof
-                           + n_m_dof
-                           + n_u_dof
-                           + c: n_s_dof
-                                + n_m_dof
-                                + n_u_dof
-                                + n_t_dof
-                                + c: t_components,
-                           ]
+                        :,
+                        n_s_dof
+                        + n_m_dof
+                        + n_u_dof
+                        + c : n_s_dof
+                        + n_m_dof
+                        + n_u_dof
+                        + n_t_dof
+                        + c : t_components,
+                    ]
 
                     sx_h = a_sx @ s_phi_tab[0, i, :, 0:dim]
                     sy_h = a_sy @ s_phi_tab[0, i, :, 0:dim]
@@ -303,13 +310,21 @@ class LCEDualWeakForm(WeakForm):
 
                     tr_s_h = VecValDer(sh.val.trace(), sh.der.trace())
                     A_sh = (1.0 / 2.0 * f_mu(xv[0], xv[1], xv[2])) * (
-                            Symm_sh
-                            - (f_lambda(xv[0], xv[1], xv[2]) / (2.0 * f_mu(xv[0], xv[1], xv[2]) + dim * f_lambda(xv[0], xv[1], xv[2]))) * tr_s_h * Imat
+                        Symm_sh
+                        - (
+                            f_lambda(xv[0], xv[1], xv[2])
+                            / (
+                                2.0 * f_mu(xv[0], xv[1], xv[2])
+                                + dim * f_lambda(xv[0], xv[1], xv[2])
+                            )
+                        )
+                        * tr_s_h
+                        * Imat
                     ) + (1.0 / 2.0 * f_kappa(xv[0], xv[1], xv[2])) * Skew_sh
 
                     A_mh = (1.0 / f_gamma(xv[0], xv[1], xv[2])) * mh
 
-                    grad_s_phi = s_phi_tab[1: s_phi_tab.shape[0] + 1, i, :, 0:dim]
+                    grad_s_phi = s_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
                     div_tau = np.array(
                         [
                             [
@@ -328,7 +343,7 @@ class LCEDualWeakForm(WeakForm):
                         np.hstack((div_sh_x.der, div_sh_y.der, div_sh_z.der)),
                     )
 
-                    grad_m_phi = m_phi_tab[1: m_phi_tab.shape[0] + 1, i, :, 0:dim]
+                    grad_m_phi = m_phi_tab[1 : m_phi_tab.shape[0] + 1, i, :, 0:dim]
                     div_v = np.array(
                         [
                             [
@@ -366,34 +381,34 @@ class LCEDualWeakForm(WeakForm):
                     )
 
                 equ_1_integrand = (
-                        (s_phi_tab[0, i, :, 0:dim] @ A_sh.T)
-                        + (div_tau.T @ uh)
-                        + (s_phi_tab[0, i, :, 0:dim] @ Gamma_outer)
+                    (s_phi_tab[0, i, :, 0:dim] @ A_sh.T)
+                    + (div_tau.T @ uh)
+                    + (s_phi_tab[0, i, :, 0:dim] @ Gamma_outer)
                 )
                 equ_2_integrand = (m_phi_tab[0, i, :, 0:dim] @ A_mh.T) + (div_v.T @ th)
                 equ_3_integrand = u_phi_tab[0, i, :, 0:dim] @ div_sh
                 equ_4_integrand = (t_phi_tab[0, i, :, 0:dim] @ div_mh) - (
-                        t_phi_tab[0, i, :, 0:dim] @ S_cross
+                    t_phi_tab[0, i, :, 0:dim] @ S_cross
                 )
 
                 multiphysic_integrand = np.zeros((1, n_dof))
                 multiphysic_integrand[:, 0:n_s_dof:1] = (equ_1_integrand).reshape(
                     (n_s_dof,)
                 )
-                multiphysic_integrand[:, n_s_dof: n_s_dof + n_m_dof: 1] = (
+                multiphysic_integrand[:, n_s_dof : n_s_dof + n_m_dof : 1] = (
                     equ_2_integrand
                 ).reshape((n_m_dof,))
                 multiphysic_integrand[
-                :, n_s_dof + n_m_dof: n_s_dof + n_m_dof + n_u_dof: 1
+                    :, n_s_dof + n_m_dof : n_s_dof + n_m_dof + n_u_dof : 1
                 ] = (equ_3_integrand).reshape((n_u_dof,))
                 multiphysic_integrand[
-                :,
-                n_s_dof
-                + n_m_dof
-                + n_u_dof: n_s_dof
-                           + n_m_dof
-                           + n_u_dof
-                           + n_t_dof: 1,
+                    :,
+                    n_s_dof
+                    + n_m_dof
+                    + n_u_dof : n_s_dof
+                    + n_m_dof
+                    + n_u_dof
+                    + n_t_dof : 1,
                 ] = (equ_4_integrand).reshape((n_t_dof,))
 
                 discrete_integrand = (multiphysic_integrand).reshape((n_dof,))
@@ -402,3 +417,9 @@ class LCEDualWeakForm(WeakForm):
         r_el, j_el = el_form.val, el_form.der.reshape((n_dof, n_dof))
 
         return r_el, j_el
+
+
+class LCEDualWeakFormBCDirichlet(WeakForm):
+    def evaluate_form(self, element_index, alpha):
+        i = element_index
+        aka = 0
