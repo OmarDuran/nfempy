@@ -7,7 +7,9 @@ from weak_forms.weak_from import WeakForm
 
 
 class LCEPrimalWeakForm(WeakForm):
-    def evaluate_form_at(self, element_index, alpha):
+
+    def evaluate_form(self, element_index, alpha):
+
         i = element_index
         if self.space is None or self.functions is None:
             raise ValueError
@@ -230,7 +232,12 @@ class LCEPrimalWeakForm(WeakForm):
 
 
 class LCEPrimalWeakFormBCDirichlet(WeakForm):
-    def evaluate_form_at(self, element_index, alpha):
+
+    def evaluate_form(self, element_index, alpha):
+
+        u_D = self.functions["u"]
+        t_D = self.functions["t"]
+
         i = element_index
         u_space = self.space.discrete_spaces["u"]
         t_space = self.space.discrete_spaces["t"]
@@ -277,11 +284,26 @@ class LCEPrimalWeakFormBCDirichlet(WeakForm):
         for c in range(u_components):
             b = c
             e = b + n_u_dof
+
+            res_block_u = np.zeros(n_u_phi)
+            for i, omega in enumerate(weights):
+                phi = u_phi_tab[0, i, :, 0]
+                u_D_v = u_D(x[i, 0], x[i, 1], x[i, 2])
+                res_block_u -= beta * det_jac[i] * omega * u_D_v[c] * phi
+
+            r_el[b:e:u_components] += res_block_u
             j_el[b:e:u_components, b:e:u_components] += jac_block_u
 
         for c in range(t_components):
             b = c + n_u_dof
             e = b + n_t_dof
+
+            res_block_t = np.zeros(n_t_phi)
+            for i, omega in enumerate(weights):
+                phi = t_phi_tab[0, i, :, 0]
+                t_D_v = t_D(x[i, 0], x[i, 1], x[i, 2])
+                res_block_t -= beta * det_jac[i] * omega * t_D_v[c] * phi
+            r_el[b:e:t_components] += res_block_t
             j_el[b:e:t_components, b:e:t_components] += jac_block_t
 
         return r_el, j_el

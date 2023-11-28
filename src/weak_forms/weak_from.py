@@ -25,5 +25,5 @@ class WeakForm(ABC):
         self._functions = functions
 
     @abstractmethod
-    def evaluate_form_at(self, element_index, alpha):
+    def evaluate_form(self, element_index, alpha):
         pass

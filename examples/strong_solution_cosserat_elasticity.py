@@ -22,6 +22,38 @@ def generalized_displacement(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
             ]
         )
 
+def displacement(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
+    if dim == 2:
+        return lambda x, y, z: np.array(
+            [
+                (1 - y) * y * np.sin(np.pi * x),
+                (1 - x) * x * np.sin(np.pi * y),
+            ]
+        )
+    else:
+        return lambda x, y, z: np.array(
+            [
+                (1 - y) * y * (1 - z) * z * np.sin(np.pi * x),
+                (1 - x) * x * (1 - z) * z * np.sin(np.pi * y),
+                (1 - x) * x * (1 - y) * y * np.sin(np.pi * z),
+            ]
+        )
+
+def rotation(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
+    if dim == 2:
+        return lambda x, y, z: np.array(
+            [
+                np.sin(np.pi * x) * np.sin(np.pi * y),
+            ]
+        )
+    else:
+        return lambda x, y, z: np.array(
+            [
+                (1 - x) * x * np.sin(np.pi * y) * np.sin(np.pi * z),
+                (1 - y) * y * np.sin(np.pi * x) * np.sin(np.pi * z),
+                (1 - z) * z * np.sin(np.pi * x) * np.sin(np.pi * y),
+            ]
+        )
 
 def stress(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
     if dim == 2:
@@ -160,8 +192,10 @@ def couple_stress(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
     if dim == 2:
         return lambda x, y, z: np.array(
             [
-                [np.pi * m_gamma * np.cos(np.pi * x) * np.sin(np.pi * y)],
-                [np.pi * m_gamma * np.cos(np.pi * y) * np.sin(np.pi * x)],
+                [
+                    np.pi * m_gamma * np.cos(np.pi * x) * np.sin(np.pi * y),
+                    np.pi * m_gamma * np.cos(np.pi * y) * np.sin(np.pi * x)
+                ],
             ]
         )
     else:

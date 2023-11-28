@@ -92,6 +92,7 @@ class ProductSpace:
     def discrete_spaces_destination_indexes(self, cell_index):
         dofs_list = list(self.discrete_spaces_dofs.values())
         dofs_list.insert(0, 0)
+        dofs_list = np.add.accumulate(dofs_list)
 
         discrete_spaces_dest = {}
         for i, item in enumerate(self.discrete_spaces.items()):
@@ -112,6 +113,7 @@ class ProductSpace:
     def discrete_spaces_bc_destination_indexes(self, cell_index):
         dofs_list = list(self.discrete_spaces_dofs.values())
         dofs_list.insert(0, 0)
+        dofs_list = np.add.accumulate(dofs_list)
 
         discrete_spaces_bc_dest = {}
         for i, item in enumerate(self.discrete_spaces.items()):
