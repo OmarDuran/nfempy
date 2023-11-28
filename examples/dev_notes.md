@@ -187,6 +187,7 @@ for d in {0,1,2,3}:
 	* The number of subspaces: 0 < n_components represents number of repeated instances of cases (1), (2) and (3)
 	* k_order: polynomial order of approximation
 #### A multiphysic:
+	* Finite element space
 
 ### PostProcessor:
 

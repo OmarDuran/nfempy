@@ -4,14 +4,12 @@ import functools
 import marshal
 import sys
 import time
-
 # from itertools import permutations
 from functools import partial, reduce
 
 import auto_diff as ad
 import basix
 import matplotlib.colors as mcolors
-
 # import matplotlib.pyplot as plt
 import matplotlib.pyplot as plt
 import matplotlib.pyplot as plot
@@ -20,7 +18,6 @@ import networkx as nx
 import numpy as np
 import psutil
 import scipy.sparse as sp
-
 # from numba import njit, types
 import strong_solution_cosserat_elasticity as lce
 from auto_diff.vecvalder import VecValDer
@@ -33,19 +30,15 @@ import geometry.fracture_network as fn
 from basis.element_data import ElementData
 from basis.finite_element import FiniteElement
 from geometry.domain import Domain
-from geometry.domain_market import (
-    build_box_1D,
-    build_box_2D,
-    build_box_2D_with_lines,
-    build_box_3D,
-    build_box_3D_with_planes,
-    build_disjoint_lines,
-    read_fractures_file,
-)
+from geometry.domain_market import (build_box_1D, build_box_2D,
+                                    build_box_2D_with_lines, build_box_3D,
+                                    build_box_3D_with_planes,
+                                    build_disjoint_lines, read_fractures_file)
 from geometry.edge import Edge
 from geometry.geometry_builder import GeometryBuilder
 from geometry.geometry_cell import GeometryCell
-from geometry.mapping import evaluate_linear_shapes, evaluate_mapping, store_mapping
+from geometry.mapping import (evaluate_linear_shapes, evaluate_mapping,
+                              store_mapping)
 from geometry.shape_manipulation import ShapeManipulation
 from geometry.vertex import Vertex
 from mesh.conformal_mesher import ConformalMesher
@@ -55,17 +48,6 @@ from spaces.dof_map import DoFMap
 from topology.mesh_topology import MeshTopology
 
 num_cpus = psutil.cpu_count(logical=False)
-# import ray
-# ray.init(num_cpus=num_cpus)
-
-# from pydiso.mkl_solver import (
-#     MKLPardisoSolver as Solver,
-#     get_mkl_max_threads,
-#     get_mkl_pardiso_max_threads,
-#     get_mkl_version,
-#     set_mkl_threads,
-#     set_mkl_pardiso_threads,
-# )
 
 
 def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
@@ -473,7 +455,7 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     b.array[:] = -rg
     x = A.createVecRight()
 
-    petsc_options = {'rtol': 1e-12, 'atol': 1e-14}
+    petsc_options = {"rtol": 1e-12, "atol": 1e-14}
     ksp = PETSc.KSP().create()
     ksp.create(PETSc.COMM_WORLD)
     ksp.setOperators(A)
@@ -861,7 +843,12 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     k_int_order = np.max([s_k_order, m_k_order])
     # stress space
     s_space = DiscreteSpace(
-        dim, s_components, s_family, s_k_order, gmesh, integration_oder=2 * k_int_order + 1
+        dim,
+        s_components,
+        s_family,
+        s_k_order,
+        gmesh,
+        integration_oder=2 * k_int_order + 1,
     )
     if dim == 2:
         s_space.build_structures([2, 3, 4, 5])
@@ -870,7 +857,12 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
     # couple stress space
     m_space = DiscreteSpace(
-        dim, m_components, m_family, m_k_order, gmesh, integration_oder=2 * k_int_order + 1
+        dim,
+        m_components,
+        m_family,
+        m_k_order,
+        gmesh,
+        integration_oder=2 * k_int_order + 1,
     )
     if dim == 2:
         m_space.build_structures([2, 3, 4, 5])
@@ -1398,9 +1390,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     def scatter_form_data_on_cells(indexes, args):
         return [scatter_form_data_ad(i, args) for i in indexes]
 
-    results = [
-        scatter_form_data_on_cells(index_set, args) for index_set in collection
-    ]
+    results = [scatter_form_data_on_cells(index_set, args) for index_set in collection]
 
     A.assemble()
     et = time.time()
@@ -1416,11 +1406,11 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     b.array[:] = -rg
     x = A.createVecRight()
 
-    petsc_options = {'rtol': 1e-10, 'atol': 1e-12, 'divtol': 200, 'max_it': 500}
+    petsc_options = {"rtol": 1e-10, "atol": 1e-12, "divtol": 200, "max_it": 500}
     ksp = PETSc.KSP().create()
     ksp.create(PETSc.COMM_WORLD)
     ksp.setOperators(A)
-    ksp.setType('fgmres')
+    ksp.setType("fgmres")
     # ksp.setTolerances(**petsc_options)
     # ksp.setTolerances(1e-10)
     ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=500, max_it=2000)
