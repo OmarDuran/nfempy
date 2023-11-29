@@ -102,63 +102,6 @@ class LaplacePrimalWeakFormBCDirichlet(WeakForm):
         j_el = np.zeros(js)
         r_el = np.zeros(rs)
 
-        # compute trace space and compare matrices
-
-        # destination indexes
-        # find high-dimension neigh
-        entity_map = p_space.dof_map.mesh_topology.entity_map_by_dimension(
-            cell.dimension
-        )
-        neigh_list = list(entity_map.predecessors(cell.id))
-        neigh_check_q = len(neigh_list) > 0
-        assert neigh_check_q
-
-        neigh_cell_id = neigh_list[0]
-        neigh_cell_index = p_space.id_to_element[neigh_cell_id]
-        neigh_element = p_space.elements[neigh_cell_index]
-        neigh_cell = neigh_element.data.cell
-
-        # destination indexes
-        dest_neigh = p_space.dof_map.destination_indices(neigh_cell_id)
-        dest_p = p_space.dof_map.bc_destination_indices(neigh_cell_id, cell.id)
-
-        # compute trace space
-        facet_index = neigh_cell.sub_cells_ids[cell.dimension].tolist().index(cell.id)
-        vertices = basix.geometry(CellType.triangle)
-        facet_sub_entities = [
-            basix.cell.sub_entity_connectivity(CellType.triangle)[cell.dimension][
-                facet_index
-            ][d]
-            for d in range(cell.dimension + 1)
-        ]
-        facet_nodes = facet_sub_entities[0]
-        # mapped_points = np.array(
-        #     [
-        #         vertices[facet_nodes[0]] * (1 - x - y)
-        #         + vertices[facet_nodes[1]] * x
-        #         + vertices[facet_nodes[2]] * y
-        #         for x, y in points
-        #     ]
-        # )
-        mapped_points = np.array(
-            [
-                vertices[facet_nodes[0]] * (1 - x)
-                + vertices[facet_nodes[1]] * x
-                for x in points
-            ]
-        )
-        el_dofs = neigh_element.data.dof.entity_dofs
-        facet_dofs = [
-            el_dofs[d][i]
-            for d in range(cell.dimension + 1)
-            for i in facet_sub_entities[d]
-        ]
-        dof_p_index = [sub_dof for dof in facet_dofs if len(dof) != 0 for sub_dof in dof]
-        p_tr_phi_tab = neigh_element.evaluate_basis(mapped_points, False)
-        tr_phi_tab = p_tr_phi_tab[0, :, dof_p_index, 0]
-
-        dest_c = self.space.bc_destination_indexes(i)
-
         # local blocks
         beta = 1.0e12
         jac_block_p = np.zeros((n_p_phi, n_p_phi))

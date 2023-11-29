@@ -2,13 +2,15 @@ import auto_diff as ad
 import numpy as np
 from auto_diff.vecvalder import VecValDer
 
+import basix
+from basix import CellType
 from basis.element_data import ElementData
 from weak_forms.weak_from import WeakForm
 
 
 class LaplaceDualWeakForm(WeakForm):
     def evaluate_form(self, element_index, alpha):
-        i = element_index
+        iel = element_index
         if self.space is None or self.functions is None:
             raise ValueError
 
@@ -20,8 +22,8 @@ class LaplaceDualWeakForm(WeakForm):
 
         q_components = q_space.n_comp
         p_components = p_space.n_comp
-        q_data: ElementData = q_space.elements[i].data
-        p_data: ElementData = p_space.elements[i].data
+        q_data: ElementData = q_space.elements[iel].data
+        p_data: ElementData = p_space.elements[iel].data
 
         cell = q_data.cell
         dim = q_data.dimension
@@ -89,12 +91,12 @@ class LaplaceDualWeakFormBCDirichlet(WeakForm):
 
     def evaluate_form(self, element_index, alpha):
 
+        iel = element_index
         p_D = self.functions["p"]
 
-        i = element_index
         q_space = self.space.discrete_spaces["q"]
         q_components = q_space.n_comp
-        q_data: ElementData = q_space.bc_elements[i].data
+        q_data: ElementData = q_space.bc_elements[iel].data
 
         cell = q_data.cell
         points = q_data.quadrature.points
@@ -113,15 +115,74 @@ class LaplaceDualWeakFormBCDirichlet(WeakForm):
         j_el = np.zeros(js)
         r_el = np.zeros(rs)
 
+        # find high-dimension neigh
+        entity_map = q_space.dof_map.mesh_topology.entity_map_by_dimension(
+            cell.dimension
+        )
+        neigh_list = list(entity_map.predecessors(cell.id))
+        neigh_check_q = len(neigh_list) > 0
+        assert neigh_check_q
+
+        neigh_cell_id = neigh_list[0]
+        neigh_cell_index = q_space.id_to_element[neigh_cell_id]
+        neigh_element = q_space.elements[neigh_cell_index]
+        neigh_cell = neigh_element.data.cell
+
+        # compute trace space
+        facet_index = neigh_cell.sub_cells_ids[cell.dimension].tolist().index(cell.id)
+        if cell.dimension == 2:
+            vertices = basix.geometry(CellType.tetrahedron)
+            facet = basix.cell.sub_entity_connectivity(CellType.tetrahedron)[
+                cell.dimension
+            ][facet_index][0]
+            mapped_points = np.array(
+                [
+                    vertices[facet[0]] * (1 - x - y)
+                    + vertices[facet[1]] * x
+                    + vertices[facet[2]] * y
+                    for x, y in points
+                ]
+            )
+        else:
+            vertices = basix.geometry(CellType.triangle)
+            facet = basix.cell.sub_entity_connectivity(CellType.triangle)[
+                cell.dimension
+            ][facet_index][0]
+            mapped_points = np.array(
+                [
+                    vertices[facet[0]] * (1 - x)
+                    + vertices[facet[1]] * x
+                    for x in points
+                ]
+            )
+
+        dof_n_index = neigh_element.data.dof.entity_dofs[cell.dimension][facet_index]
+        q_tr_phi_tab = neigh_element.evaluate_basis(mapped_points, False)
+
+        # compute normal
+        xc = np.mean(q_data.mesh.points[cell.node_tags], axis=0)
+        neigh_xc = np.mean(neigh_element.data.mesh.points[neigh_cell.node_tags], axis=0)
+        outward = (xc - neigh_xc) / np.linalg.norm((xc - neigh_xc))
+        if cell.dimension == 2:
+            v = q_data.mesh.points[cell.node_tags[0]] - xc
+            w = q_data.mesh.points[cell.node_tags[1]] - xc
+            normal = np.cross(v, w) / np.linalg.norm(np.cross(v, w))
+            if normal @ outward < 0.0:
+                normal *= -1.0
+        else:
+            normal = outward
+
         for c in range(q_components):
             b = c
             e = b + n_q_dof
 
             res_block_q = np.zeros(n_q_phi)
+            dim = neigh_cell.dimension
             for i, omega in enumerate(weights):
-                phi = q_phi_tab[0, i, :, 0]
+                phi_c = q_phi_tab[0, i, :, 0]
+                phi = q_tr_phi_tab[0, i, dof_n_index, 0:dim] @ normal[0:dim]
                 p_D_v = p_D(x[i, 0], x[i, 1], x[i, 2])
-                res_block_q -= det_jac[i] * omega * p_D_v[c] * phi
+                res_block_q += det_jac[i] * omega * p_D_v[c] * phi
 
             r_el[b:e:q_components] += res_block_q
 

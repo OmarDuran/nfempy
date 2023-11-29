@@ -725,10 +725,10 @@ def main():
         for d in [2, 3]:
             primal_configuration.__setitem__("k_order", k)
             primal_configuration.__setitem__("dimension", d)
-            perform_convergence_test(primal_configuration)
+            # perform_convergence_test(primal_configuration)
 
     dual_configuration = {
-        "n_refinements": 2,
+        "n_refinements": 1,
         "dual_problem_Q": True,
         "write_geometry_Q": write_vtk_files_Q,
         "write_vtk_Q": write_vtk_files_Q,
@@ -736,8 +736,8 @@ def main():
     }
 
     # dual problem
-    for k in [1, 2, 3]:
-        for d in [2, 3]:
+    for k in [3]:
+        for d in [3]:
             dual_configuration.__setitem__("k_order", k)
             dual_configuration.__setitem__("dimension", d)
             perform_convergence_test(dual_configuration)

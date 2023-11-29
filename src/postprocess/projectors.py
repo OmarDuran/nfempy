@@ -27,8 +27,7 @@ def l2_projector(fe_space, functions):
         dest = weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
         r_el, j_el = weak_form.evaluate_form(i, alpha_l)
-        print("i: ", i)
-        print("dest: ", dest)
+
         # contribute rhs
         rg[dest] += r_el
 
@@ -40,7 +39,8 @@ def l2_projector(fe_space, functions):
         for k in range(nnz):
             A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
-    n_els = len(fe_space.discrete_spaces["p"].elements)
+    name = list(fe_space.discrete_spaces.keys())[0]
+    n_els = len(fe_space.discrete_spaces[name].elements)
     [scatter_form_data(A, i, weak_form) for i in range(n_els)]
 
     A.assemble()

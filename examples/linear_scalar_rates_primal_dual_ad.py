@@ -12,7 +12,7 @@ from postprocess.l2_error_post_processor import l2_error
 from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
 from spaces.product_space import ProductSpace
 from weak_forms.laplace_primal_weak_form import LaplacePrimalWeakForm, LaplacePrimalWeakFormBCDirichlet
-from weak_forms.laplace_dual_weak_form import LaplaceDualWeakForm
+from weak_forms.laplace_dual_weak_form import LaplaceDualWeakForm, LaplaceDualWeakFormBCDirichlet
 
 from postprocess.projectors import l2_projector
 
@@ -279,8 +279,8 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
 
     weak_form = LaplaceDualWeakForm(fe_space)
     weak_form.functions = m_functions
-    # bc_weak_form = LaplacePrimalWeakFormBCDirichlet(fe_space)
-    # bc_weak_form.functions = exact_functions
+    bc_weak_form = LaplaceDualWeakFormBCDirichlet(fe_space)
+    bc_weak_form.functions = exact_functions
 
     def scatter_form_data(A, i, weak_form):
         # destination indexes
@@ -315,11 +315,11 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
         for k in range(nnz):
             A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
-    n_els = len(fe_space.discrete_spaces["p"].elements)
+    n_els = len(fe_space.discrete_spaces["q"].elements)
     [scatter_form_data(A, i, weak_form) for i in range(n_els)]
 
-    # n_bc_els = len(fe_space.discrete_spaces["p"].bc_elements)
-    # [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
+    n_bc_els = len(fe_space.discrete_spaces["q"].bc_elements)
+    [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
 
     A.assemble()
 
@@ -346,6 +346,14 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
     ksp.solve(b, x)
     alpha = x.array
 
+    ai, aj, av = A.getValuesCSR()
+    Asp = scipy.sparse.csr_matrix((av, aj, ai))
+
+    def chop(expr, delta=1.0e-8):
+        return np.ma.masked_inside(expr, -delta, delta).filled(0)
+
+    # alpha_p = l2_projector(fe_space,exact_functions)
+    # alpha = alpha_p
     et = time.time()
     elapsed_time = et - st
     print("Linear solver time:", elapsed_time, "seconds")
@@ -378,8 +386,8 @@ def create_domain(dimension):
         domain = build_box_1D(box_points)
         return domain
     elif dimension == 2:
-        # box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
-        box_points = 0.25 * np.array([[-1, -1, 0], [1, -1, 0], [1, 1, 0], [-1, 1, 0]])
+        box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
+        box_points = [point + 0.25 * np.array([-1.0,-1.0,0.0]) for point in box_points]
         domain = build_box_2D(box_points)
         return domain
     else:
@@ -395,6 +403,7 @@ def create_domain(dimension):
                 [0.0, 1.0, 1.0],
             ]
         )
+        # box_points = [point + 0.25 * np.array([-1.0,-1.0,-1.0]) for point in box_points]
         domain = build_box_3D(box_points)
         return domain
 
@@ -420,7 +429,7 @@ def main():
 
     k_order = 1
     h = 1.0
-    n_ref = 1
+    n_ref = 5
     dimension = 2
     ref_l = 0
 
@@ -430,8 +439,8 @@ def main():
         h_val = h * (2**-l)
         mesher = create_conformal_mesher(domain, h, l)
         gmesh = create_mesh(dimension, mesher, True)
-        error_val = h1_laplace(k_order, gmesh, True)
-        # error_val = hdiv_laplace(k_order, gmesh, True)
+        # error_val = h1_laplace(k_order, gmesh, True)
+        error_val = hdiv_laplace(k_order, gmesh, True)
         error_data = np.append(error_data, np.array([[h_val, error_val]]), axis=0)
 
     rates_data = np.empty((0, 1), float)

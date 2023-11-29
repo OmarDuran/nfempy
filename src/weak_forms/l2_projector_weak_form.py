@@ -1,13 +1,13 @@
 import numpy as np
 from basis.element_data import ElementData
 from weak_forms.weak_from import WeakForm
-
+from basis.element_family import family_by_name
 
 class L2ProjectorWeakForm(WeakForm):
 
     def evaluate_form(self, element_index, alpha):
 
-        i = element_index
+        iel = element_index
         if self.space is None or self.functions is None:
             raise ValueError
 
@@ -19,7 +19,7 @@ class L2ProjectorWeakForm(WeakForm):
             f_rhs = self.functions[name]
 
             n_comp = space.n_comp
-            data: ElementData = space.elements[i].data
+            data: ElementData = space.elements[iel].data
 
             cell = data.cell
             dim = data.dimension
@@ -41,16 +41,32 @@ class L2ProjectorWeakForm(WeakForm):
 
             # Partial local vectorization
             f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
-            phi_s_star = det_jac * weights * phi_tab[0, :, :, 0].T
+            if space.family is family_by_name('Lagrange'):
+                phi_s_star = det_jac * weights * phi_tab[0, :, :, 0].T
+                for c in range(n_comp):
+                    b = c
+                    e = b + n_dof
+                    r_el[b:e:n_comp] -= phi_s_star @ f_val_star[c]
+            else:
+                for c in range(n_comp):
+                    b = c
+                    e = b + n_dof
+                    for i, omega in enumerate(weights):
+                        phi_s_star = det_jac[i] * weights[i] * phi_tab[0, i, :, 0:dim].T
+                        r_el[b:e:n_comp] -= phi_s_star.T @ f_val_star[:,i]
 
             for c in range(n_comp):
                 b = c
                 e = b + n_dof
-                r_el[b:e:n_comp] -= phi_s_star @ f_val_star[c]
-
-            for i, omega in enumerate(weights):
-                phi = phi_tab[0, i, :, 0]
-                j_el += det_jac[i] * omega * np.outer(phi, phi)
+                for i, omega in enumerate(weights):
+                    if space.family is family_by_name('Lagrange'):
+                        phi = phi_tab[0, i, :, 0]
+                        j_el[b:e:n_comp, b:e:n_comp] += det_jac[i] * omega * np.outer(phi,phi)
+                    else:
+                        for d in range(dim):
+                            j_el[b:e:n_comp,b:e:n_comp] += det_jac[i] * omega * np.outer(
+                                phi_tab[0, i, :, d], phi_tab[0, i, :, d]
+                            )
 
             r_els.append(r_el)
             j_els.append(j_el)

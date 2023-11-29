@@ -119,6 +119,9 @@ class ProductSpace:
         for i, item in enumerate(self.discrete_spaces.items()):
             name, space = item
 
+            if len(space.bc_elements) == 0:
+                continue
+
             stride = dofs_list[i]
             field_dest = (
                 self._retrieve_space_bc_destination_indexes(space, cell_index) + stride
