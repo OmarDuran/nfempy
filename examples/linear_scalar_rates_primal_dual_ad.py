@@ -196,7 +196,7 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
 
     q_components = 1
     p_components = 1
-    q_family = "RT"
+    q_family = "BDM"
     p_family = "Lagrange"
 
     discrete_spaces_data = {
@@ -244,11 +244,11 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
     p_exact = lambda x, y, z: np.array([(1.0 - x) * x * (1.0 - y) * y])
     q_exact = lambda x, y, z: np.array(
         [
-            -((1 - x) * (1 - y) * y) + x * (1 - y) * y,
-            -((1 - x) * x * (1 - y)) + (1 - x) * x * y,
+            -((1 - x)*(1 - y)*y) + x*(1 - y)*y,
+            -((1 - x)*x*(1 - y)) + (1 - x)*x*y,
         ]
     )
-    f_rhs = lambda x, y, z: np.array([2 * (1 - x) * x + 2 * (1 - y) * y])
+    f_rhs = lambda x, y, z: np.array([2*(1 - x)*x + 2*(1 - y)*y])
 
     if dim == 3:
         p_exact = lambda x, y, z: np.array(
@@ -352,7 +352,7 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
     def chop(expr, delta=1.0e-8):
         return np.ma.masked_inside(expr, -delta, delta).filled(0)
 
-    # alpha_p = l2_projector(fe_space,exact_functions)
+    alpha_p = l2_projector(fe_space,exact_functions)
     # alpha = alpha_p
     et = time.time()
     elapsed_time = et - st
@@ -387,7 +387,7 @@ def create_domain(dimension):
         return domain
     elif dimension == 2:
         box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
-        box_points = [point + 0.25 * np.array([-1.0,-1.0,0.0]) for point in box_points]
+        # box_points = [point + 0.25 * np.array([-1.0,-1.0,0.0]) for point in box_points]
         domain = build_box_2D(box_points)
         return domain
     else:
@@ -427,9 +427,9 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 def main():
 
-    k_order = 1
+    k_order = 3
     h = 1.0
-    n_ref = 5
+    n_ref = 1
     dimension = 2
     ref_l = 0
 

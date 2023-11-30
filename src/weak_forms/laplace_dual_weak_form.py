@@ -6,7 +6,7 @@ import basix
 from basix import CellType
 from basis.element_data import ElementData
 from weak_forms.weak_from import WeakForm
-
+from basis.permute_and_transform import permute_and_transform
 
 class LaplaceDualWeakForm(WeakForm):
     def evaluate_form(self, element_index, alpha):
@@ -37,10 +37,10 @@ class LaplaceDualWeakForm(WeakForm):
         p_phi_tab = p_data.basis.phi
 
         n_q_phi = q_phi_tab.shape[2]
-        n_u_phi = p_phi_tab.shape[2]
+        n_p_phi = p_phi_tab.shape[2]
         n_q_dof = n_q_phi * q_components
-        n_u_dof = n_u_phi * p_components
-        n_dof = n_q_dof + n_u_dof
+        n_p_dof = n_p_phi * p_components
+        n_dof = n_q_dof + n_p_dof
         js = (n_dof, n_dof)
         rs = n_dof
         j_el = np.zeros(js)
@@ -57,7 +57,10 @@ class LaplaceDualWeakForm(WeakForm):
         with ad.AutoDiff(alpha) as alpha:
             el_form = np.zeros(n_dof)
             for c in range(p_components):
-                el_form[n_q_dof:n_dof:1] -= phi_s_star @ f_val_star[c]
+                b = c + n_q_dof
+                e = b + n_p_dof
+                el_form[b:e:p_components] -= phi_s_star @ f_val_star[c]
+
             for i, omega in enumerate(weights):
                 xv = x[i]
                 if dim == 2:
@@ -158,6 +161,7 @@ class LaplaceDualWeakFormBCDirichlet(WeakForm):
 
         dof_n_index = neigh_element.data.dof.entity_dofs[cell.dimension][facet_index]
         q_tr_phi_tab = neigh_element.evaluate_basis(mapped_points, False)
+        permute_and_transform(q_tr_phi_tab, neigh_element.data)
 
         # compute normal
         xc = np.mean(q_data.mesh.points[cell.node_tags], axis=0)
@@ -182,7 +186,7 @@ class LaplaceDualWeakFormBCDirichlet(WeakForm):
                 phi_c = q_phi_tab[0, i, :, 0]
                 phi = q_tr_phi_tab[0, i, dof_n_index, 0:dim] @ normal[0:dim]
                 p_D_v = p_D(x[i, 0], x[i, 1], x[i, 2])
-                res_block_q += det_jac[i] * omega * p_D_v[c] * phi
+                res_block_q -= det_jac[i] * omega * p_D_v[c] * phi
 
             r_el[b:e:q_components] += res_block_q
 
