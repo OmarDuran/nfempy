@@ -170,7 +170,7 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     ksp = PETSc.KSP().create()
     ksp.create(PETSc.COMM_WORLD)
     ksp.setOperators(A)
-    ksp.setType("fgmres")
+    ksp.setType("fcg")
     ksp.setTolerances(**petsc_options)
     ksp.setConvergenceHistory()
     ksp.getPC().setType("ilu")
@@ -306,7 +306,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
     # FESpace: data
     s_k_order = k_order
-    m_k_order = k_order
+    m_k_order = k_order + 1
     u_k_order = s_k_order - 1
     t_k_order = m_k_order - 1
 
@@ -450,8 +450,8 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     n_els = len(fe_space.discrete_spaces["s"].elements)
     [scatter_form_data(A, i, weak_form) for i in range(n_els)]
 
-    # n_bc_els = len(fe_space.discrete_spaces["s"].bc_elements)
-    # [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
+    n_bc_els = len(fe_space.discrete_spaces["s"].bc_elements)
+    [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
 
     A.assemble()
 
@@ -526,6 +526,7 @@ def create_domain(dimension):
         return domain
     elif dimension == 2:
         box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
+        box_points = [point + 0.25 * np.array([-1.0, -1.0, 0.0]) for point in box_points]
         domain = build_box_2D(box_points)
         return domain
     else:
@@ -541,6 +542,7 @@ def create_domain(dimension):
                 [0.0, 1.0, 1.0],
             ]
         )
+        box_points = [point + 0.25 * np.array([-1.0, -1.0, -1.0]) for point in box_points]
         domain = build_box_3D(box_points)
         return domain
 
@@ -721,14 +723,14 @@ def main():
     }
 
     # primal problem
-    for k in [1, 2, 3]:
-        for d in [2, 3]:
+    for k in [1]:
+        for d in [3]:
             primal_configuration.__setitem__("k_order", k)
             primal_configuration.__setitem__("dimension", d)
             # perform_convergence_test(primal_configuration)
 
     dual_configuration = {
-        "n_refinements": 1,
+        "n_refinements": 2,
         "dual_problem_Q": True,
         "write_geometry_Q": write_vtk_files_Q,
         "write_vtk_Q": write_vtk_files_Q,
@@ -736,7 +738,7 @@ def main():
     }
 
     # dual problem
-    for k in [3]:
+    for k in [2]:
         for d in [3]:
             dual_configuration.__setitem__("k_order", k)
             dual_configuration.__setitem__("dimension", d)

@@ -8,7 +8,7 @@ from weak_forms.weak_from import WeakForm
 
 class LCEPrimalWeakForm(WeakForm):
     def evaluate_form(self, element_index, alpha):
-        i = element_index
+        iel = element_index
         if self.space is None or self.functions is None:
             raise ValueError
 
@@ -24,8 +24,8 @@ class LCEPrimalWeakForm(WeakForm):
         u_components = u_space.n_comp
         t_components = t_space.n_comp
 
-        u_data: ElementData = u_space.elements[i].data
-        t_data: ElementData = t_space.elements[i].data
+        u_data: ElementData = u_space.elements[iel].data
+        t_data: ElementData = t_space.elements[iel].data
 
         cell = u_data.cell
         dim = u_data.dimension
@@ -234,14 +234,14 @@ class LCEPrimalWeakFormBCDirichlet(WeakForm):
         u_D = self.functions["u"]
         t_D = self.functions["t"]
 
-        i = element_index
+        iel = element_index
         u_space = self.space.discrete_spaces["u"]
         t_space = self.space.discrete_spaces["t"]
         u_components = u_space.n_comp
         t_components = t_space.n_comp
 
-        u_data: ElementData = u_space.bc_elements[i].data
-        t_data: ElementData = t_space.bc_elements[i].data
+        u_data: ElementData = u_space.bc_elements[iel].data
+        t_data: ElementData = t_space.bc_elements[iel].data
 
         cell = u_data.cell
         points = u_data.quadrature.points
@@ -299,6 +299,7 @@ class LCEPrimalWeakFormBCDirichlet(WeakForm):
                 phi = t_phi_tab[0, i, :, 0]
                 t_D_v = t_D(x[i, 0], x[i, 1], x[i, 2])
                 res_block_t -= beta * det_jac[i] * omega * t_D_v[c] * phi
+
             r_el[b:e:t_components] += res_block_t
             j_el[b:e:t_components, b:e:t_components] += jac_block_t
 

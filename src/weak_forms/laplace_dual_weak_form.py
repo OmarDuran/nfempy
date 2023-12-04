@@ -6,10 +6,6 @@ from basix import CellType
 
 from basis.element_data import ElementData
 from basis.parametric_transformation import transform_lower_to_higher
-from basis.permute_and_transform import (
-    _validate_edge_orientation_2d,
-    permute_and_transform,
-)
 from geometry.compute_normal import normal
 from topology.topological_queries import find_higher_dimension_neighs
 from weak_forms.weak_from import WeakForm
@@ -134,9 +130,9 @@ class LaplaceDualWeakFormBCDirichlet(WeakForm):
 
         # compute trace space
         mapped_points = transform_lower_to_higher(points, q_data, neigh_element.data)
+        q_tr_phi_tab = neigh_element.evaluate_basis(mapped_points, False)
         facet_index = neigh_cell.sub_cells_ids[cell.dimension].tolist().index(cell.id)
         dof_n_index = neigh_element.data.dof.entity_dofs[cell.dimension][facet_index]
-        q_tr_phi_tab = neigh_element.evaluate_basis(mapped_points, False)
 
         # compute normal
         n = normal(q_data.mesh, neigh_cell, cell)

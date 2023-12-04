@@ -3,12 +3,15 @@ import numpy as np
 from auto_diff.vecvalder import VecValDer
 
 from basis.element_data import ElementData
+from basis.parametric_transformation import transform_lower_to_higher
+from geometry.compute_normal import normal
+from topology.topological_queries import find_higher_dimension_neighs
 from weak_forms.weak_from import WeakForm
 
 
 class LCEDualWeakForm(WeakForm):
     def evaluate_form(self, element_index, alpha):
-        i = element_index
+        iel = element_index
         if self.space is None or self.functions is None:
             raise ValueError
 
@@ -28,10 +31,10 @@ class LCEDualWeakForm(WeakForm):
         u_components = u_space.n_comp
         t_components = t_space.n_comp
 
-        s_data: ElementData = s_space.elements[i].data
-        m_data: ElementData = m_space.elements[i].data
-        u_data: ElementData = u_space.elements[i].data
-        t_data: ElementData = t_space.elements[i].data
+        s_data: ElementData = s_space.elements[iel].data
+        m_data: ElementData = m_space.elements[iel].data
+        u_data: ElementData = u_space.elements[iel].data
+        t_data: ElementData = t_space.elements[iel].data
 
         cell = s_data.cell
         dim = s_data.dimension
@@ -421,5 +424,97 @@ class LCEDualWeakForm(WeakForm):
 
 class LCEDualWeakFormBCDirichlet(WeakForm):
     def evaluate_form(self, element_index, alpha):
-        i = element_index
-        aka = 0
+        iel = element_index
+
+        u_D = self.functions["u"]
+        t_D = self.functions["t"]
+
+        s_space = self.space.discrete_spaces["s"]
+        m_space = self.space.discrete_spaces["m"]
+
+        s_components = s_space.n_comp
+        m_components = m_space.n_comp
+        s_data: ElementData = s_space.bc_elements[iel].data
+        m_data: ElementData = m_space.bc_elements[iel].data
+
+        cell = s_data.cell
+        points = s_data.quadrature.points
+        weights = s_data.quadrature.weights
+        x = s_data.mapping.x
+        det_jac = s_data.mapping.det_jac
+        inv_jac = s_data.mapping.inv_jac
+
+        s_phi_tab = s_data.basis.phi
+        m_phi_tab = m_data.basis.phi
+
+        n_s_phi = s_phi_tab.shape[2]
+        n_m_phi = m_phi_tab.shape[2]
+
+        n_s_dof = n_s_phi * s_components
+        n_m_dof = n_m_phi * m_components
+
+        n_dof = n_s_dof + n_m_dof
+        js = (n_dof, n_dof)
+        rs = n_dof
+        j_el = np.zeros(js)
+        r_el = np.zeros(rs)
+
+        # find high-dimension neigh
+        neigh_list = find_higher_dimension_neighs(cell, s_space.dof_map.mesh_topology)
+        neigh_check_q = len(neigh_list) > 0
+        assert neigh_check_q
+        neigh_cell_id = neigh_list[0]
+        neigh_cell_index = s_space.id_to_element[neigh_cell_id]
+        neigh_element = s_space.elements[neigh_cell_index]
+        neigh_cell = neigh_element.data.cell
+
+        # compute S trace space
+        mapped_points = transform_lower_to_higher(points, s_data, neigh_element.data)
+        s_tr_phi_tab = neigh_element.evaluate_basis(mapped_points, False)
+        facet_index = neigh_cell.sub_cells_ids[cell.dimension].tolist().index(cell.id)
+        dof_s_n_index = neigh_element.data.dof.entity_dofs[cell.dimension][facet_index]
+
+        # compute normal
+        n = normal(s_data.mesh, neigh_cell, cell)
+
+        # find high-dimension neigh
+        neigh_list = find_higher_dimension_neighs(cell, m_space.dof_map.mesh_topology)
+        neigh_check_q = len(neigh_list) > 0
+        assert neigh_check_q
+        neigh_cell_id = neigh_list[0]
+        neigh_cell_index = m_space.id_to_element[neigh_cell_id]
+        neigh_element = m_space.elements[neigh_cell_index]
+        neigh_cell = neigh_element.data.cell
+
+        # compute M trace space
+        mapped_points = transform_lower_to_higher(points, m_data, neigh_element.data)
+        m_tr_phi_tab = neigh_element.evaluate_basis(mapped_points, False)
+        facet_index = neigh_cell.sub_cells_ids[cell.dimension].tolist().index(cell.id)
+        dof_m_n_index = neigh_element.data.dof.entity_dofs[cell.dimension][facet_index]
+
+        for c in range(s_components):
+            b = c
+            e = b + n_s_dof
+
+            res_block_s = np.zeros(n_s_phi)
+            dim = neigh_cell.dimension
+            for i, omega in enumerate(weights):
+                u_D_v = u_D(x[i, 0], x[i, 1], x[i, 2])
+                phi = s_tr_phi_tab[0, i, dof_s_n_index, 0:dim] @ n[0:dim]
+                res_block_s -= det_jac[i] * omega * u_D_v[c] * phi
+
+            r_el[b:e:s_components] += res_block_s
+
+        for c in range(m_components):
+            b = c + n_s_dof
+            e = b + n_m_dof
+
+            res_block_m = np.zeros(n_m_phi)
+            for i, omega in enumerate(weights):
+                t_D_v = t_D(x[i, 0], x[i, 1], x[i, 2])
+                phi = m_tr_phi_tab[0, i, dof_m_n_index, 0:dim] @ n[0:dim]
+                res_block_m -= det_jac[i] * omega * t_D_v[c] * phi
+
+            r_el[b:e:m_components] += res_block_m
+
+        return r_el, j_el

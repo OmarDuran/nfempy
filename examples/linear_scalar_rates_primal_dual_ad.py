@@ -196,7 +196,7 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
 
     q_components = 1
     p_components = 1
-    q_family = "BDM"
+    q_family = "RT"
     p_family = "Lagrange"
 
     discrete_spaces_data = {
@@ -346,14 +346,14 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
     ksp.solve(b, x)
     alpha = x.array
 
-    ai, aj, av = A.getValuesCSR()
-    Asp = scipy.sparse.csr_matrix((av, aj, ai))
+    # ai, aj, av = A.getValuesCSR()
+    # Asp = scipy.sparse.csr_matrix((av, aj, ai))
     # rg[np.array([8, 9])] *= -1.0
-    alpha_s = scipy.sparse.linalg.spsolve(Asp,-rg)
-    def chop(expr, delta=1.0e-5):
-        return np.ma.masked_inside(expr, -delta, delta).filled(0)
+    # alpha_s = scipy.sparse.linalg.spsolve(Asp,-rg)
+    # def chop(expr, delta=1.0e-5):
+    #     return np.ma.masked_inside(expr, -delta, delta).filled(0)
 
-    alpha_p = l2_projector(fe_space,exact_functions)
+    # alpha_p = l2_projector(fe_space,exact_functions)
     # alpha = alpha_p
     et = time.time()
     elapsed_time = et - st

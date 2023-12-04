@@ -10,7 +10,7 @@ from weak_forms.weak_from import WeakForm
 
 class LaplacePrimalWeakForm(WeakForm):
     def evaluate_form(self, element_index, alpha):
-        i = element_index
+        iel = element_index
         if self.space is None or self.functions is None:
             raise ValueError
 
@@ -20,7 +20,7 @@ class LaplacePrimalWeakForm(WeakForm):
         f_kappa = self.functions["kappa"]
 
         p_components = p_space.n_comp
-        p_data: ElementData = p_space.elements[i].data
+        p_data: ElementData = p_space.elements[iel].data
 
         cell = p_data.cell
         dim = p_data.dimension
@@ -80,10 +80,10 @@ class LaplacePrimalWeakFormBCDirichlet(WeakForm):
     def evaluate_form(self, element_index, alpha):
         p_D = self.functions["p"]
 
-        i = element_index
+        iel = element_index
         p_space = self.space.discrete_spaces["p"]
         p_components = p_space.n_comp
-        p_data: ElementData = p_space.bc_elements[i].data
+        p_data: ElementData = p_space.bc_elements[iel].data
 
         cell = p_data.cell
         points = p_data.quadrature.points
