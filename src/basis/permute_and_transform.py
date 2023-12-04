@@ -74,7 +74,7 @@ def _validate_face_orientation_3d(data: ElementData):
             orientation[i] = True
         else:
             perms = list(permutations(list(face_ref)))
-            pos_search = [i for i, perm in enumerate(perms) if perm == tuple(face)]
+            pos_search = [k for k, perm in enumerate(perms) if perm == tuple(face)]
             assert len(pos_search) == 1
             assert pos_search[0] != 0
             position = pos_search[0]

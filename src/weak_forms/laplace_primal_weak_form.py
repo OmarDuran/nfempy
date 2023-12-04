@@ -1,12 +1,12 @@
 import auto_diff as ad
+import basix
 import numpy as np
 from auto_diff.vecvalder import VecValDer
+from basix import CellType
 
 from basis.element_data import ElementData
 from weak_forms.weak_from import WeakForm
 
-import basix
-from basix import CellType
 
 class LaplacePrimalWeakForm(WeakForm):
     def evaluate_form(self, element_index, alpha):

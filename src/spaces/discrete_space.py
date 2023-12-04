@@ -203,7 +203,7 @@ class DiscreteSpace:
         bc_discontinuous = self.discontinuous
         bc_k_order = self.k_order
         bc_familiy = self.family
-        if self.dimension - 1 < 2: # it implies traces of H(div) and H(curl) elements
+        if self.dimension - 1 < 2:  # it implies traces of H(div) and H(curl) elements
             bc_familiy = family_by_name("Lagrange")
 
         if family_by_name("BDM") == self.family:

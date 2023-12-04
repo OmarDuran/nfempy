@@ -1,13 +1,14 @@
-
 import time
+
 import numpy as np
 from petsc4py import PETSc
+
 from basis.element_family import family_by_name
 from spaces.product_space import ProductSpace
 from weak_forms.l2_projector_weak_form import L2ProjectorWeakForm
 
-def l2_projector(fe_space, functions):
 
+def l2_projector(fe_space, functions):
     n_dof_g = fe_space.n_dof
     rg = np.zeros(n_dof_g)
     alpha = np.zeros(n_dof_g)

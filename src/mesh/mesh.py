@@ -138,9 +138,9 @@ class Mesh:
             # vertex id
             vertex_ids = [self.entities_0d[node] for node in node_tags]
 
-            edge_0 = node_tags[np.array([1, 2])]
-            edge_1 = node_tags[np.array([0, 2])]
-            edge_2 = node_tags[np.array([0, 1])]
+            edge_0 = np.sort(node_tags[np.array([1, 2])])
+            edge_1 = np.sort(node_tags[np.array([0, 2])])
+            edge_2 = np.sort(node_tags[np.array([0, 1])])
             edges = [edge_0, edge_1, edge_2]
 
             edge_ids = []

@@ -157,7 +157,8 @@ class DoFMap:
             if int(np.mean(self.ref_element.num_entity_dofs[d])) == 0:
                 filtered_dof_supports = []
             entity_dest = np.array(
-                [entity_maps[d].get(dof_s) for dof_s in filtered_dof_supports], dtype=int
+                [entity_maps[d].get(dof_s) for dof_s in filtered_dof_supports],
+                dtype=int,
             ).ravel()
             dest_by_dim.append(entity_dest)
         dest = np.concatenate(dest_by_dim)

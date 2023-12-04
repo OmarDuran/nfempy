@@ -200,7 +200,7 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
     p_family = "Lagrange"
 
     discrete_spaces_data = {
-        "q": (dim, p_components, q_family, q_k_order, gmesh),
+        "q": (dim, q_components, q_family, q_k_order, gmesh),
         "p": (dim, p_components, p_family, p_k_order, gmesh),
     }
 
@@ -348,8 +348,9 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
 
     ai, aj, av = A.getValuesCSR()
     Asp = scipy.sparse.csr_matrix((av, aj, ai))
-
-    def chop(expr, delta=1.0e-8):
+    # rg[np.array([8, 9])] *= -1.0
+    alpha_s = scipy.sparse.linalg.spsolve(Asp,-rg)
+    def chop(expr, delta=1.0e-5):
         return np.ma.masked_inside(expr, -delta, delta).filled(0)
 
     alpha_p = l2_projector(fe_space,exact_functions)
@@ -387,7 +388,7 @@ def create_domain(dimension):
         return domain
     elif dimension == 2:
         box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
-        # box_points = [point + 0.25 * np.array([-1.0,-1.0,0.0]) for point in box_points]
+        box_points = [point + 0.25 * np.array([-1.0, -1.0, 0.0]) for point in box_points]
         domain = build_box_2D(box_points)
         return domain
     else:
@@ -403,7 +404,7 @@ def create_domain(dimension):
                 [0.0, 1.0, 1.0],
             ]
         )
-        # box_points = [point + 0.25 * np.array([-1.0,-1.0,-1.0]) for point in box_points]
+        box_points = [point + 0.25 * np.array([-1.0,-1.0,-1.0]) for point in box_points]
         domain = build_box_3D(box_points)
         return domain
 
@@ -427,10 +428,10 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 def main():
 
-    k_order = 3
+    k_order = 2
     h = 1.0
-    n_ref = 1
-    dimension = 2
+    n_ref = 3
+    dimension = 3
     ref_l = 0
 
     domain = create_domain(dimension)
