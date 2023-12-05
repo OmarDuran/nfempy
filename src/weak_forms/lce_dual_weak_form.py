@@ -621,6 +621,6 @@ class LCEDualWeakFormBCNeumann(WeakForm):
                 jac_block_m += beta * det_jac[i] * omega * np.outer(phi, phi)
 
             r_el[b:e:m_components] += res_block_m
-            j_el[b:e:m_components, b:e:s_components] += jac_block_m
+            j_el[b:e:m_components, b:e:m_components] += jac_block_m
 
         return r_el, j_el
