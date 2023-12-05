@@ -104,7 +104,7 @@ def lm_h1_elasticity(k_order, gmesh, write_vtk_q=False):
         family,
         k_order - 2,
         gmesh,
-        integration_oder=2 * k_order + 1,
+        integration_order=2 * k_order + 1,
     )
 
     l_space.make_discontinuous()
@@ -956,7 +956,7 @@ def lm_h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         family,
         k_order - 2,
         gmesh,
-        integration_oder=2 * k_order + 1,
+        integration_order=2 * k_order + 1,
     )
 
     l_space.make_discontinuous()

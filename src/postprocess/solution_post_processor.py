@@ -71,7 +71,17 @@ def write_vtk_file(file_name, gmesh, fe_space, alpha):
             alpha_star = np.array(np.split(alpha_l, n_phi))
 
             # Generalized displacement
-            f_h = (phi_tab[0, :, :, 0] @ alpha_star[:, 0:dim]).T
+            if space.family is family_by_name("Lagrange"):
+                f_h = (phi_tab[0, :, :, 0] @ alpha_star[:, 0:dim]).T
+            else:
+                f_h = np.vstack(
+                    tuple(
+                        [
+                            phi_tab[0, 0, :, 0:dim].T @ alpha_star[:, c]
+                            for c in range(n_comp)
+                        ]
+                    )
+                )
             fh_data[target_node_id] = f_h.ravel()
 
         p_data_dict.__setitem__(name + "_h", fh_data)

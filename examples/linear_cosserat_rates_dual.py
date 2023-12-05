@@ -85,7 +85,7 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
         family_potential,
         k_order - 1,
         gmesh,
-        integration_oder=int_order,
+        integration_order=int_order,
     )
     t_space = DiscreteSpace(
         dim,
@@ -93,7 +93,7 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
         family_potential,
         k_order - 1,
         gmesh,
-        integration_oder=int_order,
+        integration_order=int_order,
     )
 
     # u_space.build_structures([2, 3])

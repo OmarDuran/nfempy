@@ -10,13 +10,13 @@ from geometry.mapping import evaluate_linear_shapes, evaluate_mapping
 
 class FiniteElement:
     def __init__(
-        self, cell_id, family, k_order, mesh, discontinuous=False, integration_oder=0
+        self, cell_id, family, k_order, mesh, discontinuous=False, integration_order=0
     ):
         self.family = family
         self.k_order = k_order
         self.mesh = mesh
         self.discontinuous = discontinuous
-        self.integration_oder = integration_oder
+        self.integration_order = integration_order
         self.basis_generator = None
         self.data = ElementData(
             dimension=mesh.cells[cell_id].dimension, cell=mesh.cells[cell_id], mesh=mesh
@@ -57,7 +57,7 @@ class FiniteElement:
                     self.discontinuous,
                 )
                 quadrature = basix.make_quadrature(
-                    basix.QuadratureType.gauss_jacobi, cell_type, self.integration_oder
+                    basix.QuadratureType.gauss_jacobi, cell_type, self.integration_order
                 )
             else:
                 self.basis_generator = basix.create_element(
@@ -68,7 +68,7 @@ class FiniteElement:
                     self.discontinuous,
                 )
                 quadrature = basix.make_quadrature(
-                    basix.QuadratureType.gauss_jacobi, cell_type, self.integration_oder
+                    basix.QuadratureType.gauss_jacobi, cell_type, self.integration_order
                 )
         # Partially fill element data
         self._fill_element_data(quadrature)
@@ -91,8 +91,8 @@ class FiniteElement:
         )
 
     def _set_integration_order(self):
-        if self.integration_oder == 0:
-            self.integration_oder = 2 * self.k_order + 1
+        if self.integration_order == 0:
+            self.integration_order = 2 * self.k_order + 1
 
     def storage_basis(self):
         self.evaluate_basis(self.data.quadrature.points, storage=True)

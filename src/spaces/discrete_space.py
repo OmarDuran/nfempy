@@ -14,7 +14,7 @@ from topology.mesh_topology import MeshTopology
 class DiscreteSpace:
     # The discrete space representation
     def __init__(
-        self, dimension, n_components, family, k_order, mesh, integration_oder=0
+        self, dimension, n_components, family, k_order, mesh, integration_order=0
     ):
         self.dimension = dimension
         self.n_comp = n_components
@@ -22,7 +22,7 @@ class DiscreteSpace:
         self.element_type = None
         self.bc_element_type = None
         self.k_order = k_order
-        self.integration_oder = integration_oder
+        self.integration_order = integration_order
 
         self.name = "Unnamed"
         self.mesh_topology = MeshTopology(mesh, dimension)
@@ -140,7 +140,7 @@ class DiscreteSpace:
 
             @wrap_non_picklable_objects
             def task_create_element(
-                cell_id, family, k_order, mesh, discontinuous, integration_oder
+                cell_id, family, k_order, mesh, discontinuous, integration_order
             ):
                 return FiniteElement(
                     cell_id=cell_id,
@@ -148,7 +148,7 @@ class DiscreteSpace:
                     k_order=self.k_order,
                     mesh=self.mesh_topology.mesh,
                     discontinuous=self.discontinuous,
-                    integration_oder=self.integration_oder,
+                    integration_order=self.integration_order,
                 )
 
             self.elements = Parallel(
@@ -160,7 +160,7 @@ class DiscreteSpace:
                     k_order=self.k_order,
                     mesh=self.mesh_topology.mesh,
                     discontinuous=self.discontinuous,
-                    integration_oder=self.integration_oder,
+                    integration_order=self.integration_order,
                 )
                 for id in self.element_ids
             )
@@ -173,7 +173,7 @@ class DiscreteSpace:
                         k_order=self.k_order,
                         mesh=self.mesh_topology.mesh,
                         discontinuous=self.discontinuous,
-                        integration_oder=self.integration_oder,
+                        integration_order=self.integration_order,
                     ),
                     self.element_ids,
                 )
@@ -224,7 +224,7 @@ class DiscreteSpace:
                     k_order=bc_k_order,
                     mesh=self.mesh_topology.mesh,
                     discontinuous=bc_discontinuous,
-                    integration_oder=self.integration_oder,
+                    integration_order=self.integration_order,
                 ),
                 self.bc_element_ids,
             )

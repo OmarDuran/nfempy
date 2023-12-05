@@ -455,7 +455,7 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
 
     # flux space
     s_space = DiscreteSpace(
-        dim, s_components, s_family, k_order, gmesh, integration_oder=2 * k_order + 1
+        dim, s_components, s_family, k_order, gmesh, integration_order=2 * k_order + 1
     )
     if dim == 2:
         s_space.build_structures([2, 3, 4, 5])
@@ -469,7 +469,7 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
         u_family,
         k_order - 1,
         gmesh,
-        integration_oder=2 * k_order + 1,
+        integration_order=2 * k_order + 1,
     )
     u_space.make_discontinuous()
     u_space.build_structures()
@@ -481,7 +481,7 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
         t_family,
         k_order - 1,
         gmesh,
-        integration_oder=2 * k_order + 1,
+        integration_order=2 * k_order + 1,
     )
     t_space.make_discontinuous()
     t_space.build_structures()

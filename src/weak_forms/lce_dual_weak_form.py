@@ -518,3 +518,109 @@ class LCEDualWeakFormBCDirichlet(WeakForm):
             r_el[b:e:m_components] += res_block_m
 
         return r_el, j_el
+
+
+class LCEDualWeakFormBCNeumann(WeakForm):
+    def evaluate_form(self, element_index, alpha):
+        iel = element_index
+
+        s_N = self.functions["s"]
+        m_N = self.functions["m"]
+
+        s_space = self.space.discrete_spaces["s"]
+        m_space = self.space.discrete_spaces["m"]
+
+        s_components = s_space.n_comp
+        m_components = m_space.n_comp
+        s_data: ElementData = s_space.bc_elements[iel].data
+        m_data: ElementData = m_space.bc_elements[iel].data
+
+        cell = s_data.cell
+        points = s_data.quadrature.points
+        weights = s_data.quadrature.weights
+        x = s_data.mapping.x
+        det_jac = s_data.mapping.det_jac
+        inv_jac = s_data.mapping.inv_jac
+
+        s_phi_tab = s_data.basis.phi
+        m_phi_tab = m_data.basis.phi
+
+        n_s_phi = s_phi_tab.shape[2]
+        n_m_phi = m_phi_tab.shape[2]
+
+        n_s_dof = n_s_phi * s_components
+        n_m_dof = n_m_phi * m_components
+
+        n_dof = n_s_dof + n_m_dof
+        js = (n_dof, n_dof)
+        rs = n_dof
+        j_el = np.zeros(js)
+        r_el = np.zeros(rs)
+
+        # find high-dimension neigh
+        neigh_list = find_higher_dimension_neighs(cell, s_space.dof_map.mesh_topology)
+        neigh_check_q = len(neigh_list) > 0
+        assert neigh_check_q
+        neigh_cell_id = neigh_list[0]
+        neigh_cell_index = s_space.id_to_element[neigh_cell_id]
+        neigh_element = s_space.elements[neigh_cell_index]
+        neigh_cell = neigh_element.data.cell
+
+        # compute S trace space
+        mapped_points = transform_lower_to_higher(points, s_data, neigh_element.data)
+        s_tr_phi_tab = neigh_element.evaluate_basis(mapped_points, False)
+        facet_index = neigh_cell.sub_cells_ids[cell.dimension].tolist().index(cell.id)
+        dof_s_n_index = neigh_element.data.dof.entity_dofs[cell.dimension][facet_index]
+
+        # compute normal
+        n = normal(s_data.mesh, neigh_cell, cell)
+
+        # find high-dimension neigh
+        neigh_list = find_higher_dimension_neighs(cell, m_space.dof_map.mesh_topology)
+        neigh_check_q = len(neigh_list) > 0
+        assert neigh_check_q
+        neigh_cell_id = neigh_list[0]
+        neigh_cell_index = m_space.id_to_element[neigh_cell_id]
+        neigh_element = m_space.elements[neigh_cell_index]
+        neigh_cell = neigh_element.data.cell
+
+        # compute M trace space
+        mapped_points = transform_lower_to_higher(points, m_data, neigh_element.data)
+        m_tr_phi_tab = neigh_element.evaluate_basis(mapped_points, False)
+        facet_index = neigh_cell.sub_cells_ids[cell.dimension].tolist().index(cell.id)
+        dof_m_n_index = neigh_element.data.dof.entity_dofs[cell.dimension][facet_index]
+
+        beta = 1.0e12
+        for c in range(s_components):
+            b = c
+            e = b + n_s_dof
+
+            res_block_s = np.zeros(n_s_phi)
+            jac_block_s = np.zeros((n_s_phi, n_s_phi))
+            dim = neigh_cell.dimension
+            for i, omega in enumerate(weights):
+                s_N_v = s_N(x[i, 0], x[i, 1], x[i, 2])
+                phi = s_tr_phi_tab[0, i, dof_s_n_index, 0:dim] @ n[0:dim]
+                res_block_s -= beta * det_jac[i] * omega * s_N_v[c] * phi
+                jac_block_s += beta * det_jac[i] * omega * np.outer(phi, phi)
+
+            r_el[b:e:s_components] += res_block_s
+            j_el[b:e:s_components, b:e:s_components] += jac_block_s
+
+        for c in range(m_components):
+            b = c + n_s_dof
+            e = b + n_m_dof
+
+            res_block_m = np.zeros(n_m_phi)
+            jac_block_m = np.zeros((n_m_phi, n_m_phi))
+            dim = neigh_cell.dimension
+            for i, omega in enumerate(weights):
+                m_N_v = m_N(x[i, 0], x[i, 1], x[i, 2])
+                phi = m_tr_phi_tab[0, i, dof_m_n_index, 0:dim] @ n[0:dim]
+                res_block_m -= beta * det_jac[i] * omega * m_N_v[c] * phi
+                jac_block_m += beta * det_jac[i] * omega * np.outer(phi, phi)
+
+            r_el[b:e:m_components] += res_block_m
+            j_el[b:e:m_components, b:e:s_components] += jac_block_m
+
+        return r_el, j_el

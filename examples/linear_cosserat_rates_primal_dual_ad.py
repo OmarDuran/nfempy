@@ -21,6 +21,7 @@ from weak_forms.lce_primal_weak_form import (
 
 
 def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
+
     dim = gmesh.dimension
 
     # FESpace: data
@@ -302,6 +303,7 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
 
 def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
+
     dim = gmesh.dimension
 
     # FESpace: data

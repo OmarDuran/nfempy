@@ -142,10 +142,10 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
     u_k_order = k_order + 1
     u_space = DiscreteSpace(
-        dim, u_components, family, u_k_order, gmesh, integration_oder=2 * u_k_order + 1
+        dim, u_components, family, u_k_order, gmesh, integration_order=2 * u_k_order + 1
     )
     t_space = DiscreteSpace(
-        dim, t_components, family, k_order, gmesh, integration_oder=2 * u_k_order + 1
+        dim, t_components, family, k_order, gmesh, integration_order=2 * u_k_order + 1
     )
     if dim == 2:
         u_space.build_structures([2, 3, 4, 5])
@@ -964,7 +964,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         s_family,
         s_k_order,
         gmesh,
-        integration_oder=2 * k_int_order + 1,
+        integration_order=2 * k_int_order + 1,
     )
     if dim == 2:
         # s_space.build_structures([2, 3, 4, 5, skin_p_physical_tags, skin_m_physical_tags])
@@ -979,7 +979,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         m_family,
         m_k_order,
         gmesh,
-        integration_oder=2 * k_int_order + 1,
+        integration_order=2 * k_int_order + 1,
     )
     if dim == 2:
         # m_space.build_structures([2, 3, 4, 5, skin_p_physical_tags, skin_m_physical_tags])
@@ -994,7 +994,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         u_family,
         s_k_order - 1,
         gmesh,
-        integration_oder=2 * k_int_order + 1,
+        integration_order=2 * k_int_order + 1,
     )
     u_space.make_discontinuous()
     u_space.build_structures()
@@ -1006,7 +1006,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         t_family,
         m_k_order - 1,
         gmesh,
-        integration_oder=2 * k_int_order + 1,
+        integration_order=2 * k_int_order + 1,
     )
     t_space.make_discontinuous()
     t_space.build_structures()
