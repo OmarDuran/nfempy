@@ -386,7 +386,7 @@ class LCEDualWeakForm(WeakForm):
                 equ_1_integrand = (
                     (s_phi_tab[0, i, :, 0:dim] @ A_sh.T)
                     + (div_tau.T @ uh)
-                    + (s_phi_tab[0, i, :, 0:dim] @ Gamma_outer)
+                    - (s_phi_tab[0, i, :, 0:dim] @ Gamma_outer.T)
                 )
                 equ_2_integrand = (m_phi_tab[0, i, :, 0:dim] @ A_mh.T) + (div_v.T @ th)
                 equ_3_integrand = u_phi_tab[0, i, :, 0:dim] @ div_sh
