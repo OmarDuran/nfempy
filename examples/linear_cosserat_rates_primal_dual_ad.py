@@ -21,14 +21,14 @@ from weak_forms.lce_primal_weak_form import (
 
 from postprocess.projectors import l2_projector
 
-def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False, conformal_q=False):
+def h1_cosserat_elasticity(epsilon, k_order, gmesh, write_vtk_q=False, conformal_q=False):
 
     dim = gmesh.dimension
 
     # FESpace: data
-    u_k_order = k_order + 1
+    u_k_order = k_order
     if conformal_q:
-        u_k_order = k_order
+        u_k_order = k_order + 1
     t_k_order = k_order
 
     u_components = 2
@@ -75,10 +75,10 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False, conformal_q=False)
     A.createAIJ([n_dof_g, n_dof_g])
 
     # Material data
-    m_lambda = 1.0
+    m_lambda = 100.0
     m_mu = 1.0
-    m_kappa = 1.0
-    m_gamma = 1.0
+    m_kappa = m_mu
+    m_gamma = epsilon
 
     # exact solution
     u_exact = lce.displacement(m_lambda, m_mu, m_kappa, m_gamma, dim)
@@ -170,12 +170,11 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False, conformal_q=False)
     b.array[:] = -rg
     x = A.createVecRight()
 
-    petsc_options = {"rtol": 1e-12, "atol": 1e-14}
     ksp = PETSc.KSP().create()
     ksp.create(PETSc.COMM_WORLD)
     ksp.setOperators(A)
     ksp.setType("fcg")
-    ksp.setTolerances(**petsc_options)
+    ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=500, max_it=2000)
     ksp.setConvergenceHistory()
     ksp.getPC().setType("ilu")
     ksp.solve(b, x)
@@ -184,8 +183,6 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False, conformal_q=False)
     et = time.time()
     elapsed_time = et - st
     print("Linear solver time:", elapsed_time, "seconds")
-
-    u_l2_error, t_l2_error = l2_error(dim, fe_space, exact_functions, alpha)
 
     # Computing stress L2 error
     def compute_s_l2_error(i, fe_space, m_mu, m_lambda, m_kappa, dim):
@@ -277,6 +274,7 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False, conformal_q=False)
         return l2_error
 
     st = time.time()
+    u_l2_error, t_l2_error = l2_error(dim, fe_space, exact_functions, alpha)
     s_error_vec = [
         compute_s_l2_error(i, fe_space, m_mu, m_lambda, m_kappa, dim)
         for i in range(n_els)
@@ -305,7 +303,7 @@ def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False, conformal_q=False)
     return np.array([u_l2_error, t_l2_error, s_l2_error, m_l2_error])
 
 
-def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False, conformal_q=False):
+def hdiv_cosserat_elasticity(epsilon, k_order, gmesh, write_vtk_q=False, conformal_q=False):
 
     dim = gmesh.dimension
 
@@ -376,10 +374,10 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False, conformal_q=Fals
     A.createAIJ([n_dof_g, n_dof_g])
 
     # Material data
-    m_lambda = 1.0
+    m_lambda = 100.0
     m_mu = 1.0
-    m_kappa = 1.0
-    m_gamma = 1.0
+    m_kappa = m_mu
+    m_gamma = epsilon
 
     # exact solution
     u_exact = lce.displacement(m_lambda, m_mu, m_kappa, m_gamma, dim)
@@ -479,14 +477,11 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False, conformal_q=Fals
     b.array[:] = -rg
     x = A.createVecRight()
 
-    # petsc_options = {"rtol": 1e-10, "atol": 1e-12, "divtol": 200, "max_it": 500}
     ksp = PETSc.KSP().create()
     ksp.create(PETSc.COMM_WORLD)
     ksp.setOperators(A)
     ksp.setType("fgmres")
-    # ksp.setTolerances(**petsc_options)
-    # ksp.setTolerances(1e-10)
-    ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=500, max_it=2000)
+    ksp.setTolerances(rtol=1e-12, atol=1e-12, divtol=500, max_it=2000)
     ksp.setConvergenceHistory()
     ksp.getPC().setType("ilu")
     ksp.solve(b, x)
@@ -589,12 +584,14 @@ def create_mesh_from_file(file_name, dim, write_vtk_q=False):
     return gmesh
 
 def perform_convergence_test(configuration: dict):
+
     # retrieve parameters from dictionary
     k_order = configuration.get("k_order")
     n_ref = configuration.get("n_refinements")
     dimension = configuration.get("dimension")
     mixed_form_q = configuration.get("dual_problem_Q", False)
     conformal_q = configuration.get("conformal_q", False)
+    epsilon_value = configuration.get("epsilon_value", 1.0)
     write_geometry_vtk = configuration.get("write_geometry_Q", False)
     write_vtk = configuration.get("write_vtk_Q", False)
     report_full_precision_data = configuration.get(
@@ -618,9 +615,9 @@ def perform_convergence_test(configuration: dict):
         # gmesh = create_mesh_from_file(mesh_file, 3, write_geometry_vtk)
 
         if mixed_form_q:
-            error_vals = hdiv_cosserat_elasticity(k_order, gmesh, write_vtk, conformal_q)
+            error_vals = hdiv_cosserat_elasticity(epsilon_value, k_order, gmesh, write_vtk, conformal_q)
         else:
-            error_vals = h1_cosserat_elasticity(k_order, gmesh, write_vtk, conformal_q)
+            error_vals = h1_cosserat_elasticity(epsilon_value, k_order, gmesh, write_vtk, conformal_q)
         chunk = np.concatenate([[h_val], error_vals])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
 
@@ -742,40 +739,43 @@ def perform_convergence_test(configuration: dict):
 
 def main():
 
-    conformal_formulation_Q = False
+    epsilon_value = 1.0e-8
+    conformal_formulation_Q = True
     write_vtk_files_Q = True
     report_full_precision_data_Q = False
 
     primal_configuration = {
-        "n_refinements": 3,
+        "n_refinements": 4,
         "write_geometry_Q": write_vtk_files_Q,
         "write_vtk_Q": write_vtk_files_Q,
         "conformal_q": conformal_formulation_Q,
+        "epsilon_value": epsilon_value,
         "report_full_precision_data_Q": report_full_precision_data_Q,
     }
 
     # primal problem
-    for k in [1, 2]:
+    for k in [1]:
         for d in [3]:
             primal_configuration.__setitem__("k_order", k)
             primal_configuration.__setitem__("dimension", d)
             perform_convergence_test(primal_configuration)
 
     dual_configuration = {
-        "n_refinements": 3,
+        "n_refinements": 4,
         "dual_problem_Q": True,
         "write_geometry_Q": write_vtk_files_Q,
         "write_vtk_Q": write_vtk_files_Q,
         "conformal_q": conformal_formulation_Q,
+        "epsilon_value": epsilon_value,
         "report_full_precision_data_Q": report_full_precision_data_Q,
     }
 
     # dual problem
-    for k in [1, 2]:
+    for k in [1]:
         for d in [3]:
             dual_configuration.__setitem__("k_order", k)
             dual_configuration.__setitem__("dimension", d)
-            # perform_convergence_test(dual_configuration)
+            perform_convergence_test(dual_configuration)
 
 
 if __name__ == "__main__":
