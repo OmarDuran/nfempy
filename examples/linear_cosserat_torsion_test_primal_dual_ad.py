@@ -19,6 +19,7 @@ from weak_forms.lce_primal_weak_form import (
     LCEPrimalWeakFormBCDirichlet,
 )
 
+import scipy as sp
 
 def torsion_h1_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
 
@@ -28,11 +29,8 @@ def torsion_h1_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
     u_k_order = k_order + 1
     t_k_order = k_order
 
-    u_components = 2
-    t_components = 1
-    if dim == 3:
-        u_components = 3
-        t_components = 3
+    u_components = 3
+    t_components = 3
     family = "Lagrange"
 
     discrete_spaces_data = {
@@ -47,11 +45,8 @@ def torsion_h1_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
         "t": t_disc_Q,
     }
 
-    u_field_bc_physical_tags = [2, 3, 4, 5]
-    t_field_bc_physical_tags = [2, 3, 4, 5]
-    if dim == 3:
-        u_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
-        t_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
+    u_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
+    t_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
     discrete_spaces_bc_physical_tags = {
         "u": u_field_bc_physical_tags,
         "t": t_field_bc_physical_tags,
@@ -120,7 +115,11 @@ def torsion_h1_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
             ]
         )
         u_D = R_mat @ xc - xc
-        return u_D
+        return z * u_D / 10.0
+
+    def t_exact(x, y, z):
+        angle = 13.0 * np.pi / 180.0
+        return angle * np.array([-y * z/10.0, x * z/10.0, z/10.0])
 
     bot_bc_functions = {
         "u": u_null,
@@ -129,7 +128,7 @@ def torsion_h1_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
 
     top_bc_functions = {
         "u": u_exact_rotation,
-        "t": t_null,
+        "t": t_exact,
     }
 
     bc_weak_form_top = LCEPrimalWeakFormBCDirichlet(fe_space)
@@ -138,7 +137,7 @@ def torsion_h1_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
     bc_weak_form_bot = LCEPrimalWeakFormBCDirichlet(fe_space)
     bc_weak_form_bot.functions = bot_bc_functions
 
-    def scatter_form_data(A, i, weak_form):
+    def scatter_form(A, i, weak_form):
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
@@ -172,7 +171,7 @@ def torsion_h1_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
             A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
     n_els = len(fe_space.discrete_spaces["u"].elements)
-    [scatter_form_data(A, i, weak_form) for i in range(n_els)]
+    [scatter_form(A, i, weak_form) for i in range(n_els)]
 
     # filter dirichlet faces
     bc_elements = fe_space.discrete_spaces["u"].bc_elements
@@ -180,8 +179,14 @@ def torsion_h1_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
                   element.data.cell.material_id == 7]
     bot_bc_els = [i for i, element in enumerate(bc_elements) if
                   element.data.cell.material_id == 6]
+
+    # filter neumann faces
+    lat_bc_els = [i for i, element in enumerate(bc_elements) if
+                  element.data.cell.material_id in [2, 3, 4, 5]]
+
     [scatter_bc_form(A, i, bc_weak_form_top) for i in top_bc_els]
-    [scatter_bc_form(A, i, bc_weak_form_bot) for i in bot_bc_els]
+    [scatter_bc_form(A, i, bc_weak_form_top) for i in bot_bc_els]
+    [scatter_bc_form(A, i, bc_weak_form_top) for i in lat_bc_els]
 
     A.assemble()
 
@@ -233,15 +238,10 @@ def torsion_hdiv_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
     u_k_order = s_k_order - 1
     t_k_order = m_k_order - 1
 
-    s_components = 2
-    m_components = 1
-    u_components = 2
-    t_components = 1
-    if dim == 3:
-        s_components = 3
-        m_components = 3
-        u_components = 3
-        t_components = 3
+    s_components = 3
+    m_components = 3
+    u_components = 3
+    t_components = 3
 
     s_family = "BDM"
     m_family = "RT"
@@ -266,11 +266,8 @@ def torsion_hdiv_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
         "t": t_disc_Q,
     }
 
-    s_field_bc_physical_tags = [2, 3, 4, 5]
-    m_field_bc_physical_tags = [2, 3, 4, 5]
-    if dim == 3:
-        s_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
-        m_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
+    s_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
+    m_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
     discrete_spaces_bc_physical_tags = {
         "s": s_field_bc_physical_tags,
         "m": m_field_bc_physical_tags,
@@ -341,7 +338,11 @@ def torsion_hdiv_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
             ]
         )
         u_D = R_mat @ xc - xc
-        return u_D
+        return z * u_D / 10.0
+
+    def t_exact(x, y, z):
+        angle = 13.0 * np.pi / 180.0
+        return angle * np.array([-y * z/10.0, x * z/10.0, z/10.0])
 
     bot_bc_functions = {
         "u": u_null,
@@ -350,7 +351,7 @@ def torsion_hdiv_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
 
     top_bc_functions = {
         "u": u_exact_rotation,
-        "t": t_null,
+        "t": t_exact,
     }
 
     def Sn_null(x, y, z):
@@ -373,7 +374,7 @@ def torsion_hdiv_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
     bc_weak_form_lat = LCEDualWeakFormBCNeumann(fe_space)
     bc_weak_form_lat.functions = lat_bc_functions
 
-    def scatter_form_data(A, i, weak_form):
+    def scatter_form(A, i, weak_form):
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
@@ -407,7 +408,7 @@ def torsion_hdiv_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
             A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
     n_els = len(fe_space.discrete_spaces["s"].elements)
-    [scatter_form_data(A, i, weak_form) for i in range(n_els)]
+    [scatter_form(A, i, weak_form) for i in range(n_els)]
 
     # filter dirichlet faces
     bc_elements = fe_space.discrete_spaces["s"].bc_elements
@@ -421,8 +422,8 @@ def torsion_hdiv_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
                   element.data.cell.material_id in [2, 3, 4, 5]]
 
     [scatter_bc_form(A, i, bc_weak_form_top) for i in top_bc_els]
-    [scatter_bc_form(A, i, bc_weak_form_bot) for i in bot_bc_els]
-    [scatter_bc_form(A, i, bc_weak_form_lat) for i in lat_bc_els]
+    [scatter_bc_form(A, i, bc_weak_form_top) for i in bot_bc_els]
+    [scatter_bc_form(A, i, bc_weak_form_top) for i in lat_bc_els]
 
     A.assemble()
 
@@ -439,27 +440,20 @@ def torsion_hdiv_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
     b.array[:] = -rg
     x = A.createVecRight()
 
-    # petsc_options = {"rtol": 1e-10, "atol": 1e-12, "divtol": 200, "max_it": 500}
     ksp = PETSc.KSP().create()
     ksp.create(PETSc.COMM_WORLD)
     ksp.setOperators(A)
     ksp.setType("fgmres")
-    # ksp.setTolerances(**petsc_options)
-    # ksp.setTolerances(1e-10)
     ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=500, max_it=2000)
     ksp.setConvergenceHistory()
     ksp.getPC().setType("ilu")
     ksp.solve(b, x)
     alpha = x.array
 
-    # viewer = PETSc.Viewer().createASCII("ksp_output.txt")
-    # ksp.view(viewer)
-    # solver_output = open("ksp_output.txt", "r")
-    # for line in solver_output.readlines():
-    #     print(line)
-    #
-    # residuals = ksp.getConvergenceHistory()
-    # plt.semilogy(residuals)
+    ai, aj, av = A.getValuesCSR()
+    Asp = sp.sparse.csr_matrix((av, aj, ai))
+    alpha = sp.sparse.linalg.spsolve(Asp, -rg)
+
 
     et = time.time()
     elapsed_time = et - st
@@ -698,10 +692,10 @@ def main():
     gmesh = create_mesh_from_file(mesh_file, 3, write_geometry_vtk)
 
     l_cvalues = np.logspace(-5, 5, num=20, endpoint=True)
-    l_cvalues = [1.0]
+    l_cvalues = [1.0e-5]
     m_t_values = []
     for L_c in l_cvalues:
-        # m_t_val = torsion_h1_cosserat_elasticity(L_c, k_order, gmesh, write_vtk)
+        m_t_val = torsion_h1_cosserat_elasticity(L_c, k_order, gmesh, write_vtk)
         m_t_val = torsion_hdiv_cosserat_elasticity(L_c, k_order, gmesh, write_vtk)
         m_t_values.append(m_t_val)
     scatter_data = np.insert(np.array(m_t_values), 0, np.array(l_cvalues), axis=1)

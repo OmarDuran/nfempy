@@ -65,7 +65,6 @@ class LCEDualWeakForm(WeakForm):
         rs = n_dof
         j_el = np.zeros(js)
         r_el = np.zeros(rs)
-        alpha = np.zeros(n_dof)
 
         # Partial local vectorization
         f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
@@ -389,7 +388,7 @@ class LCEDualWeakForm(WeakForm):
                     - (s_phi_tab[0, i, :, 0:dim] @ Gamma_outer.T)
                 )
                 equ_2_integrand = (m_phi_tab[0, i, :, 0:dim] @ A_mh.T) + (div_v.T @ th)
-                equ_3_integrand = u_phi_tab[0, i, :, 0:dim] @ div_sh
+                equ_3_integrand = (u_phi_tab[0, i, :, 0:dim] @ div_sh)
                 equ_4_integrand = (t_phi_tab[0, i, :, 0:dim] @ div_mh) - (
                     t_phi_tab[0, i, :, 0:dim] @ S_cross
                 )

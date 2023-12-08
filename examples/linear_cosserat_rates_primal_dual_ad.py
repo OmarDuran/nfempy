@@ -19,6 +19,7 @@ from weak_forms.lce_primal_weak_form import (
     LCEPrimalWeakFormBCDirichlet,
 )
 
+from postprocess.projectors import l2_projector
 
 def h1_cosserat_elasticity(k_order, gmesh, write_vtk_q=False, conformal_q=False):
 
@@ -452,6 +453,9 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False, conformal_q=Fals
         for k in range(nnz):
             A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
+    # alpha_p = l2_projector(fe_space, exact_functions)
+    # alpha = alpha_p
+
     n_els = len(fe_space.discrete_spaces["s"].elements)
     [scatter_form_data(A, i, weak_form) for i in range(n_els)]
 
@@ -460,6 +464,8 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False, conformal_q=Fals
 
     A.assemble()
 
+    print("residual norm:", np.linalg.norm(rg))
+    
     et = time.time()
     elapsed_time = et - st
     print("Assembly time:", elapsed_time, "seconds")
@@ -494,6 +500,9 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False, conformal_q=Fals
     #
     # residuals = ksp.getConvergenceHistory()
     # plt.semilogy(residuals)
+
+    # alpha_p = l2_projector(fe_space, exact_functions)
+    # alpha = alpha_p
 
     et = time.time()
     elapsed_time = et - st
@@ -568,6 +577,16 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
         gmesh.write_vtk()
     return gmesh
 
+def create_mesh_from_file(file_name, dim, write_vtk_q=False):
+    gmesh = Mesh(dimension=dim, file_name=file_name)
+    gmesh.build_conformal_mesh()
+
+    npts = np.array([pt + 0.25 * np.array([-1.0, -1.0, -1.0])  for pt in gmesh.points])
+    gmesh.points = npts
+
+    if write_vtk_q:
+        gmesh.write_vtk()
+    return gmesh
 
 def perform_convergence_test(configuration: dict):
     # retrieve parameters from dictionary
@@ -594,6 +613,10 @@ def perform_convergence_test(configuration: dict):
         h_val = h * (2**-lh)
         mesher = create_conformal_mesher(domain, h, lh)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
+
+        # mesh_file = "gmsh_files/cylinder.msh"
+        # gmesh = create_mesh_from_file(mesh_file, 3, write_geometry_vtk)
+
         if mixed_form_q:
             error_vals = hdiv_cosserat_elasticity(k_order, gmesh, write_vtk, conformal_q)
         else:
