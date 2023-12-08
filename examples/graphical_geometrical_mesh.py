@@ -1,4 +1,3 @@
-
 import pyvista
 import numpy as np
 from geometry.domain import Domain
@@ -63,8 +62,8 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
         gmesh.write_vtk()
     return gmesh
 
-def paint_on_canvas():
 
+def paint_on_canvas():
     # The initial element size
     h = 1.0
     dimension = 3
@@ -76,28 +75,28 @@ def paint_on_canvas():
 
     meshes = []
     for lh in range(n_ref):
-        h_val = h * (2 ** -lh)
+        h_val = h * (2**-lh)
         mesher = create_conformal_mesher(domain, h, lh)
         _ = create_mesh(dimension, mesher, write_geometry_vtk_q)
-        mesh = pyvista.read('geometric_mesh_3d.vtk')
+        mesh = pyvista.read("geometric_mesh_3d.vtk")
         meshes.append(mesh)
 
     plotter = pyvista.Plotter(shape=(2, 2))
 
     plotter.subplot(0, 0)
-    plotter.add_text("h = 1", font_size=14, font='courier')
+    plotter.add_text("h = 1", font_size=14, font="courier")
     plotter.add_mesh(meshes[0], show_edges=True)
 
     plotter.subplot(0, 1)
-    plotter.add_text("h = 1/2", font_size=14, font='courier')
+    plotter.add_text("h = 1/2", font_size=14, font="courier")
     plotter.add_mesh(meshes[1], show_edges=True)
 
     plotter.subplot(1, 0)
-    plotter.add_text("h = 1/4", font_size=14, font='courier')
+    plotter.add_text("h = 1/4", font_size=14, font="courier")
     plotter.add_mesh(meshes[2], show_edges=True)
 
     plotter.subplot(1, 1)
-    plotter.add_text("h = 1/8", font_size=14, font='courier')
+    plotter.add_text("h = 1/8", font_size=14, font="courier")
     plotter.add_mesh(meshes[3], show_edges=True)
 
     # plotter.show()

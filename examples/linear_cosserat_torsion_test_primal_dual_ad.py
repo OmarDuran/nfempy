@@ -13,7 +13,11 @@ from mesh.mesh import Mesh
 from postprocess.l2_error_post_processor import l2_error
 from postprocess.solution_post_processor import write_vtk_file
 from spaces.product_space import ProductSpace
-from weak_forms.lce_dual_weak_form import LCEDualWeakForm, LCEDualWeakFormBCDirichlet, LCEDualWeakFormBCNeumann
+from weak_forms.lce_dual_weak_form import (
+    LCEDualWeakForm,
+    LCEDualWeakFormBCDirichlet,
+    LCEDualWeakFormBCNeumann,
+)
 from weak_forms.lce_primal_weak_form import (
     LCEPrimalWeakForm,
     LCEPrimalWeakFormBCDirichlet,
@@ -21,8 +25,8 @@ from weak_forms.lce_primal_weak_form import (
 
 import scipy as sp
 
-def torsion_h1_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
 
+def torsion_h1_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
 
     # FESpace: data
@@ -101,6 +105,7 @@ def torsion_h1_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
     # BC functions
     def u_null(x, y, z):
         return np.array([0.0 * x, 0.0 * y, 0.0 * z])
+
     def t_null(x, y, z):
         return np.array([0.0 * x, 0.0 * y, 0.0 * z])
 
@@ -119,7 +124,7 @@ def torsion_h1_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
 
     def t_exact(x, y, z):
         angle = 13.0 * np.pi / 180.0
-        return angle * np.array([-y * z/10.0, x * z/10.0, z/10.0])
+        return angle * np.array([-y * z / 10.0, x * z / 10.0, z / 10.0])
 
     bot_bc_functions = {
         "u": u_null,
@@ -175,14 +180,19 @@ def torsion_h1_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
 
     # filter dirichlet faces
     bc_elements = fe_space.discrete_spaces["u"].bc_elements
-    top_bc_els = [i for i, element in enumerate(bc_elements) if
-                  element.data.cell.material_id == 7]
-    bot_bc_els = [i for i, element in enumerate(bc_elements) if
-                  element.data.cell.material_id == 6]
+    top_bc_els = [
+        i for i, element in enumerate(bc_elements) if element.data.cell.material_id == 7
+    ]
+    bot_bc_els = [
+        i for i, element in enumerate(bc_elements) if element.data.cell.material_id == 6
+    ]
 
     # filter neumann faces
-    lat_bc_els = [i for i, element in enumerate(bc_elements) if
-                  element.data.cell.material_id in [2, 3, 4, 5]]
+    lat_bc_els = [
+        i
+        for i, element in enumerate(bc_elements)
+        if element.data.cell.material_id in [2, 3, 4, 5]
+    ]
 
     [scatter_bc_form(A, i, bc_weak_form_top) for i in top_bc_els]
     [scatter_bc_form(A, i, bc_weak_form_top) for i in bot_bc_els]
@@ -216,7 +226,6 @@ def torsion_h1_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
     et = time.time()
     elapsed_time = et - st
     print("Linear solver time:", elapsed_time, "seconds")
-
 
     if write_vtk_q:
         st = time.time()
@@ -342,7 +351,7 @@ def torsion_hdiv_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
 
     def t_exact(x, y, z):
         angle = 13.0 * np.pi / 180.0
-        return angle * np.array([-y * z/10.0, x * z/10.0, z/10.0])
+        return angle * np.array([-y * z / 10.0, x * z / 10.0, z / 10.0])
 
     bot_bc_functions = {
         "u": u_null,
@@ -412,14 +421,19 @@ def torsion_hdiv_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
 
     # filter dirichlet faces
     bc_elements = fe_space.discrete_spaces["s"].bc_elements
-    top_bc_els = [i for i, element in enumerate(bc_elements) if
-                  element.data.cell.material_id == 7]
-    bot_bc_els = [i for i, element in enumerate(bc_elements) if
-                  element.data.cell.material_id == 6]
+    top_bc_els = [
+        i for i, element in enumerate(bc_elements) if element.data.cell.material_id == 7
+    ]
+    bot_bc_els = [
+        i for i, element in enumerate(bc_elements) if element.data.cell.material_id == 6
+    ]
 
     # filter neumann faces
-    lat_bc_els = [i for i, element in enumerate(bc_elements) if
-                  element.data.cell.material_id in [2, 3, 4, 5]]
+    lat_bc_els = [
+        i
+        for i, element in enumerate(bc_elements)
+        if element.data.cell.material_id in [2, 3, 4, 5]
+    ]
 
     [scatter_bc_form(A, i, bc_weak_form_top) for i in top_bc_els]
     [scatter_bc_form(A, i, bc_weak_form_top) for i in bot_bc_els]
@@ -453,7 +467,6 @@ def torsion_hdiv_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
     ai, aj, av = A.getValuesCSR()
     Asp = sp.sparse.csr_matrix((av, aj, ai))
     alpha = sp.sparse.linalg.spsolve(Asp, -rg)
-
 
     et = time.time()
     elapsed_time = et - st
@@ -613,8 +626,8 @@ def torsion_hdiv_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
     # et = time.time()
     # elapsed_time = et - st
     # print("Integrate M_t time:", elapsed_time, "seconds")
-    M_t_strain = 0.0 #functools.reduce(lambda x, y: x + y, M_t_strain_vec)
-    M_t_curvature = 0.0 #functools.reduce(lambda x, y: x + y, M_t_curvature_vec)
+    M_t_strain = 0.0  # functools.reduce(lambda x, y: x + y, M_t_strain_vec)
+    M_t_curvature = 0.0  # functools.reduce(lambda x, y: x + y, M_t_curvature_vec)
 
     if write_vtk_q:
         st = time.time()
@@ -683,8 +696,8 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
         gmesh.write_vtk()
     return gmesh
 
-def main():
 
+def main():
     k_order = 2
     write_geometry_vtk = True
     write_vtk = True

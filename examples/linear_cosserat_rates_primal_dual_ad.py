@@ -21,26 +21,25 @@ from weak_forms.lce_primal_weak_form import (
 
 from postprocess.projectors import l2_projector
 
-def h1_cosserat_elasticity(epsilon, k_order, gmesh, write_vtk_q=False, conformal_q=False):
 
+def h1_cosserat_elasticity(epsilon, method, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
 
     # FESpace: data
-    u_k_order = k_order
-    if conformal_q:
-        u_k_order = k_order + 1
-    t_k_order = k_order
+    u_k_order = method[1]["u"][1]
+    t_k_order = method[1]["t"][1]
 
     u_components = 2
     t_components = 1
     if dim == 3:
         u_components = 3
         t_components = 3
-    family = "Lagrange"
+    u_family = method[1]["u"][0]
+    t_family = method[1]["t"][0]
 
     discrete_spaces_data = {
-        "u": (dim, u_components, family, u_k_order, gmesh),
-        "t": (dim, t_components, family, t_k_order, gmesh),
+        "u": (dim, u_components, u_family, u_k_order, gmesh),
+        "t": (dim, t_components, t_family, t_k_order, gmesh),
     }
 
     u_disc_Q = False
@@ -75,7 +74,7 @@ def h1_cosserat_elasticity(epsilon, k_order, gmesh, write_vtk_q=False, conformal
     A.createAIJ([n_dof_g, n_dof_g])
 
     # Material data
-    m_lambda = 100.0
+    m_lambda = 50.0
     m_mu = 1.0
     m_kappa = m_mu
     m_gamma = epsilon
@@ -292,7 +291,7 @@ def h1_cosserat_elasticity(epsilon, k_order, gmesh, write_vtk_q=False, conformal
 
     if write_vtk_q:
         st = time.time()
-        file_name = "rates_h1_cosserat_elasticity.vtk"
+        file_name = method[0] + "_rates_h1_cosserat_elasticity.vtk"
         write_vtk_file_with_exact_solution(
             file_name, gmesh, fe_space, exact_functions, alpha
         )
@@ -303,17 +302,14 @@ def h1_cosserat_elasticity(epsilon, k_order, gmesh, write_vtk_q=False, conformal
     return np.array([u_l2_error, t_l2_error, s_l2_error, m_l2_error])
 
 
-def hdiv_cosserat_elasticity(epsilon, k_order, gmesh, write_vtk_q=False, conformal_q=False):
-
+def hdiv_cosserat_elasticity(epsilon, method, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
 
     # FESpace: data
-    s_k_order = k_order
-    m_k_order = k_order
-    if conformal_q:
-        m_k_order = k_order + 1
-    u_k_order = s_k_order - 1
-    t_k_order = m_k_order - 1
+    s_k_order = method[1]["s"][1]
+    m_k_order = method[1]["m"][1]
+    u_k_order = method[1]["u"][1]
+    t_k_order = method[1]["t"][1]
 
     s_components = 2
     m_components = 1
@@ -325,10 +321,10 @@ def hdiv_cosserat_elasticity(epsilon, k_order, gmesh, write_vtk_q=False, conform
         u_components = 3
         t_components = 3
 
-    s_family = "BDM"
-    m_family = "RT"
-    u_family = "Lagrange"
-    t_family = "Lagrange"
+    s_family = method[1]["s"][0]
+    m_family = method[1]["m"][0]
+    u_family = method[1]["u"][0]
+    t_family = method[1]["t"][0]
 
     discrete_spaces_data = {
         "s": (dim, s_components, s_family, s_k_order, gmesh),
@@ -374,7 +370,7 @@ def hdiv_cosserat_elasticity(epsilon, k_order, gmesh, write_vtk_q=False, conform
     A.createAIJ([n_dof_g, n_dof_g])
 
     # Material data
-    m_lambda = 100.0
+    m_lambda = 50.0
     m_mu = 1.0
     m_kappa = m_mu
     m_gamma = epsilon
@@ -463,7 +459,7 @@ def hdiv_cosserat_elasticity(epsilon, k_order, gmesh, write_vtk_q=False, conform
     A.assemble()
 
     print("residual norm:", np.linalg.norm(rg))
-    
+
     et = time.time()
     elapsed_time = et - st
     print("Assembly time:", elapsed_time, "seconds")
@@ -535,7 +531,9 @@ def create_domain(dimension):
         return domain
     elif dimension == 2:
         box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
-        box_points = [point + 0.25 * np.array([-1.0, -1.0, 0.0]) for point in box_points]
+        # box_points = [
+        #     point + 0.25 * np.array([-1.0, -1.0, 0.0]) for point in box_points
+        # ]
         domain = build_box_2D(box_points)
         return domain
     else:
@@ -551,7 +549,9 @@ def create_domain(dimension):
                 [0.0, 1.0, 1.0],
             ]
         )
-        box_points = [point + 0.25 * np.array([-1.0, -1.0, -1.0]) for point in box_points]
+        # box_points = [
+        #     point + 0.25 * np.array([-1.0, -1.0, -1.0]) for point in box_points
+        # ]
         domain = build_box_3D(box_points)
         return domain
 
@@ -572,25 +572,26 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
         gmesh.write_vtk()
     return gmesh
 
+
 def create_mesh_from_file(file_name, dim, write_vtk_q=False):
     gmesh = Mesh(dimension=dim, file_name=file_name)
     gmesh.build_conformal_mesh()
 
-    npts = np.array([pt + 0.25 * np.array([-1.0, -1.0, -1.0])  for pt in gmesh.points])
-    gmesh.points = npts
+    # npts = np.array([pt + 0.25 * np.array([-1.0, -1.0, -1.0]) for pt in gmesh.points])
+    # gmesh.points = npts
 
     if write_vtk_q:
         gmesh.write_vtk()
     return gmesh
 
-def perform_convergence_test(configuration: dict):
 
+def perform_convergence_test(configuration: dict):
     # retrieve parameters from dictionary
     k_order = configuration.get("k_order")
+    method = configuration.get("method")
     n_ref = configuration.get("n_refinements")
     dimension = configuration.get("dimension")
     mixed_form_q = configuration.get("dual_problem_Q", False)
-    conformal_q = configuration.get("conformal_q", False)
     epsilon_value = configuration.get("epsilon_value", 1.0)
     write_geometry_vtk = configuration.get("write_geometry_Q", False)
     write_vtk = configuration.get("write_vtk_Q", False)
@@ -610,14 +611,12 @@ def perform_convergence_test(configuration: dict):
         h_val = h * (2**-lh)
         mesher = create_conformal_mesher(domain, h, lh)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
-
-        # mesh_file = "gmsh_files/cylinder.msh"
-        # gmesh = create_mesh_from_file(mesh_file, 3, write_geometry_vtk)
-
         if mixed_form_q:
-            error_vals = hdiv_cosserat_elasticity(epsilon_value, k_order, gmesh, write_vtk, conformal_q)
+            error_vals = hdiv_cosserat_elasticity(
+                epsilon_value, method, gmesh, write_vtk
+            )
         else:
-            error_vals = h1_cosserat_elasticity(epsilon_value, k_order, gmesh, write_vtk, conformal_q)
+            error_vals = h1_cosserat_elasticity(epsilon_value, method, gmesh, write_vtk)
         chunk = np.concatenate([[h_val], error_vals])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
 
@@ -639,143 +638,116 @@ def perform_convergence_test(configuration: dict):
         print("Dual problem")
     else:
         print("Primal problem")
+
     print("Polynomial order: ", k_order)
     print("Dimension: ", dimension)
     print("rounded error data: ", error_data)
     print("rounded error rates data: ", rates_data)
     print(" ")
-    if mixed_form_q:
-        if report_full_precision_data:
-            np.savetxt(
-                "dual_problem_k"
-                + str(k_order)
-                + "_"
-                + str(dimension)
-                + "d_l2_error_data.txt",
-                error_data,
-                delimiter=",",
-                header="element size, displacement, rotation, stress, couple stress",
-            )
-            np.savetxt(
-                "dual_problem_k"
-                + str(k_order)
-                + "_"
-                + str(dimension)
-                + "d_l2_expected_order_convergence.txt",
-                rates_data,
-                delimiter=",",
-                header="displacement, rotation, stress, couple stress",
-            )
+    if report_full_precision_data:
         np.savetxt(
-            "dual_problem_k"
+            method[0]
+            + "_k"
             + str(k_order)
             + "_"
             + str(dimension)
-            + "d_l2_error_data_rounded.txt",
+            + "d_l2_error_data.txt",
             error_data,
-            fmt="%1.3e",
             delimiter=",",
             header="element size, displacement, rotation, stress, couple stress",
         )
         np.savetxt(
-            "dual_problem_k"
+            method[0]
+            + "_k"
             + str(k_order)
             + "_"
             + str(dimension)
-            + "d_l2_expected_order_convergence_rounded.txt",
+            + "d_l2_expected_order_convergence.txt",
             rates_data,
-            fmt="%1.3f",
             delimiter=",",
             header="displacement, rotation, stress, couple stress",
         )
-
-    else:
-        if report_full_precision_data:
-            np.savetxt(
-                "primal_problem_k"
-                + str(k_order)
-                + "_"
-                + str(dimension)
-                + "d_l2_error_data.txt",
-                error_data,
-                delimiter=",",
-                header="element size, displacement, rotation, stress, couple stress",
-            )
-            np.savetxt(
-                "primal_problem_k"
-                + str(k_order)
-                + "_"
-                + str(dimension)
-                + "d_l2_expected_order_convergence.txt",
-                rates_data,
-                delimiter=",",
-                header="displacement, rotation, stress, couple stress",
-            )
-        np.savetxt(
-            "primal_problem_k"
-            + str(k_order)
-            + "_"
-            + str(dimension)
-            + "d_l2_error_data_rounded.txt",
-            error_data,
-            fmt="%1.3e",
-            delimiter=",",
-            header="element size, displacement, rotation, stress, couple stress",
-        )
-        np.savetxt(
-            "primal_problem_k"
-            + str(k_order)
-            + "_"
-            + str(dimension)
-            + "d_l2_expected_order_convergence_rounded.txt",
-            rates_data,
-            fmt="%1.3f",
-            delimiter=",",
-            header="displacement, rotation, stress, couple stress",
-        )
+    np.savetxt(
+        method[0]
+        + "_k"
+        + str(k_order)
+        + "_"
+        + str(dimension)
+        + "d_l2_error_data_rounded.txt",
+        error_data,
+        fmt="%1.3e",
+        delimiter=",",
+        header="element size, displacement, rotation, stress, couple stress",
+    )
+    np.savetxt(
+        method[0]
+        + "_k"
+        + str(k_order)
+        + "_"
+        + str(dimension)
+        + "d_l2_expected_order_convergence_rounded.txt",
+        rates_data,
+        fmt="%1.3f",
+        delimiter=",",
+        header="displacement, rotation, stress, couple stress",
+    )
 
     return
 
 
-def main():
+def method_definition(k_order):
+    method_1_pc = {"u": ("Lagrange", k_order + 1), "t": ("Lagrange", k_order)}
+    method_2_pnc = {"u": ("Lagrange", k_order), "t": ("Lagrange", k_order)}
+    method_3_dc = {
+        "s": ("RT", k_order),
+        "m": ("RT", k_order + 1),
+        "u": ("Lagrange", k_order - 1),
+        "t": ("Lagrange", k_order),
+    }
+    method_4_dc = {
+        "s": ("BDM", k_order),
+        "m": ("BDM", k_order + 1),
+        "u": ("Lagrange", k_order - 1),
+        "t": ("Lagrange", k_order),
+    }
+    method_5_dnc = {
+        "s": ("BDM", k_order),
+        "m": ("RT", k_order),
+        "u": ("Lagrange", k_order - 1),
+        "t": ("Lagrange", k_order - 1),
+    }
 
-    epsilon_value = 1.0e-8
-    conformal_formulation_Q = True
+    methods = [method_1_pc, method_2_pnc, method_3_dc, method_4_dc, method_5_dnc]
+    method_names = ["m1_pc", "m2_pnc", "m3_dc", "m4_dc", "m5_dnc"]
+    return zip(method_names, methods)
+
+
+def main():
+    epsilon_value = 1.0
     write_vtk_files_Q = True
     report_full_precision_data_Q = False
 
-    primal_configuration = {
-        "n_refinements": 4,
-        "write_geometry_Q": write_vtk_files_Q,
-        "write_vtk_Q": write_vtk_files_Q,
-        "conformal_q": conformal_formulation_Q,
-        "epsilon_value": epsilon_value,
-        "report_full_precision_data_Q": report_full_precision_data_Q,
-    }
-
-    # primal problem
     for k in [1]:
-        for d in [3]:
-            primal_configuration.__setitem__("k_order", k)
-            primal_configuration.__setitem__("dimension", d)
-            perform_convergence_test(primal_configuration)
+        methods = method_definition(k)
+        for i, method in enumerate(methods):
+            dual_problem_q = False
+            if i in [2, 3, 4]:
+                dual_problem_q = True
 
-    dual_configuration = {
-        "n_refinements": 4,
-        "dual_problem_Q": True,
-        "write_geometry_Q": write_vtk_files_Q,
-        "write_vtk_Q": write_vtk_files_Q,
-        "conformal_q": conformal_formulation_Q,
-        "epsilon_value": epsilon_value,
-        "report_full_precision_data_Q": report_full_precision_data_Q,
-    }
+            configuration = {
+                "n_refinements": 4,
+                "dual_problem_Q": dual_problem_q,
+                "write_geometry_Q": write_vtk_files_Q,
+                "write_vtk_Q": write_vtk_files_Q,
+                "method": method,
+                "epsilon_value": epsilon_value,
+                "report_full_precision_data_Q": report_full_precision_data_Q,
+            }
 
-    # dual problem
-    for k in [1]:
-        for d in [3]:
-            dual_configuration.__setitem__("k_order", k)
-            dual_configuration.__setitem__("dimension", d)
-            perform_convergence_test(dual_configuration)
+            for d in [3]:
+                configuration.__setitem__("k_order", k)
+                configuration.__setitem__("dimension", d)
+                perform_convergence_test(configuration)
 
 
 if __name__ == "__main__":

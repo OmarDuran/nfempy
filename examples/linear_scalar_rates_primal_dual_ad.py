@@ -11,13 +11,19 @@ from mesh.mesh import Mesh
 from postprocess.l2_error_post_processor import l2_error
 from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
 from spaces.product_space import ProductSpace
-from weak_forms.laplace_primal_weak_form import LaplacePrimalWeakForm, LaplacePrimalWeakFormBCDirichlet
-from weak_forms.laplace_dual_weak_form import LaplaceDualWeakForm, LaplaceDualWeakFormBCDirichlet
+from weak_forms.laplace_primal_weak_form import (
+    LaplacePrimalWeakForm,
+    LaplacePrimalWeakFormBCDirichlet,
+)
+from weak_forms.laplace_dual_weak_form import (
+    LaplaceDualWeakForm,
+    LaplaceDualWeakFormBCDirichlet,
+)
 
 from postprocess.projectors import l2_projector
 
-def h1_laplace(k_order, gmesh, write_vtk_q=False):
 
+def h1_laplace(k_order, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
 
     # FESpace: data
@@ -187,7 +193,6 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
 
 
 def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
-
     dim = gmesh.dimension
 
     # FESpace: data
@@ -244,11 +249,11 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
     p_exact = lambda x, y, z: np.array([(1.0 - x) * x * (1.0 - y) * y])
     q_exact = lambda x, y, z: np.array(
         [
-            -((1 - x)*(1 - y)*y) + x*(1 - y)*y,
-            -((1 - x)*x*(1 - y)) + (1 - x)*x*y,
+            -((1 - x) * (1 - y) * y) + x * (1 - y) * y,
+            -((1 - x) * x * (1 - y)) + (1 - x) * x * y,
         ]
     )
-    f_rhs = lambda x, y, z: np.array([2*(1 - x)*x + 2*(1 - y)*y])
+    f_rhs = lambda x, y, z: np.array([2 * (1 - x) * x + 2 * (1 - y) * y])
 
     if dim == 3:
         p_exact = lambda x, y, z: np.array(
@@ -256,14 +261,16 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
         )
         q_exact = lambda x, y, z: np.array(
             [
-                -((1 - x)*(1 - y)*y*(1 - z)*z) + x*(1 - y)*y*(1 - z)*z,
-                -((1 - x)*x*(1 - y)*(1 - z)*z) + (1 - x)*x*y*(1 - z)*z,
-                -((1 - x)*x*(1 - y)*y*(1 - z)) + (1 - x)*x*(1 - y)*y*z,
+                -((1 - x) * (1 - y) * y * (1 - z) * z) + x * (1 - y) * y * (1 - z) * z,
+                -((1 - x) * x * (1 - y) * (1 - z) * z) + (1 - x) * x * y * (1 - z) * z,
+                -((1 - x) * x * (1 - y) * y * (1 - z)) + (1 - x) * x * (1 - y) * y * z,
             ]
         )
         f_rhs = lambda x, y, z: np.array(
             [
-                2*(1 - x)*x*(1 - y)*y + 2*(1 - x)*x*(1 - z)*z + 2*(1 - y)*y*(1 - z)*z
+                2 * (1 - x) * x * (1 - y) * y
+                + 2 * (1 - x) * x * (1 - z) * z
+                + 2 * (1 - y) * y * (1 - z) * z
             ]
         )
 
@@ -388,7 +395,9 @@ def create_domain(dimension):
         return domain
     elif dimension == 2:
         box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
-        box_points = [point + 0.25 * np.array([-1.0, -1.0, 0.0]) for point in box_points]
+        box_points = [
+            point + 0.25 * np.array([-1.0, -1.0, 0.0]) for point in box_points
+        ]
         domain = build_box_2D(box_points)
         return domain
     else:
@@ -404,7 +413,9 @@ def create_domain(dimension):
                 [0.0, 1.0, 1.0],
             ]
         )
-        box_points = [point + 0.25 * np.array([-1.0,-1.0,-1.0]) for point in box_points]
+        box_points = [
+            point + 0.25 * np.array([-1.0, -1.0, -1.0]) for point in box_points
+        ]
         domain = build_box_3D(box_points)
         return domain
 
@@ -427,7 +438,6 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 
 def main():
-
     k_order = 2
     h = 1.0
     n_ref = 3
