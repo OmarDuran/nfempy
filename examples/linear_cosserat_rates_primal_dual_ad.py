@@ -74,7 +74,7 @@ def h1_cosserat_elasticity(epsilon, method, gmesh, write_vtk_q=False):
     A.createAIJ([n_dof_g, n_dof_g])
 
     # Material data
-    m_lambda = 50.0
+    m_lambda = 100.0
     m_mu = 1.0
     m_kappa = m_mu
     m_gamma = epsilon
@@ -370,7 +370,7 @@ def hdiv_cosserat_elasticity(epsilon, method, gmesh, write_vtk_q=False):
     A.createAIJ([n_dof_g, n_dof_g])
 
     # Material data
-    m_lambda = 50.0
+    m_lambda = 100.0
     m_mu = 1.0
     m_kappa = m_mu
     m_gamma = epsilon
