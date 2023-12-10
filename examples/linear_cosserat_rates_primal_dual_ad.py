@@ -306,6 +306,9 @@ def h1_cosserat_elasticity(epsilon, method, gmesh, write_vtk_q=False):
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
 
+    h_grad_u_error = np.sqrt((u_l2_error**2) + (grad_u_l2_error**2))
+    h_grad_t_error = np.sqrt((t_l2_error**2) + (grad_t_l2_error**2))
+
     return np.array(
         [
             u_l2_error,
@@ -314,6 +317,8 @@ def h1_cosserat_elasticity(epsilon, method, gmesh, write_vtk_q=False):
             m_l2_error,
             grad_u_l2_error,
             grad_t_l2_error,
+            h_grad_u_error,
+            h_grad_t_error,
         ]
     )
 
@@ -544,8 +549,20 @@ def hdiv_cosserat_elasticity(epsilon, method, gmesh, write_vtk_q=False):
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
 
+    h_div_s_error = np.sqrt((s_l2_error**2) + (div_s_l2_error**2))
+    h_div_m_error = np.sqrt((m_l2_error**2) + (div_m_l2_error**2))
+
     return np.array(
-        [u_l2_error, t_l2_error, s_l2_error, m_l2_error, div_s_l2_error, div_m_l2_error]
+        [
+            u_l2_error,
+            t_l2_error,
+            s_l2_error,
+            m_l2_error,
+            div_s_l2_error,
+            div_m_l2_error,
+            h_div_s_error,
+            h_div_m_error,
+        ]
     )
 
 
@@ -630,7 +647,7 @@ def perform_convergence_test(configuration: dict):
     # Create a unit squared or a unit cube
     domain = create_domain(dimension)
 
-    n_data = 7
+    n_data = 9
     error_data = np.empty((0, n_data), float)
     for lh in range(n_ref):
         h_val = h * (2**-lh)
@@ -670,8 +687,8 @@ def perform_convergence_test(configuration: dict):
     print("rounded error rates data: ", rates_data)
     print(" ")
 
-    primal_header = "h, u, r, sigma, omega, grad_u, grad_r"
-    dual_header = "h, u, r, sigma, omega, div_sigma, div_omega"
+    primal_header = "h, u, r, s, o, grad_u, grad_r, h_grad_u_norm, h_grad_r_norm"
+    dual_header = "h, u, r, s, o, div_s, div_o, h_div_s_norm, h_div_o_norm"
     str_header = primal_header
     if dual_form_q:
         str_header = dual_header
