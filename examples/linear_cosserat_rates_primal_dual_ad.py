@@ -472,9 +472,6 @@ def hdiv_cosserat_elasticity(epsilon, method, gmesh, write_vtk_q=False):
         for k in range(nnz):
             A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
-    # alpha_p = l2_projector(fe_space, exact_functions)
-    # alpha = alpha_p
-
     n_els = len(fe_space.discrete_spaces["s"].elements)
     [scatter_form_data(A, i, weak_form) for i in range(n_els)]
 
@@ -482,8 +479,6 @@ def hdiv_cosserat_elasticity(epsilon, method, gmesh, write_vtk_q=False):
     [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
 
     A.assemble()
-
-    print("residual norm:", np.linalg.norm(rg))
 
     et = time.time()
     elapsed_time = et - st
@@ -777,11 +772,11 @@ def main():
     for k in [1]:
         methods = method_definition(k)
         for i, method in enumerate(methods):
+
             dual_problem_q = False
             if i in [2, 3, 4]:
                 dual_problem_q = True
-            if i in [0, 1]:
-                continue
+
             configuration = {
                 "n_refinements": 4,
                 "dual_problem_Q": dual_problem_q,
@@ -792,7 +787,7 @@ def main():
                 "report_full_precision_data_Q": report_full_precision_data_Q,
             }
 
-            for d in [2]:
+            for d in [3]:
                 configuration.__setitem__("k_order", k)
                 configuration.__setitem__("dimension", d)
                 perform_convergence_test(configuration)
