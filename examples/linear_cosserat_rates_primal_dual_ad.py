@@ -687,18 +687,21 @@ def perform_convergence_test(configuration: dict):
     print("rounded error rates data: ", rates_data)
     print(" ")
 
-    primal_header = "h, u, r, s, o, grad_u, grad_r, h_grad_u_norm, h_grad_r_norm"
-    dual_header = "h, u, r, s, o, div_s, div_o, h_div_s_norm, h_div_o_norm"
-    str_header = primal_header
+    str_fields = "u, r, s, o, "
+    primal_header = str_fields + "grad_u, grad_r, h_grad_u_norm, h_grad_r_norm"
+    dual_header = str_fields + "div_s, div_o, h_div_s_norm, h_div_o_norm"
+
+    base_str_header = primal_header
     if dual_form_q:
-        str_header = dual_header
+        base_str_header = dual_header
+    e_str_header = "h, " + base_str_header
 
     if report_full_precision_data:
         np.savetxt(
             method[0] + "_k" + str(k_order) + "_" + str(dimension) + "d_error_data.txt",
             error_data,
             delimiter=",",
-            header=str_header,
+            header=e_str_header,
         )
         np.savetxt(
             method[0]
@@ -709,7 +712,7 @@ def perform_convergence_test(configuration: dict):
             + "d_expected_order_convergence.txt",
             rates_data,
             delimiter=",",
-            header=str_header,
+            header=base_str_header,
         )
     np.savetxt(
         method[0]
@@ -721,7 +724,7 @@ def perform_convergence_test(configuration: dict):
         error_data,
         fmt="%1.3e",
         delimiter=",",
-        header=str_header,
+        header=e_str_header,
     )
     np.savetxt(
         method[0]
@@ -733,7 +736,7 @@ def perform_convergence_test(configuration: dict):
         rates_data,
         fmt="%1.3f",
         delimiter=",",
-        header=str_header,
+        header=base_str_header,
     )
 
     return
