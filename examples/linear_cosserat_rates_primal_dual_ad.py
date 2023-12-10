@@ -10,7 +10,7 @@ from geometry.domain import Domain
 from geometry.domain_market import build_box_1D, build_box_2D, build_box_3D
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
-from postprocess.l2_error_post_processor import l2_error
+from postprocess.l2_error_post_processor import l2_error, grad_error, div_error
 from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
 from spaces.product_space import ProductSpace
 from weak_forms.lce_dual_weak_form import LCEDualWeakForm, LCEDualWeakFormBCDirichlet
@@ -74,7 +74,7 @@ def h1_cosserat_elasticity(epsilon, method, gmesh, write_vtk_q=False):
     A.createAIJ([n_dof_g, n_dof_g])
 
     # Material data
-    m_lambda = 100.0
+    m_lambda = 1.0
     m_mu = 1.0
     m_kappa = m_mu
     m_gamma = epsilon
@@ -82,6 +82,8 @@ def h1_cosserat_elasticity(epsilon, method, gmesh, write_vtk_q=False):
     # exact solution
     u_exact = lce.displacement(m_lambda, m_mu, m_kappa, m_gamma, dim)
     t_exact = lce.rotation(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    grad_u_exact = lce.displacement_gradient(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    grad_t_exact = lce.rotation_gradient(m_lambda, m_mu, m_kappa, m_gamma, dim)
     s_exact = lce.stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
     m_exact = lce.couple_stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
     f_rhs = lce.rhs(m_lambda, m_mu, m_kappa, m_gamma, dim)
@@ -109,6 +111,8 @@ def h1_cosserat_elasticity(epsilon, method, gmesh, write_vtk_q=False):
     exact_functions = {
         "u": u_exact,
         "t": t_exact,
+        "grad_u": grad_u_exact,
+        "grad_t": grad_t_exact,
     }
 
     weak_form = LCEPrimalWeakForm(fe_space)
@@ -274,6 +278,7 @@ def h1_cosserat_elasticity(epsilon, method, gmesh, write_vtk_q=False):
 
     st = time.time()
     u_l2_error, t_l2_error = l2_error(dim, fe_space, exact_functions, alpha)
+    grad_u_l2_error, grad_t_l2_error = grad_error(dim, fe_space, exact_functions, alpha)
     s_error_vec = [
         compute_s_l2_error(i, fe_space, m_mu, m_lambda, m_kappa, dim)
         for i in range(n_els)
@@ -288,6 +293,8 @@ def h1_cosserat_elasticity(epsilon, method, gmesh, write_vtk_q=False):
     print("L2-error rotation: ", u_l2_error)
     print("L2-error stress: ", s_l2_error)
     print("L2-error couple stress: ", m_l2_error)
+    print("L2-error grad displacement: ", grad_u_l2_error)
+    print("L2-error grad rotation: ", grad_t_l2_error)
 
     if write_vtk_q:
         st = time.time()
@@ -299,7 +306,16 @@ def h1_cosserat_elasticity(epsilon, method, gmesh, write_vtk_q=False):
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
 
-    return np.array([u_l2_error, t_l2_error, s_l2_error, m_l2_error])
+    return np.array(
+        [
+            u_l2_error,
+            t_l2_error,
+            s_l2_error,
+            m_l2_error,
+            grad_u_l2_error,
+            grad_t_l2_error,
+        ]
+    )
 
 
 def hdiv_cosserat_elasticity(epsilon, method, gmesh, write_vtk_q=False):
@@ -370,7 +386,7 @@ def hdiv_cosserat_elasticity(epsilon, method, gmesh, write_vtk_q=False):
     A.createAIJ([n_dof_g, n_dof_g])
 
     # Material data
-    m_lambda = 100.0
+    m_lambda = 1.0
     m_mu = 1.0
     m_kappa = m_mu
     m_gamma = epsilon
@@ -380,6 +396,8 @@ def hdiv_cosserat_elasticity(epsilon, method, gmesh, write_vtk_q=False):
     t_exact = lce.rotation(m_lambda, m_mu, m_kappa, m_gamma, dim)
     s_exact = lce.stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
     m_exact = lce.couple_stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    div_s_exact = lce.stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    div_m_exact = lce.couple_stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim)
     f_rhs = lce.rhs(m_lambda, m_mu, m_kappa, m_gamma, dim)
 
     def f_lambda(x, y, z):
@@ -407,6 +425,8 @@ def hdiv_cosserat_elasticity(epsilon, method, gmesh, write_vtk_q=False):
         "m": m_exact,
         "u": u_exact,
         "t": t_exact,
+        "div_s": div_s_exact,
+        "div_m": div_m_exact,
     }
 
     weak_form = LCEDualWeakForm(fe_space)
@@ -503,6 +523,7 @@ def hdiv_cosserat_elasticity(epsilon, method, gmesh, write_vtk_q=False):
     s_l2_error, m_l2_error, u_l2_error, t_l2_error = l2_error(
         dim, fe_space, exact_functions, alpha
     )
+    div_s_l2_error, div_m_l2_error = div_error(dim, fe_space, exact_functions, alpha)
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
@@ -510,6 +531,8 @@ def hdiv_cosserat_elasticity(epsilon, method, gmesh, write_vtk_q=False):
     print("L2-error rotation: ", t_l2_error)
     print("L2-error stress: ", s_l2_error)
     print("L2-error couple stress: ", m_l2_error)
+    print("L2-error div stress: ", div_s_l2_error)
+    print("L2-error div couple stress: ", div_m_l2_error)
 
     if write_vtk_q:
         st = time.time()
@@ -521,7 +544,9 @@ def hdiv_cosserat_elasticity(epsilon, method, gmesh, write_vtk_q=False):
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
 
-    return np.array([u_l2_error, t_l2_error, s_l2_error, m_l2_error])
+    return np.array(
+        [u_l2_error, t_l2_error, s_l2_error, m_l2_error, div_s_l2_error, div_m_l2_error]
+    )
 
 
 def create_domain(dimension):
@@ -591,7 +616,7 @@ def perform_convergence_test(configuration: dict):
     method = configuration.get("method")
     n_ref = configuration.get("n_refinements")
     dimension = configuration.get("dimension")
-    mixed_form_q = configuration.get("dual_problem_Q", False)
+    dual_form_q = configuration.get("dual_problem_Q", False)
     epsilon_value = configuration.get("epsilon_value", 1.0)
     write_geometry_vtk = configuration.get("write_geometry_Q", False)
     write_vtk = configuration.get("write_vtk_Q", False)
@@ -605,13 +630,13 @@ def perform_convergence_test(configuration: dict):
     # Create a unit squared or a unit cube
     domain = create_domain(dimension)
 
-    n_data = 5
+    n_data = 7
     error_data = np.empty((0, n_data), float)
     for lh in range(n_ref):
         h_val = h * (2**-lh)
         mesher = create_conformal_mesher(domain, h, lh)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
-        if mixed_form_q:
+        if dual_form_q:
             error_vals = hdiv_cosserat_elasticity(
                 epsilon_value, method, gmesh, write_vtk
             )
@@ -634,7 +659,7 @@ def perform_convergence_test(configuration: dict):
         print("error rates data: ", rates_data)
 
     np.set_printoptions(precision=3)
-    if mixed_form_q:
+    if dual_form_q:
         print("Dual problem")
     else:
         print("Primal problem")
@@ -644,17 +669,19 @@ def perform_convergence_test(configuration: dict):
     print("rounded error data: ", error_data)
     print("rounded error rates data: ", rates_data)
     print(" ")
+
+    primal_header = "h, u, r, sigma, omega, grad_u, grad_r"
+    dual_header = "h, u, r, sigma, omega, div_sigma, div_omega"
+    str_header = primal_header
+    if dual_form_q:
+        str_header = dual_header
+
     if report_full_precision_data:
         np.savetxt(
-            method[0]
-            + "_k"
-            + str(k_order)
-            + "_"
-            + str(dimension)
-            + "d_l2_error_data.txt",
+            method[0] + "_k" + str(k_order) + "_" + str(dimension) + "d_error_data.txt",
             error_data,
             delimiter=",",
-            header="element size, displacement, rotation, stress, couple stress",
+            header=str_header,
         )
         np.savetxt(
             method[0]
@@ -662,10 +689,10 @@ def perform_convergence_test(configuration: dict):
             + str(k_order)
             + "_"
             + str(dimension)
-            + "d_l2_expected_order_convergence.txt",
+            + "d_expected_order_convergence.txt",
             rates_data,
             delimiter=",",
-            header="displacement, rotation, stress, couple stress",
+            header=str_header,
         )
     np.savetxt(
         method[0]
@@ -673,11 +700,11 @@ def perform_convergence_test(configuration: dict):
         + str(k_order)
         + "_"
         + str(dimension)
-        + "d_l2_error_data_rounded.txt",
+        + "d_error_data_rounded.txt",
         error_data,
         fmt="%1.3e",
         delimiter=",",
-        header="element size, displacement, rotation, stress, couple stress",
+        header=str_header,
     )
     np.savetxt(
         method[0]
@@ -685,11 +712,11 @@ def perform_convergence_test(configuration: dict):
         + str(k_order)
         + "_"
         + str(dimension)
-        + "d_l2_expected_order_convergence_rounded.txt",
+        + "d_expected_order_convergence_rounded.txt",
         rates_data,
         fmt="%1.3f",
         delimiter=",",
-        header="displacement, rotation, stress, couple stress",
+        header=str_header,
     )
 
     return
@@ -733,7 +760,8 @@ def main():
             dual_problem_q = False
             if i in [2, 3, 4]:
                 dual_problem_q = True
-
+            if i in [0, 1]:
+                continue
             configuration = {
                 "n_refinements": 4,
                 "dual_problem_Q": dual_problem_q,
@@ -744,7 +772,7 @@ def main():
                 "report_full_precision_data_Q": report_full_precision_data_Q,
             }
 
-            for d in [3]:
+            for d in [2]:
                 configuration.__setitem__("k_order", k)
                 configuration.__setitem__("dimension", d)
                 perform_convergence_test(configuration)
