@@ -10,19 +10,29 @@ from geometry.domain import Domain
 from geometry.domain_market import build_box_1D, build_box_2D, build_box_3D
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
-from postprocess.l2_error_post_processor import l2_error, grad_error, div_error
+from postprocess.l2_error_post_processor import (
+    l2_error,
+    grad_error,
+    div_error,
+    div_scaled_error,
+)
 from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
 from spaces.product_space import ProductSpace
 from weak_forms.lce_dual_weak_form import LCEDualWeakForm, LCEDualWeakFormBCDirichlet
+from weak_forms.lce_scaled_dual_weak_form import (
+    LCEScaledDualWeakForm,
+    LCEScaledDualWeakFormBCDirichlet,
+)
 from weak_forms.lce_primal_weak_form import (
     LCEPrimalWeakForm,
     LCEPrimalWeakFormBCDirichlet,
 )
 
 from postprocess.projectors import l2_projector
+import line_profiler
 
 
-def h1_cosserat_elasticity(epsilon, method, gmesh, write_vtk_q=False):
+def h1_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
 
     # FESpace: data
@@ -323,7 +333,7 @@ def h1_cosserat_elasticity(epsilon, method, gmesh, write_vtk_q=False):
     )
 
 
-def hdiv_cosserat_elasticity(epsilon, method, gmesh, write_vtk_q=False):
+def hdiv_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
 
     # FESpace: data
@@ -394,7 +404,7 @@ def hdiv_cosserat_elasticity(epsilon, method, gmesh, write_vtk_q=False):
     m_lambda = 1.0
     m_mu = 1.0
     m_kappa = m_mu
-    m_gamma = epsilon
+    m_gamma = gamma
 
     # exact solution
     u_exact = lce.displacement(m_lambda, m_mu, m_kappa, m_gamma, dim)
@@ -561,6 +571,263 @@ def hdiv_cosserat_elasticity(epsilon, method, gmesh, write_vtk_q=False):
     )
 
 
+def hdiv_scaled_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
+    dim = gmesh.dimension
+
+    # FESpace: data
+    s_k_order = method[1]["s"][1]
+    m_k_order = method[1]["m"][1]
+    u_k_order = method[1]["u"][1]
+    t_k_order = method[1]["t"][1]
+
+    s_components = 2
+    m_components = 1
+    u_components = 2
+    t_components = 1
+    if dim == 3:
+        s_components = 3
+        m_components = 3
+        u_components = 3
+        t_components = 3
+
+    s_family = method[1]["s"][0]
+    m_family = method[1]["m"][0]
+    u_family = method[1]["u"][0]
+    t_family = method[1]["t"][0]
+
+    discrete_spaces_data = {
+        "s": (dim, s_components, s_family, s_k_order, gmesh),
+        "m": (dim, m_components, m_family, m_k_order, gmesh),
+        "u": (dim, u_components, u_family, u_k_order, gmesh),
+        "t": (dim, t_components, t_family, t_k_order, gmesh),
+    }
+
+    s_disc_Q = False
+    m_disc_Q = False
+    u_disc_Q = True
+    t_disc_Q = True
+    discrete_spaces_disc = {
+        "s": s_disc_Q,
+        "m": m_disc_Q,
+        "u": u_disc_Q,
+        "t": t_disc_Q,
+    }
+
+    s_field_bc_physical_tags = [2, 3, 4, 5]
+    m_field_bc_physical_tags = [2, 3, 4, 5]
+    if dim == 3:
+        s_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
+        m_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
+    discrete_spaces_bc_physical_tags = {
+        "s": s_field_bc_physical_tags,
+        "m": m_field_bc_physical_tags,
+    }
+
+    fe_space = ProductSpace(discrete_spaces_data)
+    fe_space.make_subspaces_discontinuous(discrete_spaces_disc)
+    fe_space.build_structures(discrete_spaces_bc_physical_tags)
+
+    n_dof_g = fe_space.n_dof
+    rg = np.zeros(n_dof_g)
+    alpha = np.zeros(n_dof_g)
+    print("n_dof: ", n_dof_g)
+
+    # Assembler
+    st = time.time()
+
+    A = PETSc.Mat()
+    A.createAIJ([n_dof_g, n_dof_g])
+
+    # Material data
+    m_lambda = 1.0
+    m_mu = 1.0
+    m_kappa = m_mu
+    m_gamma = gamma
+
+    # exact solution
+    u_exact = lce.displacement(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    t_exact = lce.rotation(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    s_exact = lce.stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    m_exact = lce.couple_stress_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    div_s_exact = lce.stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    div_m_exact = lce.couple_stress_divergence_scaled(
+        m_lambda, m_mu, m_kappa, m_gamma, dim
+    )
+    f_rhs = lce.rhs_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim)
+
+    def f_lambda(x, y, z):
+        return m_lambda
+
+    def f_mu(x, y, z):
+        return m_mu
+
+    def f_kappa(x, y, z):
+        return m_kappa
+
+    def f_gamma(x, y, z):
+        return m_gamma
+
+    def f_grad_gamma(x, y, z):
+        d_gamma_x = 0.0
+        d_gamma_y = 0.0
+        return np.array([d_gamma_x, d_gamma_y])
+
+    if dim == 3:
+
+        def f_grad_gamma(x, y, z):
+            d_gamma_x = 0.0
+            d_gamma_y = 0.0
+            d_gamma_z = 0.0
+            return np.array([d_gamma_x, d_gamma_y, d_gamma_z])
+
+    m_functions = {
+        "rhs": f_rhs,
+        "lambda": f_lambda,
+        "mu": f_mu,
+        "kappa": f_kappa,
+        "gamma": f_gamma,
+        "grad_gamma": f_grad_gamma,
+    }
+
+    exact_functions = {
+        "s": s_exact,
+        "m": m_exact,
+        "u": u_exact,
+        "t": t_exact,
+        "div_s": div_s_exact,
+        "div_m": div_m_exact,
+        "gamma": f_gamma,
+        "grad_gamma": f_grad_gamma,
+    }
+
+    weak_form = LCEScaledDualWeakForm(fe_space)
+    weak_form.functions = m_functions
+    bc_weak_form = LCEDualWeakFormBCDirichlet(fe_space)
+    bc_weak_form.functions = exact_functions
+
+    def scatter_form_data(A, i, weak_form):
+        # destination indexes
+        dest = weak_form.space.destination_indexes(i)
+        alpha_l = alpha[dest]
+        r_el, j_el = weak_form.evaluate_form(i, alpha_l)
+
+        # contribute rhs
+        rg[dest] += r_el
+
+        # contribute lhs
+        data = j_el.ravel()
+        row = np.repeat(dest, len(dest))
+        col = np.tile(dest, len(dest))
+        nnz = data.shape[0]
+        for k in range(nnz):
+            A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
+
+    def scatter_bc_form(A, i, bc_weak_form):
+        dest = fe_space.bc_destination_indexes(i)
+        alpha_l = alpha[dest]
+        r_el, j_el = bc_weak_form.evaluate_form(i, alpha_l)
+
+        # contribute rhs
+        rg[dest] += r_el
+
+        # contribute lhs
+        data = j_el.ravel()
+        row = np.repeat(dest, len(dest))
+        col = np.tile(dest, len(dest))
+        nnz = data.shape[0]
+        for k in range(nnz):
+            A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
+
+    n_els = len(fe_space.discrete_spaces["s"].elements)
+    [scatter_form_data(A, i, weak_form) for i in range(n_els)]
+
+    n_bc_els = len(fe_space.discrete_spaces["s"].bc_elements)
+    [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
+
+    A.assemble()
+
+    et = time.time()
+    elapsed_time = et - st
+    print("Assembly time:", elapsed_time, "seconds")
+
+    # solving ls
+    st = time.time()
+
+    ksp = PETSc.KSP().create()
+    ksp.setOperators(A)
+    b = A.createVecLeft()
+    b.array[:] = -rg
+    x = A.createVecRight()
+
+    ksp = PETSc.KSP().create()
+    ksp.create(PETSc.COMM_WORLD)
+    ksp.setOperators(A)
+    ksp.setType("fgmres")
+    ksp.setTolerances(rtol=1e-12, atol=1e-12, divtol=500, max_it=2000)
+    ksp.setConvergenceHistory()
+    ksp.getPC().setType("ilu")
+    ksp.solve(b, x)
+    alpha = x.array
+
+    # viewer = PETSc.Viewer().createASCII("ksp_output.txt")
+    # ksp.view(viewer)
+    # solver_output = open("ksp_output.txt", "r")
+    # for line in solver_output.readlines():
+    #     print(line)
+    #
+    # residuals = ksp.getConvergenceHistory()
+    # plt.semilogy(residuals)
+
+    # alpha_p = l2_projector(fe_space, exact_functions)
+    # alpha = alpha_p
+
+    et = time.time()
+    elapsed_time = et - st
+    print("Linear solver time:", elapsed_time, "seconds")
+
+    st = time.time()
+    s_l2_error, m_l2_error, u_l2_error, t_l2_error = l2_error(
+        dim, fe_space, exact_functions, alpha
+    )
+    div_s_l2_error, _ = div_error(dim, fe_space, exact_functions, alpha)
+    _, div_m_l2_error = div_scaled_error(dim, fe_space, exact_functions, alpha)
+    et = time.time()
+    elapsed_time = et - st
+    print("L2-error time:", elapsed_time, "seconds")
+    print("L2-error displacement: ", u_l2_error)
+    print("L2-error rotation: ", t_l2_error)
+    print("L2-error stress: ", s_l2_error)
+    print("L2-error couple stress: ", m_l2_error)
+    print("L2-error div stress: ", div_s_l2_error)
+    print("L2-error div couple stress: ", div_m_l2_error)
+
+    if write_vtk_q:
+        st = time.time()
+        file_name = "rates_hdiv_cosserat_elasticity.vtk"
+        write_vtk_file_with_exact_solution(
+            file_name, gmesh, fe_space, exact_functions, alpha
+        )
+        et = time.time()
+        elapsed_time = et - st
+        print("Post-processing time:", elapsed_time, "seconds")
+
+    h_div_s_error = np.sqrt((s_l2_error**2) + (div_s_l2_error**2))
+    h_div_m_error = np.sqrt((m_l2_error**2) + (div_m_l2_error**2))
+
+    return np.array(
+        [
+            u_l2_error,
+            t_l2_error,
+            s_l2_error,
+            m_l2_error,
+            div_s_l2_error,
+            div_m_l2_error,
+            h_div_s_error,
+            h_div_m_error,
+        ]
+    )
+
+
 def create_domain(dimension):
     if dimension == 1:
         box_points = np.array([[0, 0, 0], [1, 0, 0]])
@@ -629,7 +896,7 @@ def perform_convergence_test(configuration: dict):
     n_ref = configuration.get("n_refinements")
     dimension = configuration.get("dimension")
     dual_form_q = configuration.get("dual_problem_Q", False)
-    epsilon_value = configuration.get("epsilon_value", 1.0)
+    gamma_value = configuration.get("gamma_value", 1.0)
     write_geometry_vtk = configuration.get("write_geometry_Q", False)
     write_vtk = configuration.get("write_vtk_Q", False)
     report_full_precision_data = configuration.get(
@@ -650,10 +917,10 @@ def perform_convergence_test(configuration: dict):
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
         if dual_form_q:
             error_vals = hdiv_cosserat_elasticity(
-                epsilon_value, method, gmesh, write_vtk
+                gamma_value, method, gmesh, write_vtk
             )
         else:
-            error_vals = h1_cosserat_elasticity(epsilon_value, method, gmesh, write_vtk)
+            error_vals = h1_cosserat_elasticity(gamma_value, method, gmesh, write_vtk)
         chunk = np.concatenate([[h_val], error_vals])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
 
@@ -691,43 +958,37 @@ def perform_convergence_test(configuration: dict):
         base_str_header = dual_header
     e_str_header = "h, " + base_str_header
 
+    file_name_prefix = (
+        method[0]
+        + "_gamma_"
+        + str(gamma_value)
+        + "_k"
+        + str(k_order)
+        + "_"
+        + str(dimension)
+    )
     if report_full_precision_data:
         np.savetxt(
-            method[0] + "_k" + str(k_order) + "_" + str(dimension) + "d_error_data.txt",
+            file_name_prefix + "d_error.txt",
             error_data,
             delimiter=",",
             header=e_str_header,
         )
         np.savetxt(
-            method[0]
-            + "_k"
-            + str(k_order)
-            + "_"
-            + str(dimension)
-            + "d_expected_order_convergence.txt",
+            file_name_prefix + "d_EoC.txt",
             rates_data,
             delimiter=",",
             header=base_str_header,
         )
     np.savetxt(
-        method[0]
-        + "_k"
-        + str(k_order)
-        + "_"
-        + str(dimension)
-        + "d_error_data_rounded.txt",
+        file_name_prefix + "d_error.txt",
         error_data,
         fmt="%1.3e",
         delimiter=",",
         header=e_str_header,
     )
     np.savetxt(
-        method[0]
-        + "_k"
-        + str(k_order)
-        + "_"
-        + str(dimension)
-        + "d_expected_order_convergence_rounded.txt",
+        file_name_prefix + "d_EoC.txt",
         rates_data,
         fmt="%1.3f",
         delimiter=",",
@@ -765,25 +1026,27 @@ def method_definition(k_order):
 
 
 def main():
-    epsilon_value = 1.0
+    gamma_value = 1.0
     write_vtk_files_Q = True
     report_full_precision_data_Q = False
 
     for k in [1]:
         methods = method_definition(k)
         for i, method in enumerate(methods):
-
             dual_problem_q = False
             if i in [2, 3, 4]:
                 dual_problem_q = True
 
+            if i != 2:
+                continue
+
             configuration = {
-                "n_refinements": 4,
+                "n_refinements": 3,
                 "dual_problem_Q": dual_problem_q,
                 "write_geometry_Q": write_vtk_files_Q,
                 "write_vtk_Q": write_vtk_files_Q,
                 "method": method,
-                "epsilon_value": epsilon_value,
+                "gamma_value": gamma_value,
                 "report_full_precision_data_Q": report_full_precision_data_Q,
             }
 

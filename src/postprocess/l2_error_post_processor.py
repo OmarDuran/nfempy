@@ -178,3 +178,75 @@ def div_error(dim, fe_space, functions, alpha):
         div_errors.append(np.sqrt(div_error))
 
     return div_errors
+
+def div_scaled_error(dim, fe_space, functions, alpha):
+
+    vec_families = [
+        family_by_name("RT"),
+        family_by_name("BDM"),
+    ]
+
+    div_errors = []
+    for item in fe_space.discrete_spaces.items():
+        name, space = item
+        if space.family not in vec_families:
+            continue
+        div_error = 0.0
+        indexes = [
+            i
+            for i, element in enumerate(space.elements)
+            if element.data.dimension == dim
+        ]
+        for idx in indexes:
+            n_components = space.n_comp
+            el_data = space.elements[idx].data
+            cell = el_data.cell
+            points = el_data.quadrature.points
+            weights = el_data.quadrature.weights
+            phi_tab = el_data.basis.phi
+
+            x = el_data.mapping.x
+            det_jac = el_data.mapping.det_jac
+            inv_jac = el_data.mapping.inv_jac
+
+            # scattering dof
+            dest = fe_space.discrete_spaces_destination_indexes(idx)[name]
+            alpha_l = alpha[dest]
+
+            # vectorization
+            n_phi = phi_tab.shape[2]
+            alpha_star = np.array(np.split(alpha_l, n_phi))
+
+            div_name = "div_" + name
+            exact = functions[div_name]
+            scale = functions.get("gamma", None)
+            grad_scale = functions.get("grad_gamma", None)
+            if scale is None or grad_scale is None:
+                continue
+
+            for i, omega in enumerate(weights):
+                gamma = scale(x[i, 0], x[i, 1], x[i, 2])
+                grad_gamma = grad_scale(x[i, 0], x[i, 1], x[i, 2])
+                grad_phi = phi_tab[1 : phi_tab.shape[0] + 1, i, :, 0:dim]
+                div_phi = np.array(
+                    [[np.trace(grad_phi[:, j, :]) / det_jac[i] for j in range(n_phi)]]
+                )
+                tr_grad_scale_otimes_phi = np.array(
+                    [
+                        [
+                            np.trace(np.outer(grad_gamma, phi_tab[0, i, j, 0:dim]))
+                            for j in range(n_phi)
+                        ]
+                    ]
+                )
+                div_phi_s = gamma * div_phi + tr_grad_scale_otimes_phi
+                f_e = exact(x[i, 0], x[i, 1], x[i, 2])
+                f_h = np.vstack(
+                    tuple([div_phi_s @ alpha_star[:, c] for c in range(n_components)])
+                ).flatten()
+
+                div_error += det_jac[i] * weights[i] * np.sum((f_e - f_h) * (f_e - f_h))
+
+        div_errors.append(np.sqrt(div_error))
+
+    return div_errors
