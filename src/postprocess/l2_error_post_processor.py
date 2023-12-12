@@ -179,8 +179,8 @@ def div_error(dim, fe_space, functions, alpha):
 
     return div_errors
 
-def div_scaled_error(dim, fe_space, functions, alpha):
 
+def div_scaled_error(dim, fe_space, functions, alpha):
     vec_families = [
         family_by_name("RT"),
         family_by_name("BDM"),
@@ -225,8 +225,10 @@ def div_scaled_error(dim, fe_space, functions, alpha):
                 continue
 
             for i, omega in enumerate(weights):
-                gamma = scale(x[i, 0], x[i, 1], x[i, 2])
-                grad_gamma = grad_scale(x[i, 0], x[i, 1], x[i, 2])
+                gamma = np.sqrt(scale(x[i, 0], x[i, 1], x[i, 2]))
+                grad_gamma = (1.0 / (2.0 * gamma)) * grad_scale(
+                    x[i, 0], x[i, 1], x[i, 2]
+                )
                 grad_phi = phi_tab[1 : phi_tab.shape[0] + 1, i, :, 0:dim]
                 div_phi = np.array(
                     [[np.trace(grad_phi[:, j, :]) / det_jac[i] for j in range(n_phi)]]

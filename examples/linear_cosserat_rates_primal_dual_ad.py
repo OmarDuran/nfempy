@@ -30,6 +30,7 @@ from weak_forms.lce_primal_weak_form import (
 
 import matplotlib.pyplot as plt
 from postprocess.projectors import l2_projector
+
 # import line_profiler
 
 
@@ -510,20 +511,18 @@ def hdiv_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     ksp.setType("fgmres")
     ksp.setTolerances(rtol=1e-12, atol=1e-12, divtol=1000, max_it=5000)
     ksp.setConvergenceHistory()
-    # ksp.getPC().setType("ilu")
+    ksp.getPC().setType("ilu")
     ksp.solve(b, x)
     alpha = x.array
 
-    if n_dof_g <= 221760:
-        viewer = PETSc.Viewer().createASCII("ksp_output.txt")
-        ksp.view(viewer)
-        solver_output = open("ksp_output.txt", "r")
-        for line in solver_output.readlines():
-            print(line)
-
-        residuals = ksp.getConvergenceHistory()
-        plt.semilogy(residuals)
-        aka = 0
+    # viewer = PETSc.Viewer().createASCII("ksp_output.txt")
+    # ksp.view(viewer)
+    # solver_output = open("ksp_output.txt", "r")
+    # for line in solver_output.readlines():
+    #     print(line)
+    #
+    # residuals = ksp.getConvergenceHistory()
+    # plt.semilogy(residuals)
 
     # alpha_p = l2_projector(fe_space, exact_functions)
     # alpha = alpha_p
@@ -919,7 +918,7 @@ def perform_convergence_test(configuration: dict):
         mesher = create_conformal_mesher(domain, h, lh)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
         if dual_form_q:
-            error_vals = hdiv_cosserat_elasticity(
+            error_vals = hdiv_scaled_cosserat_elasticity(
                 gamma_value, method, gmesh, write_vtk
             )
         else:
@@ -978,7 +977,7 @@ def perform_convergence_test(configuration: dict):
             header=e_str_header,
         )
         np.savetxt(
-            file_name_prefix + "d_EoC.txt",
+            file_name_prefix + "d_rates.txt",
             rates_data,
             delimiter=",",
             header=base_str_header,
@@ -991,7 +990,7 @@ def perform_convergence_test(configuration: dict):
         header=e_str_header,
     )
     np.savetxt(
-        file_name_prefix + "d_EoC.txt",
+        file_name_prefix + "d_rates.txt",
         rates_data,
         fmt="%1.3f",
         delimiter=",",
@@ -1029,34 +1028,35 @@ def method_definition(k_order):
 
 
 def main():
-    gamma_value = 1.0e-4
     write_vtk_files_Q = True
     report_full_precision_data_Q = False
 
-    for k in [2]:
-        methods = method_definition(k)
-        for i, method in enumerate(methods):
-            dual_problem_q = False
-            if i in [2, 3, 4]:
-                dual_problem_q = True
+    gamma_values = [1.0e-16, 1.0e-8, 1.0e-4, 1.0]
+    for gamma_value in gamma_values:
+        for k in [1]:
+            methods = method_definition(k)
+            for i, method in enumerate(methods):
+                dual_problem_q = False
+                if i in [2, 3, 4]:
+                    dual_problem_q = True
 
-            if i != 2:
-                continue
+                if i != 4:
+                    continue
 
-            configuration = {
-                "n_refinements": 3,
-                "dual_problem_Q": dual_problem_q,
-                "write_geometry_Q": write_vtk_files_Q,
-                "write_vtk_Q": write_vtk_files_Q,
-                "method": method,
-                "gamma_value": gamma_value,
-                "report_full_precision_data_Q": report_full_precision_data_Q,
-            }
+                configuration = {
+                    "n_refinements": 3,
+                    "dual_problem_Q": dual_problem_q,
+                    "write_geometry_Q": write_vtk_files_Q,
+                    "write_vtk_Q": write_vtk_files_Q,
+                    "method": method,
+                    "gamma_value": gamma_value,
+                    "report_full_precision_data_Q": report_full_precision_data_Q,
+                }
 
-            for d in [3]:
-                configuration.__setitem__("k_order", k)
-                configuration.__setitem__("dimension", d)
-                perform_convergence_test(configuration)
+                for d in [3]:
+                    configuration.__setitem__("k_order", k)
+                    configuration.__setitem__("dimension", d)
+                    perform_convergence_test(configuration)
 
 
 if __name__ == "__main__":

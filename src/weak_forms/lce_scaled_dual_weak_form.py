@@ -93,8 +93,10 @@ class LCEScaledDualWeakForm(WeakForm):
             for i, omega in enumerate(weights):
                 xv = x[i]
 
-                gamma_scale = f_gamma(xv[0], xv[1], xv[2])
-                grad_gamma = f_grad_gamma(xv[0], xv[1], xv[2])
+                gamma_scale = np.sqrt(f_gamma(xv[0], xv[1], xv[2]))
+                grad_gamma = (1.0 / (2.0 * gamma_scale)) * f_grad_gamma(
+                    xv[0], xv[1], xv[2]
+                )
 
                 if dim == 2:
                     c = 0
@@ -193,7 +195,9 @@ class LCEScaledDualWeakForm(WeakForm):
                     tr_grad_eps_otimes_v = np.array(
                         [
                             [
-                                np.trace(np.outer(grad_gamma.val, m_phi_tab[0, i, j, 0:dim]))
+                                np.trace(
+                                    np.outer(grad_gamma.val, m_phi_tab[0, i, j, 0:dim])
+                                )
                                 for j in range(n_m_phi)
                             ]
                         ]
@@ -373,7 +377,9 @@ class LCEScaledDualWeakForm(WeakForm):
                     tr_grad_eps_otimes_v = np.array(
                         [
                             [
-                                np.trace(np.outer(grad_gamma.val, m_phi_tab[0, i, j, 0:dim]))
+                                np.trace(
+                                    np.outer(grad_gamma.val, m_phi_tab[0, i, j, 0:dim])
+                                )
                                 for j in range(n_m_phi)
                             ]
                         ]
@@ -412,7 +418,9 @@ class LCEScaledDualWeakForm(WeakForm):
                     + (div_tau.T @ uh)
                     - (s_phi_tab[0, i, :, 0:dim] @ Gamma_outer.T)
                 )
-                equ_2_integrand = (m_phi_tab[0, i, :, 0:dim] @ (A_mh.T)) + (div_v_s.T @ th)
+                equ_2_integrand = (m_phi_tab[0, i, :, 0:dim] @ (A_mh.T)) + (
+                    div_v_s.T @ th
+                )
                 equ_3_integrand = u_phi_tab[0, i, :, 0:dim] @ div_sh
                 equ_4_integrand = (t_phi_tab[0, i, :, 0:dim] @ div_mh) - (
                     t_phi_tab[0, i, :, 0:dim] @ S_cross
