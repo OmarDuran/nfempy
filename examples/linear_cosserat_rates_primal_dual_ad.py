@@ -1026,11 +1026,11 @@ def method_definition(k_order):
 
 
 def main():
-    gamma_value = 1.0
+    gamma_value = 1.0e-2
     write_vtk_files_Q = True
     report_full_precision_data_Q = False
 
-    for k in [1]:
+    for k in [2]:
         methods = method_definition(k)
         for i, method in enumerate(methods):
             dual_problem_q = False
