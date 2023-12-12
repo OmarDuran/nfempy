@@ -28,8 +28,9 @@ from weak_forms.lce_primal_weak_form import (
     LCEPrimalWeakFormBCDirichlet,
 )
 
+import matplotlib.pyplot as plt
 from postprocess.projectors import l2_projector
-import line_profiler
+# import line_profiler
 
 
 def h1_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
@@ -507,20 +508,22 @@ def hdiv_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     ksp.create(PETSc.COMM_WORLD)
     ksp.setOperators(A)
     ksp.setType("fgmres")
-    ksp.setTolerances(rtol=1e-12, atol=1e-12, divtol=500, max_it=2000)
+    ksp.setTolerances(rtol=1e-12, atol=1e-12, divtol=1000, max_it=5000)
     ksp.setConvergenceHistory()
-    ksp.getPC().setType("ilu")
+    # ksp.getPC().setType("ilu")
     ksp.solve(b, x)
     alpha = x.array
 
-    # viewer = PETSc.Viewer().createASCII("ksp_output.txt")
-    # ksp.view(viewer)
-    # solver_output = open("ksp_output.txt", "r")
-    # for line in solver_output.readlines():
-    #     print(line)
-    #
-    # residuals = ksp.getConvergenceHistory()
-    # plt.semilogy(residuals)
+    if n_dof_g <= 221760:
+        viewer = PETSc.Viewer().createASCII("ksp_output.txt")
+        ksp.view(viewer)
+        solver_output = open("ksp_output.txt", "r")
+        for line in solver_output.readlines():
+            print(line)
+
+        residuals = ksp.getConvergenceHistory()
+        plt.semilogy(residuals)
+        aka = 0
 
     # alpha_p = l2_projector(fe_space, exact_functions)
     # alpha = alpha_p
@@ -1026,7 +1029,7 @@ def method_definition(k_order):
 
 
 def main():
-    gamma_value = 1.0e-2
+    gamma_value = 1.0e-4
     write_vtk_files_Q = True
     report_full_precision_data_Q = False
 
