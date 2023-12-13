@@ -60,11 +60,13 @@ def grad_gamma_s(dim: int = 2):
             ]
         )
 
+
 def gamma_eval(x1, x2, x3, dim: int = 2):
     if dim == 2:
         return zeta(x1) * zeta(x2)
     else:
         return zeta(x1) * zeta(x2) * zeta(x3)
+
 
 def grad_gamma_eval(x1, x2, x3, dim: int = 2):
     if dim == 2:
@@ -77,6 +79,7 @@ def grad_gamma_eval(x1, x2, x3, dim: int = 2):
                 zeta(x1) * zeta(x2) * dzeta(x3),
             ]
         )
+
 
 def displacement(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
     if dim == 2:
@@ -197,32 +200,31 @@ def stress(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
                 [
                     np.pi
                     * (
-                        -((-1 + y) * y * (m_lambda + 2 * m_mu) * np.cos(np.pi * x))
-                        - (-1 + x) * x * m_lambda * np.cos(np.pi * y)
+                        -((-1 + (y**2)) * (m_lambda + 2 * m_mu) * np.cos(np.pi * x))
+                        - (-1 + (x**2)) * m_lambda * np.cos(np.pi * y)
                     ),
-                    (-1 + 2 * x) * (m_kappa - m_mu) * np.sin(np.pi * y)
-                    + np.sin(np.pi * x)
+                    -2
                     * (
-                        -((-1 + 2 * y) * (m_kappa + m_mu))
-                        - 2 * m_kappa * np.sin(np.pi * y)
+                        x * (-m_kappa + m_mu) * np.sin(np.pi * y)
+                        + np.sin(np.pi * x)
+                        * (y * (m_kappa + m_mu) + m_kappa * np.sin(np.pi * y))
                     ),
                 ],
                 [
-                    -((-1 + 2 * x) * (m_kappa + m_mu) * np.sin(np.pi * y))
-                    + np.sin(np.pi * x)
-                    * (
-                        (-1 + 2 * y) * (m_kappa - m_mu)
-                        + 2 * m_kappa * np.sin(np.pi * y)
-                    ),
+                    -2 * x * (m_kappa + m_mu) * np.sin(np.pi * y)
+                    + 2
+                    * np.sin(np.pi * x)
+                    * (y * (m_kappa - m_mu) + m_kappa * np.sin(np.pi * y)),
                     np.pi
                     * (
-                        -((-1 + y) * y * m_lambda * np.cos(np.pi * x))
-                        - (-1 + x) * x * (m_lambda + 2 * m_mu) * np.cos(np.pi * y)
+                        -((-1 + (y**2)) * m_lambda * np.cos(np.pi * x))
+                        - (-1 + (x**2)) * (m_lambda + 2 * m_mu) * np.cos(np.pi * y)
                     ),
                 ],
             ]
         )
     else:
+        assert False
         return lambda x, y, z: np.array(
             [
                 [
@@ -399,7 +401,7 @@ def couple_stress(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
 
 def couple_stress_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
     if dim == 2:
-        return lambda x, y, z: np.sqrt(m_gamma) * np.array(
+        return lambda x, y, z: np.sqrt(gamma_eval(x, y, z, dim)) * np.array(
             [
                 np.pi * np.cos(np.pi * x) * np.sin(np.pi * y),
                 np.pi * np.cos(np.pi * y) * np.sin(np.pi * x),
@@ -626,7 +628,6 @@ def rhs(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
 
 
 def rhs_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
-
     if dim == 2:
         return lambda x, y, z: np.array(
             [
@@ -657,20 +658,22 @@ def rhs_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
                     * (m_lambda + 2 * m_mu)
                     * np.sin(np.pi * y)
                 ),
-                4 * x * m_kappa * np.sin(np.pi * y)
-                - 4 * m_kappa * np.sin(np.pi * x) * (y + np.sin(np.pi * y))
+                -4 * y * m_kappa * np.sin(np.pi * x)
+                + 4 * x * m_kappa * np.sin(np.pi * y)
+                - 4 * m_kappa * np.sin(np.pi * x) * np.sin(np.pi * y)
                 - 2
                 * (np.pi**2)
                 * np.sin(np.pi * x)
                 * np.sin(np.pi * y)
-                * (gamma_eval(x, y, z, dim) ** 2)
-                + 2
-                * np.pi
                 * gamma_eval(x, y, z, dim)
-                * (
-                    np.cos(np.pi * y) * np.sin(np.pi * x) * grad_gamma_eval(x, y, z, dim)[1]
-                    + np.cos(np.pi * x) * np.sin(np.pi * y) * grad_gamma_eval(x, y, z, dim)[0]
-                ),
+                + np.pi
+                * np.cos(np.pi * y)
+                * np.sin(np.pi * x)
+                * grad_gamma_eval(x, y, z, dim)[1]
+                + np.pi
+                * np.cos(np.pi * x)
+                * np.sin(np.pi * y)
+                * grad_gamma_eval(x, y, z, dim)[0],
             ]
         )
     else:
@@ -840,27 +843,37 @@ def stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
     if dim == 2:
         return lambda x, y, z: np.array(
             [
-                np.pi * (-1 + 2 * x) * (m_kappa - m_mu) * np.cos(np.pi * y)
-                - 2
-                * (m_kappa + m_mu + np.pi * m_kappa * np.cos(np.pi * y))
-                * np.sin(np.pi * x)
-                + np.pi
+                np.pi
                 * (
-                    (m_lambda - 2 * x * m_lambda) * np.cos(np.pi * y)
-                    + np.pi * (-1 + y) * y * (m_lambda + 2 * m_mu) * np.sin(np.pi * x)
+                    -2 * x * m_lambda * np.cos(np.pi * y)
+                    + np.pi
+                    * (-1 + (y**2))
+                    * (m_lambda + 2 * m_mu)
+                    * np.sin(np.pi * x)
+                )
+                - 2
+                * (
+                    np.pi * x * (-m_kappa + m_mu) * np.cos(np.pi * y)
+                    + (m_kappa + m_mu + np.pi * m_kappa * np.cos(np.pi * y))
+                    * np.sin(np.pi * x)
                 ),
                 -2 * (m_kappa + m_mu) * np.sin(np.pi * y)
-                + np.pi
+                + 2
+                * np.pi
                 * np.cos(np.pi * x)
-                * ((-1 + 2 * y) * (m_kappa - m_mu) + 2 * m_kappa * np.sin(np.pi * y))
+                * (y * (m_kappa - m_mu) + m_kappa * np.sin(np.pi * y))
                 + np.pi
                 * (
-                    (m_lambda - 2 * y * m_lambda) * np.cos(np.pi * x)
-                    + np.pi * (-1 + x) * x * (m_lambda + 2 * m_mu) * np.sin(np.pi * y)
+                    -2 * y * m_lambda * np.cos(np.pi * x)
+                    + np.pi
+                    * (-1 + (x**2))
+                    * (m_lambda + 2 * m_mu)
+                    * np.sin(np.pi * y)
                 ),
             ]
         )
     else:
+        assert False
         return lambda x, y, z: np.array(
             [
                 -2
@@ -1020,7 +1033,20 @@ def couple_stress_divergence_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim: int =
     if dim == 2:
         return lambda x, y, z: np.array(
             [
-                -2 * (np.pi**2) * (m_gamma) * np.sin(np.pi * x) * np.sin(np.pi * y),
+                np.pi
+                * (
+                    -2
+                    * np.pi
+                    * np.sin(np.pi * x)
+                    * np.sin(np.pi * y)
+                    * gamma_eval(x, y, z, dim)
+                    + np.cos(np.pi * y)
+                    * np.sin(np.pi * x)
+                    * grad_gamma_eval(x, y, z, dim)[1]
+                    + np.cos(np.pi * x)
+                    * np.sin(np.pi * y)
+                    * grad_gamma_eval(x, y, z, dim)[0]
+                ),
             ]
         )
     else:

@@ -77,9 +77,9 @@ class LCEScaledDualWeakForm(WeakForm):
         e2 = np.array([0, 1, 0])
         e3 = np.array([0, 0, 1])
 
-        gamma_scale_v = np.sqrt(f_gamma(x[:,0], x[:,1], x[:,2])) + 1.0e-16
+        gamma_scale_v = np.sqrt(f_gamma(x[:, 0], x[:, 1], x[:, 2])) + 1.0e-16
         grad_gamma_v = (1.0 / (2.0 * gamma_scale_v)) * f_grad_gamma(
-            x[:,0], x[:,1], x[:,2]
+            x[:, 0], x[:, 1], x[:, 2]
         )
 
         Imat = np.identity(dim)
@@ -202,7 +202,9 @@ class LCEScaledDualWeakForm(WeakForm):
                         [
                             [
                                 np.trace(
-                                    np.outer(grad_gamma_scale, m_phi_tab[0, i, j, 0:dim])
+                                    np.outer(
+                                        grad_gamma_scale, m_phi_tab[0, i, j, 0:dim]
+                                    )
                                 )
                                 for j in range(n_m_phi)
                             ]
@@ -384,7 +386,9 @@ class LCEScaledDualWeakForm(WeakForm):
                         [
                             [
                                 np.trace(
-                                    np.outer(grad_gamma_scale, m_phi_tab[0, i, j, 0:dim])
+                                    np.outer(
+                                        grad_gamma_scale, m_phi_tab[0, i, j, 0:dim]
+                                    )
                                 )
                                 for j in range(n_m_phi)
                             ]
