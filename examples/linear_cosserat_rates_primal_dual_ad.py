@@ -505,9 +505,12 @@ def hdiv_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     b.array[:] = -rg
     x = A.createVecRight()
 
-    ksp.setType('preonly')
-    ksp.getPC().setType('lu')
-    ksp.getPC().setFactorSolverType('superlu_dist')
+    ksp.setType("preonly")
+    ksp.getPC().setType("lu")
+    # ksp.getPC().setFactorPivot(zeropivot=1.0e-3)
+    # https://github.com/erdc/petsc4py/blob/master/src/PETSc/Mat.pyx#L98
+    ksp.getPC().setFactorOrdering(ord_type="natural")
+    ksp.getPC().setFactorSolverType("mumps")
     ksp.setConvergenceHistory()
     ksp.solve(b, x)
     alpha = x.array
@@ -670,7 +673,7 @@ def hdiv_scaled_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
         return m_kappa
 
     def f_gamma(x, y, z):
-        return m_gamma*np.ones_like(x)
+        return m_gamma * np.ones_like(x)
 
     def f_grad_gamma(x, y, z):
         d_gamma_x = 0.0 * x
@@ -764,9 +767,9 @@ def hdiv_scaled_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     b.array[:] = -rg
     x = A.createVecRight()
 
-    ksp.setType('gmres')
-    ksp.getPC().setType('lu')
-    ksp.getPC().setFactorSolverType('mumps')
+    ksp.setType("preonly")
+    ksp.getPC().setType("lu")
+    ksp.getPC().setFactorSolverType("mumps")
     ksp.setTolerances(rtol=1e-14, atol=1e-14, divtol=500, max_it=2000)
     ksp.setConvergenceHistory()
     ksp.solve(b, x)
@@ -816,6 +819,9 @@ def hdiv_scaled_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
 
     h_div_s_error = np.sqrt((s_l2_error**2) + (div_s_l2_error**2))
     h_div_m_error = np.sqrt((m_l2_error**2) + (div_m_l2_error**2))
+
+    h_div_s_error = div_s_l2_error
+    h_div_m_error = div_m_l2_error
 
     return np.array(
         [
@@ -919,9 +925,7 @@ def perform_convergence_test(configuration: dict):
         mesher = create_conformal_mesher(domain, h, lh)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
         if dual_form_q:
-            error_vals = hdiv_scaled_cosserat_elasticity(
-                gamma_value, method, gmesh, write_vtk
-            )
+            error_vals = hdiv_cosserat_elasticity(gamma_value, method, gmesh, write_vtk)
         else:
             error_vals = h1_cosserat_elasticity(gamma_value, method, gmesh, write_vtk)
         chunk = np.concatenate([[h_val], error_vals])
@@ -1033,6 +1037,7 @@ def main():
     report_full_precision_data_Q = False
 
     gamma_values = [1.0e-16, 1.0e-8, 1.0e-4, 1.0]
+    gamma_values = [0.0001]
     for gamma_value in gamma_values:
         for k in [1]:
             methods = method_definition(k)
@@ -1045,7 +1050,7 @@ def main():
                     continue
 
                 configuration = {
-                    "n_refinements": 5,
+                    "n_refinements": 4,
                     "dual_problem_Q": dual_problem_q,
                     "write_geometry_Q": write_vtk_files_Q,
                     "write_vtk_Q": write_vtk_files_Q,

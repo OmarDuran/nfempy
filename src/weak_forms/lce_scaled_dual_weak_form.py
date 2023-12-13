@@ -100,7 +100,6 @@ class LCEScaledDualWeakForm(WeakForm):
                 xv = x[i]
 
                 gamma_scale = gamma_scale_v[i]
-                inv_jac_m = np.vstack((inv_jac[i] @ e1, inv_jac[i] @ e2))
                 grad_gamma_scale = grad_gamma_v[:, i]
 
                 aka = 0
