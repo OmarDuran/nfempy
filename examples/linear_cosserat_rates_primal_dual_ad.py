@@ -499,21 +499,24 @@ def hdiv_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     # solving ls
     st = time.time()
 
-    ksp = PETSc.KSP().create()
+    ksp = PETSc.KSP().create(PETSc.COMM_WORLD)
     ksp.setOperators(A)
     b = A.createVecLeft()
     b.array[:] = -rg
     x = A.createVecRight()
 
-    ksp = PETSc.KSP().create()
-    ksp.create(PETSc.COMM_WORLD)
-    ksp.setOperators(A)
-    ksp.setType("fgmres")
-    ksp.setTolerances(rtol=1e-12, atol=1e-12, divtol=1000, max_it=5000)
+    ksp.setType('preonly')
+    ksp.getPC().setType('lu')
+    ksp.getPC().setFactorSolverType('mumps')
     ksp.setConvergenceHistory()
-    ksp.getPC().setType("ilu")
     ksp.solve(b, x)
     alpha = x.array
+
+    # solver = PETSc.KSP().create(MPI.COMM_WORLD)
+    # pc = solver.getPC()
+    # solver.setType('preonly')
+    # pc.setType('lu')
+    # solver.setConvergenceHistory()
 
     # viewer = PETSc.Viewer().createASCII("ksp_output.txt")
     # ksp.view(viewer)
@@ -918,7 +921,7 @@ def perform_convergence_test(configuration: dict):
         mesher = create_conformal_mesher(domain, h, lh)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
         if dual_form_q:
-            error_vals = hdiv_scaled_cosserat_elasticity(
+            error_vals = hdiv_cosserat_elasticity(
                 gamma_value, method, gmesh, write_vtk
             )
         else:
@@ -1032,19 +1035,20 @@ def main():
     report_full_precision_data_Q = False
 
     gamma_values = [1.0e-16, 1.0e-8, 1.0e-4, 1.0]
+    gamma_values = [1.0]
     for gamma_value in gamma_values:
-        for k in [1]:
+        for k in [2]:
             methods = method_definition(k)
             for i, method in enumerate(methods):
                 dual_problem_q = False
                 if i in [2, 3, 4]:
                     dual_problem_q = True
 
-                if i != 4:
+                if i != 3:
                     continue
 
                 configuration = {
-                    "n_refinements": 3,
+                    "n_refinements": 5,
                     "dual_problem_Q": dual_problem_q,
                     "write_geometry_Q": write_vtk_files_Q,
                     "write_vtk_Q": write_vtk_files_Q,
@@ -1053,7 +1057,7 @@ def main():
                     "report_full_precision_data_Q": report_full_precision_data_Q,
                 }
 
-                for d in [3]:
+                for d in [2]:
                     configuration.__setitem__("k_order", k)
                     configuration.__setitem__("dimension", d)
                     perform_convergence_test(configuration)

@@ -68,7 +68,7 @@ Line(28) = {17, 9};
 
 Line{21,22,23,24,25,26,27,28} In Surface{1};
 
-Transfinite Line {21,22,23,24,25,26,27,28} = 60 Using Progression 1;
+Transfinite Line {21,22,23,24,25,26,27,28} = 100 Using Progression 1;
 
 
 
