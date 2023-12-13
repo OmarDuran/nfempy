@@ -74,7 +74,7 @@ def paint_on_canvas():
     domain = create_domain(dimension)
 
     meshes = []
-    for lh in range(1, n_ref+1):
+    for lh in range(1, n_ref + 1):
         h_val = h * (2**-lh)
         mesher = create_conformal_mesher(domain, h, lh)
         _ = create_mesh(dimension, mesher, write_geometry_vtk_q)

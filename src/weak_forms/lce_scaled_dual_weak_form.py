@@ -76,6 +76,12 @@ class LCEScaledDualWeakForm(WeakForm):
         e1 = np.array([1, 0, 0])
         e2 = np.array([0, 1, 0])
         e3 = np.array([0, 0, 1])
+
+        gamma_scale_v = np.sqrt(f_gamma(x[:,0], x[:,1], x[:,2])) + 1.0e-16
+        grad_gamma_v = (1.0 / (2.0 * gamma_scale_v)) * f_grad_gamma(
+            x[:,0], x[:,1], x[:,2]
+        )
+
         Imat = np.identity(dim)
         with ad.AutoDiff(alpha) as alpha:
             el_form = np.zeros(n_dof)
@@ -93,11 +99,11 @@ class LCEScaledDualWeakForm(WeakForm):
             for i, omega in enumerate(weights):
                 xv = x[i]
 
-                gamma_scale = np.sqrt(f_gamma(xv[0], xv[1], xv[2]))
-                grad_gamma = (1.0 / (2.0 * gamma_scale)) * f_grad_gamma(
-                    xv[0], xv[1], xv[2]
-                )
+                gamma_scale = gamma_scale_v[i]
+                inv_jac_m = np.vstack((inv_jac[i] @ e1, inv_jac[i] @ e2))
+                grad_gamma_scale = grad_gamma_v[:, i]
 
+                aka = 0
                 if dim == 2:
                     c = 0
                     a_sx = alpha[:, c : n_s_dof + c : s_components]
@@ -196,7 +202,7 @@ class LCEScaledDualWeakForm(WeakForm):
                         [
                             [
                                 np.trace(
-                                    np.outer(grad_gamma.val, m_phi_tab[0, i, j, 0:dim])
+                                    np.outer(grad_gamma_scale, m_phi_tab[0, i, j, 0:dim])
                                 )
                                 for j in range(n_m_phi)
                             ]
@@ -378,7 +384,7 @@ class LCEScaledDualWeakForm(WeakForm):
                         [
                             [
                                 np.trace(
-                                    np.outer(grad_gamma.val, m_phi_tab[0, i, j, 0:dim])
+                                    np.outer(grad_gamma_scale, m_phi_tab[0, i, j, 0:dim])
                                 )
                                 for j in range(n_m_phi)
                             ]

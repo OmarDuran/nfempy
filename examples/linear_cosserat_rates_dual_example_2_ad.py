@@ -2,7 +2,7 @@ import functools
 import time
 
 import numpy as np
-import strong_solution_cosserat_elasticity as lce
+import strong_solution_cosserat_elasticity_example_1 as lce
 from petsc4py import PETSc
 
 from basis.element_data import ElementData
@@ -666,21 +666,8 @@ def hdiv_scaled_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     def f_kappa(x, y, z):
         return m_kappa
 
-    def f_gamma(x, y, z):
-        return m_gamma
-
-    def f_grad_gamma(x, y, z):
-        d_gamma_x = 0.0
-        d_gamma_y = 0.0
-        return np.array([d_gamma_x, d_gamma_y])
-
-    if dim == 3:
-
-        def f_grad_gamma(x, y, z):
-            d_gamma_x = 0.0
-            d_gamma_y = 0.0
-            d_gamma_z = 0.0
-            return np.array([d_gamma_x, d_gamma_y, d_gamma_z])
+    f_gamma = lce.gamma_s(dim)
+    f_grad_gamma = lce.grad_gamma_s(dim)
 
     m_functions = {
         "rhs": f_rhs,
@@ -911,8 +898,6 @@ def perform_convergence_test(configuration: dict):
     error_data = np.empty((0, n_data), float)
     for lh in range(n_ref):
         h_val = h * (2**-lh)
-        # mesher = create_conformal_mesher(domain, h, lh)
-        # gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
         mesh_file = "gmsh_files/example_2.msh"
         gmesh = create_mesh_from_file(mesh_file, 2, write_geometry_vtk)
         if dual_form_q:

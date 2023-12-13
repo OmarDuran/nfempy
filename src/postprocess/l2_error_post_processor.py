@@ -225,7 +225,7 @@ def div_scaled_error(dim, fe_space, functions, alpha):
                 continue
 
             for i, omega in enumerate(weights):
-                gamma = np.sqrt(scale(x[i, 0], x[i, 1], x[i, 2]))
+                gamma = np.sqrt(scale(x[i, 0], x[i, 1], x[i, 2])) + 1.0e-16
                 grad_gamma = (1.0 / (2.0 * gamma)) * grad_scale(
                     x[i, 0], x[i, 1], x[i, 2]
                 )
