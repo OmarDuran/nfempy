@@ -507,7 +507,7 @@ def hdiv_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
 
     ksp.setType('preonly')
     ksp.getPC().setType('lu')
-    ksp.getPC().setFactorSolverType('mumps')
+    ksp.getPC().setFactorSolverType('superlu_dist')
     ksp.setConvergenceHistory()
     ksp.solve(b, x)
     alpha = x.array
@@ -670,19 +670,19 @@ def hdiv_scaled_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
         return m_kappa
 
     def f_gamma(x, y, z):
-        return m_gamma
+        return m_gamma*np.ones_like(x)
 
     def f_grad_gamma(x, y, z):
-        d_gamma_x = 0.0
-        d_gamma_y = 0.0
+        d_gamma_x = 0.0 * x
+        d_gamma_y = 0.0 * y
         return np.array([d_gamma_x, d_gamma_y])
 
     if dim == 3:
 
         def f_grad_gamma(x, y, z):
-            d_gamma_x = 0.0
-            d_gamma_y = 0.0
-            d_gamma_z = 0.0
+            d_gamma_x = 0.0 * x
+            d_gamma_y = 0.0 * y
+            d_gamma_z = 0.0 * z
             return np.array([d_gamma_x, d_gamma_y, d_gamma_z])
 
     m_functions = {
@@ -758,19 +758,16 @@ def hdiv_scaled_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     # solving ls
     st = time.time()
 
-    ksp = PETSc.KSP().create()
+    ksp = PETSc.KSP().create(PETSc.COMM_WORLD)
     ksp.setOperators(A)
     b = A.createVecLeft()
     b.array[:] = -rg
     x = A.createVecRight()
 
-    ksp = PETSc.KSP().create()
-    ksp.create(PETSc.COMM_WORLD)
-    ksp.setOperators(A)
-    ksp.setType("fgmres")
-    ksp.setTolerances(rtol=1e-12, atol=1e-12, divtol=500, max_it=2000)
+    ksp.setType('preonly')
+    ksp.getPC().setType('lu')
+    ksp.getPC().setFactorSolverType('klu')
     ksp.setConvergenceHistory()
-    ksp.getPC().setType("ilu")
     ksp.solve(b, x)
     alpha = x.array
 
@@ -921,7 +918,7 @@ def perform_convergence_test(configuration: dict):
         mesher = create_conformal_mesher(domain, h, lh)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
         if dual_form_q:
-            error_vals = hdiv_cosserat_elasticity(
+            error_vals = hdiv_scaled_cosserat_elasticity(
                 gamma_value, method, gmesh, write_vtk
             )
         else:
@@ -1035,16 +1032,15 @@ def main():
     report_full_precision_data_Q = False
 
     gamma_values = [1.0e-16, 1.0e-8, 1.0e-4, 1.0]
-    gamma_values = [1.0]
     for gamma_value in gamma_values:
-        for k in [2]:
+        for k in [1]:
             methods = method_definition(k)
             for i, method in enumerate(methods):
                 dual_problem_q = False
                 if i in [2, 3, 4]:
                     dual_problem_q = True
 
-                if i != 3:
+                if i != 4:
                     continue
 
                 configuration = {
@@ -1057,7 +1053,7 @@ def main():
                     "report_full_precision_data_Q": report_full_precision_data_Q,
                 }
 
-                for d in [2]:
+                for d in [3]:
                     configuration.__setitem__("k_order", k)
                     configuration.__setitem__("dimension", d)
                     perform_convergence_test(configuration)
