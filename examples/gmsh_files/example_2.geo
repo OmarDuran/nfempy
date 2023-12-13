@@ -1,8 +1,8 @@
 // Gmsh project created on Tue Dec 12 23:27:59 2023
 SetFactory("OpenCASCADE");
 
-lc = 0.1;
-lci = 0.1;
+lc = 0.05;
+lci = 0.05;
 hs = 0.5;
 hi = 0.1;
 l  = 1.0;
@@ -68,7 +68,7 @@ Line(28) = {17, 9};
 
 Line{21,22,23,24,25,26,27,28} In Surface{1};
 
-Transfinite Line {21,22,23,24,25,26,27,28} = 50 Using Progression 1;
+Transfinite Line {21,22,23,24,25,26,27,28} = 60 Using Progression 1;
 
 
 
