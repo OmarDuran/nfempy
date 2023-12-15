@@ -2,7 +2,8 @@ import functools
 import time
 
 import numpy as np
-import strong_solution_cosserat_elasticity as lce
+# import strong_solution_cosserat_elasticity as lce
+import strong_solution_cosserat_elasticity_linear_potentials as lce
 from petsc4py import PETSc
 
 from basis.element_data import ElementData
@@ -89,7 +90,7 @@ def h1_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     m_lambda = 1.0
     m_mu = 1.0
     m_kappa = m_mu
-    m_gamma = epsilon
+    m_gamma = gamma
 
     # exact solution
     u_exact = lce.displacement(m_lambda, m_mu, m_kappa, m_gamma, dim)
@@ -509,7 +510,7 @@ def hdiv_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     ksp.getPC().setType("lu")
     # ksp.getPC().setFactorPivot(zeropivot=1.0e-3)
     # https://github.com/erdc/petsc4py/blob/master/src/PETSc/Mat.pyx#L98
-    ksp.getPC().setFactorOrdering(ord_type="amd")
+    # ksp.getPC().setFactorOrdering(ord_type="amd")
     ksp.getPC().setFactorSolverType("mumps")
     ksp.setConvergenceHistory()
     ksp.solve(b, x)
@@ -530,8 +531,8 @@ def hdiv_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     # residuals = ksp.getConvergenceHistory()
     # plt.semilogy(residuals)
 
-    # alpha_p = l2_projector(fe_space, exact_functions)
-    # alpha = alpha_p
+    alpha_p = l2_projector(fe_space, exact_functions)
+    alpha = alpha_p
 
     et = time.time()
     elapsed_time = et - st
@@ -1038,7 +1039,7 @@ def main():
     report_full_precision_data_Q = False
 
     gamma_values = [1.0e-8, 1.0e-2, 1.0e-4, 1.0]
-    gamma_values = [1.0e-4]
+    gamma_values = [1.0]
     for gamma_value in gamma_values:
         for k in [1]:
             methods = method_definition(k)
@@ -1047,11 +1048,11 @@ def main():
                 if i in [2, 3, 4]:
                     dual_problem_q = True
 
-                if i != 4:
+                if i != 2:
                     continue
 
                 configuration = {
-                    "n_refinements": 5,
+                    "n_refinements": 4,
                     "dual_problem_Q": dual_problem_q,
                     "write_geometry_Q": write_vtk_files_Q,
                     "write_vtk_Q": write_vtk_files_Q,
@@ -1060,7 +1061,7 @@ def main():
                     "report_full_precision_data_Q": report_full_precision_data_Q,
                 }
 
-                for d in [3]:
+                for d in [2]:
                     configuration.__setitem__("k_order", k)
                     configuration.__setitem__("dimension", d)
                     perform_convergence_test(configuration)
