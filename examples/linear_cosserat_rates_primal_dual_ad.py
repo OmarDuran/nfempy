@@ -509,7 +509,7 @@ def hdiv_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     ksp.getPC().setType("lu")
     # ksp.getPC().setFactorPivot(zeropivot=1.0e-3)
     # https://github.com/erdc/petsc4py/blob/master/src/PETSc/Mat.pyx#L98
-    ksp.getPC().setFactorOrdering(ord_type="natural")
+    ksp.getPC().setFactorOrdering(ord_type="amd")
     ksp.getPC().setFactorSolverType("mumps")
     ksp.setConvergenceHistory()
     ksp.solve(b, x)
@@ -922,10 +922,10 @@ def perform_convergence_test(configuration: dict):
     error_data = np.empty((0, n_data), float)
     for lh in range(n_ref):
         h_val = h * (2**-lh)
-        mesher = create_conformal_mesher(domain, h, lh)
+        mesher = create_conformal_mesher(domain, h_val, 0)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
         if dual_form_q:
-            error_vals = hdiv_cosserat_elasticity(gamma_value, method, gmesh, write_vtk)
+            error_vals = hdiv_scaled_cosserat_elasticity(gamma_value, method, gmesh, write_vtk)
         else:
             error_vals = h1_cosserat_elasticity(gamma_value, method, gmesh, write_vtk)
         chunk = np.concatenate([[h_val], error_vals])
@@ -1036,8 +1036,8 @@ def main():
     write_vtk_files_Q = True
     report_full_precision_data_Q = False
 
-    gamma_values = [1.0e-16, 1.0e-8, 1.0e-4, 1.0]
-    gamma_values = [0.0001]
+    gamma_values = [1.0e-8, 1.0e-2, 1.0e-4, 1.0]
+    gamma_values = [1.0e-4]
     for gamma_value in gamma_values:
         for k in [1]:
             methods = method_definition(k)
@@ -1050,7 +1050,7 @@ def main():
                     continue
 
                 configuration = {
-                    "n_refinements": 4,
+                    "n_refinements": 5,
                     "dual_problem_Q": dual_problem_q,
                     "write_geometry_Q": write_vtk_files_Q,
                     "write_vtk_Q": write_vtk_files_Q,
