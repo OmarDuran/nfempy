@@ -926,7 +926,7 @@ def perform_convergence_test(configuration: dict):
         mesher = create_conformal_mesher(domain, h_val, 0)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
         if dual_form_q:
-            error_vals = hdiv_scaled_cosserat_elasticity(gamma_value, method, gmesh, write_vtk)
+            error_vals = hdiv_cosserat_elasticity(gamma_value, method, gmesh, write_vtk)
         else:
             error_vals = h1_cosserat_elasticity(gamma_value, method, gmesh, write_vtk)
         chunk = np.concatenate([[h_val], error_vals])
