@@ -76,7 +76,7 @@ def paint_on_canvas():
     meshes = []
     for lh in range(1, n_ref + 1):
         h_val = h * (2**-lh)
-        mesher = create_conformal_mesher(domain, h, lh)
+        mesher = create_conformal_mesher(domain, h_val, 0)
         _ = create_mesh(dimension, mesher, write_geometry_vtk_q)
         mesh = pyvista.read("geometric_mesh_3d.vtk")
         meshes.append(mesh)
@@ -99,7 +99,7 @@ def paint_on_canvas():
     plotter.add_text("h = 1/16", font_size=14, font="courier")
     plotter.add_mesh(meshes[3], show_edges=True)
 
-    # plotter.show()
+    plotter.show()
     return plotter
 
 

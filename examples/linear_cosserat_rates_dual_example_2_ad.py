@@ -778,8 +778,9 @@ def hdiv_scaled_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     s_l2_error, m_l2_error, u_l2_error, t_l2_error = l2_error(
         dim, fe_space, exact_functions, alpha
     )
-    div_s_l2_error, _ = div_error(dim, fe_space, exact_functions, alpha)
-    _, div_m_l2_error = div_scaled_error(dim, fe_space, exact_functions, alpha)
+    # div_s_l2_error, _ = div_error(dim, fe_space, exact_functions, alpha)
+    # _, div_m_l2_error = div_scaled_error(dim, fe_space, exact_functions, alpha)
+    div_s_l2_error = div_m_l2_error = 0.0
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")

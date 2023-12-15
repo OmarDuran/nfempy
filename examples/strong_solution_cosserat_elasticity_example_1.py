@@ -1,85 +1,117 @@
 import numpy as np
 
 
-def zeta(xi):
-    hs = 0.5
-    hi = 0.1
-    conditions = [
-        xi <= -hs,
-        np.logical_and(-hs < xi, xi < -hi),
-        np.logical_and(-hi < xi, xi < hi),
-        np.logical_and(hi < xi, xi < hs),
-        xi >= hs,
-    ]
-    functions = [
-        lambda xi: np.ones_like(xi),
-        lambda xi: -0.25 - xi / (-hi + hs),
-        lambda xi: np.zeros_like(xi),
-        lambda xi: -0.25 + xi / (-hi + hs),
-        lambda xi: np.ones_like(xi),
-    ]
-    return np.piecewise(xi, conditions, functions)
+# def zeta(xi):
+#     hs = 0.5
+#     hi = 0.1
+#     conditions = [
+#         xi <= -hs,
+#         np.logical_and(-hs < xi, xi < -hi),
+#         np.logical_and(-hi < xi, xi < hi),
+#         np.logical_and(hi < xi, xi < hs),
+#         xi >= hs,
+#     ]
+#     functions = [
+#         lambda xi: np.ones_like(xi),
+#         lambda xi: -0.25 - xi / (-hi + hs),
+#         lambda xi: np.zeros_like(xi),
+#         lambda xi: -0.25 + xi / (-hi + hs),
+#         lambda xi: np.ones_like(xi),
+#     ]
+#     return np.piecewise(xi, conditions, functions)
+#
+#
+# def dzeta(xi):
+#     hs = 0.5
+#     hi = 0.1
+#     conditions = [
+#         xi <= -hs,
+#         np.logical_and(-hs < xi, xi < -hi),
+#         np.logical_and(-hi < xi, xi < hi),
+#         np.logical_and(hi < xi, xi < hs),
+#         xi >= hs,
+#     ]
+#     functions = [
+#         lambda xi: np.zeros_like(xi),
+#         lambda xi: -np.ones_like(xi) / (-hi + hs),
+#         lambda xi: np.zeros_like(xi),
+#         lambda xi: np.ones_like(xi) / (-hi + hs),
+#         lambda xi: np.zeros_like(xi),
+#     ]
+#     return np.piecewise(xi, conditions, functions)
+#
+#
+# def gamma_s(dim: int = 2):
+#     if dim == 2:
+#         return lambda x1, x2, x3: zeta(x1) * zeta(x2)
+#     else:
+#         return lambda x1, x2, x3: zeta(x1) * zeta(x2) * zeta(x3)
+#
+#
+# def grad_gamma_s(dim: int = 2):
+#     if dim == 2:
+#         return lambda x1, x2, x3: np.array([dzeta(x1) * zeta(x2), zeta(x1) * dzeta(x2)])
+#     else:
+#         return lambda x1, x2, x3: np.array(
+#             [
+#                 dzeta(x1) * zeta(x2) * zeta(x3),
+#                 zeta(x1) * dzeta(x2) * zeta(x3),
+#                 zeta(x1) * zeta(x2) * dzeta(x3),
+#             ]
+#         )
+#
+#
+# def gamma_eval(x1, x2, x3, dim: int = 2):
+#     if dim == 2:
+#         return zeta(x1) * zeta(x2)
+#     else:
+#         return zeta(x1) * zeta(x2) * zeta(x3)
+#
+#
+# def grad_gamma_eval(x1, x2, x3, dim: int = 2):
+#     if dim == 2:
+#         return np.array([dzeta(x1) * zeta(x2), zeta(x1) * dzeta(x2)])
+#     else:
+#         return np.array(
+#             [
+#                 dzeta(x1) * zeta(x2) * zeta(x3),
+#                 zeta(x1) * dzeta(x2) * zeta(x3),
+#                 zeta(x1) * zeta(x2) * dzeta(x3),
+#             ]
+#         )
 
-
-def dzeta(xi):
-    hs = 0.5
-    hi = 0.1
-    conditions = [
-        xi <= -hs,
-        np.logical_and(-hs < xi, xi < -hi),
-        np.logical_and(-hi < xi, xi < hi),
-        np.logical_and(hi < xi, xi < hs),
-        xi >= hs,
-    ]
-    functions = [
-        lambda xi: np.zeros_like(xi),
-        lambda xi: -np.ones_like(xi) / (-hi + hs),
-        lambda xi: np.zeros_like(xi),
-        lambda xi: np.ones_like(xi) / (-hi + hs),
-        lambda xi: np.zeros_like(xi),
-    ]
-    return np.piecewise(xi, conditions, functions)
-
+# def gamma_s(dim: int = 2):
+#     if dim == 2:
+#         return lambda x1, x2, x3: zeta(x1) * zeta(x2)
+#     else:
+#         return lambda x1, x2, x3: zeta(x1) * zeta(x2) * zeta(x3)
+#
+#
 
 def gamma_s(dim: int = 2):
     if dim == 2:
-        return lambda x1, x2, x3: zeta(x1) * zeta(x2)
+        return lambda x, y, z: np.min([np.ones_like(x),np.max([np.zeros_like(x),np.max([3*x,3*y],axis=0)-np.ones_like(x)],axis=0)],axis=0)
     else:
-        return lambda x1, x2, x3: zeta(x1) * zeta(x2) * zeta(x3)
-
+        return lambda x, y, z: np.min([np.ones_like(x),np.max([np.zeros_like(x),np.max([3*x,3*y,3*z],axis=0)-np.ones_like(x)],axis=0)],axis=0)
 
 def grad_gamma_s(dim: int = 2):
     if dim == 2:
-        return lambda x1, x2, x3: np.array([dzeta(x1) * zeta(x2), zeta(x1) * dzeta(x2)])
+        return lambda x, y, z: np.array([np.where(np.logical_or(np.logical_and(x-y >= 0,x >= 2.0/3.0), np.logical_and(x-y < 0,y >= 2.0/3.0)), np.zeros_like(x), np.where(np.logical_and(np.logical_and(1.0/3.0 < x, x < 2.0/3.0), x-y >= 0.0), 3.0*np.ones_like(x), np.zeros_like(x))), np.where(np.logical_or(np.logical_and(x-y >= 0,x >= 2.0/3.0),np.logical_or(np.logical_and(x-y < 0,y >= 2.0/3.0),np.logical_and(1.0/3.0 < x, x < 2.0/3.0), x-y >= 0.0)), np.zeros_like(x), np.where(np.logical_and(np.logical_and(1.0/3.0 < y, y < 2.0/3.0), x-y < 0.0), 3.0*np.ones_like(x), np.zeros_like(x)))])
     else:
-        return lambda x1, x2, x3: np.array(
-            [
-                dzeta(x1) * zeta(x2) * zeta(x3),
-                zeta(x1) * dzeta(x2) * zeta(x3),
-                zeta(x1) * zeta(x2) * dzeta(x3),
-            ]
-        )
+        return lambda x, y, z: np.array([np.where(np.logical_or(np.logical_and(x-y >= 0,x >= 2.0/3.0), np.logical_and(x-y < 0,y >= 2.0/3.0)), np.zeros_like(x), np.where(np.logical_and(np.logical_and(1.0/3.0 < x, x < 2.0/3.0), x-y >= 0.0), 3.0*np.ones_like(x), np.zeros_like(x))), np.where(np.logical_or(np.logical_and(x-y >= 0,x >= 2.0/3.0),np.logical_or(np.logical_and(x-y < 0,y >= 2.0/3.0),np.logical_and(1.0/3.0 < x, x < 2.0/3.0), x-y >= 0.0)), np.zeros_like(x), np.where(np.logical_and(np.logical_and(1.0/3.0 < y, y < 2.0/3.0), x-y < 0.0), 3.0*np.ones_like(x), np.zeros_like(x)))])
 
-
-def gamma_eval(x1, x2, x3, dim: int = 2):
+def gamma_eval(x, y, z, dim: int = 2):
     if dim == 2:
-        return zeta(x1) * zeta(x2)
+        return np.min([np.ones_like(x),np.max([np.zeros_like(x),np.max([3*x,3*y],axis=0)-np.ones_like(x)],axis=0)],axis=0)
     else:
-        return zeta(x1) * zeta(x2) * zeta(x3)
+        return np.min([np.ones_like(x),np.max([np.zeros_like(x),np.max([3*x,3*y,3*z],axis=0)-np.ones_like(x)],axis=0)],axis=0)
 
 
-def grad_gamma_eval(x1, x2, x3, dim: int = 2):
+def grad_gamma_eval(x, y, z, dim: int = 2):
     if dim == 2:
-        return np.array([dzeta(x1) * zeta(x2), zeta(x1) * dzeta(x2)])
+        return np.array([np.where(np.logical_or(np.logical_and(x-y >= 0,x >= 2.0/3.0), np.logical_and(x-y < 0,y >= 2.0/3.0)), np.zeros_like(x), np.where(np.logical_and(np.logical_and(1.0/3.0 < x, x < 2.0/3.0), x-y >= 0.0), 3.0*np.ones_like(x), np.zeros_like(x))), np.where(np.logical_or(np.logical_and(x-y >= 0,x >= 2.0/3.0),np.logical_or(np.logical_and(x-y < 0,y >= 2.0/3.0),np.logical_and(1.0/3.0 < x, x < 2.0/3.0), x-y >= 0.0)), np.zeros_like(x), np.where(np.logical_and(np.logical_and(1.0/3.0 < y, y < 2.0/3.0), x-y < 0.0), 3.0*np.ones_like(x), np.zeros_like(x)))])
     else:
-        return np.array(
-            [
-                dzeta(x1) * zeta(x2) * zeta(x3),
-                zeta(x1) * dzeta(x2) * zeta(x3),
-                zeta(x1) * zeta(x2) * dzeta(x3),
-            ]
-        )
-
+        return np.array([np.where(np.logical_or(np.logical_and(x-y >= 0,x >= 2.0/3.0), np.logical_and(x-y < 0,y >= 2.0/3.0)), np.zeros_like(x), np.where(np.logical_and(np.logical_and(1.0/3.0 < x, x < 2.0/3.0), x-y >= 0.0), 3.0*np.ones_like(x), np.zeros_like(x))), np.where(np.logical_or(np.logical_and(x-y >= 0,x >= 2.0/3.0),np.logical_or(np.logical_and(x-y < 0,y >= 2.0/3.0),np.logical_and(1.0/3.0 < x, x < 2.0/3.0), x-y >= 0.0)), np.zeros_like(x), np.where(np.logical_and(np.logical_and(1.0/3.0 < y, y < 2.0/3.0), x-y < 0.0), 3.0*np.ones_like(x), np.zeros_like(x)))])
 
 def displacement(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
     if dim == 2:
