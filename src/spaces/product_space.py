@@ -18,7 +18,7 @@ class ProductSpace:
         for item in discrete_spaces_data.items():
             field, data = item
             k_orders.append(data[3])
-        self.integration_order = 2 * np.max(k_orders) + 2
+        self.integration_order = 2 * np.max(k_orders) + 1
 
     def _define_discrete_spaces(self, discrete_spaces_data):
         self.discrete_spaces = {}
