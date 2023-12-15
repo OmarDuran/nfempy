@@ -770,7 +770,8 @@ def hdiv_scaled_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     ksp.setType("preonly")
     ksp.getPC().setType("lu")
     ksp.getPC().setFactorSolverType("mumps")
-    ksp.setTolerances(rtol=1e-14, atol=1e-14, divtol=500, max_it=2000)
+    ksp.getPC().setFactorOrdering(ord_type="amd")
+    # ksp.setTolerances(rtol=1e-14, atol=1e-14, divtol=500, max_it=2000)
     ksp.setConvergenceHistory()
     ksp.solve(b, x)
     alpha = x.array
