@@ -12,8 +12,11 @@ def normal(mesh: Mesh, cell_c0: MeshCell, cell_c1: MeshCell):
         v = mesh.points[cell_c1.node_tags[0]] - xc_c1
         w = mesh.points[cell_c1.node_tags[1]] - xc_c1
         normal = np.cross(v, w) / np.linalg.norm(np.cross(v, w))
-        if normal @ outward < 0.0:
-            normal *= -1.0
     else:
-        normal = outward
+        v = mesh.points[cell_c1.node_tags[1]] - mesh.points[cell_c1.node_tags[0]]
+        v = v / np.linalg.norm(v)
+        w = np.cross(v, outward) / np.linalg.norm(np.cross(v, outward))
+        normal = np.cross(v, w)
+    if normal @ outward < 0.0:
+        normal *= -1.0
     return normal

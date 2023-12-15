@@ -253,7 +253,7 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
             -((1 - x) * x * (1 - y)) + (1 - x) * x * y,
         ]
     )
-    f_rhs = lambda x, y, z: np.array([2 * (1 - x) * x + 2 * (1 - y) * y])
+    f_rhs = lambda x, y, z: np.array([[2 * (1 - x) * x + 2 * (1 - y) * y]])
 
     if dim == 3:
         p_exact = lambda x, y, z: np.array(
@@ -353,14 +353,14 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
     ksp.solve(b, x)
     alpha = x.array
 
-    # ai, aj, av = A.getValuesCSR()
-    # Asp = scipy.sparse.csr_matrix((av, aj, ai))
+    ai, aj, av = A.getValuesCSR()
+    Asp = scipy.sparse.csr_matrix((av, aj, ai))
     # rg[np.array([8, 9])] *= -1.0
     # alpha_s = scipy.sparse.linalg.spsolve(Asp,-rg)
-    # def chop(expr, delta=1.0e-5):
-    #     return np.ma.masked_inside(expr, -delta, delta).filled(0)
+    def chop(expr, delta=1.0e-5):
+        return np.ma.masked_inside(expr, -delta, delta).filled(0)
 
-    # alpha_p = l2_projector(fe_space,exact_functions)
+    alpha_p = l2_projector(fe_space,exact_functions)
     # alpha = alpha_p
     et = time.time()
     elapsed_time = et - st
@@ -440,15 +440,15 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 def main():
     k_order = 2
     h = 1.0
-    n_ref = 3
-    dimension = 3
+    n_ref = 0
+    dimension = 2
     ref_l = 0
 
     domain = create_domain(dimension)
     error_data = np.empty((0, 2), float)
-    for l in range(n_ref):
+    for l in range(4,n_ref+5):
         h_val = h * (2**-l)
-        mesher = create_conformal_mesher(domain, h, l)
+        mesher = create_conformal_mesher(domain, h_val, 0)
         gmesh = create_mesh(dimension, mesher, True)
         # error_val = h1_laplace(k_order, gmesh, True)
         error_val = hdiv_laplace(k_order, gmesh, True)

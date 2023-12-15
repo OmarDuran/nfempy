@@ -206,7 +206,7 @@ class Mesh:
 
         elif cell_block.dim == 1:
             for node_tags, physical_tag in zip(cell_block.data, physical):
-                node_tags = self.validate_entity(node_tags)
+                # node_tags = self.validate_entity(node_tags)
                 self.insert_edge(node_tags, physical_tag)
 
         elif cell_block.dim == 2:

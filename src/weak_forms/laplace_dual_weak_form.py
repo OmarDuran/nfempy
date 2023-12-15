@@ -62,7 +62,7 @@ class LaplaceDualWeakForm(WeakForm):
             for c in range(p_components):
                 b = c + n_q_dof
                 e = b + n_p_dof
-                el_form[b:e:p_components] -= phi_s_star @ f_val_star[c]
+                el_form[b:e:p_components] -= phi_s_star @ f_val_star[c].T
 
             for i, omega in enumerate(weights):
                 xv = x[i]
