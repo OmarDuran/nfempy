@@ -531,8 +531,8 @@ def hdiv_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     # residuals = ksp.getConvergenceHistory()
     # plt.semilogy(residuals)
 
-    alpha_p = l2_projector(fe_space, exact_functions)
-    alpha = alpha_p
+    # alpha_p = l2_projector(fe_space, exact_functions)
+    # alpha = alpha_p
 
     et = time.time()
     elapsed_time = et - st
@@ -924,7 +924,7 @@ def perform_convergence_test(configuration: dict):
     error_data = np.empty((0, n_data), float)
     for lh in range(n_ref):
         h_val = h * (2**-lh)
-        mesher = create_conformal_mesher(domain, h_val, 0)
+        mesher = create_conformal_mesher(domain, h, lh)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
         if dual_form_q:
             error_vals = hdiv_cosserat_elasticity(gamma_value, method, gmesh, write_vtk)
@@ -1041,18 +1041,18 @@ def main():
     gamma_values = [1.0e-8, 1.0e-2, 1.0e-4, 1.0]
     gamma_values = [1.0]
     for gamma_value in gamma_values:
-        for k in [1]:
+        for k in [2]:
             methods = method_definition(k)
             for i, method in enumerate(methods):
                 dual_problem_q = False
                 if i in [2, 3, 4]:
                     dual_problem_q = True
 
-                if i != 2:
+                if i != 4:
                     continue
 
                 configuration = {
-                    "n_refinements": 4,
+                    "n_refinements": 2,
                     "dual_problem_Q": dual_problem_q,
                     "write_geometry_Q": write_vtk_files_Q,
                     "write_vtk_Q": write_vtk_files_Q,
