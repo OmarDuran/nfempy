@@ -33,6 +33,7 @@ import matplotlib.pyplot as plt
 from postprocess.projectors import l2_projector
 
 # import line_profiler
+import scipy as sp
 
 
 def h1_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
@@ -532,7 +533,9 @@ def hdiv_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     # plt.semilogy(residuals)
 
     # alpha_p = l2_projector(fe_space, exact_functions)
-    # alpha = alpha_p
+    # # alpha = alpha_p
+    # ai, aj, av = A.getValuesCSR()
+    # Asp = sp.sparse.csr_matrix((av, aj, ai))
 
     et = time.time()
     elapsed_time = et - st
@@ -924,7 +927,7 @@ def perform_convergence_test(configuration: dict):
     error_data = np.empty((0, n_data), float)
     for lh in range(n_ref):
         h_val = h * (2**-lh)
-        mesher = create_conformal_mesher(domain, h, lh)
+        mesher = create_conformal_mesher(domain, h_val, 0)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
         if dual_form_q:
             error_vals = hdiv_cosserat_elasticity(gamma_value, method, gmesh, write_vtk)
@@ -1039,9 +1042,9 @@ def main():
     report_full_precision_data_Q = False
 
     gamma_values = [1.0e-8, 1.0e-2, 1.0e-4, 1.0]
-    gamma_values = [1.0]
+    gamma_values = [1.0e-8]
     for gamma_value in gamma_values:
-        for k in [2]:
+        for k in [1]:
             methods = method_definition(k)
             for i, method in enumerate(methods):
                 dual_problem_q = False
@@ -1052,7 +1055,7 @@ def main():
                     continue
 
                 configuration = {
-                    "n_refinements": 2,
+                    "n_refinements": 4,
                     "dual_problem_Q": dual_problem_q,
                     "write_geometry_Q": write_vtk_files_Q,
                     "write_vtk_Q": write_vtk_files_Q,
@@ -1061,7 +1064,7 @@ def main():
                     "report_full_precision_data_Q": report_full_precision_data_Q,
                 }
 
-                for d in [2]:
+                for d in [3]:
                     configuration.__setitem__("k_order", k)
                     configuration.__setitem__("dimension", d)
                     perform_convergence_test(configuration)
