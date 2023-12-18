@@ -577,7 +577,7 @@ def perform_convergence_test(configuration: dict):
 
     n_data = 9
     error_data = np.empty((0, n_data), float)
-    for lh in range(n_ref):
+    for lh in range(n_ref+1):
         h_val = h * (2**-lh)
         mesher = create_conformal_mesher(domain, h, lh)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
@@ -684,7 +684,7 @@ def main():
 
     gamma_values = [1.0, 1.0e-2, 1.0e-4, 1.0e-8]
     for gamma_value in gamma_values:
-        for k in [1, 2]:
+        for k in [1]:
             methods = method_definition(k)
             for i, method in enumerate(methods):
 
