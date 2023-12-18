@@ -5,6 +5,7 @@ import numpy as np
 import strong_solution_cosserat_elasticity as lce
 
 # import strong_solution_cosserat_elasticity_linear_potentials as lce
+# import strong_solution_cosserat_elasticity_quadratic_potentials as lce
 from petsc4py import PETSc
 
 from basis.element_data import ElementData
@@ -150,6 +151,8 @@ def hdiv_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
 
     weak_form = LCEDualWeakForm(fe_space)
     weak_form.functions = m_functions
+    bc_weak_form = LCEDualWeakFormBCDirichlet(fe_space)
+    bc_weak_form.functions = exact_functions
 
     def scatter_form_data(A, i, weak_form):
         # destination indexes
@@ -168,8 +171,27 @@ def hdiv_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
         for k in range(nnz):
             A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
+    def scatter_bc_form(A, i, bc_weak_form):
+        dest = fe_space.bc_destination_indexes(i)
+        alpha_l = alpha[dest]
+        r_el, j_el = bc_weak_form.evaluate_form(i, alpha_l)
+
+        # contribute rhs
+        rg[dest] += r_el
+
+        # contribute lhs
+        data = j_el.ravel()
+        row = np.repeat(dest, len(dest))
+        col = np.tile(dest, len(dest))
+        nnz = data.shape[0]
+        for k in range(nnz):
+            A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
+
     n_els = len(fe_space.discrete_spaces["s"].elements)
     [scatter_form_data(A, i, weak_form) for i in range(n_els)]
+
+    n_bc_els = len(fe_space.discrete_spaces["s"].bc_elements)
+    [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
 
     A.assemble()
 
@@ -587,14 +609,14 @@ def perform_convergence_test(configuration: dict):
                 gamma_value, method, gmesh, write_vtk
             )
         else:
-            n_dof, error_vals = hdiv_scaled_cosserat_elasticity(
+            n_dof, error_vals = hdiv_cosserat_elasticity(
                 gamma_value, method, gmesh, write_vtk
             )
         chunk = np.concatenate([[n_dof, h_val], error_vals])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
 
     rates_data = np.empty((0, n_data - 2), float)
-    for i in range(error_data.shape[0] - 2):
+    for i in range(error_data.shape[0] - 1):
         chunk_b = np.log(error_data[i])
         chunk_e = np.log(error_data[i + 1])
         h_step = chunk_e[1] - chunk_b[1]
@@ -687,12 +709,13 @@ def main():
     report_full_precision_data_Q = False
 
     gamma_values = [1.0, 1.0e-2, 1.0e-4, 1.0e-8]
+    gamma_values = [1.0]
     for gamma_value in gamma_values:
-        for k in [1]:
+        for k in [3]:
             methods = method_definition(k)
             for i, method in enumerate(methods):
                 configuration = {
-                    "n_refinements": 3,
+                    "n_refinements": 1,
                     "write_geometry_Q": write_vtk_files_Q,
                     "write_vtk_Q": write_vtk_files_Q,
                     "method": method,
@@ -700,7 +723,7 @@ def main():
                     "report_full_precision_data_Q": report_full_precision_data_Q,
                 }
 
-                for d in [2]:
+                for d in [3]:
                     configuration.__setitem__("k_order", k)
                     configuration.__setitem__("dimension", d)
                     perform_convergence_test(configuration)
