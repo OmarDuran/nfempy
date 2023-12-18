@@ -181,6 +181,34 @@ def couple_stress(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
             ]
         )
 
+def couple_stress_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
+    if dim == 2:
+        return lambda x, y, z: np.sqrt(m_gamma) * np.array(
+            [
+                2 * x,
+                2 * y,
+            ]
+        )
+    else:
+        return lambda x, y, z: np.sqrt(m_gamma) * np.array(
+            [
+                [
+                    np.ones_like(x),
+                    np.ones_like(x),
+                    2 * z,
+                ],
+                [
+                    2 * x,
+                    np.ones_like(x),
+                    np.ones_like(x),
+                ],
+                [
+                    np.ones_like(x),
+                    2 * y,
+                    np.ones_like(x),
+                ],
+            ]
+        )
 
 def rhs(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
     if dim == 2:
