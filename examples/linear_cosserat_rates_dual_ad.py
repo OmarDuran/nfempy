@@ -746,13 +746,12 @@ def main():
     report_full_precision_data_Q = False
 
     gamma_values = [1.0, 1.0e-2, 1.0e-4, 1.0e-8]
-    gamma_values = [1.0e-8]
     for gamma_value in gamma_values:
         for k in [1]:
             methods = method_definition(k)
             for i, method in enumerate(methods):
                 configuration = {
-                    "n_refinements": 3,
+                    "n_refinements": 4,
                     "write_geometry_Q": write_vtk_files_Q,
                     "write_vtk_Q": write_vtk_files_Q,
                     "method": method,
