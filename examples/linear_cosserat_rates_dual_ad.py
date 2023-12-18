@@ -148,8 +148,6 @@ def hdiv_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
 
     weak_form = LCEDualWeakForm(fe_space)
     weak_form.functions = m_functions
-    bc_weak_form = LCEDualWeakFormBCDirichlet(fe_space)
-    bc_weak_form.functions = exact_functions
 
     def scatter_form_data(A, i, weak_form):
         # destination indexes
@@ -168,27 +166,8 @@ def hdiv_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
         for k in range(nnz):
             A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
-    def scatter_bc_form(A, i, bc_weak_form):
-        dest = fe_space.bc_destination_indexes(i)
-        alpha_l = alpha[dest]
-        r_el, j_el = bc_weak_form.evaluate_form(i, alpha_l)
-
-        # contribute rhs
-        rg[dest] += r_el
-
-        # contribute lhs
-        data = j_el.ravel()
-        row = np.repeat(dest, len(dest))
-        col = np.tile(dest, len(dest))
-        nnz = data.shape[0]
-        for k in range(nnz):
-            A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
-
     n_els = len(fe_space.discrete_spaces["s"].elements)
     [scatter_form_data(A, i, weak_form) for i in range(n_els)]
-
-    n_bc_els = len(fe_space.discrete_spaces["s"].bc_elements)
-    [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
 
     A.assemble()
 
@@ -207,9 +186,6 @@ def hdiv_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
 
     ksp.setType("preonly")
     ksp.getPC().setType("lu")
-    # ksp.getPC().setFactorPivot(zeropivot=1.0e-3)
-    # https://github.com/erdc/petsc4py/blob/master/src/PETSc/Mat.pyx#L98
-    # ksp.getPC().setFactorOrdering(ord_type="amd")
     ksp.getPC().setFactorSolverType("mumps")
     ksp.setConvergenceHistory()
     ksp.solve(b, x)
@@ -451,8 +427,6 @@ def hdiv_scaled_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     ksp.setType("preonly")
     ksp.getPC().setType("lu")
     ksp.getPC().setFactorSolverType("mumps")
-    ksp.getPC().setFactorOrdering(ord_type="amd")
-    # ksp.setTolerances(rtol=1e-14, atol=1e-14, divtol=500, max_it=2000)
     ksp.setConvergenceHistory()
     ksp.solve(b, x)
     alpha = x.array
@@ -685,20 +659,20 @@ def perform_convergence_test(configuration: dict):
 
 
 def method_definition(k_order):
-    method_1_pc = {
+    method_1_dc = {
         "s": ("RT", k_order),
         "m": ("RT", k_order + 1),
         "u": ("Lagrange", k_order - 1),
         "t": ("Lagrange", k_order),
     }
-    method_2_pnc = {
+    method_2_dnc = {
         "s": ("BDM", k_order),
         "m": ("RT", k_order),
         "u": ("Lagrange", k_order - 1),
         "t": ("Lagrange", k_order - 1),
     }
 
-    methods = [method_1_pc, method_2_pnc]
+    methods = [method_1_dc, method_2_dnc]
     method_names = ["m1_dc", "m2_dnc"]
     return zip(method_names, methods)
 
@@ -708,14 +682,14 @@ def main():
     write_vtk_files_Q = True
     report_full_precision_data_Q = False
 
-    gamma_values = [1.0e-8, 1.0e-4, 1.0e-2, 1.0]
+    gamma_values = [1.0, 1.0e-2, 1.0e-4, 1.0e-8]
     for gamma_value in gamma_values:
         for k in [1, 2]:
             methods = method_definition(k)
             for i, method in enumerate(methods):
 
                 configuration = {
-                    "n_refinements": 2,
+                    "n_refinements": 3,
                     "write_geometry_Q": write_vtk_files_Q,
                     "write_vtk_Q": write_vtk_files_Q,
                     "method": method,
@@ -723,7 +697,7 @@ def main():
                     "report_full_precision_data_Q": report_full_precision_data_Q,
                 }
 
-                for d in [2]:
+                for d in [3]:
                     configuration.__setitem__("k_order", k)
                     configuration.__setitem__("dimension", d)
                     perform_convergence_test(configuration)
