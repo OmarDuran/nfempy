@@ -181,6 +181,7 @@ def couple_stress(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
             ]
         )
 
+
 def couple_stress_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
     if dim == 2:
         return lambda x, y, z: np.sqrt(m_gamma) * np.array(
@@ -210,7 +211,30 @@ def couple_stress_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
             ]
         )
 
+
 def rhs(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
+    if dim == 2:
+        return lambda x, y, z: np.array(
+            [
+                -4 * y * m_kappa + 2 * m_lambda + 4 * m_mu,
+                2 * (2 * x * m_kappa + m_lambda + 2 * m_mu),
+                4 * m_gamma - 4 * ((x**2) + (y**2)) * m_kappa,
+            ]
+        )
+    else:
+        return lambda x, y, z: np.array(
+            [
+                -4 * (-1 + y) * m_kappa + 2 * m_mu,
+                -4 * (-1 + z) * m_kappa + 2 * m_mu,
+                -4 * (-1 + x) * m_kappa + 2 * m_mu,
+                2 * m_gamma - 2 * (1 + 2 * x + 2 * y - 2 * z + 2 * (z**2)) * m_kappa,
+                2 * m_gamma - 2 * (1 - 2 * x + 2 * (x**2) + 2 * y + 2 * z) * m_kappa,
+                2 * m_gamma - 2 * (1 + 2 * x - 2 * y + 2 * (y**2) + 2 * z) * m_kappa,
+            ]
+        )
+
+
+def rhs_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
     if dim == 2:
         return lambda x, y, z: np.array(
             [
@@ -263,5 +287,22 @@ def couple_stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
                 2 * m_gamma * np.ones_like(x),
                 2 * m_gamma * np.ones_like(x),
                 2 * m_gamma * np.ones_like(x),
+            ]
+        )
+
+
+def couple_stress_divergence_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
+    if dim == 2:
+        return lambda x, y, z: np.array(
+            [
+                4.0 * m_gamma * np.ones_like(x),
+            ]
+        )
+    else:
+        return lambda x, y, z: np.array(
+            [
+                2.0 * m_gamma * np.ones_like(x),
+                2.0 * m_gamma * np.ones_like(x),
+                2.0 * m_gamma * np.ones_like(x),
             ]
         )

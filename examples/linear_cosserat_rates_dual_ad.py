@@ -2,10 +2,11 @@ import functools
 import time
 
 import numpy as np
+
 # import strong_solution_cosserat_elasticity as lce
 
-import strong_solution_cosserat_elasticity_linear_potentials as lce
-# import strong_solution_cosserat_elasticity_quadratic_potentials as lce
+# import strong_solution_cosserat_elasticity_linear_potentials as lce
+import strong_solution_cosserat_elasticity_quadratic_potentials as lce
 from petsc4py import PETSc
 
 from basis.element_data import ElementData
@@ -730,11 +731,12 @@ def main():
     report_full_precision_data_Q = False
 
     gamma_values = [1.0, 1.0e-2, 1.0e-4, 1.0e-8]
-    gamma_values = [1.0]
+    gamma_values = [1.0e-8]
     for gamma_value in gamma_values:
-        for k in [2]:
+        for k in [3]:
             methods = method_definition(k)
             for i, method in enumerate(methods):
+
                 configuration = {
                     "n_refinements": 1,
                     "write_geometry_Q": write_vtk_files_Q,

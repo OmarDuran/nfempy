@@ -1,28 +1,6 @@
 import numpy as np
 
 
-def generalized_displacement(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
-    if dim == 2:
-        return lambda x, y, z: np.array(
-            [
-                (1 - y) * y * np.sin(np.pi * x),
-                (1 - x) * x * np.sin(np.pi * y),
-                np.sin(np.pi * x) * np.sin(np.pi * y),
-            ]
-        )
-    else:
-        return lambda x, y, z: np.array(
-            [
-                (1 - y) * y * (1 - z) * z * np.sin(np.pi * x),
-                (1 - x) * x * (1 - z) * z * np.sin(np.pi * y),
-                (1 - x) * x * (1 - y) * y * np.sin(np.pi * z),
-                (1 - x) * x * np.sin(np.pi * y) * np.sin(np.pi * z),
-                (1 - y) * y * np.sin(np.pi * x) * np.sin(np.pi * z),
-                (1 - z) * z * np.sin(np.pi * x) * np.sin(np.pi * y),
-            ]
-        )
-
-
 def displacement(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
     if dim == 2:
         return lambda x, y, z: np.array(

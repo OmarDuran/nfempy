@@ -469,6 +469,8 @@ class LCEScaledDualWeakFormBCDirichlet(WeakForm):
 
         u_D = self.functions["u"]
         t_D = self.functions["t"]
+        f_gamma = self.functions["gamma"]
+        f_grad_gamma = self.functions["grad_gamma"]
 
         s_space = self.space.discrete_spaces["s"]
         m_space = self.space.discrete_spaces["m"]
@@ -499,6 +501,8 @@ class LCEScaledDualWeakFormBCDirichlet(WeakForm):
         rs = n_dof
         j_el = np.zeros(js)
         r_el = np.zeros(rs)
+
+        gamma_scale_v = np.sqrt(f_gamma(x[:, 0], x[:, 1], x[:, 2])) + 1.0e-16
 
         # find high-dimension neigh
         neigh_list = find_higher_dimension_neighs(cell, s_space.dof_map.mesh_topology)
@@ -554,7 +558,8 @@ class LCEScaledDualWeakFormBCDirichlet(WeakForm):
             for i, omega in enumerate(weights):
                 t_D_v = t_D(x[i, 0], x[i, 1], x[i, 2])
                 phi = m_tr_phi_tab[0, i, dof_m_n_index, 0:dim] @ n[0:dim]
-                res_block_m -= det_jac[i] * omega * t_D_v[c] * phi
+                gamma_scale = gamma_scale_v[i]
+                res_block_m -= det_jac[i] * omega * t_D_v[c] * gamma_scale * phi
 
             r_el[b:e:m_components] += res_block_m
 
