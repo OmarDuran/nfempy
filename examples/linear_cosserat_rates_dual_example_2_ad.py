@@ -19,6 +19,7 @@ from weak_forms.lce_scaled_dual_weak_form import (
     LCEScaledDualWeakFormBCDirichlet,
 )
 
+
 def hdiv_scaled_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
 
@@ -255,6 +256,7 @@ def hdiv_scaled_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
         ]
     )
 
+
 def create_mesh_from_file(file_name, dim, write_vtk_q=False):
     gmesh = Mesh(dimension=dim, file_name=file_name)
     gmesh.build_conformal_mesh()
@@ -278,7 +280,7 @@ def perform_convergence_test(configuration: dict):
     )
 
     # The initial element size
-    h = 1.0/3.0
+    h = 1.0 / 3.0
 
     n_data = 10
     error_data = np.empty((0, n_data), float)

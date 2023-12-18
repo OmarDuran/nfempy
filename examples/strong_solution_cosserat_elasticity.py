@@ -317,14 +317,14 @@ def couple_stress(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
 
 def couple_stress_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
     if dim == 2:
-        return lambda x, y, z: np.sqrt(m_gamma) * np.array(
+        return lambda x, y, z: m_gamma * np.array(
             [
                 np.pi * np.cos(np.pi * x) * np.sin(np.pi * y),
                 np.pi * np.cos(np.pi * y) * np.sin(np.pi * x),
             ]
         )
     else:
-        return lambda x, y, z: np.sqrt(m_gamma) * np.array(
+        return lambda x, y, z: m_gamma * np.array(
             [
                 [
                     (1 - x) * np.sin(np.pi * y) * np.sin(np.pi * z)
@@ -571,7 +571,8 @@ def rhs_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
                     + np.sin(np.pi * x)
                     * (
                         (-1 + 2 * y) * m_kappa
-                        + ((np.pi**2) * m_gamma + 2 * m_kappa) * np.sin(np.pi * y)
+                        + ((np.pi**2) * m_gamma * m_gamma + 2 * m_kappa)
+                        * np.sin(np.pi * y)
                     )
                 ),
             ]
@@ -705,7 +706,7 @@ def rhs_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
                 * (
                     (-1 + x) * x * (-1 + 2 * z) * m_kappa
                     + (
-                        (-1 + (np.pi**2) * (-1 + x) * x) * m_gamma
+                        (-1 + (np.pi**2) * (-1 + x) * x) * m_gamma * m_gamma
                         + 2 * (-1 + x) * x * m_kappa
                     )
                     * np.sin(np.pi * z)
@@ -717,7 +718,7 @@ def rhs_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
                     * (
                         y * (-1 + y + 2 * z - 2 * y * z) * m_kappa
                         + (
-                            (-1 + (np.pi**2) * (-1 + y) * y) * m_gamma
+                            (-1 + (np.pi**2) * (-1 + y) * y) * m_gamma * m_gamma
                             + 2 * (-1 + y) * y * m_kappa
                         )
                         * np.sin(np.pi * z)
@@ -729,7 +730,7 @@ def rhs_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
                 * (
                     (-1 + 2 * y) * (-1 + z) * z * m_kappa
                     + (
-                        (-1 + (np.pi**2) * (-1 + z) * z) * m_gamma
+                        (-1 + (np.pi**2) * (-1 + z) * z) * m_gamma * m_gamma
                         + 2 * (-1 + z) * z * m_kappa
                     )
                     * np.sin(np.pi * y)
@@ -922,7 +923,12 @@ def couple_stress_divergence_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim: int =
     if dim == 2:
         return lambda x, y, z: np.array(
             [
-                -2 * (np.pi**2) * m_gamma * np.sin(np.pi * x) * np.sin(np.pi * y),
+                -2
+                * (np.pi**2)
+                * m_gamma
+                * m_gamma
+                * np.sin(np.pi * x)
+                * np.sin(np.pi * y),
             ]
         )
     else:
@@ -931,15 +937,18 @@ def couple_stress_divergence_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim: int =
                 2
                 * (-1 + (np.pi**2) * (-1 + x) * x)
                 * m_gamma
+                * m_gamma
                 * np.sin(np.pi * y)
                 * np.sin(np.pi * z),
                 2
                 * (-1 + (np.pi**2) * (-1 + y) * y)
                 * m_gamma
+                * m_gamma
                 * np.sin(np.pi * x)
                 * np.sin(np.pi * z),
                 2
                 * (-1 + (np.pi**2) * (-1 + z) * z)
+                * m_gamma
                 * m_gamma
                 * np.sin(np.pi * x)
                 * np.sin(np.pi * y),
