@@ -1042,20 +1042,20 @@ def main():
     report_full_precision_data_Q = False
 
     gamma_values = [1.0e-8, 1.0e-2, 1.0e-4, 1.0]
-    gamma_values = [1.0e-8]
+    gamma_values = [1.0e-2]
     for gamma_value in gamma_values:
-        for k in [1]:
+        for k in [2]:
             methods = method_definition(k)
             for i, method in enumerate(methods):
                 dual_problem_q = False
                 if i in [2, 3, 4]:
                     dual_problem_q = True
 
-                if i != 4:
+                if i != 2:
                     continue
 
                 configuration = {
-                    "n_refinements": 4,
+                    "n_refinements": 1,
                     "dual_problem_Q": dual_problem_q,
                     "write_geometry_Q": write_vtk_files_Q,
                     "write_vtk_Q": write_vtk_files_Q,

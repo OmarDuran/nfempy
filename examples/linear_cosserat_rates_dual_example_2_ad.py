@@ -742,19 +742,19 @@ def hdiv_scaled_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     # solving ls
     st = time.time()
 
-    ksp = PETSc.KSP().create()
+    ksp = PETSc.KSP().create(PETSc.COMM_WORLD)
     ksp.setOperators(A)
     b = A.createVecLeft()
     b.array[:] = -rg
     x = A.createVecRight()
 
-    ksp = PETSc.KSP().create()
-    ksp.create(PETSc.COMM_WORLD)
-    ksp.setOperators(A)
-    ksp.setType("fgmres")
-    ksp.setTolerances(rtol=1e-12, atol=1e-12, divtol=500, max_it=2000)
+    ksp.setType("preonly")
+    ksp.getPC().setType("lu")
+    # ksp.getPC().setFactorPivot(zeropivot=1.0e-3)
+    # https://github.com/erdc/petsc4py/blob/master/src/PETSc/Mat.pyx#L98
+    # ksp.getPC().setFactorOrdering(ord_type="amd")
+    ksp.getPC().setFactorSolverType("mumps")
     ksp.setConvergenceHistory()
-    ksp.getPC().setType("ilu")
     ksp.solve(b, x)
     alpha = x.array
 
