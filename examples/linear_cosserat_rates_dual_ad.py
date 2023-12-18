@@ -578,7 +578,7 @@ def perform_convergence_test(configuration: dict):
 
     n_data = 10
     error_data = np.empty((0, n_data), float)
-    for lh in range(n_ref + 1):
+    for lh in range(n_ref):
         h_val = h * (2**-lh)
         mesher = create_conformal_mesher(domain, h, lh)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
