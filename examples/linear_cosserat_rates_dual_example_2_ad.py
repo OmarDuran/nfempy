@@ -287,7 +287,8 @@ def perform_convergence_test(configuration: dict):
     for lh in range(n_ref):
         h_val = h * (2**-lh)
         mesh_file = "gmsh_files/example_2_l_" + str(lh) + ".msh"
-        gmesh = create_mesh_from_file(mesh_file, 2, write_geometry_vtk)
+        mesh_file = "gmsh_files/example_2_3d.msh"
+        gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
         n_dof, error_vals = hdiv_scaled_cosserat_elasticity(
             gamma_value, method, gmesh, write_vtk
         )
@@ -380,17 +381,17 @@ def method_definition(k_order):
 def main():
     write_vtk_files_Q = True
     report_full_precision_data_Q = False
-    for k in [2]:
+    for k in [1]:
         for method in method_definition(k):
             configuration = {
-                "n_refinements": 3,
+                "n_refinements": 1,
                 "write_geometry_Q": write_vtk_files_Q,
                 "write_vtk_Q": write_vtk_files_Q,
                 "method": method,
                 "report_full_precision_data_Q": report_full_precision_data_Q,
             }
 
-            for d in [2]:
+            for d in [3]:
                 configuration.__setitem__("k_order", k)
                 configuration.__setitem__("dimension", d)
                 perform_convergence_test(configuration)

@@ -7,14 +7,14 @@ hi = 1.0/3.0;
 hs = 2.0/3.0;
 l  = 1.0;
 
-Point(1) = {-1, -1, 0, lc};
-Point(2) = {+hi, -1.0, 0, lc};
-Point(3) = {+hs, -1, 0, lc};
-Point(4) = {+1, -1, 0, lc};
+Point(1) = {0, 0, 0, lc};
+Point(2) = {+hi, 0.0, 0, lc};
+Point(3) = {+hs, 0, 0, lc};
+Point(4) = {+1, 0, 0, lc};
 Point(5) = {+1, +1, 0, lc};
-Point(6) = {-1, +1, 0, lc};
-Point(7) = {-1, +hs, 0, lc};
-Point(8) = {-1, +hi, 0, lc};
+Point(6) = {0, +1, 0, lc};
+Point(7) = {0, +hs, 0, lc};
+Point(8) = {0, +hi, 0, lc};
 
 Point(9) = {+hi, +hi, 0, lc};
 Point(10) = {+hs, +hs, 0, lc};
@@ -40,7 +40,8 @@ Line(13) = {9, 10};
 
 Line{9,10,11,12,13} In Surface{1};
 
-Transfinite Line {9,10,11,12,13} = 10*s Using Progression 1;
+Transfinite Line {11,12,13} = 5*s Using Progression 1;
+Transfinite Line {9,10} = 3*s Using Progression 1;
 Transfinite Line {13} = 5*s Using Progression 1;
 
 
