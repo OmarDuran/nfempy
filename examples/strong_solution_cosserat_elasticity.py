@@ -4,10 +4,7 @@ import numpy as np
 def displacement(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
     if dim == 2:
         return lambda x, y, z: np.array(
-            [
-                (1 - y) * y * np.sin(np.pi * x),
-                (1 - x) * x * np.sin(np.pi * y),
-            ]
+            [(1 - y) * y * np.sin(np.pi * x), (1 - x) * x * np.sin(np.pi * y)]
         )
     else:
         return lambda x, y, z: np.array(
@@ -330,19 +327,22 @@ def couple_stress_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
         return lambda x, y, z: np.sqrt(m_gamma) * np.array(
             [
                 [
-                    (1 - 2 * x) * np.sin(np.pi * y) * np.sin(np.pi * z),
-                    -(np.pi * (-1 + x) * x * np.cos(np.pi * y) * np.sin(np.pi * z)),
-                    -(np.pi * (-1 + x) * x * np.cos(np.pi * z) * np.sin(np.pi * y)),
+                    (1 - x) * np.sin(np.pi * y) * np.sin(np.pi * z)
+                    - x * np.sin(np.pi * y) * np.sin(np.pi * z),
+                    np.pi * (1 - x) * x * np.cos(np.pi * y) * np.sin(np.pi * z),
+                    np.pi * (1 - x) * x * np.cos(np.pi * z) * np.sin(np.pi * y),
                 ],
                 [
-                    -(np.pi * (-1 + y) * y * np.cos(np.pi * x) * np.sin(np.pi * z)),
-                    (1 - 2 * y) * np.sin(np.pi * x) * np.sin(np.pi * z),
-                    -(np.pi * (-1 + y) * y * np.cos(np.pi * z) * np.sin(np.pi * x)),
+                    np.pi * (1 - y) * y * np.cos(np.pi * x) * np.sin(np.pi * z),
+                    (1 - y) * np.sin(np.pi * x) * np.sin(np.pi * z)
+                    - y * np.sin(np.pi * x) * np.sin(np.pi * z),
+                    np.pi * (1 - y) * y * np.cos(np.pi * z) * np.sin(np.pi * x),
                 ],
                 [
-                    -(np.pi * (-1 + z) * z * np.cos(np.pi * x) * np.sin(np.pi * y)),
-                    -(np.pi * (-1 + z) * z * np.cos(np.pi * y) * np.sin(np.pi * x)),
-                    (1 - 2 * z) * np.sin(np.pi * x) * np.sin(np.pi * y),
+                    np.pi * (1 - z) * z * np.cos(np.pi * x) * np.sin(np.pi * y),
+                    np.pi * (1 - z) * z * np.cos(np.pi * y) * np.sin(np.pi * x),
+                    (1 - z) * np.sin(np.pi * x) * np.sin(np.pi * y)
+                    - z * np.sin(np.pi * x) * np.sin(np.pi * y),
                 ],
             ]
         )
