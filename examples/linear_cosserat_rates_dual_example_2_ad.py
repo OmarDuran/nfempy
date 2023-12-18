@@ -381,7 +381,7 @@ def method_definition(k_order):
 def main():
     write_vtk_files_Q = True
     report_full_precision_data_Q = False
-    for k in [1]:
+    for k in [2]:
         for method in method_definition(k):
             configuration = {
                 "n_refinements": 1,

@@ -1,20 +1,25 @@
 // Gmsh project created on Tue Dec 12 23:27:59 2023
 SetFactory("OpenCASCADE");
 
-lcar1 = 0.5;
+lcar1 = 0.15;
 
 length = 1.0;
 height = 1.0;
 depth = 1.0;
 
-Point(newp) = {length/2,height/2,depth,lcar1}; /* Point      1 */
-Point(newp) = {length/2,height/2,0,lcar1}; /* Point      2 */
-Point(newp) = {-length/2,height/2,depth,lcar1}; /* Point      3 */
-Point(newp) = {-length/2,-height/2,depth,lcar1}; /* Point      4 */
-Point(newp) = {length/2,-height/2,depth,lcar1}; /* Point      5 */
-Point(newp) = {length/2,-height/2,0,lcar1}; /* Point      6 */
-Point(newp) = {-length/2,height/2,0,lcar1}; /* Point      7 */
-Point(newp) = {-length/2,-height/2,0,lcar1}; /* Point      8 */
+xs = length/2;
+ys = height/2;
+
+Point(newp) = {length/2+xs,height/2+ys,depth,lcar1}; /* Point      1 */
+Point(newp) = {length/2+xs,height/2+ys,0,lcar1}; /* Point      2 */
+Point(newp) = {-length/2+xs,height/2+ys,depth,lcar1}; /* Point      3 */
+Point(newp) = {-length/2+xs,-height/2+ys,depth,lcar1}; /* Point      4 */
+Point(newp) = {length/2+xs,-height/2+ys,depth,lcar1}; /* Point      5 */
+Point(newp) = {length/2+xs,-height/2+ys,0,lcar1}; /* Point      6 */
+Point(newp) = {-length/2+xs,height/2+ys,0,lcar1}; /* Point      7 */
+Point(newp) = {-length/2+xs,-height/2+ys,0,lcar1}; /* Point      8 */
+
+
 Line(1) = {3,1};
 Line(2) = {3,7};
 Line(3) = {7,2};
