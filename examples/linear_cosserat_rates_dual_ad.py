@@ -2,8 +2,8 @@ import functools
 import time
 
 import numpy as np
-# import strong_solution_cosserat_elasticity as lce
-import strong_solution_cosserat_elasticity_linear_potentials as lce
+import strong_solution_cosserat_elasticity as lce
+# import strong_solution_cosserat_elasticity_linear_potentials as lce
 from petsc4py import PETSc
 
 from basis.element_data import ElementData
@@ -34,308 +34,6 @@ from postprocess.projectors import l2_projector
 
 # import line_profiler
 import scipy as sp
-
-
-def h1_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
-    dim = gmesh.dimension
-
-    # FESpace: data
-    u_k_order = method[1]["u"][1]
-    t_k_order = method[1]["t"][1]
-
-    u_components = 2
-    t_components = 1
-    if dim == 3:
-        u_components = 3
-        t_components = 3
-    u_family = method[1]["u"][0]
-    t_family = method[1]["t"][0]
-
-    discrete_spaces_data = {
-        "u": (dim, u_components, u_family, u_k_order, gmesh),
-        "t": (dim, t_components, t_family, t_k_order, gmesh),
-    }
-
-    u_disc_Q = False
-    t_disc_Q = False
-    discrete_spaces_disc = {
-        "u": u_disc_Q,
-        "t": t_disc_Q,
-    }
-
-    u_field_bc_physical_tags = [2, 3, 4, 5]
-    t_field_bc_physical_tags = [2, 3, 4, 5]
-    if dim == 3:
-        u_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
-        t_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
-    discrete_spaces_bc_physical_tags = {
-        "u": u_field_bc_physical_tags,
-        "t": t_field_bc_physical_tags,
-    }
-
-    fe_space = ProductSpace(discrete_spaces_data)
-    fe_space.make_subspaces_discontinuous(discrete_spaces_disc)
-    fe_space.build_structures(discrete_spaces_bc_physical_tags)
-
-    n_dof_g = fe_space.n_dof
-    rg = np.zeros(n_dof_g)
-    alpha = np.zeros(n_dof_g)
-    print("n_dof: ", n_dof_g)
-
-    # Assembler
-    st = time.time()
-    A = PETSc.Mat()
-    A.createAIJ([n_dof_g, n_dof_g])
-
-    # Material data
-    m_lambda = 1.0
-    m_mu = 1.0
-    m_kappa = m_mu
-    m_gamma = gamma
-
-    # exact solution
-    u_exact = lce.displacement(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    t_exact = lce.rotation(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    grad_u_exact = lce.displacement_gradient(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    grad_t_exact = lce.rotation_gradient(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    s_exact = lce.stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    m_exact = lce.couple_stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    f_rhs = lce.rhs(m_lambda, m_mu, m_kappa, m_gamma, dim)
-
-    def f_lambda(x, y, z):
-        return m_lambda
-
-    def f_mu(x, y, z):
-        return m_mu
-
-    def f_kappa(x, y, z):
-        return m_kappa
-
-    def f_gamma(x, y, z):
-        return m_gamma
-
-    m_functions = {
-        "rhs": f_rhs,
-        "lambda": f_lambda,
-        "mu": f_mu,
-        "kappa": f_kappa,
-        "gamma": f_gamma,
-    }
-
-    exact_functions = {
-        "u": u_exact,
-        "t": t_exact,
-        "grad_u": grad_u_exact,
-        "grad_t": grad_t_exact,
-    }
-
-    weak_form = LCEPrimalWeakForm(fe_space)
-    weak_form.functions = m_functions
-    bc_weak_form = LCEPrimalWeakFormBCDirichlet(fe_space)
-    bc_weak_form.functions = exact_functions
-
-    def scatter_form_data(A, i, weak_form):
-        # destination indexes
-        dest = weak_form.space.destination_indexes(i)
-        alpha_l = alpha[dest]
-        r_el, j_el = weak_form.evaluate_form(i, alpha_l)
-
-        # contribute rhs
-        rg[dest] += r_el
-
-        # contribute lhs
-        data = j_el.ravel()
-        row = np.repeat(dest, len(dest))
-        col = np.tile(dest, len(dest))
-        nnz = data.shape[0]
-        for k in range(nnz):
-            A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
-
-    def scatter_bc_form(A, i, bc_weak_form):
-        dest = fe_space.bc_destination_indexes(i)
-        alpha_l = alpha[dest]
-        r_el, j_el = bc_weak_form.evaluate_form(i, alpha_l)
-
-        # contribute rhs
-        rg[dest] += r_el
-
-        # contribute lhs
-        data = j_el.ravel()
-        row = np.repeat(dest, len(dest))
-        col = np.tile(dest, len(dest))
-        nnz = data.shape[0]
-        for k in range(nnz):
-            A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
-
-    n_els = len(fe_space.discrete_spaces["u"].elements)
-    [scatter_form_data(A, i, weak_form) for i in range(n_els)]
-
-    n_bc_els = len(fe_space.discrete_spaces["u"].bc_elements)
-    [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
-
-    A.assemble()
-
-    et = time.time()
-    elapsed_time = et - st
-    print("Assembly time:", elapsed_time, "seconds")
-
-    # solving ls
-    st = time.time()
-    ksp = PETSc.KSP().create()
-    ksp.setOperators(A)
-    b = A.createVecLeft()
-    b.array[:] = -rg
-    x = A.createVecRight()
-
-    ksp = PETSc.KSP().create()
-    ksp.create(PETSc.COMM_WORLD)
-    ksp.setOperators(A)
-    ksp.setType("fcg")
-    ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=500, max_it=2000)
-    ksp.setConvergenceHistory()
-    ksp.getPC().setType("ilu")
-    ksp.solve(b, x)
-    alpha = x.array
-
-    et = time.time()
-    elapsed_time = et - st
-    print("Linear solver time:", elapsed_time, "seconds")
-
-    # Computing stress L2 error
-    def compute_s_l2_error(i, fe_space, m_mu, m_lambda, m_kappa, dim):
-        l2_error = 0.0
-        u_space = fe_space.discrete_spaces["u"]
-        t_space = fe_space.discrete_spaces["t"]
-
-        t_components = t_space.n_comp
-        u_data: ElementData = u_space.elements[i].data
-        t_data: ElementData = t_space.elements[i].data
-
-        weights = u_data.quadrature.weights
-
-        x = u_data.mapping.x
-        det_jac = u_data.mapping.det_jac
-        inv_jac = u_data.mapping.inv_jac
-
-        u_phi_tab = u_data.basis.phi
-        t_phi_tab = t_data.basis.phi
-        n_u_phi = u_phi_tab.shape[2]
-        n_t_phi = t_phi_tab.shape[2]
-
-        # destination indexes
-        dest_u = fe_space.discrete_spaces_destination_indexes(i)["u"]
-        dest_t = fe_space.discrete_spaces_destination_indexes(i)["t"]
-        alpha_u_l = alpha[dest_u]
-        alpha_t_l = alpha[dest_t]
-
-        # for each integration point
-
-        alpha_star_u = np.array(np.split(alpha_u_l, n_u_phi))
-        alpha_star_t = np.array(np.split(alpha_t_l, n_t_phi))
-        t_h_s = (t_phi_tab[0, :, :, 0] @ alpha_star_t[:, 0:t_components]).T
-        for i, omega in enumerate(weights):
-            s_e = s_exact(x[i, 0], x[i, 1], x[i, 2])
-            grad_phi = inv_jac[i].T @ u_phi_tab[1 : u_phi_tab.shape[0] + 1, i, :, 0]
-            grad_uh = grad_phi[0:dim] @ alpha_star_u[:, 0:dim]
-            if dim == 2:
-                t_h = np.array([[0.0, -t_h_s[0, i]], [t_h_s[0, i], 0.0]])
-            else:
-                t_h = np.array(
-                    [
-                        [0.0, -t_h_s[2, i], +t_h_s[1, i]],
-                        [+t_h_s[2, i], 0.0, -t_h_s[0, i]],
-                        [-t_h_s[1, i], +t_h_s[0, i], 0.0],
-                    ]
-                )
-            eps_h = grad_uh.T + t_h
-            symm_eps = 0.5 * (eps_h + eps_h.T)
-            skew_eps = 0.5 * (eps_h - eps_h.T)
-            s_h = (
-                2.0 * m_mu * symm_eps
-                + 2.0 * m_kappa * skew_eps
-                + m_lambda * eps_h.trace() * np.identity(dim)
-            )
-            diff_s = s_e - s_h
-            l2_error += det_jac[i] * weights[i] * np.trace(diff_s.T @ diff_s)
-        return l2_error
-
-    # Computing couple stress L2 error
-    def compute_m_l2_error(i, fe_space, m_gamma, dim):
-        l2_error = 0.0
-        t_space = fe_space.discrete_spaces["t"]
-
-        n_components = t_space.n_comp
-        el_data = t_space.elements[i].data
-
-        weights = el_data.quadrature.weights
-        phi_tab = el_data.basis.phi
-
-        x = el_data.mapping.x
-        det_jac = el_data.mapping.det_jac
-        inv_jac = el_data.mapping.inv_jac
-
-        # scattering dof
-        dest = fe_space.discrete_spaces_destination_indexes(i)["t"]
-        alpha_l = alpha[dest]
-
-        # for each integration point
-        n_phi = phi_tab.shape[2]
-        alpha_star = np.array(np.split(alpha_l, n_phi))
-        for i, omega in enumerate(weights):
-            m_e = m_exact(x[i, 0], x[i, 1], x[i, 2])
-            grad_phi = inv_jac[i].T @ phi_tab[1 : phi_tab.shape[0] + 1, i, :, 0]
-            grad_th = grad_phi[0:dim] @ alpha_star[:, 0:n_components]
-            m_h = m_gamma * grad_th.T
-            diff_m = m_e - m_h
-            l2_error += det_jac[i] * weights[i] * np.trace(diff_m.T @ diff_m)
-        return l2_error
-
-    st = time.time()
-    u_l2_error, t_l2_error = l2_error(dim, fe_space, exact_functions, alpha)
-    grad_u_l2_error, grad_t_l2_error = grad_error(dim, fe_space, exact_functions, alpha)
-    s_error_vec = [
-        compute_s_l2_error(i, fe_space, m_mu, m_lambda, m_kappa, dim)
-        for i in range(n_els)
-    ]
-    m_error_vec = [compute_m_l2_error(i, fe_space, m_gamma, dim) for i in range(n_els)]
-    et = time.time()
-    elapsed_time = et - st
-    print("L2-error time:", elapsed_time, "seconds")
-    s_l2_error = np.sqrt(functools.reduce(lambda x, y: x + y, s_error_vec))
-    m_l2_error = np.sqrt(functools.reduce(lambda x, y: x + y, m_error_vec))
-    print("L2-error displacement: ", u_l2_error)
-    print("L2-error rotation: ", u_l2_error)
-    print("L2-error stress: ", s_l2_error)
-    print("L2-error couple stress: ", m_l2_error)
-    print("L2-error grad displacement: ", grad_u_l2_error)
-    print("L2-error grad rotation: ", grad_t_l2_error)
-
-    if write_vtk_q:
-        st = time.time()
-        file_name = method[0] + "_rates_h1_cosserat_elasticity.vtk"
-        write_vtk_file_with_exact_solution(
-            file_name, gmesh, fe_space, exact_functions, alpha
-        )
-        et = time.time()
-        elapsed_time = et - st
-        print("Post-processing time:", elapsed_time, "seconds")
-
-    h_grad_u_error = np.sqrt((u_l2_error**2) + (grad_u_l2_error**2))
-    h_grad_t_error = np.sqrt((t_l2_error**2) + (grad_t_l2_error**2))
-
-    return np.array(
-        [
-            u_l2_error,
-            t_l2_error,
-            s_l2_error,
-            m_l2_error,
-            grad_u_l2_error,
-            grad_t_l2_error,
-            h_grad_u_error,
-            h_grad_t_error,
-        ]
-    )
-
 
 def hdiv_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
@@ -558,7 +256,7 @@ def hdiv_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
 
     if write_vtk_q:
         st = time.time()
-        file_name = "rates_hdiv_cosserat_elasticity.vtk"
+        file_name = method[0] + "_rates_hdiv_cosserat_elasticity.vtk"
         write_vtk_file_with_exact_solution(
             file_name, gmesh, fe_space, exact_functions, alpha
         )
@@ -714,8 +412,6 @@ def hdiv_scaled_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
 
     weak_form = LCEScaledDualWeakForm(fe_space)
     weak_form.functions = m_functions
-    bc_weak_form = LCEDualWeakFormBCDirichlet(fe_space)
-    bc_weak_form.functions = exact_functions
 
     def scatter_form_data(A, i, weak_form):
         # destination indexes
@@ -734,27 +430,8 @@ def hdiv_scaled_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
         for k in range(nnz):
             A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
-    def scatter_bc_form(A, i, bc_weak_form):
-        dest = fe_space.bc_destination_indexes(i)
-        alpha_l = alpha[dest]
-        r_el, j_el = bc_weak_form.evaluate_form(i, alpha_l)
-
-        # contribute rhs
-        rg[dest] += r_el
-
-        # contribute lhs
-        data = j_el.ravel()
-        row = np.repeat(dest, len(dest))
-        col = np.tile(dest, len(dest))
-        nnz = data.shape[0]
-        for k in range(nnz):
-            A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
-
     n_els = len(fe_space.discrete_spaces["s"].elements)
     [scatter_form_data(A, i, weak_form) for i in range(n_els)]
-
-    n_bc_els = len(fe_space.discrete_spaces["s"].bc_elements)
-    [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
 
     A.assemble()
 
@@ -814,7 +491,7 @@ def hdiv_scaled_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
 
     if write_vtk_q:
         st = time.time()
-        file_name = "rates_hdiv_cosserat_elasticity.vtk"
+        file_name = method[0] + "_rates_hdiv_cosserat_elasticity.vtk"
         write_vtk_file_with_exact_solution(
             file_name, gmesh, fe_space, exact_functions, alpha
         )
@@ -904,12 +581,13 @@ def create_mesh_from_file(file_name, dim, write_vtk_q=False):
 
 
 def perform_convergence_test(configuration: dict):
+
     # retrieve parameters from dictionary
     k_order = configuration.get("k_order")
     method = configuration.get("method")
     n_ref = configuration.get("n_refinements")
     dimension = configuration.get("dimension")
-    dual_form_q = configuration.get("dual_problem_Q", False)
+    dual_form_q = configuration.get("dual_problem_Q", True)
     gamma_value = configuration.get("gamma_value", 1.0)
     write_geometry_vtk = configuration.get("write_geometry_Q", False)
     write_vtk = configuration.get("write_vtk_Q", False)
@@ -927,12 +605,12 @@ def perform_convergence_test(configuration: dict):
     error_data = np.empty((0, n_data), float)
     for lh in range(n_ref):
         h_val = h * (2**-lh)
-        mesher = create_conformal_mesher(domain, h_val, 0)
+        mesher = create_conformal_mesher(domain, h, lh)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
-        if dual_form_q:
+        if method[0] == 'm1_dc':
             error_vals = hdiv_cosserat_elasticity(gamma_value, method, gmesh, write_vtk)
         else:
-            error_vals = h1_cosserat_elasticity(gamma_value, method, gmesh, write_vtk)
+            error_vals = hdiv_scaled_cosserat_elasticity(gamma_value, method, gmesh, write_vtk)
         chunk = np.concatenate([[h_val], error_vals])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
 
@@ -950,11 +628,7 @@ def perform_convergence_test(configuration: dict):
         print("error rates data: ", rates_data)
 
     np.set_printoptions(precision=3)
-    if dual_form_q:
-        print("Dual problem")
-    else:
-        print("Primal problem")
-
+    print("Dual problem")
     print("Polynomial order: ", k_order)
     print("Dimension: ", dimension)
     print("rounded error data: ", error_data)
@@ -1011,52 +685,37 @@ def perform_convergence_test(configuration: dict):
 
 
 def method_definition(k_order):
-    method_1_pc = {"u": ("Lagrange", k_order + 1), "t": ("Lagrange", k_order)}
-    method_2_pnc = {"u": ("Lagrange", k_order), "t": ("Lagrange", k_order)}
-    method_3_dc = {
+    method_1_pc = {
         "s": ("RT", k_order),
         "m": ("RT", k_order + 1),
         "u": ("Lagrange", k_order - 1),
         "t": ("Lagrange", k_order),
     }
-    method_4_dc = {
-        "s": ("BDM", k_order),
-        "m": ("BDM", k_order + 1),
-        "u": ("Lagrange", k_order - 1),
-        "t": ("Lagrange", k_order),
-    }
-    method_5_dnc = {
+    method_2_pnc = {
         "s": ("BDM", k_order),
         "m": ("RT", k_order),
         "u": ("Lagrange", k_order - 1),
         "t": ("Lagrange", k_order - 1),
     }
 
-    methods = [method_1_pc, method_2_pnc, method_3_dc, method_4_dc, method_5_dnc]
-    method_names = ["m1_pc", "m2_pnc", "m3_dc", "m4_dc", "m5_dnc"]
+    methods = [method_1_pc, method_2_pnc]
+    method_names = ["m1_dc", "m2_dnc"]
     return zip(method_names, methods)
 
 
 def main():
+
     write_vtk_files_Q = True
     report_full_precision_data_Q = False
 
-    gamma_values = [1.0e-8, 1.0e-2, 1.0e-4, 1.0]
-    gamma_values = [1.0e-2]
+    gamma_values = [1.0e-8, 1.0e-4, 1.0e-2, 1.0]
     for gamma_value in gamma_values:
-        for k in [2]:
+        for k in [1, 2]:
             methods = method_definition(k)
             for i, method in enumerate(methods):
-                dual_problem_q = False
-                if i in [2, 3, 4]:
-                    dual_problem_q = True
-
-                if i != 2:
-                    continue
 
                 configuration = {
-                    "n_refinements": 1,
-                    "dual_problem_Q": dual_problem_q,
+                    "n_refinements": 2,
                     "write_geometry_Q": write_vtk_files_Q,
                     "write_vtk_Q": write_vtk_files_Q,
                     "method": method,
@@ -1064,7 +723,7 @@ def main():
                     "report_full_precision_data_Q": report_full_precision_data_Q,
                 }
 
-                for d in [3]:
+                for d in [2]:
                     configuration.__setitem__("k_order", k)
                     configuration.__setitem__("dimension", d)
                     perform_convergence_test(configuration)
