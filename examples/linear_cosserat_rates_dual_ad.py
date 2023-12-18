@@ -594,7 +594,7 @@ def perform_convergence_test(configuration: dict):
         error_data = np.append(error_data, np.array([chunk]), axis=0)
 
     rates_data = np.empty((0, n_data - 2), float)
-    for i in range(error_data.shape[0] - 2):
+    for i in range(error_data.shape[0] - 1):
         chunk_b = np.log(error_data[i])
         chunk_e = np.log(error_data[i + 1])
         h_step = chunk_e[1] - chunk_b[1]
@@ -692,7 +692,7 @@ def main():
             methods = method_definition(k)
             for i, method in enumerate(methods):
                 configuration = {
-                    "n_refinements": 3,
+                    "n_refinements": 4,
                     "write_geometry_Q": write_vtk_files_Q,
                     "write_vtk_Q": write_vtk_files_Q,
                     "method": method,
@@ -700,7 +700,7 @@ def main():
                     "report_full_precision_data_Q": report_full_precision_data_Q,
                 }
 
-                for d in [2]:
+                for d in [3]:
                     configuration.__setitem__("k_order", k)
                     configuration.__setitem__("dimension", d)
                     perform_convergence_test(configuration)
