@@ -3,6 +3,7 @@ import time
 
 import numpy as np
 import strong_solution_cosserat_elasticity as lce
+
 # import strong_solution_cosserat_elasticity_linear_potentials as lce
 from petsc4py import PETSc
 
@@ -34,6 +35,7 @@ from postprocess.projectors import l2_projector
 
 # import line_profiler
 import scipy as sp
+
 
 def hdiv_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
@@ -243,7 +245,7 @@ def hdiv_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     h_div_s_error = np.sqrt((s_l2_error**2) + (div_s_l2_error**2))
     h_div_m_error = np.sqrt((m_l2_error**2) + (div_m_l2_error**2))
 
-    return np.array(
+    return n_dof_g, np.array(
         [
             u_l2_error,
             t_l2_error,
@@ -479,7 +481,7 @@ def hdiv_scaled_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     h_div_s_error = div_s_l2_error
     h_div_m_error = div_m_l2_error
 
-    return np.array(
+    return n_dof_g, np.array(
         [
             u_l2_error,
             t_l2_error,
@@ -555,7 +557,6 @@ def create_mesh_from_file(file_name, dim, write_vtk_q=False):
 
 
 def perform_convergence_test(configuration: dict):
-
     # retrieve parameters from dictionary
     k_order = configuration.get("k_order")
     method = configuration.get("method")
@@ -575,26 +576,30 @@ def perform_convergence_test(configuration: dict):
     # Create a unit squared or a unit cube
     domain = create_domain(dimension)
 
-    n_data = 9
+    n_data = 10
     error_data = np.empty((0, n_data), float)
-    for lh in range(n_ref+1):
+    for lh in range(n_ref + 1):
         h_val = h * (2**-lh)
         mesher = create_conformal_mesher(domain, h, lh)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
-        if method[0] == 'm1_dc':
-            error_vals = hdiv_cosserat_elasticity(gamma_value, method, gmesh, write_vtk)
+        if method[0] == "m1_dc":
+            n_dof, error_vals = hdiv_cosserat_elasticity(
+                gamma_value, method, gmesh, write_vtk
+            )
         else:
-            error_vals = hdiv_scaled_cosserat_elasticity(gamma_value, method, gmesh, write_vtk)
-        chunk = np.concatenate([[h_val], error_vals])
+            n_dof, error_vals = hdiv_scaled_cosserat_elasticity(
+                gamma_value, method, gmesh, write_vtk
+            )
+        chunk = np.concatenate([[n_dof, h_val], error_vals])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
 
-    rates_data = np.empty((0, n_data - 1), float)
-    for i in range(error_data.shape[0] - 1):
+    rates_data = np.empty((0, n_data - 2), float)
+    for i in range(error_data.shape[0] - 2):
         chunk_b = np.log(error_data[i])
         chunk_e = np.log(error_data[i + 1])
-        h_step = chunk_e[0] - chunk_b[0]
+        h_step = chunk_e[1] - chunk_b[1]
         partial = (chunk_e - chunk_b) / h_step
-        rates_data = np.append(rates_data, np.array([list(partial[1:n_data])]), axis=0)
+        rates_data = np.append(rates_data, np.array([list(partial[2:n_data])]), axis=0)
 
     # minimal report
     if report_full_precision_data:
@@ -616,7 +621,7 @@ def perform_convergence_test(configuration: dict):
     base_str_header = primal_header
     if dual_form_q:
         base_str_header = dual_header
-    e_str_header = "h, " + base_str_header
+    e_str_header = "n_dof, h, " + base_str_header
 
     file_name_prefix = (
         method[0]
@@ -678,7 +683,6 @@ def method_definition(k_order):
 
 
 def main():
-
     write_vtk_files_Q = True
     report_full_precision_data_Q = False
 
@@ -687,7 +691,6 @@ def main():
         for k in [1]:
             methods = method_definition(k)
             for i, method in enumerate(methods):
-
                 configuration = {
                     "n_refinements": 3,
                     "write_geometry_Q": write_vtk_files_Q,
@@ -697,7 +700,7 @@ def main():
                     "report_full_precision_data_Q": report_full_precision_data_Q,
                 }
 
-                for d in [3]:
+                for d in [2]:
                     configuration.__setitem__("k_order", k)
                     configuration.__setitem__("dimension", d)
                     perform_convergence_test(configuration)

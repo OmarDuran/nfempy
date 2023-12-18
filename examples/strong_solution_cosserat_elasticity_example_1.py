@@ -88,30 +88,222 @@ import numpy as np
 #
 #
 
+
 def gamma_s(dim: int = 2):
     if dim == 2:
-        return lambda x, y, z: np.min([np.ones_like(x),np.max([np.zeros_like(x),np.max([3*x,3*y],axis=0)-np.ones_like(x)],axis=0)],axis=0)
+        return lambda x, y, z: np.min(
+            [
+                np.ones_like(x),
+                np.max(
+                    [
+                        np.zeros_like(x),
+                        np.max([3 * x, 3 * y], axis=0) - np.ones_like(x),
+                    ],
+                    axis=0,
+                ),
+            ],
+            axis=0,
+        )
     else:
-        return lambda x, y, z: np.min([np.ones_like(x),np.max([np.zeros_like(x),np.max([3*x,3*y,3*z],axis=0)-np.ones_like(x)],axis=0)],axis=0)
+        return lambda x, y, z: np.min(
+            [
+                np.ones_like(x),
+                np.max(
+                    [
+                        np.zeros_like(x),
+                        np.max([3 * x, 3 * y, 3 * z], axis=0) - np.ones_like(x),
+                    ],
+                    axis=0,
+                ),
+            ],
+            axis=0,
+        )
+
 
 def grad_gamma_s(dim: int = 2):
     if dim == 2:
-        return lambda x, y, z: np.array([np.where(np.logical_or(np.logical_and(x-y >= 0,x >= 2.0/3.0), np.logical_and(x-y < 0,y >= 2.0/3.0)), np.zeros_like(x), np.where(np.logical_and(np.logical_and(1.0/3.0 < x, x < 2.0/3.0), x-y >= 0.0), 3.0*np.ones_like(x), np.zeros_like(x))), np.where(np.logical_or(np.logical_and(x-y >= 0,x >= 2.0/3.0),np.logical_or(np.logical_and(x-y < 0,y >= 2.0/3.0),np.logical_and(1.0/3.0 < x, x < 2.0/3.0), x-y >= 0.0)), np.zeros_like(x), np.where(np.logical_and(np.logical_and(1.0/3.0 < y, y < 2.0/3.0), x-y < 0.0), 3.0*np.ones_like(x), np.zeros_like(x)))])
+        return lambda x, y, z: np.array(
+            [
+                np.where(
+                    np.logical_or(
+                        np.logical_and(x - y >= 0, x >= 2.0 / 3.0),
+                        np.logical_and(x - y < 0, y >= 2.0 / 3.0),
+                    ),
+                    np.zeros_like(x),
+                    np.where(
+                        np.logical_and(
+                            np.logical_and(1.0 / 3.0 < x, x < 2.0 / 3.0), x - y >= 0.0
+                        ),
+                        3.0 * np.ones_like(x),
+                        np.zeros_like(x),
+                    ),
+                ),
+                np.where(
+                    np.logical_or(
+                        np.logical_and(x - y >= 0, x >= 2.0 / 3.0),
+                        np.logical_or(
+                            np.logical_and(x - y < 0, y >= 2.0 / 3.0),
+                            np.logical_and(1.0 / 3.0 < x, x < 2.0 / 3.0),
+                            x - y >= 0.0,
+                        ),
+                    ),
+                    np.zeros_like(x),
+                    np.where(
+                        np.logical_and(
+                            np.logical_and(1.0 / 3.0 < y, y < 2.0 / 3.0), x - y < 0.0
+                        ),
+                        3.0 * np.ones_like(x),
+                        np.zeros_like(x),
+                    ),
+                ),
+            ]
+        )
     else:
-        return lambda x, y, z: np.array([np.where(np.logical_or(np.logical_and(x-y >= 0,x >= 2.0/3.0), np.logical_and(x-y < 0,y >= 2.0/3.0)), np.zeros_like(x), np.where(np.logical_and(np.logical_and(1.0/3.0 < x, x < 2.0/3.0), x-y >= 0.0), 3.0*np.ones_like(x), np.zeros_like(x))), np.where(np.logical_or(np.logical_and(x-y >= 0,x >= 2.0/3.0),np.logical_or(np.logical_and(x-y < 0,y >= 2.0/3.0),np.logical_and(1.0/3.0 < x, x < 2.0/3.0), x-y >= 0.0)), np.zeros_like(x), np.where(np.logical_and(np.logical_and(1.0/3.0 < y, y < 2.0/3.0), x-y < 0.0), 3.0*np.ones_like(x), np.zeros_like(x)))])
+        return lambda x, y, z: np.array(
+            [
+                np.where(
+                    np.logical_or(
+                        np.logical_and(x - y >= 0, x >= 2.0 / 3.0),
+                        np.logical_and(x - y < 0, y >= 2.0 / 3.0),
+                    ),
+                    np.zeros_like(x),
+                    np.where(
+                        np.logical_and(
+                            np.logical_and(1.0 / 3.0 < x, x < 2.0 / 3.0), x - y >= 0.0
+                        ),
+                        3.0 * np.ones_like(x),
+                        np.zeros_like(x),
+                    ),
+                ),
+                np.where(
+                    np.logical_or(
+                        np.logical_and(x - y >= 0, x >= 2.0 / 3.0),
+                        np.logical_or(
+                            np.logical_and(x - y < 0, y >= 2.0 / 3.0),
+                            np.logical_and(1.0 / 3.0 < x, x < 2.0 / 3.0),
+                            x - y >= 0.0,
+                        ),
+                    ),
+                    np.zeros_like(x),
+                    np.where(
+                        np.logical_and(
+                            np.logical_and(1.0 / 3.0 < y, y < 2.0 / 3.0), x - y < 0.0
+                        ),
+                        3.0 * np.ones_like(x),
+                        np.zeros_like(x),
+                    ),
+                ),
+            ]
+        )
+
 
 def gamma_eval(x, y, z, dim: int = 2):
     if dim == 2:
-        return np.min([np.ones_like(x),np.max([np.zeros_like(x),np.max([3*x,3*y],axis=0)-np.ones_like(x)],axis=0)],axis=0)
+        return np.min(
+            [
+                np.ones_like(x),
+                np.max(
+                    [
+                        np.zeros_like(x),
+                        np.max([3 * x, 3 * y], axis=0) - np.ones_like(x),
+                    ],
+                    axis=0,
+                ),
+            ],
+            axis=0,
+        )
     else:
-        return np.min([np.ones_like(x),np.max([np.zeros_like(x),np.max([3*x,3*y,3*z],axis=0)-np.ones_like(x)],axis=0)],axis=0)
+        return np.min(
+            [
+                np.ones_like(x),
+                np.max(
+                    [
+                        np.zeros_like(x),
+                        np.max([3 * x, 3 * y, 3 * z], axis=0) - np.ones_like(x),
+                    ],
+                    axis=0,
+                ),
+            ],
+            axis=0,
+        )
 
 
 def grad_gamma_eval(x, y, z, dim: int = 2):
     if dim == 2:
-        return np.array([np.where(np.logical_or(np.logical_and(x-y >= 0,x >= 2.0/3.0), np.logical_and(x-y < 0,y >= 2.0/3.0)), np.zeros_like(x), np.where(np.logical_and(np.logical_and(1.0/3.0 < x, x < 2.0/3.0), x-y >= 0.0), 3.0*np.ones_like(x), np.zeros_like(x))), np.where(np.logical_or(np.logical_and(x-y >= 0,x >= 2.0/3.0),np.logical_or(np.logical_and(x-y < 0,y >= 2.0/3.0),np.logical_and(1.0/3.0 < x, x < 2.0/3.0), x-y >= 0.0)), np.zeros_like(x), np.where(np.logical_and(np.logical_and(1.0/3.0 < y, y < 2.0/3.0), x-y < 0.0), 3.0*np.ones_like(x), np.zeros_like(x)))])
+        return np.array(
+            [
+                np.where(
+                    np.logical_or(
+                        np.logical_and(x - y >= 0, x >= 2.0 / 3.0),
+                        np.logical_and(x - y < 0, y >= 2.0 / 3.0),
+                    ),
+                    np.zeros_like(x),
+                    np.where(
+                        np.logical_and(
+                            np.logical_and(1.0 / 3.0 < x, x < 2.0 / 3.0), x - y >= 0.0
+                        ),
+                        3.0 * np.ones_like(x),
+                        np.zeros_like(x),
+                    ),
+                ),
+                np.where(
+                    np.logical_or(
+                        np.logical_and(x - y >= 0, x >= 2.0 / 3.0),
+                        np.logical_or(
+                            np.logical_and(x - y < 0, y >= 2.0 / 3.0),
+                            np.logical_and(1.0 / 3.0 < x, x < 2.0 / 3.0),
+                            x - y >= 0.0,
+                        ),
+                    ),
+                    np.zeros_like(x),
+                    np.where(
+                        np.logical_and(
+                            np.logical_and(1.0 / 3.0 < y, y < 2.0 / 3.0), x - y < 0.0
+                        ),
+                        3.0 * np.ones_like(x),
+                        np.zeros_like(x),
+                    ),
+                ),
+            ]
+        )
     else:
-        return np.array([np.where(np.logical_or(np.logical_and(x-y >= 0,x >= 2.0/3.0), np.logical_and(x-y < 0,y >= 2.0/3.0)), np.zeros_like(x), np.where(np.logical_and(np.logical_and(1.0/3.0 < x, x < 2.0/3.0), x-y >= 0.0), 3.0*np.ones_like(x), np.zeros_like(x))), np.where(np.logical_or(np.logical_and(x-y >= 0,x >= 2.0/3.0),np.logical_or(np.logical_and(x-y < 0,y >= 2.0/3.0),np.logical_and(1.0/3.0 < x, x < 2.0/3.0), x-y >= 0.0)), np.zeros_like(x), np.where(np.logical_and(np.logical_and(1.0/3.0 < y, y < 2.0/3.0), x-y < 0.0), 3.0*np.ones_like(x), np.zeros_like(x)))])
+        return np.array(
+            [
+                np.where(
+                    np.logical_or(
+                        np.logical_and(x - y >= 0, x >= 2.0 / 3.0),
+                        np.logical_and(x - y < 0, y >= 2.0 / 3.0),
+                    ),
+                    np.zeros_like(x),
+                    np.where(
+                        np.logical_and(
+                            np.logical_and(1.0 / 3.0 < x, x < 2.0 / 3.0), x - y >= 0.0
+                        ),
+                        3.0 * np.ones_like(x),
+                        np.zeros_like(x),
+                    ),
+                ),
+                np.where(
+                    np.logical_or(
+                        np.logical_and(x - y >= 0, x >= 2.0 / 3.0),
+                        np.logical_or(
+                            np.logical_and(x - y < 0, y >= 2.0 / 3.0),
+                            np.logical_and(1.0 / 3.0 < x, x < 2.0 / 3.0),
+                            x - y >= 0.0,
+                        ),
+                    ),
+                    np.zeros_like(x),
+                    np.where(
+                        np.logical_and(
+                            np.logical_and(1.0 / 3.0 < y, y < 2.0 / 3.0), x - y < 0.0
+                        ),
+                        3.0 * np.ones_like(x),
+                        np.zeros_like(x),
+                    ),
+                ),
+            ]
+        )
+
 
 def displacement(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
     if dim == 2:
