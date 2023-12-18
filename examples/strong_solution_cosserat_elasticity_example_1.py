@@ -139,13 +139,15 @@ def grad_gamma_s(dim: int = 2):
                     ),
                 ),
                 np.where(
-                    np.logical_or(
-                        np.logical_and(x - y >= 0, x >= 2.0 / 3.0),
-                        np.logical_or(
-                            np.logical_and(x - y < 0, y >= 2.0 / 3.0),
-                            np.logical_and(1.0 / 3.0 < x, x < 2.0 / 3.0),
-                            x - y >= 0.0,
-                        ),
+                    np.logical_or.reduce(
+                        (
+                            np.logical_and(x - y >= 0, x >= 2.0 / 3.0),
+                            np.logical_and(x - y < 0.0, y >= 2.0 / 3.0),
+                            np.logical_and(
+                                np.logical_and(1.0 / 3.0 < x, x < 2.0 / 3.0),
+                                x - y >= 0.0,
+                            ),
+                        )
                     ),
                     np.zeros_like(x),
                     np.where(
@@ -247,13 +249,15 @@ def grad_gamma_eval(x, y, z, dim: int = 2):
                     ),
                 ),
                 np.where(
-                    np.logical_or(
-                        np.logical_and(x - y >= 0, x >= 2.0 / 3.0),
-                        np.logical_or(
-                            np.logical_and(x - y < 0, y >= 2.0 / 3.0),
-                            np.logical_and(1.0 / 3.0 < x, x < 2.0 / 3.0),
-                            x - y >= 0.0,
-                        ),
+                    np.logical_or.reduce(
+                        (
+                            np.logical_and(x - y >= 0, x >= 2.0 / 3.0),
+                            np.logical_and(x - y < 0.0, y >= 2.0 / 3.0),
+                            np.logical_and(
+                                np.logical_and(1.0 / 3.0 < x, x < 2.0 / 3.0),
+                                x - y >= 0.0,
+                            ),
+                        )
                     ),
                     np.zeros_like(x),
                     np.where(
@@ -625,14 +629,14 @@ def couple_stress(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
 
 def couple_stress_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
     if dim == 2:
-        return lambda x, y, z: np.sqrt(gamma_eval(x, y, z, dim)) * np.array(
+        return lambda x, y, z: gamma_eval(x, y, z, dim) * np.array(
             [
                 np.pi * np.cos(np.pi * x) * np.sin(np.pi * y),
                 np.pi * np.cos(np.pi * y) * np.sin(np.pi * x),
             ]
         )
     else:
-        return lambda x, y, z: np.sqrt(m_gamma) * np.array(
+        return lambda x, y, z: gamma_eval(x, y, z, dim) * np.array(
             [
                 [
                     (1 - x) * np.sin(np.pi * y) * np.sin(np.pi * z)
@@ -882,22 +886,24 @@ def rhs_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
                     * (m_lambda + 2 * m_mu)
                     * np.sin(np.pi * y)
                 ),
-                -4 * y * m_kappa * np.sin(np.pi * x)
-                + 4 * x * m_kappa * np.sin(np.pi * y)
-                - 4 * m_kappa * np.sin(np.pi * x) * np.sin(np.pi * y)
+                4 * x * m_kappa * np.sin(np.pi * y)
+                - 4 * m_kappa * np.sin(np.pi * x) * (y + np.sin(np.pi * y))
                 - 2
                 * (np.pi**2)
                 * np.sin(np.pi * x)
                 * np.sin(np.pi * y)
+                * (gamma_eval(x, y, z, dim) ** 2)
+                + 2
+                * np.pi
                 * gamma_eval(x, y, z, dim)
-                + np.pi
-                * np.cos(np.pi * y)
-                * np.sin(np.pi * x)
-                * grad_gamma_eval(x, y, z, dim)[1]
-                + np.pi
-                * np.cos(np.pi * x)
-                * np.sin(np.pi * y)
-                * grad_gamma_eval(x, y, z, dim)[0],
+                * (
+                    np.cos(np.pi * y)
+                    * np.sin(np.pi * x)
+                    * grad_gamma_eval(x, y, z, dim)[1]
+                    + np.cos(np.pi * x)
+                    * np.sin(np.pi * y)
+                    * grad_gamma_eval(x, y, z, dim)[0]
+                ),
             ]
         )
     else:
@@ -1257,13 +1263,16 @@ def couple_stress_divergence_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim: int =
     if dim == 2:
         return lambda x, y, z: np.array(
             [
-                np.pi
+                2
+                * np.pi
+                * gamma_eval(x, y, z, dim)
                 * (
-                    -2
-                    * np.pi
-                    * np.sin(np.pi * x)
-                    * np.sin(np.pi * y)
-                    * gamma_eval(x, y, z, dim)
+                    -(
+                        np.pi
+                        * np.sin(np.pi * x)
+                        * np.sin(np.pi * y)
+                        * gamma_eval(x, y, z, dim)
+                    )
                     + np.cos(np.pi * y)
                     * np.sin(np.pi * x)
                     * grad_gamma_eval(x, y, z, dim)[1]

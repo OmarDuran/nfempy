@@ -2,7 +2,7 @@
 SetFactory("OpenCASCADE");
 
 
-lc = 0.05;
+lc = 0.1;
 lci = 0.1;
 hi = 1.0/3.0;
 hs = 2.0/3.0;
@@ -41,8 +41,8 @@ Line(13) = {9, 10};
 
 Line{9,10,11,12,13} In Surface{1};
 
-Transfinite Line {9,10,11,12,13} = 40 Using Progression 1;
-Transfinite Line {13} = 10 Using Progression 1;
+Transfinite Line {9,10,11,12,13} = 10 Using Progression 1;
+Transfinite Line {13} = 5 Using Progression 1;
 
 
 Physical Surface("domain", 1) = {1};

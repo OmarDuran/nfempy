@@ -750,11 +750,15 @@ def hdiv_scaled_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
 
     ksp.setType("preonly")
     ksp.getPC().setType("lu")
-    # ksp.getPC().setFactorPivot(zeropivot=1.0e-3)
     # https://github.com/erdc/petsc4py/blob/master/src/PETSc/Mat.pyx#L98
-    # ksp.getPC().setFactorOrdering(ord_type="amd")
     ksp.getPC().setFactorSolverType("mumps")
     ksp.setConvergenceHistory()
+
+    # ksp.setType("fgmres")
+    # ksp.setTolerances(rtol=1e-11, atol=1e-11, divtol=500, max_it=2000)
+    # ksp.setConvergenceHistory()
+    # ksp.getPC().setType("ilu")
+
     ksp.solve(b, x)
     alpha = x.array
 
