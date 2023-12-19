@@ -74,9 +74,9 @@ def paint_on_canvas():
     domain = create_domain(dimension)
 
     meshes = []
-    for lh in range(1, n_ref + 1):
+    for lh in range(n_ref):
         h_val = h * (2**-lh)
-        mesher = create_conformal_mesher(domain, h_val, 0)
+        mesher = create_conformal_mesher(domain, h, lh)
         _ = create_mesh(dimension, mesher, write_geometry_vtk_q)
         mesh = pyvista.read("geometric_mesh_3d.vtk")
         meshes.append(mesh)
@@ -99,9 +99,37 @@ def paint_on_canvas():
     plotter.add_text("h = 1/16", font_size=14, font="courier")
     plotter.add_mesh(meshes[3], show_edges=True)
 
-    plotter.show()
     return plotter
 
+def paint_on_canvas_simple():
+    # The initial element size
+    h = 1.0
+    dimension = 3
+    n_ref = 4
+    write_geometry_vtk_q = True
 
-canvas = paint_on_canvas()
-canvas.save_graphic("images/meshes_example_1.eps")
+    # Create a unit squared or a unit cube
+    domain = create_domain(dimension)
+
+    meshes = []
+    for lh in [1, 2]:
+        h_val = h * (2**-lh)
+        mesher = create_conformal_mesher(domain, h, lh)
+        _ = create_mesh(dimension, mesher, write_geometry_vtk_q)
+        mesh = pyvista.read("geometric_mesh_3d.vtk")
+        meshes.append(mesh)
+
+    plotter = pyvista.Plotter(shape=(1, 2))
+
+    plotter.subplot(0, 0)
+    plotter.add_text("h = 1/4", font_size=14, font="courier")
+    plotter.add_mesh(meshes[0], show_edges=True)
+
+    plotter.subplot(0, 1)
+    plotter.add_text("h = 1/8", font_size=14, font="courier")
+    plotter.add_mesh(meshes[1], show_edges=True)
+
+    return plotter
+
+canvas = paint_on_canvas_simple()
+canvas.save_graphic("images/meshes_example_1.svg")

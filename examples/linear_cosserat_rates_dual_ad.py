@@ -210,16 +210,16 @@ def hdiv_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     b.array[:] = -rg
     x = A.createVecRight()
 
-    # ksp.setType("preonly")
-    # ksp.getPC().setType("lu")
-    # # https://github.com/erdc/petsc4py/blob/master/src/PETSc/Mat.pyx#L98
-    # ksp.getPC().setFactorSolverType("mumps")
-    # ksp.setConvergenceHistory()
-
-    ksp.setType("fgmres")
-    ksp.setTolerances(rtol=1e-11, atol=1e-11, divtol=500, max_it=2000)
+    ksp.setType("preonly")
+    ksp.getPC().setType("lu")
+    # https://github.com/erdc/petsc4py/blob/master/src/PETSc/Mat.pyx#L98
+    ksp.getPC().setFactorSolverType("mumps")
     ksp.setConvergenceHistory()
-    ksp.getPC().setType("ilu")
+
+    # ksp.setType("fgmres")
+    # ksp.setTolerances(rtol=1e-11, atol=1e-11, divtol=500, max_it=2000)
+    # ksp.setConvergenceHistory()
+    # ksp.getPC().setType("ilu")
 
     ksp.solve(b, x)
     alpha = x.array
@@ -747,10 +747,10 @@ def main():
 
     gamma_values = [1.0, 1.0e-2, 1.0e-4]
     for gamma_value in gamma_values:
-        for k in [1, 2]:
+        for k in [2]:
             methods = method_definition(k)
             for i, method in enumerate(methods):
-                if i != 1:
+                if i != 0:
                     continue
                 configuration = {
                     "n_refinements": 3,
