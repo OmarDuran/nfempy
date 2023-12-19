@@ -106,9 +106,10 @@ def grad_gamma_s(dim: int = 2):
                     np.zeros_like(y),
                     np.where(
                         np.logical_and.reduce(
-                            (x - y < 0, 1 / 3 < y, y < 2 / 3, y - z >= 0)),
-                            3.0 * np.ones_like(y),
-                            np.zeros_like(y),
+                            (x - y < 0, 1 / 3 < y, y < 2 / 3, y - z >= 0)
+                        ),
+                        3.0 * np.ones_like(y),
+                        np.zeros_like(y),
                     ),
                 ),
                 np.where(
@@ -222,9 +223,9 @@ def grad_gamma_eval(x, y, z, dim: int = 2):
                     ),
                     np.zeros_like(x),
                     np.where(
-                        np.logical_and.reduce((
-                            1 / 3 < x, x < 2 / 3, x - y >= 0, x - z >= 0
-                        )),
+                        np.logical_and.reduce(
+                            (1 / 3 < x, x < 2 / 3, x - y >= 0, x - z >= 0)
+                        ),
                         3.0 * np.ones_like(x),
                         np.zeros_like(x),
                     ),
@@ -242,9 +243,11 @@ def grad_gamma_eval(x, y, z, dim: int = 2):
                     ),
                     np.zeros_like(y),
                     np.where(
-                        np.logical_and.reduce((x - y < 0, 1 / 3 < y, y < 2 / 3, y - z >= 0)),
-                            3.0 * np.ones_like(y),
-                            np.zeros_like(y),
+                        np.logical_and.reduce(
+                            (x - y < 0, 1 / 3 < y, y < 2 / 3, y - z >= 0)
+                        ),
+                        3.0 * np.ones_like(y),
+                        np.zeros_like(y),
                     ),
                 ),
                 np.where(
@@ -629,6 +632,126 @@ def rhs_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
     else:
         return lambda x, y, z: np.array(
             [
+                -2
+                * (np.pi**2)
+                * (-1 + y)
+                * y
+                * (-1 + z)
+                * z
+                * m_mu
+                * np.sin(np.pi * x)
+                + (-1 + z)
+                * z
+                * (
+                    -(np.pi * (-1 + 2 * x) * (m_kappa - m_mu) * np.cos(np.pi * y))
+                    + 2
+                    * (m_kappa + m_mu + np.pi * m_kappa * np.cos(np.pi * y))
+                    * np.sin(np.pi * x)
+                )
+                + np.pi
+                * m_lambda
+                * (
+                    (-1 + 2 * x) * (-1 + z) * z * np.cos(np.pi * y)
+                    + (-1 + y)
+                    * y
+                    * (
+                        (-1 + 2 * x) * np.cos(np.pi * z)
+                        - np.pi * (-1 + z) * z * np.sin(np.pi * x)
+                    )
+                )
+                + (-1 + y)
+                * y
+                * (
+                    2 * (m_kappa + m_mu) * np.sin(np.pi * x)
+                    - np.pi
+                    * np.cos(np.pi * z)
+                    * (
+                        (-1 + 2 * x) * (m_kappa - m_mu)
+                        + 2 * m_kappa * np.sin(np.pi * x)
+                    )
+                ),
+                -2
+                * (np.pi**2)
+                * (-1 + x)
+                * x
+                * (-1 + z)
+                * z
+                * m_mu
+                * np.sin(np.pi * y)
+                + (-1 + x)
+                * x
+                * (
+                    -(np.pi * (-1 + 2 * y) * (m_kappa - m_mu) * np.cos(np.pi * z))
+                    + 2
+                    * (m_kappa + m_mu + np.pi * m_kappa * np.cos(np.pi * z))
+                    * np.sin(np.pi * y)
+                )
+                + np.pi
+                * m_lambda
+                * (
+                    (-1 + 2 * y) * (-1 + z) * z * np.cos(np.pi * x)
+                    + (-1 + x)
+                    * x
+                    * (
+                        (-1 + 2 * y) * np.cos(np.pi * z)
+                        - np.pi * (-1 + z) * z * np.sin(np.pi * y)
+                    )
+                )
+                - (-1 + z)
+                * z
+                * (
+                    -2 * (m_kappa + m_mu) * np.sin(np.pi * y)
+                    + np.pi
+                    * np.cos(np.pi * x)
+                    * (
+                        (-1 + 2 * y) * (m_kappa - m_mu)
+                        + 2 * m_kappa * np.sin(np.pi * y)
+                    )
+                ),
+                -2
+                * (np.pi**2)
+                * (-1 + x)
+                * x
+                * (-1 + y)
+                * y
+                * m_mu
+                * np.sin(np.pi * z)
+                + np.pi
+                * m_lambda
+                * (
+                    (-1 + y) * y * (-1 + 2 * z) * np.cos(np.pi * x)
+                    + (-1 + x)
+                    * x
+                    * (
+                        (-1 + 2 * z) * np.cos(np.pi * y)
+                        - np.pi * (-1 + y) * y * np.sin(np.pi * z)
+                    )
+                )
+                - (-1 + x)
+                * x
+                * (
+                    -2 * (m_kappa + m_mu) * np.sin(np.pi * z)
+                    + np.pi
+                    * np.cos(np.pi * y)
+                    * (
+                        (-1 + 2 * z) * (m_kappa - m_mu)
+                        + 2 * m_kappa * np.sin(np.pi * z)
+                    )
+                )
+                + (-1 + y)
+                * y
+                * (
+                    2 * (m_kappa + m_mu) * np.sin(np.pi * z)
+                    + np.pi
+                    * np.cos(np.pi * x)
+                    * (
+                        m_kappa
+                        - 2 * z * m_kappa
+                        - m_mu
+                        + 2 * z * m_mu
+                        + 2 * m_kappa * np.sin(np.pi * z)
+                    )
+                ),
                 2
                 * (
                     (-1 + x)
@@ -737,83 +860,6 @@ def rhs_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
                             * np.sin(np.pi * y)
                             * grad_gamma_eval(x, y, z, dim)[0]
                         )
-                    )
-                ),
-                2
-                * gamma_eval(x, y, z, dim)
-                * (
-                    (-1 + (np.pi**2) * (-1 + x) * x)
-                    * np.sin(np.pi * y)
-                    * np.sin(np.pi * z)
-                    * gamma_eval(x, y, z, dim)
-                    - np.pi
-                    * (-1 + x)
-                    * x
-                    * np.cos(np.pi * z)
-                    * np.sin(np.pi * y)
-                    * grad_gamma_eval(x, y, z, dim)[2]
-                    + np.sin(np.pi * z)
-                    * (
-                        -(
-                            np.pi
-                            * (-1 + x)
-                            * x
-                            * np.cos(np.pi * y)
-                            * grad_gamma_eval(x, y, z, dim)[1]
-                        )
-                        + (1 - 2 * x)
-                        * np.sin(np.pi * y)
-                        * grad_gamma_eval(x, y, z, dim)[0]
-                    )
-                ),
-                2
-                * gamma_eval(x, y, z, dim)
-                * (
-                    (-1 + (np.pi**2) * (-1 + y) * y)
-                    * np.sin(np.pi * x)
-                    * np.sin(np.pi * z)
-                    * gamma_eval(x, y, z, dim)
-                    - np.pi
-                    * (-1 + y)
-                    * y
-                    * np.cos(np.pi * z)
-                    * np.sin(np.pi * x)
-                    * grad_gamma_eval(x, y, z, dim)[2]
-                    + np.sin(np.pi * z)
-                    * (
-                        -(
-                            (-1 + 2 * y)
-                            * np.sin(np.pi * x)
-                            * grad_gamma_eval(x, y, z, dim)[1]
-                        )
-                        - np.pi
-                        * (-1 + y)
-                        * y
-                        * np.cos(np.pi * x)
-                        * grad_gamma_eval(x, y, z, dim)[0]
-                    )
-                ),
-                2
-                * gamma_eval(x, y, z, dim)
-                * (
-                    (-1 + (np.pi**2) * (-1 + z) * z)
-                    * np.sin(np.pi * x)
-                    * np.sin(np.pi * y)
-                    * gamma_eval(x, y, z, dim)
-                    - (-1 + 2 * z)
-                    * np.sin(np.pi * x)
-                    * np.sin(np.pi * y)
-                    * grad_gamma_eval(x, y, z, dim)[2]
-                    - np.pi
-                    * (-1 + z)
-                    * z
-                    * (
-                        np.cos(np.pi * y)
-                        * np.sin(np.pi * x)
-                        * grad_gamma_eval(x, y, z, dim)[1]
-                        + np.cos(np.pi * x)
-                        * np.sin(np.pi * y)
-                        * grad_gamma_eval(x, y, z, dim)[0]
                     )
                 ),
             ]
@@ -847,114 +893,124 @@ def stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
     else:
         return lambda x, y, z: np.array(
             [
-                2
+                -2
+                * (np.pi**2)
+                * (-1 + y)
+                * y
+                * (-1 + z)
+                * z
+                * m_mu
+                * np.sin(np.pi * x)
+                + (-1 + z)
+                * z
                 * (
-                    (-1 + x)
-                    * x
-                    * m_kappa
-                    * (
-                        (1 - 2 * y) * np.sin(np.pi * z)
-                        + np.sin(np.pi * y) * (-1 + 2 * z + 2 * np.sin(np.pi * z))
-                    )
-                    + (-1 + (np.pi**2) * (-1 + x) * x)
-                    * np.sin(np.pi * y)
-                    * np.sin(np.pi * z)
-                    * (gamma_eval(x, y, z, dim) ** 2)
-                    + gamma_eval(x, y, z, dim)
-                    * (
-                        -(
-                            np.pi
-                            * (-1 + x)
-                            * x
-                            * np.cos(np.pi * z)
-                            * np.sin(np.pi * y)
-                            * grad_gamma_eval(x, y, z, dim)[2]
-                        )
-                        + np.sin(np.pi * z)
-                        * (
-                            -(
-                                np.pi
-                                * (-1 + x)
-                                * x
-                                * np.cos(np.pi * y)
-                                * grad_gamma_eval(x, y, z, dim)[1]
-                            )
-                            + (1 - 2 * x)
-                            * np.sin(np.pi * y)
-                            * grad_gamma_eval(x, y, z, dim)[0]
-                        )
-                    )
-                ),
-                2
+                    -(np.pi * (-1 + 2 * x) * (m_kappa - m_mu) * np.cos(np.pi * y))
+                    + 2
+                    * (m_kappa + m_mu + np.pi * m_kappa * np.cos(np.pi * y))
+                    * np.sin(np.pi * x)
+                )
+                + np.pi
+                * m_lambda
                 * (
-                    (-1 + y)
+                    (-1 + 2 * x) * (-1 + z) * z * np.cos(np.pi * y)
+                    + (-1 + y)
                     * y
-                    * m_kappa
                     * (
-                        (-1 + 2 * x) * np.sin(np.pi * z)
-                        + np.sin(np.pi * x) * (1 - 2 * z + 2 * np.sin(np.pi * z))
+                        (-1 + 2 * x) * np.cos(np.pi * z)
+                        - np.pi * (-1 + z) * z * np.sin(np.pi * x)
                     )
-                    + (-1 + (np.pi**2) * (-1 + y) * y)
-                    * np.sin(np.pi * x)
-                    * np.sin(np.pi * z)
-                    * (gamma_eval(x, y, z, dim) ** 2)
-                    + gamma_eval(x, y, z, dim)
+                )
+                + (-1 + y)
+                * y
+                * (
+                    2 * (m_kappa + m_mu) * np.sin(np.pi * x)
+                    - np.pi
+                    * np.cos(np.pi * z)
                     * (
-                        -(
-                            np.pi
-                            * (-1 + y)
-                            * y
-                            * np.cos(np.pi * z)
-                            * np.sin(np.pi * x)
-                            * grad_gamma_eval(x, y, z, dim)[2]
-                        )
-                        + np.sin(np.pi * z)
-                        * (
-                            -(
-                                (-1 + 2 * y)
-                                * np.sin(np.pi * x)
-                                * grad_gamma_eval(x, y, z, dim)[1]
-                            )
-                            - np.pi
-                            * (-1 + y)
-                            * y
-                            * np.cos(np.pi * x)
-                            * grad_gamma_eval(x, y, z, dim)[0]
-                        )
+                        (-1 + 2 * x) * (m_kappa - m_mu)
+                        + 2 * m_kappa * np.sin(np.pi * x)
                     )
                 ),
-                2
+                -2
+                * (np.pi**2)
+                * (-1 + x)
+                * x
+                * (-1 + z)
+                * z
+                * m_mu
+                * np.sin(np.pi * y)
+                + (-1 + x)
+                * x
                 * (
-                    (-1 + z)
-                    * z
-                    * m_kappa
-                    * (
-                        (1 - 2 * x) * np.sin(np.pi * y)
-                        + np.sin(np.pi * x) * (-1 + 2 * y + 2 * np.sin(np.pi * y))
-                    )
-                    + (-1 + (np.pi**2) * (-1 + z) * z)
-                    * np.sin(np.pi * x)
+                    -(np.pi * (-1 + 2 * y) * (m_kappa - m_mu) * np.cos(np.pi * z))
+                    + 2
+                    * (m_kappa + m_mu + np.pi * m_kappa * np.cos(np.pi * z))
                     * np.sin(np.pi * y)
-                    * (gamma_eval(x, y, z, dim) ** 2)
-                    + gamma_eval(x, y, z, dim)
+                )
+                + np.pi
+                * m_lambda
+                * (
+                    (-1 + 2 * y) * (-1 + z) * z * np.cos(np.pi * x)
+                    + (-1 + x)
+                    * x
                     * (
-                        -(
-                            (-1 + 2 * z)
-                            * np.sin(np.pi * x)
-                            * np.sin(np.pi * y)
-                            * grad_gamma_eval(x, y, z, dim)[2]
-                        )
-                        - np.pi
-                        * (-1 + z)
-                        * z
-                        * (
-                            np.cos(np.pi * y)
-                            * np.sin(np.pi * x)
-                            * grad_gamma_eval(x, y, z, dim)[1]
-                            + np.cos(np.pi * x)
-                            * np.sin(np.pi * y)
-                            * grad_gamma_eval(x, y, z, dim)[0]
-                        )
+                        (-1 + 2 * y) * np.cos(np.pi * z)
+                        - np.pi * (-1 + z) * z * np.sin(np.pi * y)
+                    )
+                )
+                - (-1 + z)
+                * z
+                * (
+                    -2 * (m_kappa + m_mu) * np.sin(np.pi * y)
+                    + np.pi
+                    * np.cos(np.pi * x)
+                    * (
+                        (-1 + 2 * y) * (m_kappa - m_mu)
+                        + 2 * m_kappa * np.sin(np.pi * y)
+                    )
+                ),
+                -2
+                * (np.pi**2)
+                * (-1 + x)
+                * x
+                * (-1 + y)
+                * y
+                * m_mu
+                * np.sin(np.pi * z)
+                + np.pi
+                * m_lambda
+                * (
+                    (-1 + y) * y * (-1 + 2 * z) * np.cos(np.pi * x)
+                    + (-1 + x)
+                    * x
+                    * (
+                        (-1 + 2 * z) * np.cos(np.pi * y)
+                        - np.pi * (-1 + y) * y * np.sin(np.pi * z)
+                    )
+                )
+                - (-1 + x)
+                * x
+                * (
+                    -2 * (m_kappa + m_mu) * np.sin(np.pi * z)
+                    + np.pi
+                    * np.cos(np.pi * y)
+                    * (
+                        (-1 + 2 * z) * (m_kappa - m_mu)
+                        + 2 * m_kappa * np.sin(np.pi * z)
+                    )
+                )
+                + (-1 + y)
+                * y
+                * (
+                    2 * (m_kappa + m_mu) * np.sin(np.pi * z)
+                    + np.pi
+                    * np.cos(np.pi * x)
+                    * (
+                        m_kappa
+                        - 2 * z * m_kappa
+                        - m_mu
+                        + 2 * z * m_mu
+                        + 2 * m_kappa * np.sin(np.pi * z)
                     )
                 ),
             ]
