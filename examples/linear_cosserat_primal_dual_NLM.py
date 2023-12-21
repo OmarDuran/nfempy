@@ -21,7 +21,7 @@ import numpy as np
 import psutil
 import pypardiso as sp_solver
 import scipy.sparse as sp
-import strong_solution_cosserat_elasticity as lce
+import strong_solution_cosserat_elasticity_example_1 as lce
 from auto_diff.vecvalder import VecValDer
 from basix import CellType
 from numpy import linalg as la

@@ -33,6 +33,7 @@ class ProductSpace:
                 gmesh,
                 integration_order=self.integration_order,
             )
+            discrete_space.name = field
             self.discrete_spaces.__setitem__(field, discrete_space)
 
     def _define_discrete_spaces_dof(self):

@@ -3,14 +3,9 @@ import time
 
 import numpy as np
 
-import strong_solution_cosserat_elasticity as lce
-
-# import strong_solution_cosserat_elasticity_linear_potentials as lce
-
-# import strong_solution_cosserat_elasticity_quadratic_potentials as lce
+import strong_solution_cosserat_elasticity_example_1 as lce
 from petsc4py import PETSc
 
-from basis.element_data import ElementData
 from geometry.domain import Domain
 from geometry.domain_market import build_box_1D, build_box_2D, build_box_3D
 from mesh.conformal_mesher import ConformalMesher
@@ -28,19 +23,9 @@ from weak_forms.lce_scaled_dual_weak_form import (
     LCEScaledDualWeakForm,
     LCEScaledDualWeakFormBCDirichlet,
 )
-from weak_forms.lce_primal_weak_form import (
-    LCEPrimalWeakForm,
-    LCEPrimalWeakFormBCDirichlet,
-)
-
-import matplotlib.pyplot as plt
-from postprocess.projectors import l2_projector
-
-# import line_profiler
-import scipy as sp
 
 
-def hdiv_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
+def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
 
     # FESpace: data
@@ -108,10 +93,10 @@ def hdiv_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     A.createAIJ([n_dof_g, n_dof_g])
 
     # Material data
-    m_lambda = 1.0
-    m_mu = 1.0
-    m_kappa = m_mu
-    m_gamma = gamma
+    m_lambda = material_data["lambda"]
+    m_mu = material_data["mu"]
+    m_kappa = material_data["kappa"]
+    m_gamma = material_data["gamma"]
 
     # exact solution
     u_exact = lce.displacement(m_lambda, m_mu, m_kappa, m_gamma, dim)
@@ -212,37 +197,11 @@ def hdiv_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
 
     ksp.setType("preonly")
     ksp.getPC().setType("lu")
-    # https://github.com/erdc/petsc4py/blob/master/src/PETSc/Mat.pyx#L98
     ksp.getPC().setFactorSolverType("mumps")
     ksp.setConvergenceHistory()
 
-    # ksp.setType("fgmres")
-    # ksp.setTolerances(rtol=1e-11, atol=1e-11, divtol=500, max_it=2000)
-    # ksp.setConvergenceHistory()
-    # ksp.getPC().setType("ilu")
-
     ksp.solve(b, x)
     alpha = x.array
-
-    # solver = PETSc.KSP().create(MPI.COMM_WORLD)
-    # pc = solver.getPC()
-    # solver.setType('preonly')
-    # pc.setType('lu')
-    # solver.setConvergenceHistory()
-
-    # viewer = PETSc.Viewer().createASCII("ksp_output.txt")
-    # ksp.view(viewer)
-    # solver_output = open("ksp_output.txt", "r")
-    # for line in solver_output.readlines():
-    #     print(line)
-    #
-    # residuals = ksp.getConvergenceHistory()
-    # plt.semilogy(residuals)
-
-    # alpha_p = l2_projector(fe_space, exact_functions)
-    # # alpha = alpha_p
-    # ai, aj, av = A.getValuesCSR()
-    # Asp = sp.sparse.csr_matrix((av, aj, ai))
 
     et = time.time()
     elapsed_time = et - st
@@ -253,6 +212,8 @@ def hdiv_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
         dim, fe_space, exact_functions, alpha
     )
     div_s_l2_error, div_m_l2_error = div_error(dim, fe_space, exact_functions, alpha)
+    h_div_s_error = np.sqrt((s_l2_error**2) + (div_s_l2_error**2))
+    h_div_m_error = np.sqrt((m_l2_error**2) + (div_m_l2_error**2))
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
@@ -262,19 +223,24 @@ def hdiv_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     print("L2-error couple stress: ", m_l2_error)
     print("L2-error div stress: ", div_s_l2_error)
     print("L2-error div couple stress: ", div_m_l2_error)
+    print("")
 
     if write_vtk_q:
         st = time.time()
-        file_name = method[0] + "_rates_hdiv_cosserat_elasticity.vtk"
+
+        lambda_value = material_data["lambda"]
+        gamma_value = material_data["gamma"]
+
+        prefix = method[0] + "_k" + str(s_k_order) + "_d" + str(dim)
+        prefix += "_lambda_" + str(lambda_value) + "_gamma_" + str(gamma_value)
+        file_name = prefix + "_four_fields.vtk"
+
         write_vtk_file_with_exact_solution(
             file_name, gmesh, fe_space, exact_functions, alpha
         )
         et = time.time()
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
-
-    h_div_s_error = np.sqrt((s_l2_error**2) + (div_s_l2_error**2))
-    h_div_m_error = np.sqrt((m_l2_error**2) + (div_m_l2_error**2))
 
     return n_dof_g, np.array(
         [
@@ -290,7 +256,7 @@ def hdiv_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     )
 
 
-def hdiv_scaled_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
+def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
 
     # FESpace: data
@@ -358,10 +324,10 @@ def hdiv_scaled_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     A.createAIJ([n_dof_g, n_dof_g])
 
     # Material data
-    m_lambda = 1.0
-    m_mu = 1.0
-    m_kappa = m_mu
-    m_gamma = gamma
+    m_lambda = material_data["lambda"]
+    m_mu = material_data["mu"]
+    m_kappa = material_data["kappa"]
+    m_gamma = material_data["gamma"]
 
     # exact solution
     u_exact = lce.displacement(m_lambda, m_mu, m_kappa, m_gamma, dim)
@@ -480,29 +446,11 @@ def hdiv_scaled_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
 
     ksp.setType("preonly")
     ksp.getPC().setType("lu")
-    # https://github.com/erdc/petsc4py/blob/master/src/PETSc/Mat.pyx#L98
     ksp.getPC().setFactorSolverType("mumps")
     ksp.setConvergenceHistory()
 
-    # ksp.setType("fgmres")
-    # ksp.setTolerances(rtol=1e-11, atol=1e-11, divtol=500, max_it=2000)
-    # ksp.setConvergenceHistory()
-    # ksp.getPC().setType("ilu")
-
     ksp.solve(b, x)
     alpha = x.array
-
-    # viewer = PETSc.Viewer().createASCII("ksp_output.txt")
-    # ksp.view(viewer)
-    # solver_output = open("ksp_output.txt", "r")
-    # for line in solver_output.readlines():
-    #     print(line)
-    #
-    # residuals = ksp.getConvergenceHistory()
-    # plt.semilogy(residuals)
-
-    # alpha_p = l2_projector(fe_space, exact_functions)
-    # alpha = alpha_p
 
     et = time.time()
     elapsed_time = et - st
@@ -514,28 +462,35 @@ def hdiv_scaled_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     )
     div_s_l2_error, _ = div_error(dim, fe_space, exact_functions, alpha)
     _, div_m_l2_error = div_scaled_error(dim, fe_space, exact_functions, alpha)
+    h_div_s_error = np.sqrt((s_l2_error**2) + (div_s_l2_error**2))
+    h_div_m_error = np.sqrt((m_l2_error**2) + (div_m_l2_error**2))
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
     print("L2-error displacement: ", u_l2_error)
     print("L2-error rotation: ", t_l2_error)
     print("L2-error stress: ", s_l2_error)
-    print("L2-error couple stress: ", m_l2_error)
+    print("L2-error couple stress star: ", m_l2_error)
     print("L2-error div stress: ", div_s_l2_error)
     print("L2-error div couple stress: ", div_m_l2_error)
+    print(" ", div_m_l2_error)
 
     if write_vtk_q:
         st = time.time()
-        file_name = method[0] + "_rates_hdiv_cosserat_elasticity.vtk"
+
+        lambda_value = material_data["lambda"]
+        gamma_value = material_data["gamma"]
+
+        prefix = method[0] + "_k" + str(s_k_order) + "_d" + str(dim)
+        prefix += "_lambda_" + str(lambda_value) + "_gamma_" + str(gamma_value)
+        file_name = prefix + "_four_fields_scaled.vtk"
+
         write_vtk_file_with_exact_solution(
             file_name, gmesh, fe_space, exact_functions, alpha
         )
         et = time.time()
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
-
-    h_div_s_error = np.sqrt((s_l2_error**2) + (div_s_l2_error**2))
-    h_div_m_error = np.sqrt((m_l2_error**2) + (div_m_l2_error**2))
 
     h_div_s_error = div_s_l2_error
     h_div_m_error = div_m_l2_error
@@ -561,9 +516,6 @@ def create_domain(dimension):
         return domain
     elif dimension == 2:
         box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
-        # box_points = [
-        #     point + 0.25 * np.array([-1.0, -1.0, 0.0]) for point in box_points
-        # ]
         domain = build_box_2D(box_points)
         return domain
     else:
@@ -579,9 +531,6 @@ def create_domain(dimension):
                 [0.0, 1.0, 1.0],
             ]
         )
-        # box_points = [
-        #     point + 0.25 * np.array([-1.0, -1.0, -1.0]) for point in box_points
-        # ]
         domain = build_box_3D(box_points)
         return domain
 
@@ -606,27 +555,23 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 def create_mesh_from_file(file_name, dim, write_vtk_q=False):
     gmesh = Mesh(dimension=dim, file_name=file_name)
     gmesh.build_conformal_mesh()
-
-    # npts = np.array([pt + 0.25 * np.array([-1.0, -1.0, -1.0]) for pt in gmesh.points])
-    # gmesh.points = npts
-
     if write_vtk_q:
         gmesh.write_vtk()
     return gmesh
 
 
 def perform_convergence_test(configuration: dict):
-    # retrieve parameters from dictionary
+    # retrieve parameters from given configuration
     k_order = configuration.get("k_order")
     method = configuration.get("method")
     n_ref = configuration.get("n_refinements")
     dimension = configuration.get("dimension")
     dual_form_q = configuration.get("dual_problem_Q", True)
-    gamma_value = configuration.get("gamma_value", 1.0)
-    write_geometry_vtk = configuration.get("write_geometry_Q", False)
-    write_vtk = configuration.get("write_vtk_Q", False)
+    material_data = configuration.get("material_data", {})
+    write_geometry_vtk = configuration.get("write_geometry_Q", True)
+    write_vtk = configuration.get("write_vtk_Q", True)
     report_full_precision_data = configuration.get(
-        "report_full_precision_data_Q", False
+        "report_full_precision_data_Q", True
     )
 
     # The initial element size
@@ -641,13 +586,13 @@ def perform_convergence_test(configuration: dict):
         h_val = h * (2**-lh)
         mesher = create_conformal_mesher(domain, h, lh)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
-        if method[0] == "m1_dc":
-            n_dof, error_vals = hdiv_cosserat_elasticity(
-                gamma_value, method, gmesh, write_vtk
+        if method[0] == "m2_dnc":
+            n_dof, error_vals = four_field_scaled_formulation(
+                material_data, method, gmesh, write_vtk
             )
         else:
-            n_dof, error_vals = hdiv_scaled_cosserat_elasticity(
-                gamma_value, method, gmesh, write_vtk
+            n_dof, error_vals = four_field_formulation(
+                material_data, method, gmesh, write_vtk
             )
         chunk = np.concatenate([[n_dof, h_val], error_vals])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
@@ -682,8 +627,13 @@ def perform_convergence_test(configuration: dict):
         base_str_header = dual_header
     e_str_header = "n_dof, h, " + base_str_header
 
+    lambda_value = material_data["lambda"]
+    gamma_value = material_data["gamma"]
+
     file_name_prefix = (
         method[0]
+        + "_lambda_"
+        + str(lambda_value)
         + "_gamma_"
         + str(gamma_value)
         + "_k"
@@ -705,14 +655,14 @@ def perform_convergence_test(configuration: dict):
             header=base_str_header,
         )
     np.savetxt(
-        file_name_prefix + "d_error.txt",
+        file_name_prefix + "d_error_rounded.txt",
         error_data,
         fmt="%1.3e",
         delimiter=",",
         header=e_str_header,
     )
     np.savetxt(
-        file_name_prefix + "d_rates.txt",
+        file_name_prefix + "d_rates_rounded.txt",
         rates_data,
         fmt="%1.3f",
         delimiter=",",
@@ -741,24 +691,26 @@ def method_definition(k_order):
     return zip(method_names, methods)
 
 
-def main():
-    write_vtk_files_Q = True
-    report_full_precision_data_Q = False
+def material_data_definition():
+    # Material data for example 1
+    case_0 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0, "gamma": 1.0}
+    case_1 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0, "gamma": 1.0e-2}
+    case_2 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0, "gamma": 1.0e-4}
+    cases = [case_0, case_1, case_2]
 
-    gamma_values = [1.0, 1.0e-2, 1.0e-4]
-    for gamma_value in gamma_values:
+    return cases
+
+
+def main():
+    n_refinements = 2
+    for material_data in material_data_definition():
         for k in [1]:
             methods = method_definition(k)
             for i, method in enumerate(methods):
-                if i != 0:
-                    continue
                 configuration = {
-                    "n_refinements": 1,
-                    "write_geometry_Q": write_vtk_files_Q,
-                    "write_vtk_Q": write_vtk_files_Q,
+                    "n_refinements": n_refinements,
                     "method": method,
-                    "gamma_value": gamma_value,
-                    "report_full_precision_data_Q": report_full_precision_data_Q,
+                    "material_data": material_data,
                 }
 
                 for d in [2]:

@@ -54,8 +54,10 @@ class DiscreteSpace:
         self._build_dof_map_on_physical_tags(physical_tags)
         self._build_elements()
 
-    def _build_dof_map(self, only_on_physical_tags=True):
-        st = time.time()
+    def _build_dof_map(self, only_on_physical_tags=True, timing_q=False):
+        if timing_q:
+            st = time.time()
+
         if only_on_physical_tags:
             self.mesh_topology.build_data()
         else:
@@ -85,12 +87,18 @@ class DiscreteSpace:
         self.dof_map.set_topological_dimension(self.dimension)
         self.dof_map.build_entity_maps(n_components=self.n_comp)
         self.n_dof = self.dof_map.dof_number()
-        et = time.time()
-        elapsed_time = et - st
-        print("DiscreteSpace:: DoFMap construction time:", elapsed_time, "seconds")
+        if timing_q:
+            et = time.time()
+            elapsed_time = et - st
+            print(
+                self.name + "_fe_space:: DoFMap construction time:",
+                elapsed_time,
+                "seconds",
+            )
 
-    def _build_dof_map_on_physical_tags(self, physical_tags=[]):
-        st = time.time()
+    def _build_dof_map_on_physical_tags(self, physical_tags=[], timing_q=False):
+        if timing_q:
+            st = time.time()
         if len(physical_tags) != 0:
             self.mesh_topology.build_data_on_physical_tags(physical_tags)
         else:
@@ -120,12 +128,18 @@ class DiscreteSpace:
         self.dof_map.set_topological_dimension(self.dimension)
         self.dof_map.build_entity_maps(n_components=self.n_comp)
         self.n_dof = self.dof_map.dof_number()
-        et = time.time()
-        elapsed_time = et - st
-        print("DiscreteSpace:: DoFMap construction time:", elapsed_time, "seconds")
+        if timing_q:
+            et = time.time()
+            elapsed_time = et - st
+            print(
+                self.name + "_fe_space:: DoFMap construction time:",
+                elapsed_time,
+                "seconds",
+            )
 
-    def _build_elements(self, parallel_run_q=False):
-        st = time.time()
+    def _build_elements(self, timing_q=False, parallel_run_q=False):
+        if timing_q:
+            st = time.time()
 
         self.element_ids = self.mesh_topology.entities_by_dimension(self.dimension)
         if self.physical_tag_filter:
@@ -180,14 +194,19 @@ class DiscreteSpace:
             )
 
         self.id_to_element = dict(zip(self.element_ids, range(len(self.element_ids))))
-        et = time.time()
-        elapsed_time = et - st
-        n_d_cells = len(self.elements)
-        print("DiscreteSpace:: Number of processed elements:", n_d_cells)
-        print("DiscreteSpace:: Elements construction time:", elapsed_time, "seconds")
+        if timing_q:
+            et = time.time()
+            elapsed_time = et - st
+            print(
+                self.name + "_fe_space:: Elements construction time:",
+                elapsed_time,
+                "seconds",
+            )
+        print(self.name + "_fe_space:: Number elements:", len(self.elements))
 
-    def _build_bc_elements(self, physical_tags):
-        st = time.time()
+    def _build_bc_elements(self, physical_tags, timing_q=False):
+        if timing_q:
+            st = time.time()
 
         self.bc_element_ids = self.mesh_topology.entities_by_dimension(
             self.dimension - 1
@@ -229,18 +248,16 @@ class DiscreteSpace:
                 self.bc_element_ids,
             )
         )
-        #
-        # [element.storage_basis() for element in self.bc_elements]
 
         self.id_to_bc_element = dict(
             zip(self.bc_element_ids, range(len(self.bc_element_ids)))
         )
-        et = time.time()
-        elapsed_time = et - st
-        n_d_cells = len(self.bc_elements)
-        print("DiscreteSpace:: Number of processed bc elements:", n_d_cells)
-        print(
-            "DiscreteSpace:: Boundary Elements construction time:",
-            elapsed_time,
-            "seconds",
-        )
+        if timing_q:
+            et = time.time()
+            elapsed_time = et - st
+            print(
+                self.name + "_fe_space:: Boundary Elements construction time:",
+                elapsed_time,
+                "seconds",
+            )
+        print(self.name + "_fe_space:: Number bc elements:", len(self.bc_elements))
