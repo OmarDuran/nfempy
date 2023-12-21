@@ -192,16 +192,16 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
     b.array[:] = -rg
     x = A.createVecRight()
 
-    ksp.setType("preonly")
-    ksp.getPC().setType("lu")
-    # https://github.com/erdc/petsc4py/blob/master/src/PETSc/Mat.pyx#L98
-    ksp.getPC().setFactorSolverType("mumps")
-    ksp.setConvergenceHistory()
-
-    # ksp.setType("fgmres")
-    # ksp.setTolerances(rtol=1e-11, atol=1e-11, divtol=500, max_it=2000)
+    # ksp.setType("preonly")
+    # ksp.getPC().setType("lu")
+    # # https://github.com/erdc/petsc4py/blob/master/src/PETSc/Mat.pyx#L98
+    # ksp.getPC().setFactorSolverType("mumps")
     # ksp.setConvergenceHistory()
-    # ksp.getPC().setType("ilu")
+
+    ksp.setType("fgmres")
+    ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=2500, max_it=10000)
+    ksp.setConvergenceHistory()
+    ksp.getPC().setType("ilu")
 
     ksp.solve(b, x)
     alpha = x.array
