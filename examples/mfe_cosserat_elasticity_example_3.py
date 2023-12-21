@@ -198,7 +198,7 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
     # ksp.getPC().setFactorSolverType("mumps")
     # ksp.setConvergenceHistory()
 
-    ksp.setType("fgmres")
+    ksp.setType("lgmres")
     ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=2500, max_it=10000)
     ksp.setConvergenceHistory()
     ksp.getPC().setType("ilu")
@@ -367,7 +367,7 @@ def method_definition(k_order):
 
 
 def main():
-    n_refinements = 2
+    n_refinements = 1
     for k in [1]:
         for method in method_definition(k):
             configuration = {

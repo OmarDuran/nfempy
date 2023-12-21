@@ -8,6 +8,8 @@ import numpy as np
 from geometry.domain import Domain
 from mesh.mesh_cell import MeshCell, barycenter, rotate_vector
 
+from topology.mesh_coloring import coloring_mesh_by_co_dimension
+
 
 class Mesh:
     def __init__(self, dimension, file_name):
@@ -405,7 +407,7 @@ class Mesh:
 
         file.close()
 
-    def write_vtk(self):
+    def write_vtk(self, coloring_mesh_q=True):
         # write vtk files
         physical_tags_3d = np.array(
             [
@@ -440,6 +442,27 @@ class Mesh:
                 "physical_tag": [physical_tags_3d],
                 "entity_tag": [entity_tags_3d],
             }
+            if coloring_mesh_q:
+                c0_cells = np.array(
+                    [
+                        cell.id
+                        for cell in self.cells
+                        if cell.dimension == 3
+                        and cell.id is not None
+                        and cell.material_id is not None
+                    ]
+                )
+
+                cells_c1_con_to_color, _ = coloring_mesh_by_co_dimension(8, self, 3, 1)
+                cells_c2_con_to_color, _ = coloring_mesh_by_co_dimension(8, self, 3, 2)
+                cells_c3_con_to_color, _ = coloring_mesh_by_co_dimension(14, self, 3, 3)
+                c1_colors = [cells_c1_con_to_color[id] for id in c0_cells]
+                c2_colors = [cells_c2_con_to_color[id] for id in c0_cells]
+                c3_colors = [cells_c3_con_to_color[id] for id in c0_cells]
+                cell_data.__setitem__("c1_colors", [c1_colors])
+                cell_data.__setitem__("c2_colors", [c2_colors])
+                cell_data.__setitem__("c3_colors", [c3_colors])
+
             mesh_3d = meshio.Mesh(self.points, cells=cells_dict, cell_data=cell_data)
             meshio.write("geometric_mesh_3d.vtk", mesh_3d)
 
@@ -478,6 +501,25 @@ class Mesh:
                 "physical_tag": [physical_tags_2d],
                 "entity_tag": [entity_tags_2d],
             }
+
+            if coloring_mesh_q:
+                c0_cells = np.array(
+                    [
+                        cell.id
+                        for cell in self.cells
+                        if cell.dimension == 2
+                        and cell.id is not None
+                        and cell.material_id is not None
+                    ]
+                )
+
+                cells_c1_con_to_color, _ = coloring_mesh_by_co_dimension(8, self, 2, 1)
+                cells_c2_con_to_color, _ = coloring_mesh_by_co_dimension(8, self, 2, 2)
+                c1_colors = [cells_c1_con_to_color[id] for id in c0_cells]
+                c2_colors = [cells_c2_con_to_color[id] for id in c0_cells]
+                cell_data.__setitem__("c1_colors", [c1_colors])
+                cell_data.__setitem__("c2_colors", [c2_colors])
+
             mesh_2d = meshio.Mesh(self.points, cells=cells_dict, cell_data=cell_data)
             meshio.write("geometric_mesh_2d.vtk", mesh_2d)
 
@@ -515,6 +557,22 @@ class Mesh:
                 "physical_tag": [physical_tags_1d],
                 "entity_tag": [entity_tags_1d],
             }
+
+            if coloring_mesh_q:
+                c0_cells = np.array(
+                    [
+                        cell.id
+                        for cell in self.cells
+                        if cell.dimension == 1
+                        and cell.id is not None
+                        and cell.material_id is not None
+                    ]
+                )
+
+                cells_c1_con_to_color, _ = coloring_mesh_by_co_dimension(8, self, 1, 1)
+                c1_colors = [cells_c1_con_to_color[id] for id in c0_cells]
+                cell_data.__setitem__("c1_colors", [c1_colors])
+
             mesh_1d = meshio.Mesh(self.points, cells=cells_dict, cell_data=cell_data)
             meshio.write("geometric_mesh_1d.vtk", mesh_1d)
 

@@ -25,6 +25,7 @@ from weak_forms.lce_scaled_dual_weak_form import (
 )
 
 
+
 def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
 
@@ -80,6 +81,10 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
     fe_space = ProductSpace(discrete_spaces_data)
     fe_space.make_subspaces_discontinuous(discrete_spaces_disc)
     fe_space.build_structures(discrete_spaces_bc_physical_tags)
+
+
+
+
 
     n_dof_g = fe_space.n_dof
     rg = np.zeros(n_dof_g)
@@ -700,7 +705,7 @@ def material_data_definition():
 
 
 def main():
-    n_refinements = 2
+    n_refinements = 1
     for material_data in material_data_definition():
         for k in [1]:
             methods = method_definition(k)
@@ -711,7 +716,7 @@ def main():
                     "material_data": material_data,
                 }
 
-                for d in [2]:
+                for d in [3]:
                     configuration.__setitem__("k_order", k)
                     configuration.__setitem__("dimension", d)
                     perform_convergence_test(configuration)
