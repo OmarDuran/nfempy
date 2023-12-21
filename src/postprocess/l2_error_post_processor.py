@@ -20,7 +20,7 @@ def l2_error(dim, fe_space, functions, alpha):
             cell = el_data.cell
             points = el_data.quadrature.points
             weights = el_data.quadrature.weights
-            phi_tab = el_data.basis.phi
+            phi_tab = space.elements[i].evaluate_basis(points)
 
             x = el_data.mapping.x
             det_jac = el_data.mapping.det_jac
@@ -80,7 +80,7 @@ def grad_error(dim, fe_space, functions, alpha):
             cell = el_data.cell
             points = el_data.quadrature.points
             weights = el_data.quadrature.weights
-            phi_tab = el_data.basis.phi
+            phi_tab = space.elements[idx].evaluate_basis(points)
 
             x = el_data.mapping.x
             det_jac = el_data.mapping.det_jac
@@ -147,7 +147,7 @@ def div_error(dim, fe_space, functions, alpha):
             cell = el_data.cell
             points = el_data.quadrature.points
             weights = el_data.quadrature.weights
-            phi_tab = el_data.basis.phi
+            phi_tab = space.elements[idx].evaluate_basis(points)
 
             x = el_data.mapping.x
             det_jac = el_data.mapping.det_jac
@@ -203,7 +203,7 @@ def div_scaled_error(dim, fe_space, functions, alpha):
             cell = el_data.cell
             points = el_data.quadrature.points
             weights = el_data.quadrature.weights
-            phi_tab = el_data.basis.phi
+            phi_tab = space.elements[idx].evaluate_basis(points)
 
             x = el_data.mapping.x
             det_jac = el_data.mapping.det_jac

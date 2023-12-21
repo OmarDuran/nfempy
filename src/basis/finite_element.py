@@ -72,7 +72,7 @@ class FiniteElement:
                 )
         # Partially fill element data
         self._fill_element_data(quadrature)
-        self.evaluate_basis(quadrature[0], storage=True)
+        self.evaluate_mapping(quadrature[0])
 
     def _fill_element_data(self, quadrature):
         self.data.quadrature.points = quadrature[0]
@@ -97,43 +97,44 @@ class FiniteElement:
     def storage_basis(self):
         self.evaluate_basis(self.data.quadrature.points, storage=True)
 
-    def evaluate_basis(self, points, storage=False):
+    def evaluate_mapping(self, points):
         if self.data.dimension == 0:
-            phi_tab = np.ones((1, 1, 1, 1))
-            if storage:
-                self.data.basis.phi = phi_tab
-
             phi_shape = np.ones((1))
             cell_points = self.data.mesh.points[self.data.cell.node_tags]
             (x, jac, det_jac, inv_jac) = evaluate_mapping(
                 self.data.dimension, phi_shape, cell_points
             )
-            if storage:
-                self.data.mapping.x = x
-                self.data.mapping.jac = jac
-                self.data.mapping.det_jac = det_jac
-                self.data.mapping.inv_jac = inv_jac
-
-            return phi_tab
-
-        phi_shape = evaluate_linear_shapes(points, self.data)
-        if storage:
-            self.data.mapping.phi = phi_shape
-
-        cell_points = self.data.mesh.points[self.data.cell.node_tags]
-        (x, jac, det_jac, inv_jac) = evaluate_mapping(
-            self.data.dimension, phi_shape, cell_points
-        )
-        if storage:
             self.data.mapping.x = x
             self.data.mapping.jac = jac
             self.data.mapping.det_jac = det_jac
             self.data.mapping.inv_jac = inv_jac
+            return
+
+        phi_shape = evaluate_linear_shapes(points, self.data)
+        self.data.mapping.phi = phi_shape
+        cell_points = self.data.mesh.points[self.data.cell.node_tags]
+        (x, jac, det_jac, inv_jac) = evaluate_mapping(
+            self.data.dimension, phi_shape, cell_points
+        )
+        self.data.mapping.x = x
+        self.data.mapping.jac = jac
+        self.data.mapping.det_jac = det_jac
+        self.data.mapping.inv_jac = inv_jac
+
+    def evaluate_basis(self, points, storage=False):
+        if self.data.dimension == 0:
+            phi_tab = np.ones((1, 1, 1, 1))
+            if storage:
+                self.data.basis.phi = phi_tab
+            return phi_tab
 
         # tabulate
         phi_tab = self.basis_generator.tabulate(1, points)
         phi_mapped = self.basis_generator.push_forward(
-            phi_tab[0], jac, det_jac, inv_jac
+            phi_tab[0],
+            self.data.mapping.jac,
+            self.data.mapping.det_jac,
+            self.data.mapping.inv_jac,
         )
         if phi_tab[0].shape == phi_mapped.shape:
             phi_tab[0] = phi_mapped

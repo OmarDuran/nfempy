@@ -45,10 +45,10 @@ class LCEDualWeakForm(WeakForm):
         inv_jac = s_data.mapping.inv_jac
 
         # basis
-        s_phi_tab = s_data.basis.phi
-        m_phi_tab = m_data.basis.phi
-        u_phi_tab = u_data.basis.phi
-        t_phi_tab = t_data.basis.phi
+        s_phi_tab = s_space.elements[iel].evaluate_basis(points)
+        m_phi_tab = m_space.elements[iel].evaluate_basis(points)
+        u_phi_tab = u_space.elements[iel].evaluate_basis(points)
+        t_phi_tab = t_space.elements[iel].evaluate_basis(points)
 
         n_s_phi = s_phi_tab.shape[2]
         n_m_phi = m_phi_tab.shape[2]
@@ -443,8 +443,8 @@ class LCEDualWeakFormBCDirichlet(WeakForm):
         det_jac = s_data.mapping.det_jac
         inv_jac = s_data.mapping.inv_jac
 
-        s_phi_tab = s_data.basis.phi
-        m_phi_tab = m_data.basis.phi
+        s_phi_tab = s_space.bc_elements[iel].evaluate_basis(points)
+        m_phi_tab = m_space.bc_elements[iel].evaluate_basis(points)
 
         n_s_phi = s_phi_tab.shape[2]
         n_m_phi = m_phi_tab.shape[2]
@@ -541,8 +541,8 @@ class LCEDualWeakFormBCNeumann(WeakForm):
         det_jac = s_data.mapping.det_jac
         inv_jac = s_data.mapping.inv_jac
 
-        s_phi_tab = s_data.basis.phi
-        m_phi_tab = m_data.basis.phi
+        s_phi_tab = s_space.bc_elements[iel].evaluate_basis(points)
+        m_phi_tab = m_space.bc_elements[iel].evaluate_basis(points)
 
         n_s_phi = s_phi_tab.shape[2]
         n_m_phi = m_phi_tab.shape[2]

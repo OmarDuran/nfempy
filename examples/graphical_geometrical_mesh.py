@@ -101,6 +101,7 @@ def paint_on_canvas():
 
     return plotter
 
+
 def paint_on_canvas_simple():
     # The initial element size
     h = 1.0
@@ -130,6 +131,7 @@ def paint_on_canvas_simple():
     plotter.add_mesh(meshes[1], show_edges=True)
 
     return plotter
+
 
 canvas = paint_on_canvas_simple()
 canvas.save_graphic("images/meshes_example_1.svg")
