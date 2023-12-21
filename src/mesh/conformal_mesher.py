@@ -59,7 +59,7 @@ class ConformalMesher:
         for curve in self.domain.shapes[1]:
             tag = curve_stride + curve.tag + 1
             if not curve.composite:
-                print("curve tag: ", curve.tag)
+                # print("curve tag: ", curve.tag)
                 b = curve.boundary_shapes[0].tag + 1
                 e = curve.boundary_shapes[1].tag + 1
                 gmsh.model.geo.addLine(b, e, tag)
@@ -72,7 +72,6 @@ class ConformalMesher:
             for surface in self.domain.shapes[2]:
                 tag = surface_stride + surface.tag + 1
                 if not surface.composite:
-                    print("surface tag: ", surface.tag)
                     wire = surface.boundary_shapes[0]
                     loop_tags = [
                         curve_stride + shape.tag + 1 for shape in wire.immersed_shapes
@@ -270,7 +269,7 @@ class ConformalMesher:
             for surface in self.domain.shapes[2]:
                 if surface.composite:
                     continue
-                print("surface tag: ", surface.tag)
+                # print("surface tag: ", surface.tag)
                 tags_0d = []
                 tags_1d = []
                 shapes_c1 = [shape for shape in surface.immersed_shapes]
@@ -302,7 +301,7 @@ class ConformalMesher:
             for volume in self.domain.shapes[3]:
                 if volume.composite:
                     continue
-                print("volume tag: ", volume.tag)
+                # print("volume tag: ", volume.tag)
                 tags_1d = []
                 tags_2d = []
                 shapes_c1 = [shape for shape in volume.immersed_shapes]
@@ -402,7 +401,7 @@ class ConformalMesher:
         for geo_1_cell in geo_1_cells:
             b = geo_1_cell.boundary_cells[0].point_id + 1
             e = geo_1_cell.boundary_cells[1].point_id + 1
-            print("cell id: ", geo_1_cell.id)
+            # print("cell id: ", geo_1_cell.id)
             gmsh.model.geo.addLine(b, e, geo_1_cell.id)
 
         gmsh.model.geo.synchronize()
@@ -501,6 +500,7 @@ class ConformalMesher:
 
     def generate_from_domain(self, lc, n_refinements=0):
         gmsh.initialize()
+        gmsh.option.setNumber("General.Terminal", 0)
         self.lc = lc
 
         # self.transfer_domain_descritpion()
