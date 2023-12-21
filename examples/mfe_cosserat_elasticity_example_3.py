@@ -2,7 +2,7 @@ import functools
 import time
 
 import numpy as np
-import strong_solution_cosserat_elasticity_example_1 as lce
+import strong_solution_cosserat_elasticity_example_3 as lce
 from petsc4py import PETSc
 
 from mesh.mesh import Mesh
@@ -20,7 +20,7 @@ from weak_forms.lce_scaled_dual_weak_form import (
 )
 
 
-def hdiv_scaled_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
+def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
 
     # FESpace: data
@@ -91,18 +91,15 @@ def hdiv_scaled_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     m_lambda = 1.0
     m_mu = 1.0
     m_kappa = m_mu
-    m_gamma = gamma
 
     # exact solution
-    u_exact = lce.displacement(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    t_exact = lce.rotation(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    s_exact = lce.stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    m_exact = lce.couple_stress_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    div_s_exact = lce.stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    div_m_exact = lce.couple_stress_divergence_scaled(
-        m_lambda, m_mu, m_kappa, m_gamma, dim
-    )
-    f_rhs = lce.rhs_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    u_exact = lce.displacement(m_lambda, m_mu, m_kappa, dim)
+    t_exact = lce.rotation(m_lambda, m_mu, m_kappa, dim)
+    s_exact = lce.stress(m_lambda, m_mu, m_kappa, dim)
+    m_exact = lce.couple_stress_scaled(m_lambda, m_mu, m_kappa, dim)
+    div_s_exact = lce.stress_divergence(m_lambda, m_mu, m_kappa, dim)
+    div_m_exact = lce.couple_stress_divergence_scaled(m_lambda, m_mu, m_kappa, dim)
+    f_rhs = lce.rhs_scaled(m_lambda, m_mu, m_kappa, dim)
 
     def f_lambda(x, y, z):
         return m_lambda
@@ -229,10 +226,14 @@ def hdiv_scaled_cosserat_elasticity(gamma, method, gmesh, write_vtk_q=False):
     print("L2-error couple stress: ", m_l2_error)
     print("L2-error div stress: ", div_s_l2_error)
     print("L2-error div couple stress: ", div_m_l2_error)
+    print("")
 
     if write_vtk_q:
         st = time.time()
-        file_name = "rates_hdiv_cosserat_elasticity_example_2.vtk"
+
+        prefix = method[0] + "_k" + str(s_k_order) + "_d" + str(dim)
+        file_name = prefix + "_four_fields_scaled_ex_3.vtk"
+
         write_vtk_file_with_exact_solution(
             file_name, gmesh, fe_space, exact_functions, alpha
         )
@@ -273,11 +274,9 @@ def perform_convergence_test(configuration: dict):
     dimension = configuration.get("dimension")
     dual_form_q = configuration.get("dual_problem_Q", True)
     gamma_value = configuration.get("gamma_value", 1.0)
-    write_geometry_vtk = configuration.get("write_geometry_Q", False)
-    write_vtk = configuration.get("write_vtk_Q", False)
-    report_full_precision_data = configuration.get(
-        "report_full_precision_data_Q", False
-    )
+    write_geometry_vtk = configuration.get("write_geometry_Q", True)
+    write_vtk = configuration.get("write_vtk_Q", True)
+    report_full_precision_data = configuration.get("report_full_precision_data_Q", True)
 
     # The initial element size
     h = 1.0 / 3.0
@@ -288,9 +287,7 @@ def perform_convergence_test(configuration: dict):
         h_val = h * (2**-lh)
         mesh_file = "gmsh_files/example_2_" + str(dimension) + "d_l_" + str(lh) + ".msh"
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
-        n_dof, error_vals = hdiv_scaled_cosserat_elasticity(
-            gamma_value, method, gmesh, write_vtk
-        )
+        n_dof, error_vals = four_field_scaled_formulation(method, gmesh, write_vtk)
         chunk = np.concatenate([[n_dof, h_val], error_vals])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
 
@@ -325,37 +322,29 @@ def perform_convergence_test(configuration: dict):
         base_str_header = dual_header
     e_str_header = "h, " + base_str_header
 
-    file_name_prefix = (
-        method[0]
-        + "_gamma_"
-        + str(gamma_value)
-        + "_k"
-        + str(k_order)
-        + "_"
-        + str(dimension)
-    )
+    file_name_prefix = method[0] + "_k" + str(k_order) + "_" + str(dimension)
     if report_full_precision_data:
         np.savetxt(
-            file_name_prefix + "d_error_example_2.txt",
+            file_name_prefix + "d_error_ex_3.txt",
             error_data,
             delimiter=",",
             header=e_str_header,
         )
         np.savetxt(
-            file_name_prefix + "d_rates_example_2.txt",
+            file_name_prefix + "d_rates_ex_3.txt",
             rates_data,
             delimiter=",",
             header=base_str_header,
         )
     np.savetxt(
-        file_name_prefix + "d_error_example_2.txt",
+        file_name_prefix + "d_error_ex_3_rounded.txt",
         error_data,
         fmt="%1.3e",
         delimiter=",",
         header=e_str_header,
     )
     np.savetxt(
-        file_name_prefix + "d_rates_example_2.txt",
+        file_name_prefix + "d_rates_ex_3_rounded.txt",
         rates_data,
         fmt="%1.3f",
         delimiter=",",
@@ -378,19 +367,15 @@ def method_definition(k_order):
 
 
 def main():
-    write_vtk_files_Q = True
-    report_full_precision_data_Q = False
-    for k in [2]:
+    n_refinements = 2
+    for k in [1]:
         for method in method_definition(k):
             configuration = {
-                "n_refinements": 5,
-                "write_geometry_Q": write_vtk_files_Q,
-                "write_vtk_Q": write_vtk_files_Q,
+                "n_refinements": n_refinements,
                 "method": method,
-                "report_full_precision_data_Q": report_full_precision_data_Q,
             }
 
-            for d in [3]:
+            for d in [2]:
                 configuration.__setitem__("k_order", k)
                 configuration.__setitem__("dimension", d)
                 perform_convergence_test(configuration)

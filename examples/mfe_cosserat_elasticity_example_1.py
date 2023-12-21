@@ -233,7 +233,7 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
 
         prefix = method[0] + "_k" + str(s_k_order) + "_d" + str(dim)
         prefix += "_lambda_" + str(lambda_value) + "_gamma_" + str(gamma_value)
-        file_name = prefix + "_four_fields.vtk"
+        file_name = prefix + "_four_fields_ex_1.vtk"
 
         write_vtk_file_with_exact_solution(
             file_name, gmesh, fe_space, exact_functions, alpha
@@ -483,7 +483,7 @@ def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=Fals
 
         prefix = method[0] + "_k" + str(s_k_order) + "_d" + str(dim)
         prefix += "_lambda_" + str(lambda_value) + "_gamma_" + str(gamma_value)
-        file_name = prefix + "_four_fields_scaled.vtk"
+        file_name = prefix + "_four_fields_scaled_ex_1.vtk"
 
         write_vtk_file_with_exact_solution(
             file_name, gmesh, fe_space, exact_functions, alpha
@@ -570,9 +570,7 @@ def perform_convergence_test(configuration: dict):
     material_data = configuration.get("material_data", {})
     write_geometry_vtk = configuration.get("write_geometry_Q", True)
     write_vtk = configuration.get("write_vtk_Q", True)
-    report_full_precision_data = configuration.get(
-        "report_full_precision_data_Q", True
-    )
+    report_full_precision_data = configuration.get("report_full_precision_data_Q", True)
 
     # The initial element size
     h = 1.0
@@ -643,26 +641,26 @@ def perform_convergence_test(configuration: dict):
     )
     if report_full_precision_data:
         np.savetxt(
-            file_name_prefix + "d_error.txt",
+            file_name_prefix + "d_error_ex_1.txt",
             error_data,
             delimiter=",",
             header=e_str_header,
         )
         np.savetxt(
-            file_name_prefix + "d_rates.txt",
+            file_name_prefix + "d_rates_ex_1.txt",
             rates_data,
             delimiter=",",
             header=base_str_header,
         )
     np.savetxt(
-        file_name_prefix + "d_error_rounded.txt",
+        file_name_prefix + "d_error_ex_1_rounded.txt",
         error_data,
         fmt="%1.3e",
         delimiter=",",
         header=e_str_header,
     )
     np.savetxt(
-        file_name_prefix + "d_rates_rounded.txt",
+        file_name_prefix + "d_rates_ex_1_rounded.txt",
         rates_data,
         fmt="%1.3f",
         delimiter=",",
