@@ -1,6 +1,7 @@
 import functools
 import time
 
+import gc
 import numpy as np
 import strong_solution_cosserat_elasticity_example_3 as lce
 from petsc4py import PETSc
@@ -198,7 +199,7 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
     # ksp.getPC().setFactorSolverType("mumps")
     # ksp.setConvergenceHistory()
 
-    ksp.setType("lgmres")
+    ksp.setType("pgmres")
     ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=2500, max_it=10000)
     ksp.setConvergenceHistory()
     ksp.getPC().setType("ilu")
@@ -367,18 +368,19 @@ def method_definition(k_order):
 
 
 def main():
-    n_refinements = 1
-    for k in [1]:
+    n_refinements = 5
+    for k in [1, 2]:
         for method in method_definition(k):
             configuration = {
                 "n_refinements": n_refinements,
                 "method": method,
             }
 
-            for d in [2]:
+            for d in [3]:
                 configuration.__setitem__("k_order", k)
                 configuration.__setitem__("dimension", d)
                 perform_convergence_test(configuration)
+                gc.collect()
 
 
 if __name__ == "__main__":
