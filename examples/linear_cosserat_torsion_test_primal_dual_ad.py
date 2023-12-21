@@ -2,7 +2,7 @@ import functools
 import time
 
 import numpy as np
-import strong_solution_cosserat_elasticity as lce
+import strong_solution_cosserat_elasticity_example_1 as lce
 from petsc4py import PETSc
 
 from basis.element_data import ElementData
