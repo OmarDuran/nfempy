@@ -679,12 +679,14 @@ def perform_convergence_test(configuration: dict):
 
 
 def method_definition(k_order):
+
     method_1_dc = {
         "s": ("RT", k_order),
         "m": ("RT", k_order + 1),
         "u": ("Lagrange", k_order - 1),
         "t": ("Lagrange", k_order),
     }
+
     method_2_dnc = {
         "s": ("BDM", k_order),
         "m": ("RT", k_order),
@@ -692,8 +694,15 @@ def method_definition(k_order):
         "t": ("Lagrange", k_order - 1),
     }
 
-    methods = [method_1_dc, method_2_dnc]
-    method_names = ["m1_dc", "m2_dnc"]
+    method_3_dc = {
+        "s": ("BDM", k_order),
+        "m": ("BDM", k_order + 1),
+        "u": ("Lagrange", k_order - 1),
+        "t": ("Lagrange", k_order),
+    }
+
+    methods = [method_1_dc, method_2_dnc, method_3_dc]
+    method_names = ["m1_dc", "m2_dnc", "m3_dnc"]
     return zip(method_names, methods)
 
 
