@@ -251,3 +251,112 @@ def div_scaled_error(dim, fe_space, functions, alpha):
         div_errors.append(np.sqrt(div_error))
 
     return div_errors
+
+
+def devia_l2_error(dim, fe_space, functions, alpha):
+    vec_families = [
+        family_by_name("RT"),
+        family_by_name("BDM"),
+    ]
+
+    # Compute volumetric integral
+    tr_T_avgs = {}
+    for item in fe_space.discrete_spaces.items():
+        name, space = item
+        tr_T_e_avg = 0.0
+        tr_T_h_avg = 0.0
+        if space.family not in vec_families:
+            continue
+        indexes = [
+            i
+            for i, element in enumerate(space.elements)
+            if element.data.dimension == dim
+        ]
+        for i in indexes:
+            n_components = space.n_comp
+            el_data = space.elements[i].data
+            cell = el_data.cell
+            points = el_data.quadrature.points
+            weights = el_data.quadrature.weights
+            phi_tab = space.elements[i].evaluate_basis(points)
+
+            x = el_data.mapping.x
+            det_jac = el_data.mapping.det_jac
+            inv_jac = el_data.mapping.inv_jac
+
+            # scattering dof
+            dest = fe_space.discrete_spaces_destination_indexes(i)[name]
+            alpha_l = alpha[dest]
+
+            # vectorization
+            exact = functions[name]
+            n_phi = phi_tab.shape[2]
+            alpha_star = np.array(np.split(alpha_l, n_phi))
+            for i, omega in enumerate(weights):
+                f_e = exact(x[i, 0], x[i, 1], x[i, 2])
+                f_h = np.vstack(
+                    tuple(
+                        [
+                            phi_tab[0, i, :, 0:dim].T @ alpha_star[:, c]
+                            for c in range(n_components)
+                        ]
+                    )
+                )
+                tr_T_e_avg += det_jac[i] * weights[i] * np.trace(f_e) / float(dim)
+                tr_T_h_avg += det_jac[i] * weights[i] * np.trace(f_h) / float(dim)
+
+        tr_T_avgs.__setitem__(name, (tr_T_e_avg, tr_T_h_avg))
+
+    l2_errors = []
+    for item in fe_space.discrete_spaces.items():
+        name, space = item
+        l2_error = 0.0
+        if space.family not in vec_families:
+            continue
+        if space.n_comp != dim:
+            l2_errors.append(np.sqrt(l2_error))
+            continue
+        indexes = [
+            i
+            for i, element in enumerate(space.elements)
+            if element.data.dimension == dim
+        ]
+        tr_T_e_avg, tr_T_h_avg = tr_T_avgs[name]
+        for i in indexes:
+            n_components = space.n_comp
+            el_data = space.elements[i].data
+            cell = el_data.cell
+            points = el_data.quadrature.points
+            weights = el_data.quadrature.weights
+            phi_tab = space.elements[i].evaluate_basis(points)
+
+            x = el_data.mapping.x
+            det_jac = el_data.mapping.det_jac
+            inv_jac = el_data.mapping.inv_jac
+
+            # scattering dof
+            dest = fe_space.discrete_spaces_destination_indexes(i)[name]
+            alpha_l = alpha[dest]
+
+            # vectorization
+            exact = functions[name]
+            n_phi = phi_tab.shape[2]
+            alpha_star = np.array(np.split(alpha_l, n_phi))
+            for i, omega in enumerate(weights):
+                f_e = exact(x[i, 0], x[i, 1], x[i, 2])
+                f_h = np.vstack(
+                    tuple(
+                        [
+                            phi_tab[0, i, :, 0:dim].T @ alpha_star[:, c]
+                            for c in range(n_components)
+                        ]
+                    )
+                )
+                f_e -= tr_T_e_avg * np.eye(dim)
+                f_h -= tr_T_h_avg * np.eye(dim)
+                diff_f = f_e - f_h
+                l2_error += det_jac[i] * weights[i] * np.trace(diff_f.T @ diff_f)
+
+        l2_errors.append(np.sqrt(l2_error))
+
+    return l2_errors

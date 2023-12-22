@@ -4,7 +4,10 @@ import numpy as np
 def displacement(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
     if dim == 2:
         return lambda x, y, z: np.array(
-            [(1 - y) * y * np.sin(np.pi * x), (1 - x) * x * np.sin(np.pi * y)]
+            [
+                np.pi * np.cos(np.pi * y) * (np.sin(np.pi * x) ** 2),
+                -2 * np.pi * np.cos(np.pi * x) * np.sin(np.pi * x) * np.sin(np.pi * y),
+            ]
         )
     else:
         return lambda x, y, z: np.array(
@@ -34,12 +37,21 @@ def displacement_gradient(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
         return lambda x, y, z: np.array(
             [
                 [
-                    np.pi * (1 - y) * y * np.cos(np.pi * x),
-                    (1 - y) * np.sin(np.pi * x) - y * np.sin(np.pi * x),
+                    2
+                    * (np.pi**2)
+                    * np.cos(np.pi * x)
+                    * np.cos(np.pi * y)
+                    * np.sin(np.pi * x),
+                    -((np.pi**2) * (np.sin(np.pi * x) ** 2) * np.sin(np.pi * y)),
                 ],
                 [
-                    (1 - x) * np.sin(np.pi * y) - x * np.sin(np.pi * y),
-                    np.pi * (1 - x) * x * np.cos(np.pi * y),
+                    -2 * (np.pi**2) * (np.cos(np.pi * x) ** 2) * np.sin(np.pi * y)
+                    + 2 * (np.pi**2) * (np.sin(np.pi * x) ** 2) * np.sin(np.pi * y),
+                    -2
+                    * (np.pi**2)
+                    * np.cos(np.pi * x)
+                    * np.cos(np.pi * y)
+                    * np.sin(np.pi * x),
                 ],
             ]
         )
@@ -176,30 +188,36 @@ def stress(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
         return lambda x, y, z: np.array(
             [
                 [
-                    np.pi
-                    * (
-                        -((-1 + y) * y * (m_lambda + 2 * m_mu) * np.cos(np.pi * x))
-                        - (-1 + x) * x * m_lambda * np.cos(np.pi * y)
-                    ),
-                    (-1 + 2 * x) * (m_kappa - m_mu) * np.sin(np.pi * y)
-                    + np.sin(np.pi * x)
-                    * (
-                        -((-1 + 2 * y) * (m_kappa + m_mu))
-                        - 2 * m_kappa * np.sin(np.pi * y)
-                    ),
+                    2 * (np.pi**2) * m_mu * np.cos(np.pi * y) * np.sin(2 * np.pi * x),
+                    (
+                        (
+                            -((np.pi**2) * (m_kappa + m_mu))
+                            + (np.pi**2)
+                            * (5 * m_kappa - 3 * m_mu)
+                            * np.cos(2 * np.pi * x)
+                            - 4 * m_kappa * np.sin(np.pi * x)
+                        )
+                        * np.sin(np.pi * y)
+                    )
+                    / 2.0,
                 ],
                 [
-                    -((-1 + 2 * x) * (m_kappa + m_mu) * np.sin(np.pi * y))
-                    + np.sin(np.pi * x)
+                    -0.5
                     * (
-                        (-1 + 2 * y) * (m_kappa - m_mu)
-                        + 2 * m_kappa * np.sin(np.pi * y)
+                        (
+                            (np.pi**2) * (-m_kappa + m_mu)
+                            + (np.pi**2)
+                            * (5 * m_kappa + 3 * m_mu)
+                            * np.cos(2 * np.pi * x)
+                            - 4 * m_kappa * np.sin(np.pi * x)
+                        )
+                        * np.sin(np.pi * y)
                     ),
-                    np.pi
-                    * (
-                        -((-1 + y) * y * m_lambda * np.cos(np.pi * x))
-                        - (-1 + x) * x * (m_lambda + 2 * m_mu) * np.cos(np.pi * y)
-                    ),
+                    -2
+                    * (np.pi**2)
+                    * m_mu
+                    * np.cos(np.pi * y)
+                    * np.sin(2 * np.pi * x),
                 ],
             ]
         )
@@ -433,33 +451,27 @@ def rhs(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
     if dim == 2:
         return lambda x, y, z: np.array(
             [
-                np.pi * (-1 + 2 * x) * (m_kappa - m_mu) * np.cos(np.pi * y)
-                - 2
-                * (m_kappa + m_mu + np.pi * m_kappa * np.cos(np.pi * y))
-                * np.sin(np.pi * x)
-                + np.pi
-                * (
-                    (m_lambda - 2 * x * m_lambda) * np.cos(np.pi * y)
-                    + np.pi * (-1 + y) * y * (m_lambda + 2 * m_mu) * np.sin(np.pi * x)
-                ),
-                -2 * (m_kappa + m_mu) * np.sin(np.pi * y)
-                + np.pi
-                * np.cos(np.pi * x)
-                * ((-1 + 2 * y) * (m_kappa - m_mu) + 2 * m_kappa * np.sin(np.pi * y))
-                + np.pi
-                * (
-                    (m_lambda - 2 * y * m_lambda) * np.cos(np.pi * x)
-                    + np.pi * (-1 + x) * x * (m_lambda + 2 * m_mu) * np.sin(np.pi * y)
-                ),
-                -2
-                * (
-                    (1 - 2 * x) * m_kappa * np.sin(np.pi * y)
-                    + np.sin(np.pi * x)
+                (
+                    np.pi
+                    * np.cos(np.pi * y)
                     * (
-                        (-1 + 2 * y) * m_kappa
-                        + ((np.pi**2) * m_gamma + 2 * m_kappa) * np.sin(np.pi * y)
+                        -((np.pi**2) * (m_kappa + m_mu))
+                        + 5 * (np.pi**2) * (m_kappa + m_mu) * np.cos(2 * np.pi * x)
+                        - 4 * m_kappa * np.sin(np.pi * x)
                     )
-                ),
+                )
+                / 2.0,
+                2
+                * np.pi
+                * np.cos(np.pi * x)
+                * (m_kappa + 5 * (np.pi**2) * (m_kappa + m_mu) * np.sin(np.pi * x))
+                * np.sin(np.pi * y),
+                (
+                    -((np.pi**2) * m_kappa)
+                    + 5 * (np.pi**2) * m_kappa * np.cos(2 * np.pi * x)
+                    - 2 * ((np.pi**2) * m_gamma + 2 * m_kappa) * np.sin(np.pi * x)
+                )
+                * np.sin(np.pi * y),
             ]
         )
     else:
@@ -624,24 +636,21 @@ def stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
     if dim == 2:
         return lambda x, y, z: np.array(
             [
-                np.pi * (-1 + 2 * x) * (m_kappa - m_mu) * np.cos(np.pi * y)
-                - 2
-                * (m_kappa + m_mu + np.pi * m_kappa * np.cos(np.pi * y))
-                * np.sin(np.pi * x)
-                + np.pi
-                * (
-                    (m_lambda - 2 * x * m_lambda) * np.cos(np.pi * y)
-                    + np.pi * (-1 + y) * y * (m_lambda + 2 * m_mu) * np.sin(np.pi * x)
-                ),
-                -2 * (m_kappa + m_mu) * np.sin(np.pi * y)
-                + np.pi
+                (
+                    np.pi
+                    * np.cos(np.pi * y)
+                    * (
+                        -((np.pi**2) * (m_kappa + m_mu))
+                        + 5 * (np.pi**2) * (m_kappa + m_mu) * np.cos(2 * np.pi * x)
+                        - 4 * m_kappa * np.sin(np.pi * x)
+                    )
+                )
+                / 2.0,
+                2
+                * np.pi
                 * np.cos(np.pi * x)
-                * ((-1 + 2 * y) * (m_kappa - m_mu) + 2 * m_kappa * np.sin(np.pi * y))
-                + np.pi
-                * (
-                    (m_lambda - 2 * y * m_lambda) * np.cos(np.pi * x)
-                    + np.pi * (-1 + x) * x * (m_lambda + 2 * m_mu) * np.sin(np.pi * y)
-                ),
+                * (m_kappa + 5 * (np.pi**2) * (m_kappa + m_mu) * np.sin(np.pi * x))
+                * np.sin(np.pi * y),
             ]
         )
     else:

@@ -14,7 +14,7 @@ from postprocess.l2_error_post_processor import (
     l2_error,
     grad_error,
     div_error,
-    div_scaled_error,
+    devia_l2_error,
 )
 from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
 from spaces.product_space import ProductSpace
@@ -191,15 +191,15 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
     b.array[:] = -rg
     x = A.createVecRight()
 
-    # ksp.setType("preonly")
-    # ksp.getPC().setType("lu")
-    # ksp.getPC().setFactorSolverType("mumps")
-    # ksp.setConvergenceHistory()
-
-    ksp.setType("pgmres")
-    ksp.setTolerances(rtol=1e-8, atol=1e-8, divtol=2500, max_it=10000)
+    ksp.setType("preonly")
+    ksp.getPC().setType("lu")
+    ksp.getPC().setFactorSolverType("mumps")
     ksp.setConvergenceHistory()
-    ksp.getPC().setType("ilu")
+
+    # ksp.setType("pgmres")
+    # ksp.setTolerances(rtol=1e-8, atol=1e-8, divtol=2500, max_it=10000)
+    # ksp.setConvergenceHistory()
+    # ksp.getPC().setType("ilu")
 
     ksp.solve(b, x)
     alpha = x.array
@@ -213,7 +213,9 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
         dim, fe_space, exact_functions, alpha
     )
     div_s_l2_error, div_m_l2_error = div_error(dim, fe_space, exact_functions, alpha)
-    h_div_s_error = np.sqrt((s_l2_error**2) + (div_s_l2_error**2))
+    dev_s_l2_error, _ = devia_l2_error(dim, fe_space, exact_functions, alpha)
+
+    h_div_s_error = np.sqrt((dev_s_l2_error**2) + (div_s_l2_error**2))
     h_div_m_error = np.sqrt((m_l2_error**2) + (div_m_l2_error**2))
     et = time.time()
     elapsed_time = et - st
@@ -221,6 +223,7 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
     print("L2-error displacement: ", u_l2_error)
     print("L2-error rotation: ", t_l2_error)
     print("L2-error stress: ", s_l2_error)
+    print("L2-error dev stress: ", dev_s_l2_error)
     print("L2-error couple stress: ", m_l2_error)
     print("L2-error div stress: ", div_s_l2_error)
     print("L2-error div couple stress: ", div_m_l2_error)
@@ -247,7 +250,7 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
         [
             u_l2_error,
             t_l2_error,
-            s_l2_error,
+            dev_s_l2_error,
             m_l2_error,
             div_s_l2_error,
             div_m_l2_error,
@@ -359,7 +362,7 @@ def perform_convergence_test(configuration: dict):
     print("rounded error rates data: ", rates_data)
     print(" ")
 
-    str_fields = "u, r, s, o, "
+    str_fields = "u, r, dev s, o, "
     primal_header = str_fields + "grad_u, grad_r, h_grad_u_norm, h_grad_r_norm"
     dual_header = str_fields + "div_s, div_o, h_div_s_norm, h_div_o_norm"
 
@@ -441,7 +444,7 @@ def method_definition(k_order):
 
 
 def material_data_definition():
-    # Material data for example 1
+    # Material data for example 2
     case_0 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0, "gamma": 1.0}
     case_1 = {"lambda": 1.0e2, "mu": 1.0, "kappa": 1.0, "gamma": 1.0}
     case_2 = {"lambda": 1.0e4, "mu": 1.0, "kappa": 1.0, "gamma": 1.0}
@@ -464,7 +467,7 @@ def main():
                     "material_data": material_data,
                 }
 
-                for d in [2]:
+                for d in [3]:
                     configuration.__setitem__("k_order", k)
                     configuration.__setitem__("dimension", d)
                     perform_convergence_test(configuration)
