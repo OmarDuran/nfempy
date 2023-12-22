@@ -459,8 +459,6 @@ def main():
         for k in [1]:
             methods = method_definition(k)
             for i, method in enumerate(methods):
-                if i != 1:
-                    continue
                 configuration = {
                     "n_refinements": n_refinements,
                     "method": method,
