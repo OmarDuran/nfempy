@@ -82,10 +82,6 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
     fe_space.make_subspaces_discontinuous(discrete_spaces_disc)
     fe_space.build_structures(discrete_spaces_bc_physical_tags)
 
-
-
-
-
     n_dof_g = fe_space.n_dof
     rg = np.zeros(n_dof_g)
     alpha = np.zeros(n_dof_g)
@@ -200,10 +196,15 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
     b.array[:] = -rg
     x = A.createVecRight()
 
-    ksp.setType("preonly")
-    ksp.getPC().setType("lu")
-    ksp.getPC().setFactorSolverType("mumps")
+    # ksp.setType("preonly")
+    # ksp.getPC().setType("lu")
+    # ksp.getPC().setFactorSolverType("mumps")
+    # ksp.setConvergenceHistory()
+
+    ksp.setType("pgmres")
+    ksp.setTolerances(rtol=1e-8, atol=1e-8, divtol=2500, max_it=10000)
     ksp.setConvergenceHistory()
+    ksp.getPC().setType("ilu")
 
     ksp.solve(b, x)
     alpha = x.array
@@ -449,10 +450,15 @@ def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=Fals
     b.array[:] = -rg
     x = A.createVecRight()
 
-    ksp.setType("preonly")
-    ksp.getPC().setType("lu")
-    ksp.getPC().setFactorSolverType("mumps")
+    # ksp.setType("preonly")
+    # ksp.getPC().setType("lu")
+    # ksp.getPC().setFactorSolverType("mumps")
+    # ksp.setConvergenceHistory()
+
+    ksp.setType("pgmres")
+    ksp.setTolerances(rtol=1e-8, atol=1e-8, divtol=2500, max_it=10000)
     ksp.setConvergenceHistory()
+    ksp.getPC().setType("ilu")
 
     ksp.solve(b, x)
     alpha = x.array
@@ -705,9 +711,9 @@ def material_data_definition():
 
 
 def main():
-    n_refinements = 1
+    n_refinements = 4
     for material_data in material_data_definition():
-        for k in [1]:
+        for k in [1, 2]:
             methods = method_definition(k)
             for i, method in enumerate(methods):
                 configuration = {

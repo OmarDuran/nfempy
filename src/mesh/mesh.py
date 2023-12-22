@@ -407,7 +407,7 @@ class Mesh:
 
         file.close()
 
-    def write_vtk(self, coloring_mesh_q=True):
+    def write_vtk(self, coloring_mesh_q=False):
         # write vtk files
         physical_tags_3d = np.array(
             [
