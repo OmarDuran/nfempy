@@ -503,9 +503,6 @@ def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=Fals
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
 
-    h_div_s_error = div_s_l2_error
-    h_div_m_error = div_m_l2_error
-
     return n_dof_g, np.array(
         [
             u_l2_error,
