@@ -134,4 +134,4 @@ def paint_on_canvas_simple():
 
 
 canvas = paint_on_canvas_simple()
-canvas.save_graphic("images/meshes_example_1.svg")
+canvas.save_graphic("images/meshes_example_1.eps")

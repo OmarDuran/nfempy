@@ -6,9 +6,12 @@ pyvista.global_theme.colorbar_orientation = "vertical"
 
 
 def paint_on_canvas():
-    crinkle_q = False
+    crinkle_q = True
     # (xmin, xmax, ymin, ymax, zmin, zmax)
     bounds = [0.3, 1.0, 0.3, 1.0, 0.3, 1.0]
+    if crinkle_q:
+        bounds = [0.2, 1.0, 0.2, 1.0, 0.2, 1.0]
+
     view_dir = [1.0, 1.0, 1.0]
 
     # load data
@@ -70,7 +73,7 @@ def paint_on_canvas():
         font_family="courier",
         position_x=0.05,
         position_y=0.05,
-        title=r"$\| \boldsymbol{\omega} \|$",
+        title=r"$\| \tilde{\boldsymbol{\omega}} \|$",
     )
     mh_data = [mh.reshape((3, 3)) for mh in hdiv_solution_clipped.point_data["m_h"]]
     m_h_norm = np.array([np.sqrt(np.trace(mh.T @ mh)) for mh in mh_data])
@@ -167,4 +170,4 @@ def paint_on_canvas():
 
 
 canvas = paint_on_canvas()
-canvas.save_graphic("images/approximations_example_3.eps")
+canvas.save_graphic("images/approximations_crinkle_example_3.eps")
