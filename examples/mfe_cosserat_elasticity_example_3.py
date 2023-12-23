@@ -200,9 +200,9 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
     # ksp.setConvergenceHistory()
 
     ksp.setType("pgmres")
-    ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=2500, max_it=10000)
+    ksp.setTolerances(rtol=1e-8, atol=1e-8, divtol=5000, max_it=20000)
     ksp.setConvergenceHistory()
-    ksp.getPC().setType("ilu")
+    # ksp.getPC().setType("ilu")
 
     ksp.solve(b, x)
     alpha = x.array
