@@ -2,6 +2,7 @@ import functools
 import time
 
 import numpy as np
+import gc
 
 import strong_solution_cosserat_elasticity_example_2 as lce
 from petsc4py import PETSc
@@ -191,14 +192,14 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
     b.array[:] = -rg
     x = A.createVecRight()
 
-    ksp.setType("preonly")
-    ksp.getPC().setType("lu")
-    ksp.getPC().setFactorSolverType("mumps")
-    ksp.setConvergenceHistory()
-
-    # ksp.setType("pgmres")
-    # ksp.setTolerances(rtol=1e-8, atol=1e-8, divtol=2500, max_it=10000)
+    # ksp.setType("preonly")
+    # ksp.getPC().setType("lu")
+    # ksp.getPC().setFactorSolverType("mumps")
     # ksp.setConvergenceHistory()
+
+    ksp.setType("pgmres")
+    ksp.setTolerances(rtol=1e-8, atol=1e-8, divtol=5000, max_it=20000)
+    ksp.setConvergenceHistory()
     # ksp.getPC().setType("ilu")
 
     ksp.solve(b, x)
@@ -454,9 +455,9 @@ def material_data_definition():
 
 
 def main():
-    n_refinements = 3
+    n_refinements = 4
     for material_data in material_data_definition():
-        for k in [1]:
+        for k in [1, 2]:
             methods = method_definition(k)
             for i, method in enumerate(methods):
                 configuration = {
@@ -469,7 +470,7 @@ def main():
                     configuration.__setitem__("k_order", k)
                     configuration.__setitem__("dimension", d)
                     perform_convergence_test(configuration)
-
+                    gc.collect()
 
 if __name__ == "__main__":
     main()
