@@ -166,24 +166,10 @@ class LCEDualWeakForm(WeakForm):
                     A_mh = (1.0 / f_gamma(xv[0], xv[1], xv[2])) * mh
 
                     grad_s_phi = s_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
-                    div_tau = np.array(
-                        [
-                            [
-                                np.trace(grad_s_phi[:, j, :]) / det_jac[i]
-                                for j in range(n_s_phi)
-                            ]
-                        ]
-                    )
+                    div_tau = np.array([np.trace(grad_s_phi, axis1=0, axis2=2) / det_jac[i]])
 
                     grad_m_phi = m_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
-                    div_v = np.array(
-                        [
-                            [
-                                np.trace(grad_m_phi[:, j, :]) / det_jac[i]
-                                for j in range(n_m_phi)
-                            ]
-                        ]
-                    )
+                    div_v = np.array([np.trace(grad_m_phi, axis1=0, axis2=2) / det_jac[i]])
 
                     div_sh_x = a_sx @ div_tau.T
                     div_sh_y = a_sy @ div_tau.T
@@ -327,14 +313,7 @@ class LCEDualWeakForm(WeakForm):
                     A_mh = (1.0 / f_gamma(xv[0], xv[1], xv[2])) * mh
 
                     grad_s_phi = s_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
-                    div_tau = np.array(
-                        [
-                            [
-                                np.trace(grad_s_phi[:, j, :]) / det_jac[i]
-                                for j in range(n_s_phi)
-                            ]
-                        ]
-                    )
+                    div_tau = np.array([np.trace(grad_s_phi, axis1=0, axis2=2) / det_jac[i]])
 
                     div_sh_x = a_sx @ div_tau.T
                     div_sh_y = a_sy @ div_tau.T
@@ -346,14 +325,7 @@ class LCEDualWeakForm(WeakForm):
                     )
 
                     grad_m_phi = m_phi_tab[1 : m_phi_tab.shape[0] + 1, i, :, 0:dim]
-                    div_v = np.array(
-                        [
-                            [
-                                np.trace(grad_m_phi[:, j, :]) / det_jac[i]
-                                for j in range(n_m_phi)
-                            ]
-                        ]
-                    )
+                    div_v = np.array([np.trace(grad_m_phi, axis1=0, axis2=2) / det_jac[i]])
 
                     div_mh_x = a_mx @ div_v.T
                     div_mh_y = a_my @ div_v.T
