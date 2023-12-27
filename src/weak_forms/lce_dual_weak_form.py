@@ -320,10 +320,8 @@ class LCEDualWeakForm(WeakForm):
                     # + (div_tau.T @ uh)
                     - (s_phi_tab[0, i, :, 0:dim] @ Gamma_outer.T)
                 )
-                equ_2_integrand = (m_phi_tab[0, i, :, 0:dim] @ A_mh.T)
-                equ_4_integrand = - (
-                    t_phi_tab[0, i, :, 0:dim] @ S_cross
-                )
+                equ_2_integrand = m_phi_tab[0, i, :, 0:dim] @ A_mh.T
+                equ_4_integrand = -(t_phi_tab[0, i, :, 0:dim] @ S_cross)
 
                 multiphysic_integrand = np.zeros((1, n_dof))
                 multiphysic_integrand[:, 0:n_s_dof:1] = (equ_1_integrand).reshape(
@@ -351,7 +349,7 @@ class LCEDualWeakForm(WeakForm):
         u_phi_s_star_div_det_jac = weights * u_phi_tab[0, :, :, 0].T
         t_phi_s_star_div_det_jac = weights * t_phi_tab[0, :, :, 0].T
 
-        grad_s_phi_star = s_phi_tab[1: s_phi_tab.shape[0] + 1, :, :, 0:dim]
+        grad_s_phi_star = s_phi_tab[1 : s_phi_tab.shape[0] + 1, :, :, 0:dim]
         div_tau_star = np.trace(grad_s_phi_star, axis1=0, axis2=3)
         u_block_outer = u_phi_s_star_div_det_jac @ div_tau_star
         for uc in range(u_components):
@@ -366,7 +364,7 @@ class LCEDualWeakForm(WeakForm):
                 j_el[ub:ue:u_components, sb:se:s_components] += u_block_outer
                 j_el[sb:se:s_components, ub:ue:u_components] += u_block_outer.T
 
-        grad_m_phi_star = m_phi_tab[1: m_phi_tab.shape[0] + 1, :, :, 0:dim]
+        grad_m_phi_star = m_phi_tab[1 : m_phi_tab.shape[0] + 1, :, :, 0:dim]
         div_v_star = np.trace(grad_m_phi_star, axis1=0, axis2=3)
         t_block_outer = t_phi_s_star_div_det_jac @ div_v_star
         for tc in range(t_components):
@@ -538,10 +536,14 @@ class LCEDualWeakForm(WeakForm):
                     A_mh = (1.0 / f_gamma(xv[0], xv[1], xv[2])) * mh
 
                     grad_s_phi = s_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
-                    div_tau = np.array([np.trace(grad_s_phi, axis1=0, axis2=2) / det_jac[i]])
+                    div_tau = np.array(
+                        [np.trace(grad_s_phi, axis1=0, axis2=2) / det_jac[i]]
+                    )
 
                     grad_m_phi = m_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
-                    div_v = np.array([np.trace(grad_m_phi, axis1=0, axis2=2) / det_jac[i]])
+                    div_v = np.array(
+                        [np.trace(grad_m_phi, axis1=0, axis2=2) / det_jac[i]]
+                    )
 
                     div_sh_x = a_sx @ div_tau.T
                     div_sh_y = a_sy @ div_tau.T
@@ -685,7 +687,9 @@ class LCEDualWeakForm(WeakForm):
                     A_mh = (1.0 / f_gamma(xv[0], xv[1], xv[2])) * mh
 
                     grad_s_phi = s_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
-                    div_tau = np.array([np.trace(grad_s_phi, axis1=0, axis2=2) / det_jac[i]])
+                    div_tau = np.array(
+                        [np.trace(grad_s_phi, axis1=0, axis2=2) / det_jac[i]]
+                    )
 
                     div_sh_x = a_sx @ div_tau.T
                     div_sh_y = a_sy @ div_tau.T
@@ -697,7 +701,9 @@ class LCEDualWeakForm(WeakForm):
                     )
 
                     grad_m_phi = m_phi_tab[1 : m_phi_tab.shape[0] + 1, i, :, 0:dim]
-                    div_v = np.array([np.trace(grad_m_phi, axis1=0, axis2=2) / det_jac[i]])
+                    div_v = np.array(
+                        [np.trace(grad_m_phi, axis1=0, axis2=2) / det_jac[i]]
+                    )
 
                     div_mh_x = a_mx @ div_v.T
                     div_mh_y = a_my @ div_v.T

@@ -179,7 +179,9 @@ class LCEScaledDualWeakForm(WeakForm):
                     # div_tau = np.array([np.trace(grad_s_phi, axis1=0, axis2=2) / det_jac[i]])
 
                     grad_m_phi = m_phi_tab[1 : m_phi_tab.shape[0] + 1, i, :, 0:dim]
-                    div_v = np.array([np.trace(grad_m_phi, axis1=0, axis2=2) / det_jac[i]])
+                    div_v = np.array(
+                        [np.trace(grad_m_phi, axis1=0, axis2=2) / det_jac[i]]
+                    )
 
                     tr_grad_eps_otimes_v = np.array(
                         [
@@ -349,7 +351,9 @@ class LCEScaledDualWeakForm(WeakForm):
                     # )
 
                     grad_m_phi = m_phi_tab[1 : m_phi_tab.shape[0] + 1, i, :, 0:dim]
-                    div_v = np.array([np.trace(grad_m_phi, axis1=0, axis2=2) / det_jac[i]])
+                    div_v = np.array(
+                        [np.trace(grad_m_phi, axis1=0, axis2=2) / det_jac[i]]
+                    )
 
                     tr_grad_eps_otimes_v = np.array(
                         [
@@ -394,13 +398,13 @@ class LCEScaledDualWeakForm(WeakForm):
 
                 equ_1_integrand = (
                     (s_phi_tab[0, i, :, 0:dim] @ A_sh.T)
-                    #+ (div_tau.T @ uh)
+                    # + (div_tau.T @ uh)
                     - (s_phi_tab[0, i, :, 0:dim] @ Gamma_outer.T)
                 )
                 equ_2_integrand = (m_phi_tab[0, i, :, 0:dim] @ (A_mh.T)) + (
                     div_v_s.T @ th
                 )
-                #equ_3_integrand = u_phi_tab[0, i, :, 0:dim] @ div_sh
+                # equ_3_integrand = u_phi_tab[0, i, :, 0:dim] @ div_sh
                 equ_4_integrand = (t_phi_tab[0, i, :, 0:dim] @ div_mh) - (
                     t_phi_tab[0, i, :, 0:dim] @ S_cross
                 )
@@ -432,7 +436,7 @@ class LCEScaledDualWeakForm(WeakForm):
 
         # partial vectorization
         u_phi_s_star_div_det_jac = weights * u_phi_tab[0, :, :, 0].T
-        grad_s_phi_star = s_phi_tab[1: s_phi_tab.shape[0] + 1, :, :, 0:dim]
+        grad_s_phi_star = s_phi_tab[1 : s_phi_tab.shape[0] + 1, :, :, 0:dim]
         div_tau_star = np.trace(grad_s_phi_star, axis1=0, axis2=3)
         u_block_outer = u_phi_s_star_div_det_jac @ div_tau_star
         for uc in range(u_components):
@@ -615,10 +619,14 @@ class LCEScaledDualWeakForm(WeakForm):
                     A_mh = mh
 
                     grad_s_phi = s_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
-                    div_tau = np.array([np.trace(grad_s_phi, axis1=0, axis2=2) / det_jac[i]])
+                    div_tau = np.array(
+                        [np.trace(grad_s_phi, axis1=0, axis2=2) / det_jac[i]]
+                    )
 
                     grad_m_phi = m_phi_tab[1 : m_phi_tab.shape[0] + 1, i, :, 0:dim]
-                    div_v = np.array([np.trace(grad_m_phi, axis1=0, axis2=2) / det_jac[i]])
+                    div_v = np.array(
+                        [np.trace(grad_m_phi, axis1=0, axis2=2) / det_jac[i]]
+                    )
 
                     tr_grad_eps_otimes_v = np.array(
                         [
@@ -776,7 +784,9 @@ class LCEScaledDualWeakForm(WeakForm):
                     A_mh = mh
 
                     grad_s_phi = s_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
-                    div_tau = np.array([np.trace(grad_s_phi, axis1=0, axis2=2) / det_jac[i]])
+                    div_tau = np.array(
+                        [np.trace(grad_s_phi, axis1=0, axis2=2) / det_jac[i]]
+                    )
 
                     div_sh_x = a_sx @ div_tau.T
                     div_sh_y = a_sy @ div_tau.T
@@ -788,7 +798,9 @@ class LCEScaledDualWeakForm(WeakForm):
                     )
 
                     grad_m_phi = m_phi_tab[1 : m_phi_tab.shape[0] + 1, i, :, 0:dim]
-                    div_v = np.array([np.trace(grad_m_phi, axis1=0, axis2=2) / det_jac[i]])
+                    div_v = np.array(
+                        [np.trace(grad_m_phi, axis1=0, axis2=2) / det_jac[i]]
+                    )
 
                     tr_grad_eps_otimes_v = np.array(
                         [

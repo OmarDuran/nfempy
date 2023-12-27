@@ -475,5 +475,6 @@ def main():
                     perform_convergence_test(configuration)
                     gc.collect()
 
+
 if __name__ == "__main__":
     main()
