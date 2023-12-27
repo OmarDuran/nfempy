@@ -716,11 +716,14 @@ def material_data_definition():
 
 
 def main():
-    n_refinements = 4
-    for material_data in material_data_definition():
-        for k in [1, 2]:
-            methods = method_definition(k)
-            for i, method in enumerate(methods):
+    case_data = material_data_definition()
+    for k in [2]:
+        methods = method_definition(k)
+        for i, method in enumerate(methods):
+            n_refinements = 4
+            # if i == 3:
+            #     n_refinements = 3
+            for material_data in case_data:
                 configuration = {
                     "n_refinements": n_refinements,
                     "method": method,
