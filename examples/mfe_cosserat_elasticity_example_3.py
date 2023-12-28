@@ -204,13 +204,13 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
     ksp.setConvergenceHistory()
     # ksp.getPC().setType("ilu")
 
+    ksp.solve(b, x)
+    alpha = x.array
+
     PETSc.KSP.destroy(ksp)
     PETSc.Mat.destroy(A)
     PETSc.Vec.destroy(b)
     PETSc.Vec.destroy(x)
-
-    ksp.solve(b, x)
-    alpha = x.array
 
     et = time.time()
     elapsed_time = et - st
