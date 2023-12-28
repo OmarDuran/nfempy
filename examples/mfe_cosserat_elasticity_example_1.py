@@ -201,13 +201,18 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
     # ksp.getPC().setFactorSolverType("mumps")
     # ksp.setConvergenceHistory()
 
-    ksp.setType("pgmres")
+    ksp.setType("tfqmr")
     ksp.setTolerances(rtol=1e-8, atol=1e-8, divtol=5000, max_it=20000)
     ksp.setConvergenceHistory()
     # ksp.getPC().setType("ilu")
 
     ksp.solve(b, x)
     alpha = x.array
+
+    PETSc.KSP.destroy(ksp)
+    PETSc.Mat.destroy(A)
+    PETSc.Vec.destroy(b)
+    PETSc.Vec.destroy(x)
 
     et = time.time()
     elapsed_time = et - st
@@ -455,13 +460,18 @@ def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=Fals
     # ksp.getPC().setFactorSolverType("mumps")
     # ksp.setConvergenceHistory()
 
-    ksp.setType("pgmres")
+    ksp.setType("tfqmr")
     ksp.setTolerances(rtol=1e-8, atol=1e-8, divtol=5000, max_it=20000)
     ksp.setConvergenceHistory()
     # ksp.getPC().setType("ilu")
 
     ksp.solve(b, x)
     alpha = x.array
+
+    PETSc.KSP.destroy(ksp)
+    PETSc.Mat.destroy(A)
+    PETSc.Vec.destroy(b)
+    PETSc.Vec.destroy(x)
 
     et = time.time()
     elapsed_time = et - st
