@@ -1,9 +1,8 @@
 import functools
+import gc
 import time
 
 import numpy as np
-import gc
-
 import strong_solution_cosserat_elasticity_example_2 as lce
 from petsc4py import PETSc
 
@@ -11,15 +10,13 @@ from geometry.domain import Domain
 from geometry.domain_market import build_box_1D, build_box_2D, build_box_3D
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
-from postprocess.l2_error_post_processor import (
-    l2_error,
-    grad_error,
-    div_error,
-    devia_l2_error,
-)
-from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
+from postprocess.l2_error_post_processor import (devia_l2_error, div_error,
+                                                 grad_error, l2_error)
+from postprocess.solution_post_processor import \
+    write_vtk_file_with_exact_solution
 from spaces.product_space import ProductSpace
-from weak_forms.lce_dual_weak_form import LCEDualWeakForm, LCEDualWeakFormBCDirichlet
+from weak_forms.lce_dual_weak_form import (LCEDualWeakForm,
+                                           LCEDualWeakFormBCDirichlet)
 
 
 def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):

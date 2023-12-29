@@ -1,5 +1,6 @@
 import networkx as nx
 import numpy as np
+
 from topology.mesh_topology import MeshTopology
 
 

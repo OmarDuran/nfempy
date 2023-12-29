@@ -1,26 +1,23 @@
 import time
 
 import numpy as np
-from petsc4py import PETSc
 import scipy
+from petsc4py import PETSc
+
 from basis.element_data import ElementData
 from geometry.domain import Domain
 from geometry.domain_market import build_box_1D, build_box_2D, build_box_3D
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
 from postprocess.l2_error_post_processor import l2_error
-from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
-from spaces.product_space import ProductSpace
-from weak_forms.laplace_primal_weak_form import (
-    LaplacePrimalWeakForm,
-    LaplacePrimalWeakFormBCDirichlet,
-)
-from weak_forms.laplace_dual_weak_form import (
-    LaplaceDualWeakForm,
-    LaplaceDualWeakFormBCDirichlet,
-)
-
 from postprocess.projectors import l2_projector
+from postprocess.solution_post_processor import \
+    write_vtk_file_with_exact_solution
+from spaces.product_space import ProductSpace
+from weak_forms.laplace_dual_weak_form import (LaplaceDualWeakForm,
+                                               LaplaceDualWeakFormBCDirichlet)
+from weak_forms.laplace_primal_weak_form import (
+    LaplacePrimalWeakForm, LaplacePrimalWeakFormBCDirichlet)
 
 
 def h1_laplace(k_order, gmesh, write_vtk_q=False):

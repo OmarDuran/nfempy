@@ -1,5 +1,6 @@
-import pyvista
 import numpy as np
+import pyvista
+
 from geometry.domain import Domain
 from geometry.domain_market import build_box_1D, build_box_2D, build_box_3D
 from mesh.conformal_mesher import ConformalMesher

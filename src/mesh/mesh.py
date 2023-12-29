@@ -7,7 +7,6 @@ import numpy as np
 
 from geometry.domain import Domain
 from mesh.mesh_cell import MeshCell, barycenter, rotate_vector
-
 from topology.mesh_coloring import coloring_mesh_by_co_dimension
 
 

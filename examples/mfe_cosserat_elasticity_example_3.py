@@ -1,24 +1,20 @@
 import functools
+import gc
 import time
 
-import gc
 import numpy as np
 import strong_solution_cosserat_elasticity_example_3 as lce
 from petsc4py import PETSc
 
 from mesh.mesh import Mesh
-from postprocess.l2_error_post_processor import (
-    l2_error,
-    grad_error,
-    div_error,
-    div_scaled_error,
-)
-from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
+from mesh.mesh_sizes import min_mesh_size
+from postprocess.l2_error_post_processor import (div_error, div_scaled_error,
+                                                 grad_error, l2_error)
+from postprocess.solution_post_processor import \
+    write_vtk_file_with_exact_solution
 from spaces.product_space import ProductSpace
 from weak_forms.lce_scaled_dual_weak_form import (
-    LCEScaledDualWeakForm,
-    LCEScaledDualWeakFormBCDirichlet,
-)
+    LCEScaledDualWeakForm, LCEScaledDualWeakFormBCDirichlet)
 
 
 def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
@@ -290,9 +286,9 @@ def perform_convergence_test(configuration: dict):
     n_data = 10
     error_data = np.empty((0, n_data), float)
     for lh in range(n_ref):
-        h_val = h * (2**-lh)
         mesh_file = "gmsh_files/example_2_" + str(dimension) + "d_l_" + str(lh) + ".msh"
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
+        h_val = min_mesh_size(gmesh)
         n_dof, error_vals = four_field_scaled_formulation(method, gmesh, write_vtk)
         chunk = np.concatenate([[n_dof, h_val], error_vals])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
@@ -373,8 +369,8 @@ def method_definition(k_order):
 
 
 def main():
-    n_refinements = 5
-    for k in [1, 2]:
+    n_refinements = 4
+    for k in [1]:
         for method in method_definition(k):
             configuration = {
                 "n_refinements": n_refinements,

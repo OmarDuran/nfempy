@@ -1,5 +1,5 @@
-import pyvista
 import numpy as np
+import pyvista
 
 
 def paint_on_canvas():

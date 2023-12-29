@@ -2,6 +2,7 @@ import functools
 import time
 
 import numpy as np
+import scipy as sp
 import strong_solution_cosserat_elasticity_example_1 as lce
 from petsc4py import PETSc
 
@@ -13,17 +14,11 @@ from mesh.mesh import Mesh
 from postprocess.l2_error_post_processor import l2_error
 from postprocess.solution_post_processor import write_vtk_file
 from spaces.product_space import ProductSpace
-from weak_forms.lce_dual_weak_form import (
-    LCEDualWeakForm,
-    LCEDualWeakFormBCDirichlet,
-    LCEDualWeakFormBCNeumann,
-)
-from weak_forms.lce_primal_weak_form import (
-    LCEPrimalWeakForm,
-    LCEPrimalWeakFormBCDirichlet,
-)
-
-import scipy as sp
+from weak_forms.lce_dual_weak_form import (LCEDualWeakForm,
+                                           LCEDualWeakFormBCDirichlet,
+                                           LCEDualWeakFormBCNeumann)
+from weak_forms.lce_primal_weak_form import (LCEPrimalWeakForm,
+                                             LCEPrimalWeakFormBCDirichlet)
 
 
 def torsion_h1_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
