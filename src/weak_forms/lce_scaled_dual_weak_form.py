@@ -77,8 +77,13 @@ class LCEScaledDualWeakForm(WeakForm):
         e2 = np.array([0, 1, 0])
         e3 = np.array([0, 0, 1])
 
+        lambda_v = f_lambda(x[:, 0], x[:, 1], x[:, 2])
+        mu_v = f_mu(x[:, 0], x[:, 1], x[:, 2])
+        kappa_v = f_kappa(x[:, 0], x[:, 1], x[:, 2])
+
         gamma_scale_v = f_gamma(x[:, 0], x[:, 1], x[:, 2])
         grad_gamma_v = f_grad_gamma(x[:, 0], x[:, 1], x[:, 2])
+
 
         Imat = np.identity(dim)
         with ad.AutoDiff(alpha) as alpha:
@@ -155,47 +160,47 @@ class LCEScaledDualWeakForm(WeakForm):
                         np.vstack((sx_h.val, sy_h.val)), np.vstack((sx_h.der, sy_h.der))
                     )
 
-                    # Stress decomposition
-                    Symm_sh = 0.5 * (sh + sh.T)
-                    Skew_sh = 0.5 * (sh - sh.T)
+                    # # Stress decomposition
+                    # Symm_sh = 0.5 * (sh + sh.T)
+                    # Skew_sh = 0.5 * (sh - sh.T)
+                    #
+                    # tr_s_h = VecValDer(sh.val.trace(), sh.der.trace())
+                    # A_sh = (0.0 / 2.0 * f_mu(xv[0], xv[1], xv[2])) * (
+                    #     Symm_sh
+                    #     - (
+                    #         f_lambda(xv[0], xv[1], xv[2])
+                    #         / (
+                    #             2.0 * f_mu(xv[0], xv[1], xv[2])
+                    #             + dim * f_lambda(xv[0], xv[1], xv[2])
+                    #         )
+                    #     )
+                    #     * tr_s_h
+                    #     * Imat
+                    # ) + (0.0 / 2.0 * f_kappa(xv[0], xv[1], xv[2])) * Skew_sh
 
-                    tr_s_h = VecValDer(sh.val.trace(), sh.der.trace())
-                    A_sh = (1.0 / 2.0 * f_mu(xv[0], xv[1], xv[2])) * (
-                        Symm_sh
-                        - (
-                            f_lambda(xv[0], xv[1], xv[2])
-                            / (
-                                2.0 * f_mu(xv[0], xv[1], xv[2])
-                                + dim * f_lambda(xv[0], xv[1], xv[2])
-                            )
-                        )
-                        * tr_s_h
-                        * Imat
-                    ) + (1.0 / 2.0 * f_kappa(xv[0], xv[1], xv[2])) * Skew_sh
-
-                    A_mh = mh
+                    # A_mh = mh
 
                     # grad_s_phi = s_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
                     # div_tau = np.array([np.trace(grad_s_phi, axis1=0, axis2=2) / det_jac[i]])
 
-                    grad_m_phi = m_phi_tab[1 : m_phi_tab.shape[0] + 1, i, :, 0:dim]
-                    div_v = np.array(
-                        [np.trace(grad_m_phi, axis1=0, axis2=2) / det_jac[i]]
-                    )
-
-                    tr_grad_eps_otimes_v = np.array(
-                        [
-                            [
-                                np.trace(
-                                    np.outer(
-                                        grad_gamma_scale, m_phi_tab[0, i, j, 0:dim]
-                                    )
-                                )
-                                for j in range(n_m_phi)
-                            ]
-                        ]
-                    )
-                    div_v_s = gamma_scale * div_v + tr_grad_eps_otimes_v
+                    # grad_m_phi = m_phi_tab[1 : m_phi_tab.shape[0] + 1, i, :, 0:dim]
+                    # div_v = np.array(
+                    #     [np.trace(grad_m_phi, axis1=0, axis2=2) / det_jac[i]]
+                    # )
+                    #
+                    # tr_grad_eps_otimes_v = np.array(
+                    #     [
+                    #         [
+                    #             np.trace(
+                    #                 np.outer(
+                    #                     grad_gamma_scale, m_phi_tab[0, i, j, 0:dim]
+                    #                 )
+                    #             )
+                    #             for j in range(n_m_phi)
+                    #         ]
+                    #     ]
+                    # )
+                    # div_v_s = gamma_scale * div_v + tr_grad_eps_otimes_v
 
                     # div_sh_x = a_sx @ div_tau.T
                     # div_sh_y = a_sy @ div_tau.T
@@ -204,7 +209,7 @@ class LCEScaledDualWeakForm(WeakForm):
                     #     np.hstack((div_sh_x.der, div_sh_y.der)),
                     # )
 
-                    div_mh = a_m @ div_v_s.T
+                    # div_mh = a_m @ div_v_s.T
 
                     Gamma_outer = th * np.array([[0.0, -1.0], [1.0, 0.0]])
                     S_cross = np.array([[sh[1, 0] - sh[0, 1]]])
@@ -318,25 +323,25 @@ class LCEScaledDualWeakForm(WeakForm):
                         np.vstack((mx_h.der, my_h.der, mz_h.der)),
                     )
 
-                    # Stress decomposition
-                    Symm_sh = 0.5 * (sh + sh.T)
-                    Skew_sh = 0.5 * (sh - sh.T)
-
-                    tr_s_h = VecValDer(sh.val.trace(), sh.der.trace())
-                    A_sh = (1.0 / 2.0 * f_mu(xv[0], xv[1], xv[2])) * (
-                        Symm_sh
-                        - (
-                            f_lambda(xv[0], xv[1], xv[2])
-                            / (
-                                2.0 * f_mu(xv[0], xv[1], xv[2])
-                                + dim * f_lambda(xv[0], xv[1], xv[2])
-                            )
-                        )
-                        * tr_s_h
-                        * Imat
-                    ) + (1.0 / 2.0 * f_kappa(xv[0], xv[1], xv[2])) * Skew_sh
-
-                    A_mh = mh
+                    # # Stress decomposition
+                    # Symm_sh = 0.5 * (sh + sh.T)
+                    # Skew_sh = 0.5 * (sh - sh.T)
+                    #
+                    # tr_s_h = VecValDer(sh.val.trace(), sh.der.trace())
+                    # A_sh = (1.0 / 2.0 * f_mu(xv[0], xv[1], xv[2])) * (
+                    #     Symm_sh
+                    #     - (
+                    #         f_lambda(xv[0], xv[1], xv[2])
+                    #         / (
+                    #             2.0 * f_mu(xv[0], xv[1], xv[2])
+                    #             + dim * f_lambda(xv[0], xv[1], xv[2])
+                    #         )
+                    #     )
+                    #     * tr_s_h
+                    #     * Imat
+                    # ) + (1.0 / 2.0 * f_kappa(xv[0], xv[1], xv[2])) * Skew_sh
+                    #
+                    # A_mh = mh
 
                     # grad_s_phi = s_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
                     # div_tau = np.array([np.trace(grad_s_phi, axis1=0, axis2=2) / det_jac[i]])
@@ -350,33 +355,33 @@ class LCEScaledDualWeakForm(WeakForm):
                     #     np.hstack((div_sh_x.der, div_sh_y.der, div_sh_z.der)),
                     # )
 
-                    grad_m_phi = m_phi_tab[1 : m_phi_tab.shape[0] + 1, i, :, 0:dim]
-                    div_v = np.array(
-                        [np.trace(grad_m_phi, axis1=0, axis2=2) / det_jac[i]]
-                    )
+                    # grad_m_phi = m_phi_tab[1 : m_phi_tab.shape[0] + 1, i, :, 0:dim]
+                    # div_v = np.array(
+                    #     [np.trace(grad_m_phi, axis1=0, axis2=2) / det_jac[i]]
+                    # )
+                    #
+                    # tr_grad_eps_otimes_v = np.array(
+                    #     [
+                    #         [
+                    #             np.trace(
+                    #                 np.outer(
+                    #                     grad_gamma_scale, m_phi_tab[0, i, j, 0:dim]
+                    #                 )
+                    #             )
+                    #             for j in range(n_m_phi)
+                    #         ]
+                    #     ]
+                    # )
+                    # div_v_s = gamma_scale * div_v + tr_grad_eps_otimes_v
 
-                    tr_grad_eps_otimes_v = np.array(
-                        [
-                            [
-                                np.trace(
-                                    np.outer(
-                                        grad_gamma_scale, m_phi_tab[0, i, j, 0:dim]
-                                    )
-                                )
-                                for j in range(n_m_phi)
-                            ]
-                        ]
-                    )
-                    div_v_s = gamma_scale * div_v + tr_grad_eps_otimes_v
-
-                    div_mh_x = a_mx @ div_v_s.T
-                    div_mh_y = a_my @ div_v_s.T
-                    div_mh_z = a_mz @ div_v_s.T
-
-                    div_mh = VecValDer(
-                        np.hstack((div_mh_x.val, div_mh_y.val, div_mh_z.val)),
-                        np.hstack((div_mh_x.der, div_mh_y.der, div_mh_z.der)),
-                    )
+                    # div_mh_x = a_mx @ div_v_s.T
+                    # div_mh_y = a_my @ div_v_s.T
+                    # div_mh_z = a_mz @ div_v_s.T
+                    #
+                    # div_mh = VecValDer(
+                    #     np.hstack((div_mh_x.val, div_mh_y.val, div_mh_z.val)),
+                    #     np.hstack((div_mh_x.der, div_mh_y.der, div_mh_z.der)),
+                    # )
 
                     Gamma_outer = np.array(
                         [
@@ -397,15 +402,15 @@ class LCEScaledDualWeakForm(WeakForm):
                     )
 
                 equ_1_integrand = (
-                    (s_phi_tab[0, i, :, 0:dim] @ A_sh.T)
+                    # (s_phi_tab[0, i, :, 0:dim] @ A_sh.T)
                     # + (div_tau.T @ uh)
                     - (s_phi_tab[0, i, :, 0:dim] @ Gamma_outer.T)
                 )
-                equ_2_integrand = (m_phi_tab[0, i, :, 0:dim] @ (A_mh.T)) + (
-                    div_v_s.T @ th
-                )
+                # equ_2_integrand = (m_phi_tab[0, i, :, 0:dim] @ (A_mh.T)) + (
+                #     div_v_s.T @ th
+                # )
                 # equ_3_integrand = u_phi_tab[0, i, :, 0:dim] @ div_sh
-                equ_4_integrand = (t_phi_tab[0, i, :, 0:dim] @ div_mh) - (
+                equ_4_integrand = - (
                     t_phi_tab[0, i, :, 0:dim] @ S_cross
                 )
 
@@ -413,9 +418,9 @@ class LCEScaledDualWeakForm(WeakForm):
                 multiphysic_integrand[:, 0:n_s_dof:1] = (equ_1_integrand).reshape(
                     (n_s_dof,)
                 )
-                multiphysic_integrand[:, n_s_dof : n_s_dof + n_m_dof : 1] = (
-                    equ_2_integrand
-                ).reshape((n_m_dof,))
+                # multiphysic_integrand[:, n_s_dof : n_s_dof + n_m_dof : 1] = (
+                #     equ_2_integrand
+                # ).reshape((n_m_dof,))
                 # multiphysic_integrand[
                 #     :, n_s_dof + n_m_dof : n_s_dof + n_m_dof + n_u_dof : 1
                 # ] = (equ_3_integrand).reshape((n_u_dof,))
@@ -435,6 +440,42 @@ class LCEScaledDualWeakForm(WeakForm):
         r_el, j_el = el_form.val, el_form.der.reshape((n_dof, n_dof))
 
         # partial vectorization
+
+        # stress vectorized block
+        s_j_el = np.array(
+            [0.5 * np.dot(phi, phi.T) for phi in s_phi_tab[0, :, :, 0:dim]]).T @ (
+                             det_jac * weights)
+        for c in range(s_components):
+            b = c
+            e = b + n_s_dof
+            j_el[b:e:s_components, b:e:s_components] += (1 / (2.0 * mu_v)) * s_j_el + (
+                        1 / (2.0 * kappa_v)) * s_j_el
+
+        t_s_j_el = np.zeros((n_s_dof, n_s_dof))
+        for i, omega in enumerate(weights):
+            phi = s_phi_tab[0, i, :, 0:dim]
+            for ip in range(n_s_phi):
+                for jp in range(n_s_phi):
+                    int_val = det_jac[i] * weights[i] * (
+                                0.5 * np.outer(phi[ip], phi[jp]).T)
+                    t_s_j_el[ip * s_components:(ip + 1) * s_components,
+                    jp * s_components:(jp + 1) * s_components] += (1 / (
+                                2.0 * mu_v)) * int_val - (1 / (2.0 * kappa_v)) * int_val
+
+        vol_factor = (1.0 / (2.0 * mu_v)) * (lambda_v / (2.0 * mu_v + dim * lambda_v))
+        vol_s_j_el = -1.0 * np.array(
+            [np.outer(phi, phi) for phi in s_phi_tab[0, :, :, 0:dim]]).T @ (
+                                 vol_factor * det_jac * weights)
+        j_el[0:n_s_dof, 0:n_s_dof] += vol_s_j_el
+
+        # couple stress vectorized block
+        m_j_el = np.array([np.dot(phi, phi.T) for phi in m_phi_tab[0, :, :, 0:dim]]).T @ (
+                    det_jac * weights)
+        for c in range(m_components):
+            b = c + n_s_dof
+            e = b + n_m_dof
+            j_el[b:e:m_components, b:e:m_components] += m_j_el
+
         u_phi_s_star_div_det_jac = weights * u_phi_tab[0, :, :, 0].T
         grad_s_phi_star = s_phi_tab[1 : s_phi_tab.shape[0] + 1, :, :, 0:dim]
         div_tau_star = np.trace(grad_s_phi_star, axis1=0, axis2=3)
@@ -450,6 +491,36 @@ class LCEScaledDualWeakForm(WeakForm):
 
                 j_el[ub:ue:u_components, sb:se:s_components] += u_block_outer
                 j_el[sb:se:s_components, ub:ue:u_components] += u_block_outer.T
+
+
+        t_phi_s_star_div_det_jac = weights * t_phi_tab[0, :, :, 0].T
+        grad_m_phi_star = m_phi_tab[1: m_phi_tab.shape[0] + 1, :, :, 0:dim]
+        div_v_star = np.array(
+                [
+                    [
+                    np.trace(
+                        np.outer(
+                            grad_gamma_v[:, i], m_phi_tab[0, i, j, 0:dim]
+                        )
+                    )
+                    for i in range(len(points))
+                    ]
+                    for j in range(n_m_phi)
+                ]
+        ) * det_jac
+
+        div_v_star += np.trace(grad_m_phi_star, axis1=0, axis2=3).T * gamma_scale_v
+        t_block_outer = t_phi_s_star_div_det_jac @ div_v_star.T
+        for tc in range(t_components):
+            tb = tc + n_s_dof + n_m_dof + n_u_dof
+            te = tb + n_t_dof
+            for mc in range(m_components):
+                mb = mc + n_s_dof
+                me = mb + n_m_dof
+                if tc != mc:
+                    continue
+                j_el[tb:te:t_components, mb:me:m_components] += t_block_outer
+                j_el[mb:me:m_components, tb:te:t_components] += t_block_outer.T
 
         return r_el, j_el
 

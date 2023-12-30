@@ -140,6 +140,7 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
         dest = weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
         r_el, j_el = weak_form.evaluate_form(i, alpha_l)
+        r_el_ad, j_el_ad = weak_form.evaluate_form_ad(i, alpha_l)
 
         # contribute rhs
         rg[dest] += r_el
@@ -159,14 +160,6 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
 
         # contribute rhs
         rg[dest] += r_el
-
-        # contribute lhs
-        data = j_el.ravel()
-        row = np.repeat(dest, len(dest))
-        col = np.tile(dest, len(dest))
-        nnz = data.shape[0]
-        for k in range(nnz):
-            A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
     n_els = len(fe_space.discrete_spaces["s"].elements)
     [scatter_form_data(A, i, weak_form) for i in range(n_els)]
@@ -369,8 +362,8 @@ def method_definition(k_order):
 
 
 def main():
-    n_refinements = 4
-    for k in [1]:
+    n_refinements = 1
+    for k in [2]:
         for method in method_definition(k):
             configuration = {
                 "n_refinements": n_refinements,
