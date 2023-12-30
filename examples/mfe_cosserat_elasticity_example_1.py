@@ -10,15 +10,19 @@ from geometry.domain import Domain
 from geometry.domain_market import build_box_1D, build_box_2D, build_box_3D
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
-from postprocess.l2_error_post_processor import (div_error, div_scaled_error,
-                                                 grad_error, l2_error)
-from postprocess.solution_post_processor import \
-    write_vtk_file_with_exact_solution
+from postprocess.l2_error_post_processor import (
+    div_error,
+    div_scaled_error,
+    grad_error,
+    l2_error,
+)
+from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
 from spaces.product_space import ProductSpace
-from weak_forms.lce_dual_weak_form import (LCEDualWeakForm,
-                                           LCEDualWeakFormBCDirichlet)
+from weak_forms.lce_dual_weak_form import LCEDualWeakForm, LCEDualWeakFormBCDirichlet
 from weak_forms.lce_scaled_dual_weak_form import (
-    LCEScaledDualWeakForm, LCEScaledDualWeakFormBCDirichlet)
+    LCEScaledDualWeakForm,
+    LCEScaledDualWeakFormBCDirichlet,
+)
 
 
 def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):

@@ -8,13 +8,18 @@ from petsc4py import PETSc
 
 from mesh.mesh import Mesh
 from mesh.mesh_metrics import mesh_size
-from postprocess.l2_error_post_processor import (div_error, div_scaled_error,
-                                                 grad_error, l2_error)
-from postprocess.solution_post_processor import \
-    write_vtk_file_with_exact_solution
+from postprocess.l2_error_post_processor import (
+    div_error,
+    div_scaled_error,
+    grad_error,
+    l2_error,
+)
+from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
 from spaces.product_space import ProductSpace
 from weak_forms.lce_scaled_dual_weak_form import (
-    LCEScaledDualWeakForm, LCEScaledDualWeakFormBCDirichlet)
+    LCEScaledDualWeakForm,
+    LCEScaledDualWeakFormBCDirichlet,
+)
 
 
 def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
@@ -139,8 +144,11 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
-        r_el, j_el = weak_form.evaluate_form(i, alpha_l)
-        r_el_ad, j_el_ad = weak_form.evaluate_form_ad(i, alpha_l)
+        r_el, j_el = weak_form.evaluate_form_vectorized(i, alpha_l)
+        # r_el_ad, j_el_ad = weak_form.evaluate_form(i, alpha_l)
+
+        # print("res diff norm: ", np.linalg.norm(r_el - r_el_ad))
+        # print("jac diff norm: ", np.linalg.norm(j_el - j_el_ad))
 
         # contribute rhs
         rg[dest] += r_el
@@ -362,8 +370,8 @@ def method_definition(k_order):
 
 
 def main():
-    n_refinements = 1
-    for k in [2]:
+    n_refinements = 2
+    for k in [1]:
         for method in method_definition(k):
             configuration = {
                 "n_refinements": n_refinements,

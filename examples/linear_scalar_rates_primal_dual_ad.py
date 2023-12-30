@@ -11,13 +11,16 @@ from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
 from postprocess.l2_error_post_processor import l2_error
 from postprocess.projectors import l2_projector
-from postprocess.solution_post_processor import \
-    write_vtk_file_with_exact_solution
+from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
 from spaces.product_space import ProductSpace
-from weak_forms.laplace_dual_weak_form import (LaplaceDualWeakForm,
-                                               LaplaceDualWeakFormBCDirichlet)
+from weak_forms.laplace_dual_weak_form import (
+    LaplaceDualWeakForm,
+    LaplaceDualWeakFormBCDirichlet,
+)
 from weak_forms.laplace_primal_weak_form import (
-    LaplacePrimalWeakForm, LaplacePrimalWeakFormBCDirichlet)
+    LaplacePrimalWeakForm,
+    LaplacePrimalWeakFormBCDirichlet,
+)
 
 
 def h1_laplace(k_order, gmesh, write_vtk_q=False):
