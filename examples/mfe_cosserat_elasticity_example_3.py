@@ -7,7 +7,7 @@ import strong_solution_cosserat_elasticity_example_3 as lce
 from petsc4py import PETSc
 
 from mesh.mesh import Mesh
-from mesh.mesh_sizes import min_mesh_size
+from mesh.mesh_metrics import mesh_size
 from postprocess.l2_error_post_processor import (div_error, div_scaled_error,
                                                  grad_error, l2_error)
 from postprocess.solution_post_processor import \
@@ -198,7 +198,7 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
     ksp.setType("tfqmr")
     ksp.setTolerances(rtol=1e-8, atol=1e-8, divtol=5000, max_it=20000)
     ksp.setConvergenceHistory()
-    # ksp.getPC().setType("ilu")
+    ksp.getPC().setType("ilu")
 
     ksp.solve(b, x)
     alpha = x.array
@@ -288,9 +288,9 @@ def perform_convergence_test(configuration: dict):
     for lh in range(n_ref):
         mesh_file = "gmsh_files/example_2_" + str(dimension) + "d_l_" + str(lh) + ".msh"
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
-        h_val = min_mesh_size(gmesh)
+        h_min, h_mean, h_max = mesh_size(gmesh)
         n_dof, error_vals = four_field_scaled_formulation(method, gmesh, write_vtk)
-        chunk = np.concatenate([[n_dof, h_val], error_vals])
+        chunk = np.concatenate([[n_dof, h_max], error_vals])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
 
     rates_data = np.empty((0, n_data - 2), float)
