@@ -497,15 +497,9 @@ class LCEScaledDualWeakForm(WeakForm):
         j_el = np.zeros(js)
         r_el = np.zeros(rs)
 
-        # Partial local vectorization
         f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
         u_phi_s_star = det_jac * weights * u_phi_tab[0, :, :, 0].T
         t_phi_s_star = det_jac * weights * t_phi_tab[0, :, :, 0].T
-
-        # constant directors
-        e1 = np.array([1, 0, 0])
-        e2 = np.array([0, 1, 0])
-        e3 = np.array([0, 0, 1])
 
         lambda_v = f_lambda(x[:, 0], x[:, 1], x[:, 2])
         mu_v = f_mu(x[:, 0], x[:, 1], x[:, 2])

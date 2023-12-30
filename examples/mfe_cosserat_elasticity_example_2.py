@@ -141,7 +141,7 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
-        r_el, j_el = weak_form.evaluate_form(i, alpha_l)
+        r_el, j_el = weak_form.evaluate_form_vectorized(i, alpha_l)
 
         # contribute rhs
         rg[dest] += r_el
@@ -460,7 +460,7 @@ def material_data_definition():
 
 def main():
     case_data = material_data_definition()
-    for k in [2]:
+    for k in [1]:
         methods = method_definition(k)
         for i, method in enumerate(methods):
             n_refinements = 4
