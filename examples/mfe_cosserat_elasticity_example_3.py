@@ -197,7 +197,7 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
     # ksp.setConvergenceHistory()
 
     ksp.setType("tfqmr")
-    ksp.setTolerances(rtol=1e-8, atol=1e-8, divtol=5000, max_it=20000)
+    ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=5000, max_it=20000)
     ksp.setConvergenceHistory()
     ksp.getPC().setType("ilu")
 
@@ -217,8 +217,8 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
     s_l2_error, m_l2_error, u_l2_error, t_l2_error = l2_error(
         dim, fe_space, exact_functions, alpha
     )
-    div_s_l2_error, _ = div_error(dim, fe_space, exact_functions, alpha)
-    _, div_m_l2_error = div_scaled_error(dim, fe_space, exact_functions, alpha)
+    div_s_l2_error = div_error(dim, fe_space, exact_functions, alpha, ['m'])[0]
+    div_m_l2_error = div_scaled_error(dim, fe_space, exact_functions, alpha, ['s'])[0]
 
     et = time.time()
     elapsed_time = et - st

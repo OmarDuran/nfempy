@@ -495,39 +495,39 @@ class LCEDualWeakForm(WeakForm):
                 1 / (2.0 * kappa_v)
             ) * s_j_el
 
-        transpose_s_j_el = np.zeros((n_s_dof, n_s_dof))
-
-        def phi_outer(phi):
-            n_data = phi.shape[0]
-            return np.array(
-                [
-                    np.outer(phi[i], phi[j]).T
-                    for i in range(n_data)
-                    for j in range(n_data)
-                ]
-            )
-
-        dest_idx = lambda idx: np.unravel_index(idx, (n_s_phi, n_s_phi))
-
-        def insert_prod(k, prod, array):
-            ip, jp = dest_idx(k)
-            array[
-                ip * s_components : (ip + 1) * s_components,
-                jp * s_components : (jp + 1) * s_components,
-            ] += prod
-
-        trans_outer_prods = (
-            np.array([phi_outer(phi) for phi in s_phi_star]).T @ (det_jac * weights)
-        ).T
-        [
-            insert_prod(
-                k,
-                0.5 * ((1 / (2.0 * mu_v)) - (1 / (2.0 * kappa_v))) * oprod,
-                transpose_s_j_el,
-            )
-            for k, oprod in enumerate(trans_outer_prods)
-        ]
-        j_el[0:n_s_dof, 0:n_s_dof] += transpose_s_j_el
+        # transpose_s_j_el = np.zeros((n_s_dof, n_s_dof))
+        #
+        # def phi_outer(phi):
+        #     n_data = phi.shape[0]
+        #     return np.array(
+        #         [
+        #             np.outer(phi[i], phi[j]).T
+        #             for i in range(n_data)
+        #             for j in range(n_data)
+        #         ]
+        #     )
+        #
+        # dest_idx = lambda idx: np.unravel_index(idx, (n_s_phi, n_s_phi))
+        #
+        # def insert_prod(k, prod, array):
+        #     ip, jp = dest_idx(k)
+        #     array[
+        #         ip * s_components : (ip + 1) * s_components,
+        #         jp * s_components : (jp + 1) * s_components,
+        #     ] += prod
+        #
+        # trans_outer_prods = (
+        #     np.array([phi_outer(phi) for phi in s_phi_star]).T @ (det_jac * weights)
+        # ).T
+        # [
+        #     insert_prod(
+        #         k,
+        #         0.5 * ((1 / (2.0 * mu_v)) - (1 / (2.0 * kappa_v))) * oprod,
+        #         transpose_s_j_el,
+        #     )
+        #     for k, oprod in enumerate(trans_outer_prods)
+        # ]
+        # j_el[0:n_s_dof, 0:n_s_dof] += transpose_s_j_el
 
         vol_factor = (1.0 / (2.0 * mu_v)) * (lambda_v / (2.0 * mu_v + dim * lambda_v))
         vol_s_j_el = (

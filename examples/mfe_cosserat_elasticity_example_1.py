@@ -10,6 +10,7 @@ from geometry.domain import Domain
 from geometry.domain_market import build_box_1D, build_box_2D, build_box_3D
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
+from mesh.mesh_metrics import mesh_size
 from postprocess.l2_error_post_processor import (
     div_error,
     div_scaled_error,
@@ -145,7 +146,7 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
-        r_el, j_el = weak_form.evaluate_form(i, alpha_l)
+        r_el, j_el = weak_form.evaluate_form_vectorized(i, alpha_l)
 
         # contribute rhs
         rg[dest] += r_el
@@ -165,14 +166,6 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
 
         # contribute rhs
         rg[dest] += r_el
-
-        # contribute lhs
-        data = j_el.ravel()
-        row = np.repeat(dest, len(dest))
-        col = np.tile(dest, len(dest))
-        nnz = data.shape[0]
-        for k in range(nnz):
-            A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
     n_els = len(fe_space.discrete_spaces["s"].elements)
     [scatter_form_data(A, i, weak_form) for i in range(n_els)]
@@ -201,9 +194,9 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
     # ksp.setConvergenceHistory()
 
     ksp.setType("tfqmr")
-    ksp.setTolerances(rtol=1e-8, atol=1e-8, divtol=5000, max_it=20000)
+    ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=5000, max_it=20000)
     ksp.setConvergenceHistory()
-    # ksp.getPC().setType("ilu")
+    ksp.getPC().setType("ilu")
 
     ksp.solve(b, x)
     alpha = x.array
@@ -404,7 +397,7 @@ def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=Fals
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
-        r_el, j_el = weak_form.evaluate_form(i, alpha_l)
+        r_el, j_el = weak_form.evaluate_form_vectorized(i, alpha_l)
 
         # contribute rhs
         rg[dest] += r_el
@@ -424,14 +417,6 @@ def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=Fals
 
         # contribute rhs
         rg[dest] += r_el
-
-        # contribute lhs
-        data = j_el.ravel()
-        row = np.repeat(dest, len(dest))
-        col = np.tile(dest, len(dest))
-        nnz = data.shape[0]
-        for k in range(nnz):
-            A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
     n_els = len(fe_space.discrete_spaces["s"].elements)
     [scatter_form_data(A, i, weak_form) for i in range(n_els)]
@@ -460,9 +445,9 @@ def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=Fals
     # ksp.setConvergenceHistory()
 
     ksp.setType("tfqmr")
-    ksp.setTolerances(rtol=1e-8, atol=1e-8, divtol=5000, max_it=20000)
+    ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=5000, max_it=20000)
     ksp.setConvergenceHistory()
-    # ksp.getPC().setType("ilu")
+    ksp.getPC().setType("ilu")
 
     ksp.solve(b, x)
     alpha = x.array
@@ -601,6 +586,7 @@ def perform_convergence_test(configuration: dict):
         h_val = h * (2**-lh)
         mesher = create_conformal_mesher(domain, h, lh)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
+        h_min, h_mean, h_max = mesh_size(gmesh)
         if method[0] == "m2_dnc":
             n_dof, error_vals = four_field_scaled_formulation(
                 material_data, method, gmesh, write_vtk
@@ -609,7 +595,7 @@ def perform_convergence_test(configuration: dict):
             n_dof, error_vals = four_field_formulation(
                 material_data, method, gmesh, write_vtk
             )
-        chunk = np.concatenate([[n_dof, h_val], error_vals])
+        chunk = np.concatenate([[n_dof, h_max], error_vals])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
 
     rates_data = np.empty((0, n_data - 2), float)
@@ -725,13 +711,13 @@ def material_data_definition():
 
 
 def main():
+    n_refinements = 4
     case_data = material_data_definition()
     for k in [2]:
         methods = method_definition(k)
         for i, method in enumerate(methods):
-            n_refinements = 4
-            # if i == 3:
-            #     n_refinements = 3
+            if i == 2:
+                continue
             for material_data in case_data:
                 configuration = {
                     "n_refinements": n_refinements,
