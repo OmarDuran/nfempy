@@ -168,7 +168,7 @@ def div_error(dim, fe_space, functions, alpha, skip_fields = []):
         name, space = item
         if space.family not in vec_families:
             continue
-        if name is skip_fields:
+        if name in skip_fields:
             continue
         indexes = [
             i
@@ -226,7 +226,6 @@ def div_scaled_error(dim, fe_space, functions, alpha, skip_fields = []):
                         for j in range(n_phi)
                     ]
                 )
-                * det_jac
         )
 
         div_v_star += np.trace(grad_m_phi_star, axis1=0, axis2=3).T * (
@@ -243,7 +242,7 @@ def div_scaled_error(dim, fe_space, functions, alpha, skip_fields = []):
         name, space = item
         if space.family not in vec_families:
             continue
-        if name is skip_fields:
+        if name in skip_fields:
             continue
         indexes = [
             i
