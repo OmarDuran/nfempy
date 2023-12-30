@@ -21,8 +21,13 @@ from weak_forms.lce_scaled_dual_weak_form import (
     LCEScaledDualWeakFormBCDirichlet,
 )
 
+# parallel assembly
+import multiprocessing
+from functools import partial
+from joblib import Parallel, delayed, wrap_non_picklable_objects
+from topology.mesh_coloring import coloring_mesh_by_co_dimension
 
-def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
+def four_field_scaled_formulation(method, gmesh, write_vtk_q=False, par_assembly_q=True):
     dim = gmesh.dimension
 
     # FESpace: data
@@ -140,7 +145,23 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
     bc_weak_form = LCEScaledDualWeakFormBCDirichlet(fe_space)
     bc_weak_form.functions = exact_functions
 
-    def scatter_form_data(A, i, weak_form):
+    # mesh coloring
+    if par_assembly_q:
+        c0_cells = np.array(
+            [
+                cell.id
+                for cell in gmesh.cells
+                if cell.dimension == 3
+                   and cell.id is not None
+                   and cell.material_id is not None
+            ]
+        )
+
+        # coloring by facet connectivity
+        entity_to_color, color_to_entities = coloring_mesh_by_co_dimension(8, gmesh, 3, 1)
+        c1_colors = np.unique(np.array([entity_to_color[id] for id in c0_cells]))
+
+    def scatter_form_data(i, A, weak_form):
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
@@ -169,8 +190,48 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
         # contribute rhs
         rg[dest] += r_el
 
-    n_els = len(fe_space.discrete_spaces["s"].elements)
-    [scatter_form_data(A, i, weak_form) for i in range(n_els)]
+    if par_assembly_q:
+
+        @wrap_non_picklable_objects
+        def par_scatter_form_data(i, A, weak_form):
+            # destination indexes
+            dest = weak_form.space.destination_indexes(i)
+            alpha_l = alpha[dest]
+            r_el, j_el = weak_form.evaluate_form_vectorized(i, alpha_l)
+            # r_el_ad, j_el_ad = weak_form.evaluate_form(i, alpha_l)
+
+            # print("res diff norm: ", np.linalg.norm(r_el - r_el_ad))
+            # print("jac diff norm: ", np.linalg.norm(j_el - j_el_ad))
+
+            # contribute rhs
+            rg[dest] += r_el
+
+            # contribute lhs
+            data = j_el.ravel()
+            row = np.repeat(dest, len(dest))
+            col = np.tile(dest, len(dest))
+            nnz = data.shape[0]
+            for k in range(nnz):
+                A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
+
+        num_cores = multiprocessing.cpu_count()
+        for color in c1_colors:
+            idxs = [fe_space.discrete_spaces['s'].id_to_element[id] for id in color_to_entities[color]]
+            Parallel(
+                n_jobs=num_cores, backend="sequential", batch_size="auto", verbose=10
+            )(
+                delayed(par_scatter_form_data)(
+                    i=idx,
+                    A=A,
+                    weak_form=weak_form,
+                )
+                for idx in idxs
+            )
+            aka = 0
+    else:
+        n_els = len(fe_space.discrete_spaces["s"].elements)
+        [scatter_form_data(i, A, weak_form) for i in range(n_els)]
+
 
     n_bc_els = len(fe_space.discrete_spaces["s"].bc_elements)
     [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
@@ -370,7 +431,7 @@ def method_definition(k_order):
 
 
 def main():
-    n_refinements = 2
+    n_refinements = 3
     for k in [1]:
         for method in method_definition(k):
             configuration = {
