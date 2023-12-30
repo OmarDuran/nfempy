@@ -547,22 +547,28 @@ class LCEScaledDualWeakForm(WeakForm):
             ).T
             @ (det_jac * weights)
         ).T
-        Asz_op = (
-            np.array(
-                [
-                    np.outer(t_phi_tab[0, i, :, 0], s_phi_star[i, :, 2])
-                    for i in range(len(points))
-                ]
-            ).T
-            @ (det_jac * weights)
-        ).T
 
-        t_comp_to_s_comp_map = {0: [2, 1], 1: [0, 2], 2: [1, 0]}
-        t_comp_to_operator_map = {
-            0: (Asy_op, -Asz_op),
-            1: (Asz_op, -Asx_op),
-            2: (Asx_op, -Asy_op),
-        }
+        if dim == 3:
+            Asz_op = (
+                np.array(
+                    [
+                        np.outer(t_phi_tab[0, i, :, 0], s_phi_star[i, :, 2])
+                        for i in range(len(points))
+                    ]
+                ).T
+                @ (det_jac * weights)
+            ).T
+
+        if dim == 3:
+            t_comp_to_s_comp_map = {0: [2, 1], 1: [0, 2], 2: [1, 0]}
+            t_comp_to_operator_map = {
+                0: (Asy_op, -Asz_op),
+                1: (Asz_op, -Asx_op),
+                2: (Asx_op, -Asy_op),
+            }
+        else:
+            t_comp_to_s_comp_map = {0: [1, 0]}
+            t_comp_to_operator_map = {0: (Asx_op, -Asy_op)}
 
         for c in range(t_components):
             b = c + n_s_dof + n_m_dof + n_u_dof
