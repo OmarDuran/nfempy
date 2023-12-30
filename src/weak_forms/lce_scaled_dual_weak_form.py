@@ -505,19 +505,28 @@ class LCEScaledDualWeakForm(WeakForm):
         mu_v = f_mu(x[:, 0], x[:, 1], x[:, 2])
         kappa_v = f_kappa(x[:, 0], x[:, 1], x[:, 2])
 
+        # Vectorized contributions
+        # s : stress
+        # m : coupled stress
+        # u : displacement
+        # t : rotation
+
         gamma_scale_v = f_gamma(x[:, 0], x[:, 1], x[:, 2])
         grad_gamma_v = f_grad_gamma(x[:, 0], x[:, 1], x[:, 2])
 
+        # rhs_u
         for c in range(u_components):
             b = c + n_s_dof + n_m_dof
             e = b + n_u_dof
             r_el[b:e:u_components] += -1.0 * u_phi_s_star @ f_val_star[c]
+
+        # rhs_t
         for c in range(t_components):
             b = c + n_s_dof + n_m_dof + n_u_dof
             e = b + n_t_dof
             r_el[b:e:t_components] += -1.0 * t_phi_s_star @ f_val_star[c + u_components]
 
-        # stress vectorized block
+        # (s,s) block
         s_phi_star = s_phi_tab[0, :, :, 0:dim]
         s_j_el = np.array([0.5 * np.dot(phi, phi.T) for phi in s_phi_star]).T @ (
             det_jac * weights
@@ -529,6 +538,49 @@ class LCEScaledDualWeakForm(WeakForm):
                 1 / (2.0 * kappa_v)
             ) * s_j_el
 
+        transpose_s_j_el = np.zeros((n_s_dof, n_s_dof))
+
+        def phi_outer(phi):
+            n_data = phi.shape[0]
+            return np.array(
+                [
+                    np.outer(phi[i], phi[j]).T
+                    for i in range(n_data)
+                    for j in range(n_data)
+                ]
+            )
+
+        dest_idx = lambda idx: np.unravel_index(idx, (n_s_phi, n_s_phi))
+
+        def insert_prod(k, prod, array):
+            ip, jp = dest_idx(k)
+            array[
+                ip * s_components : (ip + 1) * s_components,
+                jp * s_components : (jp + 1) * s_components,
+            ] += prod
+
+        trans_outer_prods = (
+            np.array([phi_outer(phi) for phi in s_phi_star]).T @ (det_jac * weights)
+        ).T
+        [
+            insert_prod(
+                k,
+                0.5 * ((1 / (2.0 * mu_v)) - (1 / (2.0 * kappa_v))) * oprod,
+                transpose_s_j_el,
+            )
+            for k, oprod in enumerate(trans_outer_prods)
+        ]
+        j_el[0:n_s_dof, 0:n_s_dof] += transpose_s_j_el
+
+        vol_factor = (1.0 / (2.0 * mu_v)) * (lambda_v / (2.0 * mu_v + dim * lambda_v))
+        vol_s_j_el = (
+            -1.0
+            * np.array([np.outer(phi, phi) for phi in s_phi_tab[0, :, :, 0:dim]]).T
+            @ (vol_factor * det_jac * weights)
+        )
+        j_el[0:n_s_dof, 0:n_s_dof] += vol_s_j_el
+
+        # (t,s) and (s,t) blocks
         Asx_op = (
             np.array(
                 [
@@ -579,28 +631,7 @@ class LCEScaledDualWeakForm(WeakForm):
                 j_el[b:e:t_components, bs:es:s_components] += -1.0 * operator
                 j_el[bs:es:s_components, b:e:t_components] += -1.0 * operator.T
 
-        # t_s_j_el = np.zeros((n_s_dof, n_s_dof))
-        # for i, omega in enumerate(weights):
-        #     phi = s_phi_tab[0, i, :, 0:dim]
-        #     for ip in range(n_s_phi):
-        #         for jp in range(n_s_phi):
-        #             int_val = (
-        #                 det_jac[i] * weights[i] * (0.5 * np.outer(phi[ip], phi[jp]).T)
-        #             )
-        #             t_s_j_el[
-        #                 ip * s_components : (ip + 1) * s_components,
-        #                 jp * s_components : (jp + 1) * s_components,
-        #             ] += (1 / (2.0 * mu_v)) * int_val - (1 / (2.0 * kappa_v)) * int_val
-
-        vol_factor = (1.0 / (2.0 * mu_v)) * (lambda_v / (2.0 * mu_v + dim * lambda_v))
-        vol_s_j_el = (
-            -1.0
-            * np.array([np.outer(phi, phi) for phi in s_phi_tab[0, :, :, 0:dim]]).T
-            @ (vol_factor * det_jac * weights)
-        )
-        j_el[0:n_s_dof, 0:n_s_dof] += vol_s_j_el
-
-        # couple stress vectorized block
+        # (m,m) block
         m_j_el = np.array(
             [np.dot(phi, phi.T) for phi in m_phi_tab[0, :, :, 0:dim]]
         ).T @ (det_jac * weights)
@@ -609,6 +640,7 @@ class LCEScaledDualWeakForm(WeakForm):
             e = b + n_m_dof
             j_el[b:e:m_components, b:e:m_components] += m_j_el
 
+        # (u,s) and (s,u) blocks
         u_phi_s_star_div_det_jac = weights * u_phi_tab[0, :, :, 0].T
         grad_s_phi_star = s_phi_tab[1 : s_phi_tab.shape[0] + 1, :, :, 0:dim]
         div_tau_star = np.trace(grad_s_phi_star, axis1=0, axis2=3)
@@ -625,6 +657,7 @@ class LCEScaledDualWeakForm(WeakForm):
                 j_el[ub:ue:u_components, sb:se:s_components] += u_block_outer
                 j_el[sb:se:s_components, ub:ue:u_components] += u_block_outer.T
 
+        # (t,m) and (m,t) blocks
         t_phi_s_star_div_det_jac = weights * t_phi_tab[0, :, :, 0].T
         grad_m_phi_star = m_phi_tab[1 : m_phi_tab.shape[0] + 1, :, :, 0:dim]
         div_v_star = (
