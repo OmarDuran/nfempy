@@ -370,8 +370,8 @@ def method_definition(k_order):
 
 
 def main():
-    n_refinements = 2
-    for k in [1]:
+    n_refinements = 5
+    for k in [1, 2]:
         for method in method_definition(k):
             configuration = {
                 "n_refinements": n_refinements,
