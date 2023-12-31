@@ -312,7 +312,7 @@ def devia_l2_error(dim, fe_space, functions, alpha):
         tr_T_e_avg, tr_T_h_avg = tr_T_avgs[name]
         for idx in indexes:
             n_components = space.n_comp
-            el_data = space.elements[i].data
+            el_data = space.elements[idx].data
             cell = el_data.cell
             x, jac, det_jac, inv_jac = space.elements[idx].evaluate_mapping(points)
             phi_tab = space.elements[idx].evaluate_basis(points, jac, det_jac, inv_jac)
