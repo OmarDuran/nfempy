@@ -1,6 +1,7 @@
 import functools
 import gc
 import time
+import resource
 
 import numpy as np
 import strong_solution_cosserat_elasticity_example_1 as lce
@@ -142,7 +143,7 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
     bc_weak_form = LCEDualWeakFormBCDirichlet(fe_space)
     bc_weak_form.functions = exact_functions
 
-    def scatter_form_data(A, i, weak_form):
+    def scatter_form_data(A, i, weak_form, n_els):
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
@@ -159,6 +160,13 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
         for k in range(nnz):
             A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
+        check_points = [(int(k * n_els / 10)) for k in range(11)]
+        if i in check_points or i == n_els - 1:
+            if i == n_els - 1:
+                print("Assembly: progress [%]: ", 100)
+            else:
+                print("Assembly: progress [%]: ", check_points.index(i)*10)
+
     def scatter_bc_form(A, i, bc_weak_form):
         dest = fe_space.bc_destination_indexes(i)
         alpha_l = alpha[dest]
@@ -168,7 +176,7 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
         rg[dest] += r_el
 
     n_els = len(fe_space.discrete_spaces["s"].elements)
-    [scatter_form_data(A, i, weak_form) for i in range(n_els)]
+    [scatter_form_data(A, i, weak_form, n_els) for i in range(n_els)]
 
     n_bc_els = len(fe_space.discrete_spaces["s"].bc_elements)
     [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
@@ -245,6 +253,7 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
 
+    gc.collect()
     return n_dof_g, np.array(
         [
             u_l2_error,
@@ -320,6 +329,7 @@ def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=Fals
     alpha = np.zeros(n_dof_g)
     print("n_dof: ", n_dof_g)
 
+    memory_start = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     # Assembler
     st = time.time()
 
@@ -393,7 +403,7 @@ def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=Fals
     bc_weak_form = LCEScaledDualWeakFormBCDirichlet(fe_space)
     bc_weak_form.functions = exact_functions
 
-    def scatter_form_data(A, i, weak_form):
+    def scatter_form_data(A, i, weak_form, n_els):
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
@@ -410,6 +420,14 @@ def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=Fals
         for k in range(nnz):
             A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
+        check_points = [(int(k * n_els / 10)) for k in range(11)]
+        if i in check_points or i == n_els - 1:
+            if i == n_els - 1:
+                print("Assembly: progress [%]: ", 100)
+            else:
+                print("Assembly: progress [%]: ", check_points.index(i)*10)
+        print("Assembly: Memory used :", resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start)
+
     def scatter_bc_form(A, i, bc_weak_form):
         dest = fe_space.bc_destination_indexes(i)
         alpha_l = alpha[dest]
@@ -419,7 +437,7 @@ def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=Fals
         rg[dest] += r_el
 
     n_els = len(fe_space.discrete_spaces["s"].elements)
-    [scatter_form_data(A, i, weak_form) for i in range(n_els)]
+    [scatter_form_data(A, i, weak_form, n_els) for i in range(n_els)]
 
     n_bc_els = len(fe_space.discrete_spaces["s"].bc_elements)
     [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
@@ -497,6 +515,7 @@ def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=Fals
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
 
+    gc.collect()
     return n_dof_g, np.array(
         [
             u_l2_error,
@@ -711,9 +730,9 @@ def material_data_definition():
 
 
 def main():
-    n_refinements = 4
+    n_refinements = 3
     case_data = material_data_definition()
-    for k in [1, 2]:
+    for k in [1]:
         methods = method_definition(k)
         for i, method in enumerate(methods):
             for material_data in case_data:
@@ -723,11 +742,10 @@ def main():
                     "material_data": material_data,
                 }
 
-                for d in [3]:
+                for d in [2]:
                     configuration.__setitem__("k_order", k)
                     configuration.__setitem__("dimension", d)
                     perform_convergence_test(configuration)
-                    gc.collect()
 
 
 if __name__ == "__main__":

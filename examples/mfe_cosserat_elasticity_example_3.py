@@ -1,6 +1,7 @@
 import functools
 import gc
 import time
+import resource
 
 import numpy as np
 import strong_solution_cosserat_elasticity_example_3 as lce
@@ -83,6 +84,7 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
     alpha = np.zeros(n_dof_g)
     print("n_dof: ", n_dof_g)
 
+    memory_start = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     # Assembler
     st = time.time()
 
@@ -140,15 +142,11 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
     bc_weak_form = LCEScaledDualWeakFormBCDirichlet(fe_space)
     bc_weak_form.functions = exact_functions
 
-    def scatter_form_data(A, i, weak_form):
+    def scatter_form_data(A, i, weak_form, n_els):
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
         r_el, j_el = weak_form.evaluate_form_vectorized(i, alpha_l)
-        # r_el_ad, j_el_ad = weak_form.evaluate_form(i, alpha_l)
-
-        # print("res diff norm: ", np.linalg.norm(r_el - r_el_ad))
-        # print("jac diff norm: ", np.linalg.norm(j_el - j_el_ad))
 
         # contribute rhs
         rg[dest] += r_el
@@ -158,8 +156,15 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
         row = np.repeat(dest, len(dest))
         col = np.tile(dest, len(dest))
         nnz = data.shape[0]
-        for k in range(nnz):
-            A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
+        [A.setValue(row=row[k], col=col[k], value=data[k], addv=True) for k in range(nnz)]
+
+        check_points = [(int(k * n_els / 10)) for k in range(11)]
+        if i in check_points or i == n_els - 1:
+            if i == n_els - 1:
+                print("Assembly: progress [%]: ", 100)
+            else:
+                print("Assembly: progress [%]: ", check_points.index(i)*10)
+            print("Assembly: Memory used [GiB] :", (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start)/1073741824)
 
     def scatter_bc_form(A, i, bc_weak_form):
         dest = fe_space.bc_destination_indexes(i)
@@ -170,7 +175,7 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
         rg[dest] += r_el
 
     n_els = len(fe_space.discrete_spaces["s"].elements)
-    [scatter_form_data(A, i, weak_form) for i in range(n_els)]
+    [scatter_form_data(A, i, weak_form, n_els) for i in range(n_els)]
 
     n_bc_els = len(fe_space.discrete_spaces["s"].bc_elements)
     [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
@@ -179,8 +184,10 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
 
     et = time.time()
     elapsed_time = et - st
-    print("Assembly time:", elapsed_time, "seconds")
+    print("Assembly: Time:", elapsed_time, "seconds")
+    print("Assembly: After PETSc M.assemble: Memory used [GiB] :", (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start) / 1073741824)
 
+    # memory_start = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     # solving ls
     st = time.time()
 
@@ -203,7 +210,7 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
 
     ksp.solve(b, x)
     alpha = x.array
-
+    print("Linear solver: After PETSc ksp.solve: Memory used [GiB] :", (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start) / 1073741824)
     PETSc.KSP.destroy(ksp)
     PETSc.Mat.destroy(A)
     PETSc.Vec.destroy(b)
@@ -211,14 +218,15 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
 
     et = time.time()
     elapsed_time = et - st
-    print("Linear solver time:", elapsed_time, "seconds")
+    print("Linear solver: Time:", elapsed_time, "seconds")
+    print("Linear solver: After PETSc ksp.destroy: Memory used [GiB] :", (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start) / 1073741824)
 
     st = time.time()
     s_l2_error, m_l2_error, u_l2_error, t_l2_error = l2_error(
         dim, fe_space, exact_functions, alpha
     )
-    div_s_l2_error = div_error(dim, fe_space, exact_functions, alpha, ['m'])[0]
-    div_m_l2_error = div_scaled_error(dim, fe_space, exact_functions, alpha, ['s'])[0]
+    div_s_l2_error = div_error(dim, fe_space, exact_functions, alpha, ["m"])[0]
+    div_m_l2_error = div_scaled_error(dim, fe_space, exact_functions, alpha, ["s"])[0]
 
     et = time.time()
     elapsed_time = et - st
@@ -247,6 +255,7 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
     h_div_s_error = np.sqrt((s_l2_error**2) + (div_s_l2_error**2))
     h_div_m_error = np.sqrt((m_l2_error**2) + (div_m_l2_error**2))
 
+    gc.collect()
     return n_dof_g, np.array(
         [
             u_l2_error,
@@ -370,8 +379,8 @@ def method_definition(k_order):
 
 
 def main():
-    n_refinements = 5
-    for k in [1, 2]:
+    n_refinements = 4
+    for k in [2]:
         for method in method_definition(k):
             configuration = {
                 "n_refinements": n_refinements,
@@ -382,7 +391,6 @@ def main():
                 configuration.__setitem__("k_order", k)
                 configuration.__setitem__("dimension", d)
                 perform_convergence_test(configuration)
-                gc.collect()
 
 
 if __name__ == "__main__":
