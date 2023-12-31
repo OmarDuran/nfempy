@@ -200,10 +200,11 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
     # ksp.getPC().setFactorSolverType("mumps")
     # ksp.setConvergenceHistory()
 
-    ksp.setType("tfqmr")
+    ksp.setType("pgmres")
     ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=5000, max_it=20000)
     ksp.setConvergenceHistory()
     ksp.getPC().setType("ilu")
+    ksp.getPC().setFactorSolverType("superlu")
 
     ksp.solve(b, x)
     alpha = x.array
@@ -460,10 +461,11 @@ def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=Fals
     # ksp.getPC().setFactorSolverType("mumps")
     # ksp.setConvergenceHistory()
 
-    ksp.setType("tfqmr")
+    ksp.setType("pgmres")
     ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=5000, max_it=20000)
     ksp.setConvergenceHistory()
     ksp.getPC().setType("ilu")
+    ksp.getPC().setFactorSolverType("superlu")
 
     ksp.solve(b, x)
     alpha = x.array
@@ -728,9 +730,9 @@ def material_data_definition():
 
 
 def main():
-    n_refinements = 3
+    n_refinements = 4
     case_data = material_data_definition()
-    for k in [1]:
+    for k in [2]:
         methods = method_definition(k)
         for i, method in enumerate(methods):
             for material_data in case_data:
@@ -740,7 +742,7 @@ def main():
                     "material_data": material_data,
                 }
 
-                for d in [2]:
+                for d in [3]:
                     configuration.__setitem__("k_order", k)
                     configuration.__setitem__("dimension", d)
                     perform_convergence_test(configuration)

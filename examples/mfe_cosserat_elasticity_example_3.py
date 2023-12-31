@@ -5,6 +5,10 @@ import resource
 
 import numpy as np
 import strong_solution_cosserat_elasticity_example_3 as lce
+
+import sys
+import petsc4py
+petsc4py.init(sys.argv)
 from petsc4py import PETSc
 
 from mesh.mesh import Mesh
@@ -200,17 +204,16 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
     b.array[:] = -rg
     x = A.createVecRight()
 
-    ksp.setType("preonly")
-    ksp.getPC().setType("lu")
-    # https://github.com/erdc/petsc4py/blob/master/src/PETSc/Mat.pyx#L98
-    ksp.getPC().setFactorSolverType("mumps")
-    ksp.setConvergenceHistory()
-
-    # ksp.setType("tfqmr")
-    # ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=5000, max_it=20000)
-    # ksp.setConvergenceHistory()
-    # ksp.getPC().setType("ilu")
+    # ksp.setType("preonly")
+    # ksp.getPC().setType("lu")
     # ksp.getPC().setFactorSolverType("mumps")
+    # ksp.setConvergenceHistory()
+
+    ksp.setType("pgmres")
+    ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=5000, max_it=20000)
+    ksp.setConvergenceHistory()
+    ksp.getPC().setType("ilu")
+    ksp.getPC().setFactorSolverType("superlu")
 
     ksp.solve(b, x)
     alpha = x.array
@@ -384,7 +387,7 @@ def method_definition(k_order):
 
 def main():
     n_refinements = 3
-    for k in [2]:
+    for k in [1]:
         for method in method_definition(k):
             configuration = {
                 "n_refinements": n_refinements,
