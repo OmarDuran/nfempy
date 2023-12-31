@@ -1,7 +1,7 @@
 // Gmsh project created on Tue Dec 12 23:27:59 2023
 SetFactory("OpenCASCADE");
 
-s=16;
+s=32;
 lc = 1.0/s;
 hi = 1.0/3.0;
 hs = 2.0/3.0;
@@ -202,7 +202,8 @@ Surface Loop(1) = {4, 8, 3, 11, 12, 5, 2, 10, 7, 1, 6, 9};
 Volume(1) = {1};
 
 Surface{13,14,15,16,17,18} In Volume{1};
-
+Transfinite Surface {13,14,15,16,17,18};
+//Transfinite Surface {1,2,3,4,5,6,7,8,9,10,11,12};
 
 
 
