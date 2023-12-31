@@ -152,8 +152,7 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
         row = np.repeat(dest, len(dest))
         col = np.tile(dest, len(dest))
         nnz = data.shape[0]
-        for k in range(nnz):
-            A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
+        [A.setValue(row=row[k], col=col[k], value=data[k], addv=True) for k in range(nnz)]
 
         check_points = [(int(k * n_els / 10)) for k in range(11)]
         if i in check_points or i == n_els - 1:

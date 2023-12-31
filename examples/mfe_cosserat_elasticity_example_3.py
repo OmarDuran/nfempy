@@ -181,6 +181,9 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
     [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
 
     A.assemble()
+    print("Assembly: nz_allocated:", int(A.getInfo()['nz_allocated']))
+    print("Assembly: nz_used:", int(A.getInfo()['nz_used']))
+    print("Assembly: nz_unneeded:", int(A.getInfo()['nz_unneeded']))
 
     et = time.time()
     elapsed_time = et - st
