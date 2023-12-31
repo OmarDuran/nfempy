@@ -90,7 +90,6 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
 
     A = PETSc.Mat()
     A.createAIJ([n_dof_g, n_dof_g])
-    A.setType('sbaij')
 
     # Material data
     m_lambda = 1.0
@@ -157,7 +156,7 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
         row = np.repeat(dest, len(dest))
         col = np.tile(dest, len(dest))
         nnz = data.shape[0]
-        [A.setValue(row=row[k], col=col[k], value=data[k], addv=True) for k in range(nnz) if col[k] >= row[k]]
+        [A.setValue(row=row[k], col=col[k], value=data[k], addv=True) for k in range(nnz)]
 
         check_points = [(int(k * n_els / 10)) for k in range(11)]
         if i in check_points or i == n_els - 1:
@@ -201,16 +200,17 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
     b.array[:] = -rg
     x = A.createVecRight()
 
-    # ksp.setType("preonly")
-    # ksp.getPC().setType("lu")
+    ksp.setType("preonly")
+    ksp.getPC().setType("lu")
     # https://github.com/erdc/petsc4py/blob/master/src/PETSc/Mat.pyx#L98
-    # ksp.getPC().setFactorSolverType("mumps")
-    # ksp.setConvergenceHistory()
-
-    ksp.setType("tfqmr")
-    ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=5000, max_it=20000)
+    ksp.getPC().setFactorSolverType("mumps")
     ksp.setConvergenceHistory()
-    ksp.getPC().setType("icc")
+
+    # ksp.setType("tfqmr")
+    # ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=5000, max_it=20000)
+    # ksp.setConvergenceHistory()
+    # ksp.getPC().setType("ilu")
+    # ksp.getPC().setFactorSolverType("mumps")
 
     ksp.solve(b, x)
     alpha = x.array
@@ -383,7 +383,7 @@ def method_definition(k_order):
 
 
 def main():
-    n_refinements = 4
+    n_refinements = 3
     for k in [2]:
         for method in method_definition(k):
             configuration = {
@@ -391,7 +391,7 @@ def main():
                 "method": method,
             }
 
-            for d in [2]:
+            for d in [3]:
                 configuration.__setitem__("k_order", k)
                 configuration.__setitem__("dimension", d)
                 perform_convergence_test(configuration)
