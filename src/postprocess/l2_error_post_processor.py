@@ -6,6 +6,7 @@ from spaces.product_space import ProductSpace
 
 def l2_error(dim, fe_space, functions, alpha):
     l2_errors = []
+    points, weights = fe_space.quadrature
     for item in fe_space.discrete_spaces.items():
         name, space = item
         l2_error = 0.0
@@ -18,13 +19,8 @@ def l2_error(dim, fe_space, functions, alpha):
             n_components = space.n_comp
             el_data = space.elements[i].data
             cell = el_data.cell
-            points = el_data.quadrature.points
-            weights = el_data.quadrature.weights
-            phi_tab = space.elements[i].evaluate_basis(points)
-
-            x = el_data.mapping.x
-            det_jac = el_data.mapping.det_jac
-            inv_jac = el_data.mapping.inv_jac
+            x, jac, det_jac, inv_jac = space.elements[i].evaluate_mapping(points)
+            phi_tab = space.elements[i].evaluate_basis(points, jac, det_jac, inv_jac)
 
             # scattering dof
             dest = fe_space.discrete_spaces_destination_indexes(i)[name]
@@ -130,23 +126,19 @@ def grad_error(dim, fe_space, functions, alpha):
     return grad_errors
 
 
-def div_error(dim, fe_space, functions, alpha, skip_fields = []):
+def div_error(dim, fe_space, functions, alpha, skip_fields=[]):
     vec_families = [
         family_by_name("RT"),
         family_by_name("BDM"),
     ]
+    points, weights = fe_space.quadrature
 
     def compute_div_error(idx):
         n_components = space.n_comp
         el_data = space.elements[idx].data
         cell = el_data.cell
-        points = el_data.quadrature.points
-        weights = el_data.quadrature.weights
-        phi_tab = space.elements[idx].evaluate_basis(points)
-
-        x = el_data.mapping.x
-        det_jac = el_data.mapping.det_jac
-        inv_jac = el_data.mapping.inv_jac
+        x, jac, det_jac, inv_jac = space.elements[idx].evaluate_mapping(points)
+        phi_tab = space.elements[idx].evaluate_basis(points, jac, det_jac, inv_jac)
 
         # scattering dof
         dest = fe_space.discrete_spaces_destination_indexes(idx)[name]
@@ -156,7 +148,7 @@ def div_error(dim, fe_space, functions, alpha, skip_fields = []):
         n_phi = phi_tab.shape[2]
         alpha_star = np.array(np.split(alpha_l, n_phi))
 
-        grad_m_phi_star = phi_tab[1: phi_tab.shape[0] + 1, :, :, 0:dim]
+        grad_m_phi_star = phi_tab[1 : phi_tab.shape[0] + 1, :, :, 0:dim]
         div_v_star = np.trace(grad_m_phi_star, axis1=0, axis2=3).T * (1 / det_jac)
         f_e = np.array([exact(xv[0], xv[1], xv[2]) for xv in x])
         f_h = div_v_star.T @ alpha_star
@@ -184,23 +176,19 @@ def div_error(dim, fe_space, functions, alpha, skip_fields = []):
     return div_errors
 
 
-def div_scaled_error(dim, fe_space, functions, alpha, skip_fields = []):
+def div_scaled_error(dim, fe_space, functions, alpha, skip_fields=[]):
     vec_families = [
         family_by_name("RT"),
         family_by_name("BDM"),
     ]
+    points, weights = fe_space.quadrature
 
     def compute_div_error(idx):
         n_components = space.n_comp
         el_data = space.elements[idx].data
         cell = el_data.cell
-        points = el_data.quadrature.points
-        weights = el_data.quadrature.weights
-        phi_tab = space.elements[idx].evaluate_basis(points)
-
-        x = el_data.mapping.x
-        det_jac = el_data.mapping.det_jac
-        inv_jac = el_data.mapping.inv_jac
+        x, jac, det_jac, inv_jac = space.elements[idx].evaluate_mapping(points)
+        phi_tab = space.elements[idx].evaluate_basis(points, jac, det_jac, inv_jac)
 
         # scattering dof
         dest = fe_space.discrete_spaces_destination_indexes(idx)[name]
@@ -212,25 +200,19 @@ def div_scaled_error(dim, fe_space, functions, alpha, skip_fields = []):
 
         gamma = scale(x[:, 0], x[:, 1], x[:, 2])
         grad_gamma = grad_scale(x[:, 0], x[:, 1], x[:, 2])
-        grad_m_phi_star = phi_tab[1: phi_tab.shape[0] + 1, :, :, 0:dim]
+        grad_m_phi_star = phi_tab[1 : phi_tab.shape[0] + 1, :, :, 0:dim]
 
-        div_v_star = (
-                np.array(
-                    [
-                        [
-                            np.trace(
-                                np.outer(grad_gamma[:, i], phi_tab[0, i, j, 0:dim])
-                            )
-                            for i in range(len(points))
-                        ]
-                        for j in range(n_phi)
-                    ]
-                )
+        div_v_star = np.array(
+            [
+                [
+                    np.trace(np.outer(grad_gamma[:, i], phi_tab[0, i, j, 0:dim]))
+                    for i in range(len(points))
+                ]
+                for j in range(n_phi)
+            ]
         )
 
-        div_v_star += np.trace(grad_m_phi_star, axis1=0, axis2=3).T * (
-                gamma / det_jac
-        )
+        div_v_star += np.trace(grad_m_phi_star, axis1=0, axis2=3).T * (gamma / det_jac)
 
         f_e = np.array([exact(xv[0], xv[1], xv[2]) for xv in x])
         f_h = div_v_star.T @ alpha_star
@@ -268,6 +250,8 @@ def devia_l2_error(dim, fe_space, functions, alpha):
         family_by_name("BDM"),
     ]
 
+    points, weights = fe_space.quadrature
+
     # Compute volumetric integral
     tr_T_avgs = {}
     for item in fe_space.discrete_spaces.items():
@@ -281,20 +265,15 @@ def devia_l2_error(dim, fe_space, functions, alpha):
             for i, element in enumerate(space.elements)
             if element.data.dimension == dim
         ]
-        for i in indexes:
+        for idx in indexes:
             n_components = space.n_comp
-            el_data = space.elements[i].data
+            el_data = space.elements[idx].data
             cell = el_data.cell
-            points = el_data.quadrature.points
-            weights = el_data.quadrature.weights
-            phi_tab = space.elements[i].evaluate_basis(points)
-
-            x = el_data.mapping.x
-            det_jac = el_data.mapping.det_jac
-            inv_jac = el_data.mapping.inv_jac
+            x, jac, det_jac, inv_jac = space.elements[idx].evaluate_mapping(points)
+            phi_tab = space.elements[idx].evaluate_basis(points, jac, det_jac, inv_jac)
 
             # scattering dof
-            dest = fe_space.discrete_spaces_destination_indexes(i)[name]
+            dest = fe_space.discrete_spaces_destination_indexes(idx)[name]
             alpha_l = alpha[dest]
 
             # vectorization
@@ -331,20 +310,15 @@ def devia_l2_error(dim, fe_space, functions, alpha):
             if element.data.dimension == dim
         ]
         tr_T_e_avg, tr_T_h_avg = tr_T_avgs[name]
-        for i in indexes:
+        for idx in indexes:
             n_components = space.n_comp
             el_data = space.elements[i].data
             cell = el_data.cell
-            points = el_data.quadrature.points
-            weights = el_data.quadrature.weights
-            phi_tab = space.elements[i].evaluate_basis(points)
-
-            x = el_data.mapping.x
-            det_jac = el_data.mapping.det_jac
-            inv_jac = el_data.mapping.inv_jac
+            x, jac, det_jac, inv_jac = space.elements[idx].evaluate_mapping(points)
+            phi_tab = space.elements[idx].evaluate_basis(points, jac, det_jac, inv_jac)
 
             # scattering dof
-            dest = fe_space.discrete_spaces_destination_indexes(i)[name]
+            dest = fe_space.discrete_spaces_destination_indexes(idx)[name]
             alpha_l = alpha[dest]
 
             # vectorization

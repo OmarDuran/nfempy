@@ -1,24 +1,47 @@
 import numpy as np
 
 from spaces.discrete_space import DiscreteSpace
+import basix
+from basis.element_family import basis_variant, family_by_name
+from basis.element_type import type_by_dimension
 
 
 class ProductSpace:
     # The discrete product space representation
     def __init__(self, discrete_spaces_data):
         self._define_fields_names(discrete_spaces_data)
-        self._define_integration_order(discrete_spaces_data)
+        self._define_integration_order_and_quadrature(discrete_spaces_data)
         self._define_discrete_spaces(discrete_spaces_data)
 
     def _define_fields_names(self, discrete_spaces_data):
         self.names = list(discrete_spaces_data.keys())
 
-    def _define_integration_order(self, discrete_spaces_data):
+    def _define_integration_order_and_quadrature(self, discrete_spaces_data):
         k_orders = []
+        dims = []
         for item in discrete_spaces_data.items():
             field, data = item
             k_orders.append(data[3])
+            dims.append(data[0])
+
         self.integration_order = 2 * np.max(k_orders) + 1
+        dim = np.max(dims)
+        if dim == 0:
+            self.quadrature = (np.array([1.0]), np.array([1.0]))
+        else:
+            cell_type = type_by_dimension(dim)
+            self.quadrature = basix.make_quadrature(
+                basix.QuadratureType.gauss_jacobi, cell_type, self.integration_order
+            )
+
+        # bc quadrature
+        if dim - 1 == 0:
+            self.bc_quadrature = (np.array([1.0]), np.array([1.0]))
+        else:
+            cell_type = type_by_dimension(dim - 1)
+            self.bc_quadrature = basix.make_quadrature(
+                basix.QuadratureType.gauss_jacobi, cell_type, self.integration_order
+            )
 
     def _define_discrete_spaces(self, discrete_spaces_data):
         self.discrete_spaces = {}

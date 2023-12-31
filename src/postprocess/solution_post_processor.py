@@ -162,7 +162,7 @@ def write_vtk_file_with_exact_solution(file_name, gmesh, fe_space, functions, al
             (x, jac, det_jac, inv_jac) = evaluate_mapping(
                 cell.dimension, phi_shapes, gmesh.points[cell.node_tags]
             )
-            phi_tab = element.evaluate_basis(points)
+            phi_tab = element.evaluate_basis(points, jac, det_jac, inv_jac)
             n_phi = phi_tab.shape[2]
 
             alpha_star = np.array(np.split(alpha_l, n_phi))

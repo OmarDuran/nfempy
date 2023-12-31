@@ -44,7 +44,7 @@ class FiniteElement:
                 variant,
                 self.discontinuous,
             )
-            quadrature = (np.array([1.0]), np.array([1.0]))
+            # quadrature = (np.array([1.0]), np.array([1.0]))
         else:
             if self.data.cell.dimension == 1 and self.family in ["RT", "BDM"]:
                 self.family = "Lagrange"
@@ -56,9 +56,6 @@ class FiniteElement:
                     variant,
                     self.discontinuous,
                 )
-                quadrature = basix.make_quadrature(
-                    basix.QuadratureType.gauss_jacobi, cell_type, self.integration_order
-                )
             else:
                 self.basis_generator = basix.create_element(
                     family,
@@ -67,21 +64,27 @@ class FiniteElement:
                     variant,
                     self.discontinuous,
                 )
-                quadrature = basix.make_quadrature(
-                    basix.QuadratureType.gauss_jacobi, cell_type, self.integration_order
-                )
+            # quadrature = basix.make_quadrature(
+            #     basix.QuadratureType.gauss_jacobi, cell_type, self.integration_order
+            # )
         # Partially fill element data
-        self._fill_element_data(quadrature)
-        self.evaluate_mapping(quadrature[0])
+        self._fill_element_dof_data()
+        self._fill_element_bc_entity_data()
+        # self._fill_element_data(quadrature)
+        # self.evaluate_mapping(quadrature[0])
 
-    def _fill_element_data(self, quadrature):
+    def _fill_element_quadratue(self, quadrature):
         self.data.quadrature.points = quadrature[0]
         self.data.quadrature.weights = quadrature[1]
+
+    def _fill_element_dof_data(self):
         self.data.dof.entity_dofs = self.basis_generator.entity_dofs
         self.data.dof.transformations_are_identity = (
             self.basis_generator.dof_transformations_are_identity
         )
         self.data.dof.transformations = self.basis_generator.entity_transformations()
+
+    def _fill_element_bc_entity_data(self):
         c1_sub_cells_ids = self.data.cell.sub_cells_ids[self.data.dimension - 1]
         self.data.bc_entities = np.array(
             [
@@ -97,18 +100,19 @@ class FiniteElement:
     def storage_basis(self):
         self.evaluate_basis(self.data.quadrature.points, storage=True)
 
-    def evaluate_mapping(self, points):
+    def evaluate_mapping(self, points, storage=False):
         if self.data.dimension == 0:
             phi_shape = np.ones((1))
             cell_points = self.data.mesh.points[self.data.cell.node_tags]
             (x, jac, det_jac, inv_jac) = evaluate_mapping(
                 self.data.dimension, phi_shape, cell_points
             )
-            self.data.mapping.x = x
-            self.data.mapping.jac = jac
-            self.data.mapping.det_jac = det_jac
-            self.data.mapping.inv_jac = inv_jac
-            return
+            if storage:
+                self.data.mapping.x = x
+                self.data.mapping.jac = jac
+                self.data.mapping.det_jac = det_jac
+                self.data.mapping.inv_jac = inv_jac
+            return (x, jac, det_jac, inv_jac)
 
         phi_shape = evaluate_linear_shapes(points, self.data)
         self.data.mapping.phi = phi_shape
@@ -116,25 +120,23 @@ class FiniteElement:
         (x, jac, det_jac, inv_jac) = evaluate_mapping(
             self.data.dimension, phi_shape, cell_points
         )
-        self.data.mapping.x = x
-        self.data.mapping.jac = jac
-        self.data.mapping.det_jac = det_jac
-        self.data.mapping.inv_jac = inv_jac
+        if storage:
+            self.data.mapping.x = x
+            self.data.mapping.jac = jac
+            self.data.mapping.det_jac = det_jac
+            self.data.mapping.inv_jac = inv_jac
 
-    def evaluate_basis(self, points, storage=False):
+        return (x, jac, det_jac, inv_jac)
+
+    def evaluate_basis(self, points, jac, det_jac, inv_jac):
         if self.data.dimension == 0:
             phi_tab = np.ones((1, 1, 1, 1))
-            if storage:
-                self.data.basis.phi = phi_tab
             return phi_tab
 
         # tabulate
         phi_tab = self.basis_generator.tabulate(1, points)
         phi_mapped = self.basis_generator.push_forward(
-            phi_tab[0],
-            self.data.mapping.jac,
-            self.data.mapping.det_jac,
-            self.data.mapping.inv_jac,
+            phi_tab[0], jac, det_jac, inv_jac
         )
         if phi_tab[0].shape == phi_mapped.shape:
             phi_tab[0] = phi_mapped
@@ -143,6 +145,4 @@ class FiniteElement:
             phi_tab[0] = phi_mapped
 
         phi_tab = permute_and_transform(phi_tab, self.data)
-        if storage:
-            self.data.basis.phi = phi_tab
         return phi_tab

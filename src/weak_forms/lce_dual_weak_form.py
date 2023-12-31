@@ -36,19 +36,15 @@ class LCEDualWeakForm(WeakForm):
         u_data: ElementData = u_space.elements[iel].data
         t_data: ElementData = t_space.elements[iel].data
 
-        cell = s_data.cell
+        points, weights = self.space.quadrature
         dim = s_data.dimension
-        points = s_data.quadrature.points
-        weights = s_data.quadrature.weights
-        x = s_data.mapping.x
-        det_jac = s_data.mapping.det_jac
-        inv_jac = s_data.mapping.inv_jac
+        x, jac, det_jac, inv_jac = s_space.elements[iel].evaluate_mapping(points)
 
         # basis
-        s_phi_tab = s_space.elements[iel].evaluate_basis(points)
-        m_phi_tab = m_space.elements[iel].evaluate_basis(points)
-        u_phi_tab = u_space.elements[iel].evaluate_basis(points)
-        t_phi_tab = t_space.elements[iel].evaluate_basis(points)
+        s_phi_tab = s_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+        m_phi_tab = m_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+        u_phi_tab = u_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+        t_phi_tab = t_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
 
         n_s_phi = s_phi_tab.shape[2]
         n_m_phi = m_phi_tab.shape[2]
@@ -426,19 +422,15 @@ class LCEDualWeakForm(WeakForm):
         u_data: ElementData = u_space.elements[iel].data
         t_data: ElementData = t_space.elements[iel].data
 
-        cell = s_data.cell
+        points, weights = self.space.quadrature
         dim = s_data.dimension
-        points = s_data.quadrature.points
-        weights = s_data.quadrature.weights
-        x = s_data.mapping.x
-        det_jac = s_data.mapping.det_jac
-        inv_jac = s_data.mapping.inv_jac
+        x, jac, det_jac, inv_jac = s_space.elements[iel].evaluate_mapping(points)
 
         # basis
-        s_phi_tab = s_space.elements[iel].evaluate_basis(points)
-        m_phi_tab = m_space.elements[iel].evaluate_basis(points)
-        u_phi_tab = u_space.elements[iel].evaluate_basis(points)
-        t_phi_tab = t_space.elements[iel].evaluate_basis(points)
+        s_phi_tab = s_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+        m_phi_tab = m_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+        u_phi_tab = u_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+        t_phi_tab = t_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
 
         n_s_phi = s_phi_tab.shape[2]
         n_m_phi = m_phi_tab.shape[2]
@@ -648,15 +640,17 @@ class LCEDualWeakFormBCDirichlet(WeakForm):
         s_data: ElementData = s_space.bc_elements[iel].data
         m_data: ElementData = m_space.bc_elements[iel].data
 
+        points, weights = self.space.bc_quadrature
+        dim = s_data.dimension
+        x, jac, det_jac, inv_jac = s_space.bc_elements[iel].evaluate_mapping(points)
         cell = s_data.cell
-        points = s_data.quadrature.points
-        weights = s_data.quadrature.weights
-        x = s_data.mapping.x
-        det_jac = s_data.mapping.det_jac
-        inv_jac = s_data.mapping.inv_jac
 
-        s_phi_tab = s_space.bc_elements[iel].evaluate_basis(points)
-        m_phi_tab = m_space.bc_elements[iel].evaluate_basis(points)
+        s_phi_tab = s_space.bc_elements[iel].evaluate_basis(
+            points, jac, det_jac, inv_jac
+        )
+        m_phi_tab = m_space.bc_elements[iel].evaluate_basis(
+            points, jac, det_jac, inv_jac
+        )
 
         n_s_phi = s_phi_tab.shape[2]
         n_m_phi = m_phi_tab.shape[2]
@@ -681,7 +675,12 @@ class LCEDualWeakFormBCDirichlet(WeakForm):
 
         # compute S trace space
         mapped_points = transform_lower_to_higher(points, s_data, neigh_element.data)
-        s_tr_phi_tab = neigh_element.evaluate_basis(mapped_points, False)
+        _, jac_c0, det_jac_c0, inv_jac_c0 = neigh_element.evaluate_mapping(
+            mapped_points
+        )
+        s_tr_phi_tab = neigh_element.evaluate_basis(
+            mapped_points, jac_c0, det_jac_c0, inv_jac_c0
+        )
         facet_index = neigh_cell.sub_cells_ids[cell.dimension].tolist().index(cell.id)
         dof_s_n_index = neigh_element.data.dof.entity_dofs[cell.dimension][facet_index]
 
@@ -699,7 +698,9 @@ class LCEDualWeakFormBCDirichlet(WeakForm):
 
         # compute M trace space
         mapped_points = transform_lower_to_higher(points, m_data, neigh_element.data)
-        m_tr_phi_tab = neigh_element.evaluate_basis(mapped_points, False)
+        m_tr_phi_tab = neigh_element.evaluate_basis(
+            mapped_points, jac_c0, det_jac_c0, inv_jac_c0
+        )
         facet_index = neigh_cell.sub_cells_ids[cell.dimension].tolist().index(cell.id)
         dof_m_n_index = neigh_element.data.dof.entity_dofs[cell.dimension][facet_index]
 
