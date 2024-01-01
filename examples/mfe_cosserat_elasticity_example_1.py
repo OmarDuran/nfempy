@@ -156,7 +156,7 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
         data = j_el.ravel()
         row = np.repeat(dest, len(dest))
         col = np.tile(dest, len(dest))
-        nnz_idx = np.nonzero(data)[0]
+        nnz_idx = np.where(np.logical_not(np.isclose(data,1.0e-16)))[0]
         [
             A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
             for idx in nnz_idx
@@ -419,7 +419,7 @@ def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=Fals
         data = j_el.ravel()
         row = np.repeat(dest, len(dest))
         col = np.tile(dest, len(dest))
-        nnz_idx = np.nonzero(data)[0]
+        nnz_idx = np.where(np.logical_not(np.isclose(data,1.0e-16)))[0]
         [
             A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
             for idx in nnz_idx
