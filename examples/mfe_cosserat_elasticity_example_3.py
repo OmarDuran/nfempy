@@ -169,7 +169,7 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
                 print("Assembly: progress [%]: ", 100)
             else:
                 print("Assembly: progress [%]: ", check_points.index(i)*10)
-            print("Assembly: Memory used [GiB] :", (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start)/1073741824)
+            print("Assembly: Memory used [Byte] :", (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start))
 
     def scatter_bc_form(A, i, bc_weak_form):
         dest = fe_space.bc_destination_indexes(i)
@@ -193,7 +193,7 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
     et = time.time()
     elapsed_time = et - st
     print("Assembly: Time:", elapsed_time, "seconds")
-    print("Assembly: After PETSc M.assemble: Memory used [GiB] :", (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start) / 1073741824)
+    print("Assembly: After PETSc M.assemble: Memory used [Byte] :", (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start))
 
     # memory_start = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     # solving ls
@@ -218,7 +218,7 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
 
     ksp.solve(b, x)
     alpha = x.array
-    print("Linear solver: After PETSc ksp.solve: Memory used [GiB] :", (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start) / 1073741824)
+    print("Linear solver: After PETSc ksp.solve: Memory used [Byte] :", (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start))
     PETSc.KSP.destroy(ksp)
     PETSc.Mat.destroy(A)
     PETSc.Vec.destroy(b)
@@ -227,7 +227,7 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
     et = time.time()
     elapsed_time = et - st
     print("Linear solver: Time:", elapsed_time, "seconds")
-    print("Linear solver: After PETSc ksp.destroy: Memory used [GiB] :", (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start) / 1073741824)
+    print("Linear solver: After PETSc ksp.destroy: Memory used [GiB] :", (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start))
 
     st = time.time()
     s_l2_error, m_l2_error, u_l2_error, t_l2_error = l2_error(
@@ -308,7 +308,7 @@ def perform_convergence_test(configuration: dict):
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
         h_min, h_mean, h_max = mesh_size(gmesh)
         n_dof, error_vals = four_field_scaled_formulation(method, gmesh, write_vtk)
-        chunk = np.concatenate([[n_dof, h_mean], error_vals])
+        chunk = np.concatenate([[n_dof, h_max], error_vals])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
 
     rates_data = np.empty((0, n_data - 2), float)

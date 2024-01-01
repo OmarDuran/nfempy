@@ -157,7 +157,7 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
         row = np.repeat(dest, len(dest))
         col = np.tile(dest, len(dest))
         nnz_idx = np.nonzero(data)[0]
-        A.setValuesLocal(row=row[nnz_idx], col=col[nnz_idx], value=data[nnz_idx], addv=True)
+        [A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True) for idx in nnz_idx]
 
         check_points = [(int(k * n_els / 10)) for k in range(11)]
         if i in check_points or i == n_els - 1:
@@ -417,7 +417,7 @@ def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=Fals
         row = np.repeat(dest, len(dest))
         col = np.tile(dest, len(dest))
         nnz_idx = np.nonzero(data)[0]
-        A.setValuesLocal(row=row[nnz_idx], col=col[nnz_idx], value=data[nnz_idx], addv=True)
+        [A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True) for idx in nnz_idx]
 
         check_points = [(int(k * n_els / 10)) for k in range(11)]
         if i in check_points or i == n_els - 1:
