@@ -79,6 +79,7 @@ class FiniteElement:
 
     def _fill_element_dof_data(self):
         self.data.dof.entity_dofs = self.basis_generator.entity_dofs
+        self.data.dof.num_entity_dofs = self.basis_generator.num_entity_dofs
         self.data.dof.transformations_are_identity = (
             self.basis_generator.dof_transformations_are_identity
         )

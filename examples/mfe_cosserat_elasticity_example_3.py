@@ -4,6 +4,7 @@ import time
 import resource
 
 import numpy as np
+from scipy import sparse
 import strong_solution_cosserat_elasticity_example_3 as lce
 
 import sys
@@ -159,8 +160,8 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
         data = j_el.ravel()
         row = np.repeat(dest, len(dest))
         col = np.tile(dest, len(dest))
-        nnz = data.shape[0]
-        [A.setValue(row=row[k], col=col[k], value=data[k], addv=True) for k in range(nnz)]
+        nnz_idx = np.nonzero(data)[0]
+        [A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True) for idx in nnz_idx]
 
         check_points = [(int(k * n_els / 10)) for k in range(11)]
         if i in check_points or i == n_els - 1:
@@ -204,16 +205,16 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
     b.array[:] = -rg
     x = A.createVecRight()
 
-    # ksp.setType("preonly")
-    # ksp.getPC().setType("lu")
-    # ksp.getPC().setFactorSolverType("mumps")
-    # ksp.setConvergenceHistory()
-
-    ksp.setType("tfqmr")
-    ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=5000, max_it=20000)
+    ksp.setType("preonly")
+    ksp.getPC().setType("lu")
+    ksp.getPC().setFactorSolverType("mumps")
     ksp.setConvergenceHistory()
-    ksp.getPC().setType("ilu")
-    ksp.getPC().setFactorSolverType("superlu")
+
+    # ksp.setType("tfqmr")
+    # ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=5000, max_it=20000)
+    # ksp.setConvergenceHistory()
+    # ksp.getPC().setType("icc")
+    # ksp.getPC().setFactorSolverType("klu")
 
     ksp.solve(b, x)
     alpha = x.array
@@ -307,7 +308,7 @@ def perform_convergence_test(configuration: dict):
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
         h_min, h_mean, h_max = mesh_size(gmesh)
         n_dof, error_vals = four_field_scaled_formulation(method, gmesh, write_vtk)
-        chunk = np.concatenate([[n_dof, h_max], error_vals])
+        chunk = np.concatenate([[n_dof, h_mean], error_vals])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
 
     rates_data = np.empty((0, n_data - 2), float)
@@ -386,8 +387,8 @@ def method_definition(k_order):
 
 
 def main():
-    n_refinements = 3
-    for k in [1]:
+    n_refinements = 4
+    for k in [2]:
         for method in method_definition(k):
             configuration = {
                 "n_refinements": n_refinements,
