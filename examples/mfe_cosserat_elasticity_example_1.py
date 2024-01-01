@@ -157,14 +157,17 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
         row = np.repeat(dest, len(dest))
         col = np.tile(dest, len(dest))
         nnz_idx = np.nonzero(data)[0]
-        [A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True) for idx in nnz_idx]
+        [
+            A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
+            for idx in nnz_idx
+        ]
 
         check_points = [(int(k * n_els / 10)) for k in range(11)]
         if i in check_points or i == n_els - 1:
             if i == n_els - 1:
                 print("Assembly: progress [%]: ", 100)
             else:
-                print("Assembly: progress [%]: ", check_points.index(i)*10)
+                print("Assembly: progress [%]: ", check_points.index(i) * 10)
 
     def scatter_bc_form(A, i, bc_weak_form):
         dest = fe_space.bc_destination_indexes(i)
@@ -417,15 +420,21 @@ def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=Fals
         row = np.repeat(dest, len(dest))
         col = np.tile(dest, len(dest))
         nnz_idx = np.nonzero(data)[0]
-        [A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True) for idx in nnz_idx]
+        [
+            A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
+            for idx in nnz_idx
+        ]
 
         check_points = [(int(k * n_els / 10)) for k in range(11)]
         if i in check_points or i == n_els - 1:
             if i == n_els - 1:
                 print("Assembly: progress [%]: ", 100)
             else:
-                print("Assembly: progress [%]: ", check_points.index(i)*10)
-        print("Assembly: Memory used :", resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start)
+                print("Assembly: progress [%]: ", check_points.index(i) * 10)
+        print(
+            "Assembly: Memory used :",
+            resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start,
+        )
 
     def scatter_bc_form(A, i, bc_weak_form):
         dest = fe_space.bc_destination_indexes(i)

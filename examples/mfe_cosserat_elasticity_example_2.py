@@ -154,15 +154,21 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
         row = np.repeat(dest, len(dest))
         col = np.tile(dest, len(dest))
         nnz_idx = np.nonzero(data)[0]
-        [A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True) for idx in nnz_idx]
+        [
+            A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
+            for idx in nnz_idx
+        ]
 
         check_points = [(int(k * n_els / 10)) for k in range(11)]
         if i in check_points or i == n_els - 1:
             if i == n_els - 1:
                 print("Assembly: progress [%]: ", 100)
             else:
-                print("Assembly: progress [%]: ", check_points.index(i)*10)
-                print("Assembly: Memory used [Byte] :", (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start))
+                print("Assembly: progress [%]: ", check_points.index(i) * 10)
+                print(
+                    "Assembly: Memory used [Byte] :",
+                    (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start),
+                )
 
     def scatter_bc_form(A, i, bc_weak_form):
         dest = fe_space.bc_destination_indexes(i)
@@ -179,14 +185,17 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
     [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
 
     A.assemble()
-    print("Assembly: nz_allocated:", int(A.getInfo()['nz_allocated']))
-    print("Assembly: nz_used:", int(A.getInfo()['nz_used']))
-    print("Assembly: nz_unneeded:", int(A.getInfo()['nz_unneeded']))
+    print("Assembly: nz_allocated:", int(A.getInfo()["nz_allocated"]))
+    print("Assembly: nz_used:", int(A.getInfo()["nz_used"]))
+    print("Assembly: nz_unneeded:", int(A.getInfo()["nz_unneeded"]))
 
     et = time.time()
     elapsed_time = et - st
     print("Assembly: Time:", elapsed_time, "seconds")
-    print("Assembly: After PETSc M.assemble: Memory used [Byte] :", (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start))
+    print(
+        "Assembly: After PETSc M.assemble: Memory used [Byte] :",
+        (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start),
+    )
 
     # solving ls
     st = time.time()
@@ -197,19 +206,23 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
     b.array[:] = -rg
     x = A.createVecRight()
 
-    ksp.setType("preonly")
-    ksp.getPC().setType("lu")
-    ksp.getPC().setFactorSolverType("mumps")
-    ksp.setConvergenceHistory()
-
-    # ksp.setType("tfqmr")
-    # ksp.setTolerances(rtol=1e-8, atol=1e-8, divtol=5000, max_it=20000)
+    # ksp.setType("preonly")
+    # ksp.getPC().setType("lu")
+    # ksp.getPC().setFactorSolverType("mumps")
     # ksp.setConvergenceHistory()
-    # ksp.getPC().setType("ilu")
+
+    ksp.setType("tfqmr")
+    ksp.setTolerances(rtol=1e-8, atol=1e-8, divtol=5000, max_it=20000)
+    ksp.setConvergenceHistory()
+    ksp.getPC().setType("ilu")
+    ksp.getPC().setFactorSolverType("superlu")
 
     ksp.solve(b, x)
     alpha = x.array
-    print("Linear solver: After PETSc ksp.solve: Memory used [Byte] :",(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start))
+    print(
+        "Linear solver: After PETSc ksp.solve: Memory used [Byte] :",
+        (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start),
+    )
     PETSc.KSP.destroy(ksp)
     PETSc.Mat.destroy(A)
     PETSc.Vec.destroy(b)
@@ -218,7 +231,10 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
     et = time.time()
     elapsed_time = et - st
     print("Linear solver: Time:", elapsed_time, "seconds")
-    print("Linear solver: After PETSc ksp.destroy: Memory used [GiB] :", (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start))
+    print(
+        "Linear solver: After PETSc ksp.destroy: Memory used [GiB] :",
+        (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start),
+    )
 
     st = time.time()
     s_l2_error, m_l2_error, u_l2_error, t_l2_error = l2_error(
@@ -480,7 +496,7 @@ def main():
                     "material_data": material_data,
                 }
 
-                for d in [3]:
+                for d in [2]:
                     configuration.__setitem__("k_order", k)
                     configuration.__setitem__("dimension", d)
                     perform_convergence_test(configuration)

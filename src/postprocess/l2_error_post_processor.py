@@ -280,18 +280,26 @@ def devia_l2_error(dim, fe_space, functions, alpha):
             exact = functions[name]
             n_phi = phi_tab.shape[2]
             alpha_star = np.array(np.split(alpha_l, n_phi))
-            for i, omega in enumerate(weights):
-                f_e = exact(x[i, 0], x[i, 1], x[i, 2])
-                f_h = np.vstack(
-                    tuple(
-                        [
-                            phi_tab[0, i, :, 0:dim].T @ alpha_star[:, c]
-                            for c in range(n_components)
-                        ]
+            f_e = np.array([exact(xv[0], xv[1], xv[2]) for xv in x])
+            f_h = np.array(
+                [
+                    np.vstack(
+                        tuple(
+                            [
+                                phi_tab[0, k, :, 0:dim].T @ alpha_star[:, c]
+                                for c in range(n_components)
+                            ]
+                        )
                     )
-                )
-                tr_T_e_avg += det_jac[i] * weights[i] * np.trace(f_e) / float(dim)
-                tr_T_h_avg += det_jac[i] * weights[i] * np.trace(f_h) / float(dim)
+                    for k in range(len(points))
+                ]
+            )
+            tr_T_e_avg = np.sum(
+                (det_jac * weights * np.trace(f_e, axis1=1, axis2=2) / float(dim))
+            )
+            tr_T_h_avg = np.sum(
+                (det_jac * weights * np.trace(f_h, axis1=1, axis2=2) / float(dim))
+            )
 
         tr_T_avgs.__setitem__(name, (tr_T_e_avg, tr_T_h_avg))
 
@@ -325,21 +333,27 @@ def devia_l2_error(dim, fe_space, functions, alpha):
             exact = functions[name]
             n_phi = phi_tab.shape[2]
             alpha_star = np.array(np.split(alpha_l, n_phi))
-            for i, omega in enumerate(weights):
-                f_e = exact(x[i, 0], x[i, 1], x[i, 2])
-                f_h = np.vstack(
-                    tuple(
-                        [
-                            phi_tab[0, i, :, 0:dim].T @ alpha_star[:, c]
-                            for c in range(n_components)
-                        ]
+            f_e = np.array([exact(xv[0], xv[1], xv[2]) for xv in x])
+            f_h = np.array(
+                [
+                    np.vstack(
+                        tuple(
+                            [
+                                phi_tab[0, k, :, 0:dim].T @ alpha_star[:, c]
+                                for c in range(n_components)
+                            ]
+                        )
                     )
-                )
-                f_e -= tr_T_e_avg * np.eye(dim)
-                f_h -= tr_T_h_avg * np.eye(dim)
-                diff_f = f_e - f_h
-                l2_error += det_jac[i] * weights[i] * np.trace(diff_f.T @ diff_f)
+                    for k in range(len(points))
+                ]
+            )
 
+            f_e = np.array([T_e - tr_T_e_avg * np.eye(dim) for T_e in f_e])
+            f_h = np.array([T_h - tr_T_h_avg * np.eye(dim) for T_h in f_h])
+            diff_f = f_e - f_h
+            l2_error += np.sum(
+                det_jac * weights * np.array([np.trace(e.T @ e) for e in diff_f])
+            )
         l2_errors.append(np.sqrt(l2_error))
 
     return l2_errors

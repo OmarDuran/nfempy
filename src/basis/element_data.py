@@ -72,7 +72,9 @@ class DoFData:
         transformations_are_identity = self.transformations_are_identity
         transformations = self.transformations
         num_entity_dofs = self.num_entity_dofs
-        return DoFData(entity_dofs, transformations_are_identity, transformations, num_entity_dofs)
+        return DoFData(
+            entity_dofs, transformations_are_identity, transformations, num_entity_dofs
+        )
 
 
 class BCEntities:
