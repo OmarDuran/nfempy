@@ -29,8 +29,7 @@ from weak_forms.lce_scaled_dual_weak_form import (
 )
 
 
-def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
-    dim = gmesh.dimension
+def create_product_space(method, gmesh):
 
     # FESpace: data
     s_k_order = method[1]["s"][1]
@@ -42,7 +41,7 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
     m_components = 1
     u_components = 2
     t_components = 1
-    if dim == 3:
+    if gmesh.dimension == 3:
         s_components = 3
         m_components = 3
         u_components = 3
@@ -54,10 +53,10 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
     t_family = method[1]["t"][0]
 
     discrete_spaces_data = {
-        "s": (dim, s_components, s_family, s_k_order, gmesh),
-        "m": (dim, m_components, m_family, m_k_order, gmesh),
-        "u": (dim, u_components, u_family, u_k_order, gmesh),
-        "t": (dim, t_components, t_family, t_k_order, gmesh),
+        "s": (gmesh.dimension, s_components, s_family, s_k_order, gmesh),
+        "m": (gmesh.dimension, m_components, m_family, m_k_order, gmesh),
+        "u": (gmesh.dimension, u_components, u_family, u_k_order, gmesh),
+        "t": (gmesh.dimension, t_components, t_family, t_k_order, gmesh),
     }
 
     s_disc_Q = False
@@ -73,7 +72,7 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
 
     s_field_bc_physical_tags = [2, 3, 4, 5]
     m_field_bc_physical_tags = [2, 3, 4, 5]
-    if dim == 3:
+    if gmesh.dimension == 3:
         s_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
         m_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
     discrete_spaces_bc_physical_tags = {
@@ -81,9 +80,14 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
         "m": m_field_bc_physical_tags,
     }
 
-    fe_space = ProductSpace(discrete_spaces_data)
-    fe_space.make_subspaces_discontinuous(discrete_spaces_disc)
-    fe_space.build_structures(discrete_spaces_bc_physical_tags)
+    space = ProductSpace(discrete_spaces_data)
+    space.make_subspaces_discontinuous(discrete_spaces_disc)
+    space.build_structures(discrete_spaces_bc_physical_tags)
+    return space
+
+def four_field_scaled_approximation(method, gmesh):
+    dim = gmesh.dimension
+    fe_space = create_product_space(method, gmesh)
 
     n_dof_g = fe_space.n_dof
     rg = np.zeros(n_dof_g)
@@ -215,16 +219,16 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
     b.array[:] = -rg
     x = A.createVecRight()
 
-    # ksp.setType("preonly")
-    # ksp.getPC().setType("lu")
-    # ksp.getPC().setFactorSolverType("mumps")
-    # ksp.setConvergenceHistory()
-
-    ksp.setType("tfqmr")
-    ksp.setTolerances(rtol=1e-8, atol=1e-8, divtol=5000, max_it=20000)
+    ksp.setType("preonly")
+    ksp.getPC().setType("lu")
+    ksp.getPC().setFactorSolverType("mumps")
     ksp.setConvergenceHistory()
-    ksp.getPC().setType("ilu")
-    ksp.getPC().setFactorSolverType("superlu")
+
+    # ksp.setType("tfqmr")
+    # ksp.setTolerances(rtol=1e-8, atol=1e-8, divtol=5000, max_it=20000)
+    # ksp.setConvergenceHistory()
+    # ksp.getPC().setType("ilu")
+    # ksp.getPC().setFactorSolverType("superlu")
 
     ksp.solve(b, x)
     alpha = x.array
@@ -244,6 +248,60 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
         "Linear solver: After PETSc ksp.destroy: Memory used [GiB] :",
         (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start),
     )
+
+    return alpha
+
+def four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk_q=False):
+
+    dim = gmesh.dimension
+    fe_space = create_product_space(method, gmesh)
+    n_dof_g = fe_space.n_dof
+
+    # Material data
+    m_lambda = 1.0
+    m_mu = 1.0
+    m_kappa = m_mu
+
+    # exact solution
+    u_exact = lce.displacement(m_lambda, m_mu, m_kappa, dim)
+    t_exact = lce.rotation(m_lambda, m_mu, m_kappa, dim)
+    s_exact = lce.stress(m_lambda, m_mu, m_kappa, dim)
+    m_exact = lce.couple_stress_scaled(m_lambda, m_mu, m_kappa, dim)
+    div_s_exact = lce.stress_divergence(m_lambda, m_mu, m_kappa, dim)
+    div_m_exact = lce.couple_stress_divergence_scaled(m_lambda, m_mu, m_kappa, dim)
+    f_rhs = lce.rhs_scaled(m_lambda, m_mu, m_kappa, dim)
+
+    def f_lambda(x, y, z):
+        return m_lambda
+
+    def f_mu(x, y, z):
+        return m_mu
+
+    def f_kappa(x, y, z):
+        return m_kappa
+
+    f_gamma = lce.gamma_s(dim)
+    f_grad_gamma = lce.grad_gamma_s(dim)
+
+    m_functions = {
+        "rhs": f_rhs,
+        "lambda": f_lambda,
+        "mu": f_mu,
+        "kappa": f_kappa,
+        "gamma": f_gamma,
+        "grad_gamma": f_grad_gamma,
+    }
+
+    exact_functions = {
+        "s": s_exact,
+        "m": m_exact,
+        "u": u_exact,
+        "t": t_exact,
+        "div_s": div_s_exact,
+        "div_m": div_m_exact,
+        "gamma": f_gamma,
+        "grad_gamma": f_grad_gamma,
+    }
 
     st = time.time()
     s_l2_error, m_l2_error, u_l2_error, t_l2_error = l2_error(
@@ -266,7 +324,7 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
     if write_vtk_q:
         st = time.time()
 
-        prefix = method[0] + "_k" + str(s_k_order) + "_d" + str(dim)
+        prefix = method[0] + "_k" + str(k_order) + "_d" + str(dim)
         file_name = prefix + "_four_fields_scaled_ex_3.vtk"
 
         write_vtk_file_with_exact_solution(
@@ -279,7 +337,6 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
     h_div_s_error = np.sqrt((s_l2_error**2) + (div_s_l2_error**2))
     h_div_m_error = np.sqrt((m_l2_error**2) + (div_m_l2_error**2))
 
-    gc.collect()
     return n_dof_g, np.array(
         [
             u_l2_error,
@@ -301,8 +358,39 @@ def create_mesh_from_file(file_name, dim, write_vtk_q=False):
         gmesh.write_vtk()
     return gmesh
 
+def compose_file_name(method, k_order, ref_l, dim , suffix):
+    prefix = method[0] + "_k" + str(k_order) + "_l" + str(ref_l)  + "_d" + str(dim)
+    file_name = prefix + suffix
+    return file_name
+def perform_convergence_approximations(configuration: dict):
+    # retrieve parameters from dictionary
+    k_order = configuration.get("k_order")
+    method = configuration.get("method")
+    n_ref = configuration.get("n_refinements")
+    dimension = configuration.get("dimension")
+    dual_form_q = configuration.get("dual_problem_Q", True)
+    gamma_value = configuration.get("gamma_value", 1.0)
+    write_geometry_vtk = configuration.get("write_geometry_Q", True)
+    write_vtk = configuration.get("write_vtk_Q", True)
+    report_full_precision_data = configuration.get("report_full_precision_data_Q", True)
 
-def perform_convergence_test(configuration: dict):
+    # The initial element size
+    h = 1.0 / 3.0
+
+    n_data = 10
+    error_data = np.empty((0, n_data), float)
+    for lh in range(n_ref):
+        mesh_file = "gmsh_files/example_2_" + str(dimension) + "d_l_" + str(lh) + ".msh"
+        gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
+        alpha = four_field_scaled_approximation(method, gmesh)
+        file_name = compose_file_name(method, k_order, lh, gmesh.dimension, "_alpha_ex_3.npy")
+        with open(file_name, 'wb') as f:
+            np.save(f, alpha)
+
+
+    return
+
+def perform_convergence_postprocessing(configuration: dict):
     # retrieve parameters from dictionary
     k_order = configuration.get("k_order")
     method = configuration.get("method")
@@ -323,7 +411,11 @@ def perform_convergence_test(configuration: dict):
         mesh_file = "gmsh_files/example_2_" + str(dimension) + "d_l_" + str(lh) + ".msh"
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
         h_min, h_mean, h_max = mesh_size(gmesh)
-        n_dof, error_vals = four_field_scaled_formulation(method, gmesh, write_vtk)
+
+        file_name = compose_file_name(method, k_order, lh, gmesh.dimension, "_alpha_ex_3.npy")
+        with open(file_name, 'rb') as f:
+            alpha = np.load(f)
+        n_dof, error_vals = four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk)
         chunk = np.concatenate([[n_dof, h_max], error_vals])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
 
@@ -403,7 +495,9 @@ def method_definition(k_order):
 
 
 def main():
-    refinements = {1: 4, 2: 3}
+    only_approximation_q = True
+    only_postprocessing_q = True
+    refinements = {1: 3, 2: 2}
     for k in [2]:
         for method in method_definition(k):
             configuration = {
@@ -414,7 +508,10 @@ def main():
             for d in [3]:
                 configuration.__setitem__("k_order", k)
                 configuration.__setitem__("dimension", d)
-                perform_convergence_test(configuration)
+                if only_approximation_q:
+                    perform_convergence_approximations(configuration)
+                if only_postprocessing_q:
+                    perform_convergence_postprocessing(configuration)
 
 
 if __name__ == "__main__":
