@@ -230,7 +230,7 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
     h_div_m_error = np.sqrt((m_l2_error**2) + (div_m_l2_error**2))
     et = time.time()
     elapsed_time = et - st
-    print("L2-error time:", elapsed_time, "seconds")
+    print("Error time:", elapsed_time, "seconds")
     print("L2-error displacement: ", u_l2_error)
     print("L2-error rotation: ", t_l2_error)
     print("L2-error stress: ", s_l2_error)
@@ -492,13 +492,13 @@ def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=Fals
     s_l2_error, m_l2_error, u_l2_error, t_l2_error = l2_error(
         dim, fe_space, exact_functions, alpha
     )
-    div_s_l2_error, _ = div_error(dim, fe_space, exact_functions, alpha)
-    _, div_m_l2_error = div_scaled_error(dim, fe_space, exact_functions, alpha)
+    div_s_l2_error = div_error(dim, fe_space, exact_functions, alpha, ["m"])[0]
+    div_m_l2_error = div_scaled_error(dim, fe_space, exact_functions, alpha, ["s"])[0]
     h_div_s_error = np.sqrt((s_l2_error**2) + (div_s_l2_error**2))
     h_div_m_error = np.sqrt((m_l2_error**2) + (div_m_l2_error**2))
     et = time.time()
     elapsed_time = et - st
-    print("L2-error time:", elapsed_time, "seconds")
+    print("Error time:", elapsed_time, "seconds")
     print("L2-error displacement: ", u_l2_error)
     print("L2-error rotation: ", t_l2_error)
     print("L2-error stress: ", s_l2_error)
@@ -739,14 +739,14 @@ def material_data_definition():
 
 
 def main():
-    n_refinements = 4
+    refinements = {1: 5, 2: 4}
     case_data = material_data_definition()
     for k in [2]:
         methods = method_definition(k)
         for i, method in enumerate(methods):
             for material_data in case_data:
                 configuration = {
-                    "n_refinements": n_refinements,
+                    "n_refinements": refinements[k],
                     "method": method,
                     "material_data": material_data,
                 }

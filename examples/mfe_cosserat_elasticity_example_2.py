@@ -166,7 +166,7 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
             else:
                 print("Assembly: progress [%]: ", check_points.index(i) * 10)
                 print(
-                    "Assembly: Memory used [Byte] :",
+                    "Assembly: Memory used [Bytes] :",
                     (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start),
                 )
 
@@ -193,7 +193,7 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
     elapsed_time = et - st
     print("Assembly: Time:", elapsed_time, "seconds")
     print(
-        "Assembly: After PETSc M.assemble: Memory used [Byte] :",
+        "Assembly: After PETSc M.assemble: Memory used [Bytes] :",
         (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start),
     )
 
@@ -206,21 +206,21 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
     b.array[:] = -rg
     x = A.createVecRight()
 
-    # ksp.setType("preonly")
-    # ksp.getPC().setType("lu")
-    # ksp.getPC().setFactorSolverType("mumps")
-    # ksp.setConvergenceHistory()
-
-    ksp.setType("tfqmr")
-    ksp.setTolerances(rtol=1e-8, atol=1e-8, divtol=5000, max_it=20000)
+    ksp.setType("preonly")
+    ksp.getPC().setType("lu")
+    ksp.getPC().setFactorSolverType("mumps")
     ksp.setConvergenceHistory()
-    ksp.getPC().setType("ilu")
-    ksp.getPC().setFactorSolverType("superlu")
+
+    # ksp.setType("tfqmr")
+    # ksp.setTolerances(rtol=1e-8, atol=1e-8, divtol=5000, max_it=20000)
+    # ksp.setConvergenceHistory()
+    # ksp.getPC().setType("ilu")
+    # ksp.getPC().setFactorSolverType("superlu")
 
     ksp.solve(b, x)
     alpha = x.array
     print(
-        "Linear solver: After PETSc ksp.solve: Memory used [Byte] :",
+        "Linear solver: After PETSc ksp.solve: Memory used [Bytes] :",
         (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start),
     )
     PETSc.KSP.destroy(ksp)
@@ -237,24 +237,23 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
     )
 
     st = time.time()
-    s_l2_error, m_l2_error, u_l2_error, t_l2_error = l2_error(
-        dim, fe_space, exact_functions, alpha
-    )
-    div_s_l2_error, div_m_l2_error = div_error(dim, fe_space, exact_functions, alpha)
-    dev_s_l2_error, _ = devia_l2_error(dim, fe_space, exact_functions, alpha)
-
-    h_div_s_error = np.sqrt((dev_s_l2_error**2) + (div_s_l2_error**2))
-    h_div_m_error = np.sqrt((m_l2_error**2) + (div_m_l2_error**2))
+    # m_l2_error, u_l2_error, t_l2_error = l2_error(
+    #     dim, fe_space, exact_functions, alpha, ["s"]
+    # )
+    # div_s_l2_error, div_m_l2_error = div_error(dim, fe_space, exact_functions, alpha)
+    # dev_s_l2_error = devia_l2_error(dim, fe_space, exact_functions, alpha, ["m"])[0]
+    #
+    # h_div_s_error = np.sqrt((dev_s_l2_error**2) + (div_s_l2_error**2))
+    # h_div_m_error = np.sqrt((m_l2_error**2) + (div_m_l2_error**2))
     et = time.time()
     elapsed_time = et - st
-    print("L2-error time:", elapsed_time, "seconds")
-    print("L2-error displacement: ", u_l2_error)
-    print("L2-error rotation: ", t_l2_error)
-    print("L2-error stress: ", s_l2_error)
-    print("L2-error dev stress: ", dev_s_l2_error)
-    print("L2-error couple stress: ", m_l2_error)
-    print("L2-error div stress: ", div_s_l2_error)
-    print("L2-error div couple stress: ", div_m_l2_error)
+    print("Error time:", elapsed_time, "seconds")
+    # print("L2-error displacement: ", u_l2_error)
+    # print("L2-error rotation: ", t_l2_error)
+    # print("L2-error dev stress: ", dev_s_l2_error)
+    # print("L2-error couple stress: ", m_l2_error)
+    # print("L2-error div stress: ", div_s_l2_error)
+    # print("L2-error div couple stress: ", div_m_l2_error)
     print("")
 
     if write_vtk_q:
@@ -275,16 +274,28 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
         print("Post-processing time:", elapsed_time, "seconds")
 
     gc.collect()
+    # return n_dof_g, np.array(
+    #     [
+    #         u_l2_error,
+    #         t_l2_error,
+    #         dev_s_l2_error,
+    #         m_l2_error,
+    #         div_s_l2_error,
+    #         div_m_l2_error,
+    #         h_div_s_error,
+    #         h_div_m_error,
+    #     ]
+    # )
     return n_dof_g, np.array(
         [
-            u_l2_error,
-            t_l2_error,
-            dev_s_l2_error,
-            m_l2_error,
-            div_s_l2_error,
-            div_m_l2_error,
-            h_div_s_error,
-            h_div_m_error,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
         ]
     )
 
@@ -484,19 +495,21 @@ def material_data_definition():
 
 
 def main():
-    n_refinements = 4
+    refinements = {1: 5, 2: 4}
     case_data = material_data_definition()
     for k in [2]:
         methods = method_definition(k)
         for i, method in enumerate(methods):
+            if i != 2:
+                continue
             for material_data in case_data:
                 configuration = {
-                    "n_refinements": n_refinements,
+                    "n_refinements": refinements[k],
                     "method": method,
                     "material_data": material_data,
                 }
 
-                for d in [2]:
+                for d in [3]:
                     configuration.__setitem__("k_order", k)
                     configuration.__setitem__("dimension", d)
                     perform_convergence_test(configuration)

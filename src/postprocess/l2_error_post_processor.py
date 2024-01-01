@@ -4,11 +4,13 @@ from basis.element_family import family_by_name
 from spaces.product_space import ProductSpace
 
 
-def l2_error(dim, fe_space, functions, alpha):
+def l2_error(dim, fe_space, functions, alpha, skip_fields=[]):
     l2_errors = []
     points, weights = fe_space.quadrature
     for item in fe_space.discrete_spaces.items():
         name, space = item
+        if name in skip_fields:
+            continue
         l2_error = 0.0
         indexes = [
             i
@@ -244,7 +246,7 @@ def div_scaled_error(dim, fe_space, functions, alpha, skip_fields=[]):
     return div_errors
 
 
-def devia_l2_error(dim, fe_space, functions, alpha):
+def devia_l2_error(dim, fe_space, functions, alpha, skip_fields=[]):
     vec_families = [
         family_by_name("RT"),
         family_by_name("BDM"),
@@ -256,10 +258,13 @@ def devia_l2_error(dim, fe_space, functions, alpha):
     tr_T_avgs = {}
     for item in fe_space.discrete_spaces.items():
         name, space = item
-        tr_T_e_avg = 0.0
-        tr_T_h_avg = 0.0
         if space.family not in vec_families:
             continue
+        if name in skip_fields:
+            continue
+        tr_T_e_avg = 0.0
+        tr_T_h_avg = 0.0
+        exact = functions[name]
         indexes = [
             i
             for i, element in enumerate(space.elements)
@@ -277,7 +282,6 @@ def devia_l2_error(dim, fe_space, functions, alpha):
             alpha_l = alpha[dest]
 
             # vectorization
-            exact = functions[name]
             n_phi = phi_tab.shape[2]
             alpha_star = np.array(np.split(alpha_l, n_phi))
             f_e = np.array([exact(xv[0], xv[1], xv[2]) for xv in x])
@@ -309,8 +313,7 @@ def devia_l2_error(dim, fe_space, functions, alpha):
         l2_error = 0.0
         if space.family not in vec_families:
             continue
-        if space.n_comp != dim:
-            l2_errors.append(np.sqrt(l2_error))
+        if name in skip_fields:
             continue
         indexes = [
             i

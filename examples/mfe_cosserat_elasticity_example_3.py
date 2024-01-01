@@ -254,7 +254,7 @@ def four_field_scaled_formulation(method, gmesh, write_vtk_q=False):
 
     et = time.time()
     elapsed_time = et - st
-    print("L2-error time:", elapsed_time, "seconds")
+    print("Error time:", elapsed_time, "seconds")
     print("L2-error displacement: ", u_l2_error)
     print("L2-error rotation: ", t_l2_error)
     print("L2-error stress: ", s_l2_error)
@@ -403,11 +403,11 @@ def method_definition(k_order):
 
 
 def main():
-    n_refinements = 4
+    refinements = {1: 4, 2: 3}
     for k in [2]:
         for method in method_definition(k):
             configuration = {
-                "n_refinements": n_refinements,
+                "n_refinements": refinements[k],
                 "method": method,
             }
 
