@@ -27,6 +27,22 @@ from weak_forms.lce_scaled_dual_weak_form import (
 )
 
 
+def compose_file_name(method, k_order, ref_l, dim, material_data, suffix):
+    prefix = (
+        method[0]
+        + "_k"
+        + str(k_order)
+        + "_l"
+        + str(ref_l)
+        + "_d"
+        + str(dim)
+        + "_gamma"
+        + str(material_data["gamma"])
+    )
+    file_name = prefix + suffix
+    return file_name
+
+
 def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
 
@@ -156,7 +172,7 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
         data = j_el.ravel()
         row = np.repeat(dest, len(dest))
         col = np.tile(dest, len(dest))
-        nnz_idx = np.where(np.logical_not(np.isclose(data,1.0e-16)))[0]
+        nnz_idx = np.where(np.logical_not(np.isclose(data, 1.0e-16)))[0]
         [
             A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
             for idx in nnz_idx
@@ -198,16 +214,16 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
     b.array[:] = -rg
     x = A.createVecRight()
 
-    # ksp.setType("preonly")
-    # ksp.getPC().setType("lu")
-    # ksp.getPC().setFactorSolverType("mumps")
-    # ksp.setConvergenceHistory()
-
-    ksp.setType("tfqmr")
-    ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=5000, max_it=20000)
+    ksp.setType("preonly")
+    ksp.getPC().setType("lu")
+    ksp.getPC().setFactorSolverType("mumps")
     ksp.setConvergenceHistory()
-    ksp.getPC().setType("ilu")
-    ksp.getPC().setFactorSolverType("superlu")
+
+    # ksp.setType("tfqmr")
+    # ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=5000, max_it=20000)
+    # ksp.setConvergenceHistory()
+    # ksp.getPC().setType("ilu")
+    # ksp.getPC().setFactorSolverType("superlu")
 
     ksp.solve(b, x)
     alpha = x.array
@@ -419,7 +435,7 @@ def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=Fals
         data = j_el.ravel()
         row = np.repeat(dest, len(dest))
         col = np.tile(dest, len(dest))
-        nnz_idx = np.where(np.logical_not(np.isclose(data,1.0e-16)))[0]
+        nnz_idx = np.where(np.logical_not(np.isclose(data, 1.0e-16)))[0]
         [
             A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
             for idx in nnz_idx
@@ -465,16 +481,16 @@ def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=Fals
     b.array[:] = -rg
     x = A.createVecRight()
 
-    # ksp.setType("preonly")
-    # ksp.getPC().setType("lu")
-    # ksp.getPC().setFactorSolverType("mumps")
-    # ksp.setConvergenceHistory()
-
-    ksp.setType("tfqmr")
-    ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=5000, max_it=20000)
+    ksp.setType("preonly")
+    ksp.getPC().setType("lu")
+    ksp.getPC().setFactorSolverType("mumps")
     ksp.setConvergenceHistory()
-    ksp.getPC().setType("ilu")
-    ksp.getPC().setFactorSolverType("superlu")
+
+    # ksp.setType("tfqmr")
+    # ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=5000, max_it=20000)
+    # ksp.setConvergenceHistory()
+    # ksp.getPC().setType("ilu")
+    # ksp.getPC().setFactorSolverType("superlu")
 
     ksp.solve(b, x)
     alpha = x.array
@@ -739,14 +755,17 @@ def material_data_definition():
 
 
 def main():
-    refinements = {1: 5, 2: 4}
+    refinements = {1: 4, 2: 4}
     case_data = material_data_definition()
-    for k in [2]:
+    for k in [2, 1]:
+        n_ref = refinements[k]
         methods = method_definition(k)
         for i, method in enumerate(methods):
+            if i == 2 and k == 2:
+                n_ref = 3
             for material_data in case_data:
                 configuration = {
-                    "n_refinements": refinements[k],
+                    "n_refinements": n_ref,
                     "method": method,
                     "material_data": material_data,
                 }

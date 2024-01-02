@@ -23,9 +23,22 @@ from spaces.product_space import ProductSpace
 from weak_forms.lce_dual_weak_form import LCEDualWeakForm, LCEDualWeakFormBCDirichlet
 
 
-def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
-    dim = gmesh.dimension
+def compose_file_name(method, k_order, ref_l, dim, material_data, suffix):
+    prefix = (
+        method[0]
+        + "_k"
+        + str(k_order)
+        + "_l"
+        + str(ref_l)
+        + "_d"
+        + str(dim)
+        + "_lambda"
+        + str(material_data["lambda"])
+    )
+    file_name = prefix + suffix
+    return file_name
 
+def create_product_space(method, gmesh):
     # FESpace: data
     s_k_order = method[1]["s"][1]
     m_k_order = method[1]["m"][1]
@@ -36,7 +49,7 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
     m_components = 1
     u_components = 2
     t_components = 1
-    if dim == 3:
+    if gmesh.dimension == 3:
         s_components = 3
         m_components = 3
         u_components = 3
@@ -48,10 +61,10 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
     t_family = method[1]["t"][0]
 
     discrete_spaces_data = {
-        "s": (dim, s_components, s_family, s_k_order, gmesh),
-        "m": (dim, m_components, m_family, m_k_order, gmesh),
-        "u": (dim, u_components, u_family, u_k_order, gmesh),
-        "t": (dim, t_components, t_family, t_k_order, gmesh),
+        "s": (gmesh.dimension, s_components, s_family, s_k_order, gmesh),
+        "m": (gmesh.dimension, m_components, m_family, m_k_order, gmesh),
+        "u": (gmesh.dimension, u_components, u_family, u_k_order, gmesh),
+        "t": (gmesh.dimension, t_components, t_family, t_k_order, gmesh),
     }
 
     s_disc_Q = False
@@ -67,7 +80,7 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
 
     s_field_bc_physical_tags = [2, 3, 4, 5]
     m_field_bc_physical_tags = [2, 3, 4, 5]
-    if dim == 3:
+    if gmesh.dimension == 3:
         s_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
         m_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
     discrete_spaces_bc_physical_tags = {
@@ -75,9 +88,15 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
         "m": m_field_bc_physical_tags,
     }
 
-    fe_space = ProductSpace(discrete_spaces_data)
-    fe_space.make_subspaces_discontinuous(discrete_spaces_disc)
-    fe_space.build_structures(discrete_spaces_bc_physical_tags)
+    space = ProductSpace(discrete_spaces_data)
+    space.make_subspaces_discontinuous(discrete_spaces_disc)
+    space.build_structures(discrete_spaces_bc_physical_tags)
+    return space
+
+def four_field_approximation(material_data, method, gmesh):
+    dim = gmesh.dimension
+
+    fe_space = create_product_space(method, gmesh)
 
     n_dof_g = fe_space.n_dof
     rg = np.zeros(n_dof_g)
@@ -153,7 +172,7 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
         data = j_el.ravel()
         row = np.repeat(dest, len(dest))
         col = np.tile(dest, len(dest))
-        nnz_idx = np.where(np.logical_not(np.isclose(data,1.0e-16)))[0]
+        nnz_idx = np.where(np.logical_not(np.isclose(data, 1.0e-16)))[0]
         [
             A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
             for idx in nnz_idx
@@ -236,24 +255,77 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
         (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start),
     )
 
+    return alpha
+
+def four_field_postprocessing(k_order, material_data, method, gmesh, alpha, write_vtk_q=False):
+    dim = gmesh.dimension
+
+    fe_space = create_product_space(method, gmesh)
+    n_dof_g = fe_space.n_dof
+
+
+    # Material data
+    m_lambda = material_data["lambda"]
+    m_mu = material_data["mu"]
+    m_kappa = material_data["kappa"]
+    m_gamma = material_data["gamma"]
+
+    # exact solution
+    u_exact = lce.displacement(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    t_exact = lce.rotation(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    s_exact = lce.stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    m_exact = lce.couple_stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    div_s_exact = lce.stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    div_m_exact = lce.couple_stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    f_rhs = lce.rhs(m_lambda, m_mu, m_kappa, m_gamma, dim)
+
+    def f_lambda(x, y, z):
+        return m_lambda
+
+    def f_mu(x, y, z):
+        return m_mu
+
+    def f_kappa(x, y, z):
+        return m_kappa
+
+    def f_gamma(x, y, z):
+        return m_gamma
+
+    m_functions = {
+        "rhs": f_rhs,
+        "lambda": f_lambda,
+        "mu": f_mu,
+        "kappa": f_kappa,
+        "gamma": f_gamma,
+    }
+
+    exact_functions = {
+        "s": s_exact,
+        "m": m_exact,
+        "u": u_exact,
+        "t": t_exact,
+        "div_s": div_s_exact,
+        "div_m": div_m_exact,
+    }
+
     st = time.time()
-    # m_l2_error, u_l2_error, t_l2_error = l2_error(
-    #     dim, fe_space, exact_functions, alpha, ["s"]
-    # )
-    # div_s_l2_error, div_m_l2_error = div_error(dim, fe_space, exact_functions, alpha)
-    # dev_s_l2_error = devia_l2_error(dim, fe_space, exact_functions, alpha, ["m"])[0]
-    #
-    # h_div_s_error = np.sqrt((dev_s_l2_error**2) + (div_s_l2_error**2))
-    # h_div_m_error = np.sqrt((m_l2_error**2) + (div_m_l2_error**2))
+    m_l2_error, u_l2_error, t_l2_error = l2_error(
+        dim, fe_space, exact_functions, alpha, ["s"]
+    )
+    div_s_l2_error, div_m_l2_error = div_error(dim, fe_space, exact_functions, alpha)
+    dev_s_l2_error = devia_l2_error(dim, fe_space, exact_functions, alpha, ["m"])[0]
+
+    h_div_s_error = np.sqrt((dev_s_l2_error**2) + (div_s_l2_error**2))
+    h_div_m_error = np.sqrt((m_l2_error**2) + (div_m_l2_error**2))
     et = time.time()
     elapsed_time = et - st
     print("Error time:", elapsed_time, "seconds")
-    # print("L2-error displacement: ", u_l2_error)
-    # print("L2-error rotation: ", t_l2_error)
-    # print("L2-error dev stress: ", dev_s_l2_error)
-    # print("L2-error couple stress: ", m_l2_error)
-    # print("L2-error div stress: ", div_s_l2_error)
-    # print("L2-error div couple stress: ", div_m_l2_error)
+    print("L2-error displacement: ", u_l2_error)
+    print("L2-error rotation: ", t_l2_error)
+    print("L2-error dev stress: ", dev_s_l2_error)
+    print("L2-error couple stress: ", m_l2_error)
+    print("L2-error div stress: ", div_s_l2_error)
+    print("L2-error div couple stress: ", div_m_l2_error)
     print("")
 
     if write_vtk_q:
@@ -262,7 +334,7 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
         lambda_value = material_data["lambda"]
         gamma_value = material_data["gamma"]
 
-        prefix = method[0] + "_k" + str(s_k_order) + "_d" + str(dim)
+        prefix = method[0] + "_k" + str(k_order) + "_d" + str(dim)
         prefix += "_lambda_" + str(lambda_value) + "_gamma_" + str(gamma_value)
         file_name = prefix + "_four_fields_ex_2.vtk"
 
@@ -273,31 +345,20 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
 
-    gc.collect()
-    # return n_dof_g, np.array(
-    #     [
-    #         u_l2_error,
-    #         t_l2_error,
-    #         dev_s_l2_error,
-    #         m_l2_error,
-    #         div_s_l2_error,
-    #         div_m_l2_error,
-    #         h_div_s_error,
-    #         h_div_m_error,
-    #     ]
-    # )
     return n_dof_g, np.array(
         [
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
+            u_l2_error,
+            t_l2_error,
+            dev_s_l2_error,
+            m_l2_error,
+            div_s_l2_error,
+            div_m_l2_error,
+            h_div_s_error,
+            h_div_m_error,
         ]
     )
+
+
 
 
 def create_domain(dimension):
@@ -351,7 +412,7 @@ def create_mesh_from_file(file_name, dim, write_vtk_q=False):
     return gmesh
 
 
-def perform_convergence_test(configuration: dict):
+def perform_convergence_approximations(configuration: dict):
     # retrieve parameters from given configuration
     k_order = configuration.get("k_order")
     method = configuration.get("method")
@@ -376,8 +437,51 @@ def perform_convergence_test(configuration: dict):
         mesher = create_conformal_mesher(domain, h, lh)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
         h_min, h_mean, h_max = mesh_size(gmesh)
-        n_dof, error_vals = four_field_formulation(
-            material_data, method, gmesh, write_vtk
+        alpha = four_field_approximation(
+            material_data, method, gmesh
+        )
+        file_name = compose_file_name(
+            method, k_order, lh, gmesh.dimension, material_data, "_alpha_ex_2.npy"
+        )
+        with open(file_name, "wb") as f:
+            np.save(f, alpha)
+
+
+    return
+
+def perform_convergence_postprocessing(configuration: dict):
+    # retrieve parameters from given configuration
+    k_order = configuration.get("k_order")
+    method = configuration.get("method")
+    n_ref = configuration.get("n_refinements")
+    dimension = configuration.get("dimension")
+    dual_form_q = configuration.get("dual_problem_Q", True)
+    material_data = configuration.get("material_data", {})
+    write_geometry_vtk = configuration.get("write_geometry_Q", True)
+    write_vtk = configuration.get("write_vtk_Q", True)
+    report_full_precision_data = configuration.get("report_full_precision_data_Q", True)
+
+    # The initial element size
+    h = 1.0
+
+    # Create a unit squared or a unit cube
+    domain = create_domain(dimension)
+
+    n_data = 10
+    error_data = np.empty((0, n_data), float)
+    for lh in range(n_ref):
+        h_val = h * (2**-lh)
+        mesher = create_conformal_mesher(domain, h, lh)
+        gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
+        h_min, h_mean, h_max = mesh_size(gmesh)
+
+        file_name = compose_file_name(
+            method, k_order, lh, gmesh.dimension, material_data, "_alpha_ex_2.npy"
+        )
+        with open(file_name, "rb") as f:
+            alpha = np.load(f)
+        n_dof, error_vals = four_field_postprocessing(
+            k_order, material_data, method, gmesh, alpha, write_vtk
         )
         chunk = np.concatenate([[n_dof, h_max], error_vals])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
@@ -456,7 +560,6 @@ def perform_convergence_test(configuration: dict):
 
     return
 
-
 def method_definition(k_order):
     method_1_dc = {
         "s": ("RT", k_order),
@@ -495,16 +598,19 @@ def material_data_definition():
 
 
 def main():
-    refinements = {1: 5, 2: 4}
+    only_approximation_q = True
+    only_postprocessing_q = True
+    refinements = {1: 2, 2: 4}
     case_data = material_data_definition()
-    for k in [2]:
+    for k in [1]:
+        n_ref = refinements[k]
         methods = method_definition(k)
         for i, method in enumerate(methods):
-            if i != 2:
-                continue
+            if i == 2 and k == 2:
+                n_ref = 3
             for material_data in case_data:
                 configuration = {
-                    "n_refinements": refinements[k],
+                    "n_refinements": n_ref,
                     "method": method,
                     "material_data": material_data,
                 }
@@ -512,8 +618,10 @@ def main():
                 for d in [3]:
                     configuration.__setitem__("k_order", k)
                     configuration.__setitem__("dimension", d)
-                    perform_convergence_test(configuration)
-                    gc.collect()
+                    if only_approximation_q:
+                        perform_convergence_approximations(configuration)
+                    if only_postprocessing_q:
+                        perform_convergence_postprocessing(configuration)
 
 
 if __name__ == "__main__":

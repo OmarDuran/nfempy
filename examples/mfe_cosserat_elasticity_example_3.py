@@ -30,7 +30,6 @@ from weak_forms.lce_scaled_dual_weak_form import (
 
 
 def create_product_space(method, gmesh):
-
     # FESpace: data
     s_k_order = method[1]["s"][1]
     m_k_order = method[1]["m"][1]
@@ -84,6 +83,7 @@ def create_product_space(method, gmesh):
     space.make_subspaces_discontinuous(discrete_spaces_disc)
     space.build_structures(discrete_spaces_bc_physical_tags)
     return space
+
 
 def four_field_scaled_approximation(method, gmesh):
     dim = gmesh.dimension
@@ -165,7 +165,7 @@ def four_field_scaled_approximation(method, gmesh):
         data = j_el.ravel()
         row = np.repeat(dest, len(dest))
         col = np.tile(dest, len(dest))
-        nnz_idx = np.where(np.logical_not(np.isclose(data,1.0e-16)))[0]
+        nnz_idx = np.where(np.logical_not(np.isclose(data, 1.0e-16)))[0]
         [
             A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
             for idx in nnz_idx
@@ -251,8 +251,8 @@ def four_field_scaled_approximation(method, gmesh):
 
     return alpha
 
-def four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk_q=False):
 
+def four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk_q=False):
     dim = gmesh.dimension
     fe_space = create_product_space(method, gmesh)
     n_dof_g = fe_space.n_dof
@@ -358,10 +358,13 @@ def create_mesh_from_file(file_name, dim, write_vtk_q=False):
         gmesh.write_vtk()
     return gmesh
 
-def compose_file_name(method, k_order, ref_l, dim , suffix):
-    prefix = method[0] + "_k" + str(k_order) + "_l" + str(ref_l)  + "_d" + str(dim)
+
+def compose_file_name(method, k_order, ref_l, dim, suffix):
+    prefix = method[0] + "_k" + str(k_order) + "_l" + str(ref_l) + "_d" + str(dim)
     file_name = prefix + suffix
     return file_name
+
+
 def perform_convergence_approximations(configuration: dict):
     # retrieve parameters from dictionary
     k_order = configuration.get("k_order")
@@ -383,12 +386,14 @@ def perform_convergence_approximations(configuration: dict):
         mesh_file = "gmsh_files/example_2_" + str(dimension) + "d_l_" + str(lh) + ".msh"
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
         alpha = four_field_scaled_approximation(method, gmesh)
-        file_name = compose_file_name(method, k_order, lh, gmesh.dimension, "_alpha_ex_3.npy")
-        with open(file_name, 'wb') as f:
+        file_name = compose_file_name(
+            method, k_order, lh, gmesh.dimension, "_alpha_ex_3.npy"
+        )
+        with open(file_name, "wb") as f:
             np.save(f, alpha)
 
-
     return
+
 
 def perform_convergence_postprocessing(configuration: dict):
     # retrieve parameters from dictionary
@@ -412,10 +417,14 @@ def perform_convergence_postprocessing(configuration: dict):
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
         h_min, h_mean, h_max = mesh_size(gmesh)
 
-        file_name = compose_file_name(method, k_order, lh, gmesh.dimension, "_alpha_ex_3.npy")
-        with open(file_name, 'rb') as f:
+        file_name = compose_file_name(
+            method, k_order, lh, gmesh.dimension, "_alpha_ex_3.npy"
+        )
+        with open(file_name, "rb") as f:
             alpha = np.load(f)
-        n_dof, error_vals = four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk)
+        n_dof, error_vals = four_field_scaled_postprocessing(
+            k_order, method, gmesh, alpha, write_vtk
+        )
         chunk = np.concatenate([[n_dof, h_max], error_vals])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
 
@@ -496,9 +505,9 @@ def method_definition(k_order):
 
 def main():
     only_approximation_q = True
-    only_postprocessing_q = True
-    refinements = {1: 3, 2: 2}
-    for k in [2]:
+    only_postprocessing_q = False
+    refinements = {1: 3, 2: 3}
+    for k in [1]:
         for method in method_definition(k):
             configuration = {
                 "n_refinements": refinements[k],
