@@ -165,11 +165,15 @@ def four_field_scaled_approximation(method, gmesh):
         data = j_el.ravel()
         row = np.repeat(dest, len(dest))
         col = np.tile(dest, len(dest))
-        zero_tolerance = 1.0e-16
-        nnz_idx = np.where(np.logical_not(np.isclose((1.0/zero_tolerance)*data, zero_tolerance)))[0]
+        nnz_idx = np.where(np.logical_not(np.isclose(data, 1.0e-16)))[0]
         [
             A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
             for idx in nnz_idx
+        ]
+        # Petsc ILU requires explicit existence of diagonal zeros
+        [
+            A.setValue(row=idx, col=idx, value=0.0, addv=True)
+            for idx in dest
         ]
 
         check_points = [(int(k * n_els / 10)) for k in range(11)]
@@ -220,16 +224,15 @@ def four_field_scaled_approximation(method, gmesh):
     b.array[:] = -rg
     x = A.createVecRight()
 
-    ksp.setType("preonly")
-    ksp.getPC().setType("lu")
-    ksp.getPC().setFactorSolverType("mumps")
-    ksp.setConvergenceHistory()
-
-    # ksp.setType("tfqmr")
-    # ksp.setTolerances(rtol=1e-8, atol=1e-8, divtol=5000, max_it=20000)
+    # ksp.setType("preonly")
+    # ksp.getPC().setType("lu")
+    # ksp.getPC().setFactorSolverType("mumps")
     # ksp.setConvergenceHistory()
-    # ksp.getPC().setType("ilu")
-    # ksp.getPC().setFactorSolverType("superlu")
+
+    ksp.setType("tfqmr")
+    ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=5000, max_it=20000)
+    ksp.setConvergenceHistory()
+    ksp.getPC().setType("ilu")
 
     ksp.solve(b, x)
     alpha = x.array

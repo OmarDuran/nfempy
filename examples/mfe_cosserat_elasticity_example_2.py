@@ -177,6 +177,11 @@ def four_field_approximation(material_data, method, gmesh):
             A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
             for idx in nnz_idx
         ]
+        # Petsc ILU requires explicit existence of diagonal zeros
+        [
+            A.setValue(row=idx, col=idx, value=0.0, addv=True)
+            for idx in dest
+        ]
 
         check_points = [(int(k * n_els / 10)) for k in range(11)]
         if i in check_points or i == n_els - 1:
@@ -225,16 +230,15 @@ def four_field_approximation(material_data, method, gmesh):
     b.array[:] = -rg
     x = A.createVecRight()
 
-    ksp.setType("preonly")
-    ksp.getPC().setType("lu")
-    ksp.getPC().setFactorSolverType("mumps")
-    ksp.setConvergenceHistory()
-
-    # ksp.setType("tfqmr")
-    # ksp.setTolerances(rtol=1e-8, atol=1e-8, divtol=5000, max_it=20000)
+    # ksp.setType("preonly")
+    # ksp.getPC().setType("lu")
+    # ksp.getPC().setFactorSolverType("mumps")
     # ksp.setConvergenceHistory()
-    # ksp.getPC().setType("ilu")
-    # ksp.getPC().setFactorSolverType("superlu")
+
+    ksp.setType("tfqmr")
+    ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=5000, max_it=20000)
+    ksp.setConvergenceHistory()
+    ksp.getPC().setType("ilu")
 
     ksp.solve(b, x)
     alpha = x.array
