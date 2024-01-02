@@ -214,7 +214,6 @@ def four_field_scaled_approximation(method, gmesh):
         (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start),
     )
 
-    # memory_start = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     # solving ls
     st = time.time()
 
@@ -307,6 +306,19 @@ def four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk_q=
         "grad_gamma": f_grad_gamma,
     }
 
+    if write_vtk_q:
+        st = time.time()
+
+        prefix = method[0] + "_k" + str(k_order) + "_d" + str(dim)
+        file_name = prefix + "_four_fields_scaled_ex_3.vtk"
+
+        write_vtk_file_with_exact_solution(
+            file_name, gmesh, fe_space, exact_functions, alpha
+        )
+        et = time.time()
+        elapsed_time = et - st
+        print("Post-processing time:", elapsed_time, "seconds")
+
     st = time.time()
     s_l2_error, m_l2_error, u_l2_error, t_l2_error = l2_error(
         dim, fe_space, exact_functions, alpha
@@ -325,18 +337,7 @@ def four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk_q=
     print("L2-error div couple stress: ", div_m_l2_error)
     print("")
 
-    if write_vtk_q:
-        st = time.time()
 
-        prefix = method[0] + "_k" + str(k_order) + "_d" + str(dim)
-        file_name = prefix + "_four_fields_scaled_ex_3.vtk"
-
-        write_vtk_file_with_exact_solution(
-            file_name, gmesh, fe_space, exact_functions, alpha
-        )
-        et = time.time()
-        elapsed_time = et - st
-        print("Post-processing time:", elapsed_time, "seconds")
 
     h_div_s_error = np.sqrt((s_l2_error**2) + (div_s_l2_error**2))
     h_div_m_error = np.sqrt((m_l2_error**2) + (div_m_l2_error**2))
@@ -510,7 +511,7 @@ def method_definition(k_order):
 def main():
     only_approximation_q = True
     only_postprocessing_q = False
-    refinements = {1: 3, 2: 3}
+    refinements = {1: 4, 2: 4}
     for k in [1]:
         for method in method_definition(k):
             configuration = {
