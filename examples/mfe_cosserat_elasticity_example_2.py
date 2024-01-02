@@ -32,7 +32,7 @@ def compose_file_name(method, k_order, ref_l, dim, material_data, suffix):
         + str(ref_l)
         + "_d"
         + str(dim)
-        + "_lambda"
+        + "_lambda_"
         + str(material_data["lambda"])
     )
     file_name = prefix + suffix
@@ -599,10 +599,10 @@ def material_data_definition():
 
 def main():
     only_approximation_q = True
-    only_postprocessing_q = True
-    refinements = {1: 2, 2: 4}
+    only_postprocessing_q = False
+    refinements = {1: 4, 2: 4}
     case_data = material_data_definition()
-    for k in [1]:
+    for k in [2, 1]:
         n_ref = refinements[k]
         methods = method_definition(k)
         for i, method in enumerate(methods):
