@@ -104,6 +104,7 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
     alpha = np.zeros(n_dof_g)
     print("n_dof: ", n_dof_g)
 
+    memory_start = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     # Assembler
     st = time.time()
 
@@ -189,6 +190,10 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
                 print("Assembly: progress [%]: ", 100)
             else:
                 print("Assembly: progress [%]: ", check_points.index(i) * 10)
+                print(
+                            "Assembly: Memory used :",
+                            resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start,
+                        )
 
     def scatter_bc_form(A, i, bc_weak_form):
         dest = fe_space.bc_destination_indexes(i)
@@ -456,10 +461,10 @@ def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=Fals
                 print("Assembly: progress [%]: ", 100)
             else:
                 print("Assembly: progress [%]: ", check_points.index(i) * 10)
-        print(
-            "Assembly: Memory used :",
-            resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start,
-        )
+            print(
+                "Assembly: Memory used :",
+                resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start,
+            )
 
     def scatter_bc_form(A, i, bc_weak_form):
         dest = fe_space.bc_destination_indexes(i)
@@ -769,8 +774,6 @@ def main():
         n_ref = refinements[k]
         methods = method_definition(k)
         for i, method in enumerate(methods):
-            if i == 2 and k == 2:
-                n_ref = 3
             for material_data in case_data:
                 configuration = {
                     "n_refinements": n_ref,
