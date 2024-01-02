@@ -165,7 +165,8 @@ def four_field_scaled_approximation(method, gmesh):
         data = j_el.ravel()
         row = np.repeat(dest, len(dest))
         col = np.tile(dest, len(dest))
-        nnz_idx = np.where(np.logical_not(np.isclose(data, 1.0e-16)))[0]
+        zero_tolerance = 1.0e-16
+        nnz_idx = np.where(np.logical_not(np.isclose((1.0/zero_tolerance)*data, zero_tolerance)))[0]
         [
             A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
             for idx in nnz_idx
