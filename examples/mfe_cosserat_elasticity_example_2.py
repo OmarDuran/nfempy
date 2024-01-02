@@ -603,15 +603,13 @@ def material_data_definition():
 
 def main():
     only_approximation_q = True
-    only_postprocessing_q = False
+    only_postprocessing_q = True
     refinements = {1: 4, 2: 4}
     case_data = material_data_definition()
     for k in [2, 1]:
         n_ref = refinements[k]
         methods = method_definition(k)
         for i, method in enumerate(methods):
-            if i == 2 and k == 2:
-                n_ref = 3
             for material_data in case_data:
                 configuration = {
                     "n_refinements": n_ref,
