@@ -569,10 +569,10 @@ def method_definition(k_order):
 
 
 def main():
-    only_approximation_q = True
-    only_postprocessing_q = False
-    refinements = {1: 4, 2: 2}
-    for k in [1]:
+    only_approximation_q = False
+    only_postprocessing_q = True
+    refinements = {1: 4, 2: 4}
+    for k in [2]:
         for method in method_definition(k):
             configuration = {
                 "n_refinements": refinements[k],
