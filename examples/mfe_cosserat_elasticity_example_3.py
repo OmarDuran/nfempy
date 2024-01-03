@@ -27,7 +27,7 @@ from weak_forms.lce_scaled_dual_weak_form import (
     LCEScaledDualWeakForm,
     LCEScaledDualWeakFormBCDirichlet,
 )
-from weak_forms.lce_riesz_map_weak_form import LCERieszMapWeakForm
+from weak_forms.lce_scaled_riesz_map_weak_form import LCEScaledRieszMapWeakForm
 
 def create_product_space(method, gmesh):
     # FESpace: data
@@ -155,7 +155,7 @@ def four_field_scaled_approximation(method, gmesh):
     bc_weak_form = LCEScaledDualWeakFormBCDirichlet(fe_space)
     bc_weak_form.functions = exact_functions
 
-    riesz_map_weak_form = LCERieszMapWeakForm(fe_space)
+    riesz_map_weak_form = LCEScaledRieszMapWeakForm(fe_space)
     riesz_map_weak_form.functions = m_functions
 
     def scatter_form_data(A, i, weak_form, n_els):
@@ -199,9 +199,6 @@ def four_field_scaled_approximation(method, gmesh):
         alpha_l = alpha[dest]
         r_el, j_el = riesz_map_weak_form.evaluate_form_vectorized(i, alpha_l)
 
-        # contribute rhs
-        rg[dest] += r_el
-
         # contribute lhs
         data = j_el.ravel()
         row = np.repeat(dest, len(dest))
@@ -242,8 +239,6 @@ def four_field_scaled_approximation(method, gmesh):
     n_els = len(fe_space.discrete_spaces["s"].elements)
     [scatter_riesz_form_data(P, i, riesz_map_weak_form, n_els) for i in range(n_els)]
 
-
-
     A.assemble()
     P.assemble()
     print("Assembly: nz_allocated:", int(A.getInfo()["nz_allocated"]))
@@ -272,7 +267,7 @@ def four_field_scaled_approximation(method, gmesh):
     # ksp.getPC().setFactorSolverType("mumps")
     # ksp.setConvergenceHistory()
 
-    ksp.setType("fgmres")
+    ksp.setType("minres")
     ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=5000, max_it=20000)
     ksp.setConvergenceHistory()
     # ksp.getPC().setType("ilu")
@@ -286,22 +281,19 @@ def four_field_scaled_approximation(method, gmesh):
     is_general_sigma.createGeneral(general_sigma_idx)
     is_general_u.createGeneral(general_u_idx)
 
-
-    ksp.getPC().setFieldSplitIS(('sigma', is_general_sigma),('displacement', is_general_u))
+    ksp.getPC().setFieldSplitIS(('gen_sigma', is_general_sigma),('gen_u', is_general_u))
     ksp.getPC().setFieldSplitType(PETSc.PC.CompositeType.ADDITIVE)
-    ksp_u, ksp_p = ksp.getPC().getFieldSplitSubKSP()
+    ksp_s, ksp_u = ksp.getPC().getFieldSplitSubKSP()
+    ksp_s.setType("preonly")
+    ksp_s.getPC().setType("lu")
+    ksp_s.getPC().setFactorSolverType("mumps")
     ksp_u.setType("preonly")
-    ksp_u.getPC().setType("lu")
-    ksp_u.getPC().setFactorSolverType("mumps")
-    ksp_p.setType("preonly")
-    ksp_p.getPC().setType("ilu")
+    ksp_u.getPC().setType("ilu")
     ksp.setFromOptions()
 
     ksp.solve(b, x)
     alpha = x.array
     residuals_history = ksp.getConvergenceHistory()
-
-
     print(
         "Linear solver: After PETSc ksp.solve: Memory used [Byte] :",
         (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start),
@@ -444,7 +436,6 @@ def perform_convergence_approximations(configuration: dict):
     n_ref = configuration.get("n_refinements")
     dimension = configuration.get("dimension")
     dual_form_q = configuration.get("dual_problem_Q", True)
-    gamma_value = configuration.get("gamma_value", 1.0)
     write_geometry_vtk = configuration.get("write_geometry_Q", True)
     write_vtk = configuration.get("write_vtk_Q", True)
     report_full_precision_data = configuration.get("report_full_precision_data_Q", True)

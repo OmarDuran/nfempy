@@ -9,7 +9,7 @@ from topology.topological_queries import find_higher_dimension_neighs
 from weak_forms.weak_from import WeakForm
 
 
-class LCERieszMapWeakForm(WeakForm):
+class LCEScaledRieszMapWeakForm(WeakForm):
     def evaluate_form(self, element_index, alpha):
         iel = element_index
         if self.space is None or self.functions is None:
@@ -25,6 +25,7 @@ class LCERieszMapWeakForm(WeakForm):
         f_mu = self.functions["mu"]
         f_kappa = self.functions["kappa"]
         f_gamma = self.functions["gamma"]
+        f_grad_gamma = self.functions["grad_gamma"]
 
         s_components = s_space.n_comp
         m_components = m_space.n_comp
@@ -73,6 +74,7 @@ class LCERieszMapWeakForm(WeakForm):
         e3 = np.array([0, 0, 1])
 
         gamma_scale_v = f_gamma(x[:, 0], x[:, 1], x[:, 2])
+        grad_gamma_v = f_grad_gamma(x[:, 0], x[:, 1], x[:, 2])
 
         Imat = np.identity(dim)
         with ad.AutoDiff(alpha) as alpha:
@@ -90,6 +92,9 @@ class LCERieszMapWeakForm(WeakForm):
 
             for i, omega in enumerate(weights):
                 xv = x[i]
+
+                gamma_scale = gamma_scale_v[i]
+                grad_gamma_scale = grad_gamma_v[:, i]
 
                 aka = 0
                 if dim == 2:
@@ -164,7 +169,7 @@ class LCERieszMapWeakForm(WeakForm):
                             * Imat
                     ) + (1.0 / 2.0 * f_kappa(xv[0], xv[1], xv[2])) * Skew_sh
 
-                    A_mh = (1.0 / f_gamma(xv[0], xv[1], xv[2])) * mh
+                    A_mh = mh
 
                     grad_s_phi = s_phi_tab[1: s_phi_tab.shape[0] + 1, i, :, 0:dim]
                     div_tau = np.array(
@@ -176,6 +181,20 @@ class LCERieszMapWeakForm(WeakForm):
                         [np.trace(grad_m_phi, axis1=0, axis2=2) / det_jac[i]]
                     )
 
+                    tr_grad_eps_otimes_v = np.array(
+                        [
+                            [
+                                np.trace(
+                                    np.outer(
+                                        grad_gamma_scale, m_phi_tab[0, i, j, 0:dim]
+                                    )
+                                )
+                                for j in range(n_m_phi)
+                            ]
+                        ]
+                    )
+                    div_v_s = gamma_scale * div_v + tr_grad_eps_otimes_v
+
                     div_sh_x = a_sx @ div_tau.T
                     div_sh_y = a_sy @ div_tau.T
                     div_sh = VecValDer(
@@ -183,7 +202,7 @@ class LCERieszMapWeakForm(WeakForm):
                         np.hstack((div_sh_x.der, div_sh_y.der)),
                     )
 
-                    div_mh = a_m @ div_v.T
+                    div_mh = a_m @ div_v_s.T
 
                 else:
                     c = 0
@@ -312,7 +331,7 @@ class LCERieszMapWeakForm(WeakForm):
                             * Imat
                     ) + (1.0 / 2.0 * f_kappa(xv[0], xv[1], xv[2])) * Skew_sh
 
-                    A_mh = (1.0 / f_gamma(xv[0], xv[1], xv[2])) * mh
+                    A_mh = mh
 
                     grad_s_phi = s_phi_tab[1: s_phi_tab.shape[0] + 1, i, :, 0:dim]
                     div_tau = np.array(
@@ -333,9 +352,23 @@ class LCERieszMapWeakForm(WeakForm):
                         [np.trace(grad_m_phi, axis1=0, axis2=2) / det_jac[i]]
                     )
 
-                    div_mh_x = a_mx @ div_v.T
-                    div_mh_y = a_my @ div_v.T
-                    div_mh_z = a_mz @ div_v.T
+                    tr_grad_eps_otimes_v = np.array(
+                        [
+                            [
+                                np.trace(
+                                    np.outer(
+                                        grad_gamma_scale, m_phi_tab[0, i, j, 0:dim]
+                                    )
+                                )
+                                for j in range(n_m_phi)
+                            ]
+                        ]
+                    )
+                    div_v_s = gamma_scale * div_v + tr_grad_eps_otimes_v
+
+                    div_mh_x = a_mx @ div_v_s.T
+                    div_mh_y = a_my @ div_v_s.T
+                    div_mh_z = a_mz @ div_v_s.T
 
                     div_mh = VecValDer(
                         np.hstack((div_mh_x.val, div_mh_y.val, div_mh_z.val)),
@@ -344,7 +377,7 @@ class LCERieszMapWeakForm(WeakForm):
 
 
                 equ_1_integrand = s_phi_tab[0, i, :, 0:dim] @ A_sh.T + div_tau.T @ div_sh
-                equ_2_integrand = m_phi_tab[0, i, :, 0:dim] @ A_mh.T + div_v.T @ div_mh
+                equ_2_integrand = m_phi_tab[0, i, :, 0:dim] @ A_mh.T + div_v_s.T @ div_mh
                 equ_3_integrand = u_phi_tab[0, i, :, 0:dim] @ uh
                 equ_4_integrand = t_phi_tab[0, i, :, 0:dim] @ th
 
@@ -390,6 +423,7 @@ class LCERieszMapWeakForm(WeakForm):
         f_mu = self.functions["mu"]
         f_kappa = self.functions["kappa"]
         f_gamma = self.functions["gamma"]
+        f_grad_gamma = self.functions["grad_gamma"]
 
         s_components = s_space.n_comp
         m_components = m_space.n_comp
@@ -432,13 +466,15 @@ class LCERieszMapWeakForm(WeakForm):
         lambda_v = f_lambda(x[:, 0], x[:, 1], x[:, 2])
         mu_v = f_mu(x[:, 0], x[:, 1], x[:, 2])
         kappa_v = f_kappa(x[:, 0], x[:, 1], x[:, 2])
-        gamma_v = f_gamma(x[:, 0], x[:, 1], x[:, 2])
 
         # Vectorized contributions
         # s : stress
         # m : coupled stress
         # u : displacement
         # t : rotation
+
+        gamma_scale_v = f_gamma(x[:, 0], x[:, 1], x[:, 2])
+        grad_gamma_v = f_grad_gamma(x[:, 0], x[:, 1], x[:, 2])
 
         # (s,s) block
         s_phi_star = s_phi_tab[0, :, :, 0:dim]
@@ -501,7 +537,7 @@ class LCERieszMapWeakForm(WeakForm):
         for c in range(m_components):
             b = c + n_s_dof
             e = b + n_m_dof
-            j_el[b:e:m_components, b:e:m_components] += (1 / (gamma_v)) * m_j_el
+            j_el[b:e:m_components, b:e:m_components] += m_j_el
 
         # (div s, div tau) block
         grad_s_phi_star = s_phi_tab[1: s_phi_tab.shape[0] + 1, :, :, 0:dim]
@@ -514,7 +550,21 @@ class LCERieszMapWeakForm(WeakForm):
 
         # (div s, div tau) block
         grad_m_phi_star = m_phi_tab[1: m_phi_tab.shape[0] + 1, :, :, 0:dim]
-        div_v_star = np.trace(grad_m_phi_star, axis1=0, axis2=3).T * (1/det_jac)
+        div_v_star = (
+                np.array(
+                    [
+                        [
+                            np.trace(
+                                np.outer(grad_gamma_v[:, i], m_phi_tab[0, i, j, 0:dim])
+                            )
+                            for i in range(len(points))
+                        ]
+                        for j in range(n_m_phi)
+                    ]
+                )
+        )
+
+        div_v_star += np.trace(grad_m_phi_star, axis1=0, axis2=3).T * (gamma_scale_v/det_jac)
         div_v_block_outer = np.array([np.outer(div_phi, div_phi) for div_phi in div_v_star.T]).T @ (det_jac * weights)
         for mc in range(m_components):
             mb = mc + n_s_dof

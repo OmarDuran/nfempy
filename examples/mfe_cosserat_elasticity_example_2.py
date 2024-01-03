@@ -21,7 +21,7 @@ from postprocess.l2_error_post_processor import (
 from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
 from spaces.product_space import ProductSpace
 from weak_forms.lce_dual_weak_form import LCEDualWeakForm, LCEDualWeakFormBCDirichlet
-
+from weak_forms.lce_riesz_map_weak_form import LCERieszMapWeakForm
 
 def compose_file_name(method, k_order, ref_l, dim, material_data, suffix):
     prefix = (
@@ -110,6 +110,9 @@ def four_field_approximation(material_data, method, gmesh):
     A = PETSc.Mat()
     A.createAIJ([n_dof_g, n_dof_g])
 
+    P = PETSc.Mat()
+    P.createAIJ([n_dof_g, n_dof_g])
+
     # Material data
     m_lambda = material_data["lambda"]
     m_mu = material_data["mu"]
@@ -159,6 +162,9 @@ def four_field_approximation(material_data, method, gmesh):
     bc_weak_form = LCEDualWeakFormBCDirichlet(fe_space)
     bc_weak_form.functions = exact_functions
 
+    riesz_map_weak_form = LCERieszMapWeakForm(fe_space)
+    riesz_map_weak_form.functions = m_functions
+
     def scatter_form_data(A, i, weak_form, n_els):
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
@@ -194,6 +200,33 @@ def four_field_approximation(material_data, method, gmesh):
                     (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start),
                 )
 
+    def scatter_riesz_form_data(P, i, riesz_map_weak_form, n_els):
+        # destination indexes
+        dest = riesz_map_weak_form.space.destination_indexes(i)
+        alpha_l = alpha[dest]
+        r_el, j_el = riesz_map_weak_form.evaluate_form_vectorized(i, alpha_l)
+
+        # contribute lhs
+        data = j_el.ravel()
+        row = np.repeat(dest, len(dest))
+        col = np.tile(dest, len(dest))
+        nnz_idx = np.where(np.logical_not(np.isclose(data, 1.0e-16)))[0]
+        [
+            P.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
+            for idx in nnz_idx
+        ]
+
+        check_points = [(int(k * n_els / 10)) for k in range(11)]
+        if i in check_points or i == n_els - 1:
+            if i == n_els - 1:
+                print("Assembly: progress [%]: ", 100)
+            else:
+                print("Assembly: progress [%]: ", check_points.index(i) * 10)
+            print(
+                "Assembly: Memory used [Byte] :",
+                (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start),
+            )
+
     def scatter_bc_form(A, i, bc_weak_form):
         dest = fe_space.bc_destination_indexes(i)
         alpha_l = alpha[dest]
@@ -208,7 +241,13 @@ def four_field_approximation(material_data, method, gmesh):
     n_bc_els = len(fe_space.discrete_spaces["s"].bc_elements)
     [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
 
+    print("")
+    print("Assembly preconditioner")
+    n_els = len(fe_space.discrete_spaces["s"].elements)
+    [scatter_riesz_form_data(P, i, riesz_map_weak_form, n_els) for i in range(n_els)]
+
     A.assemble()
+    P.assemble()
     print("Assembly: nz_allocated:", int(A.getInfo()["nz_allocated"]))
     print("Assembly: nz_used:", int(A.getInfo()["nz_used"]))
     print("Assembly: nz_unneeded:", int(A.getInfo()["nz_unneeded"]))
@@ -225,7 +264,7 @@ def four_field_approximation(material_data, method, gmesh):
     st = time.time()
 
     ksp = PETSc.KSP().create(PETSc.COMM_WORLD)
-    ksp.setOperators(A)
+    ksp.setOperators(A, P)
     b = A.createVecLeft()
     b.array[:] = -rg
     x = A.createVecRight()
@@ -235,13 +274,32 @@ def four_field_approximation(material_data, method, gmesh):
     # ksp.getPC().setFactorSolverType("mumps")
     # ksp.setConvergenceHistory()
 
-    ksp.setType("tfqmr")
+    ksp.setType("minres")
+    ksp.getPC().setType("fieldsplit")
+    is_general_sigma = PETSc.IS()
+    is_general_u = PETSc.IS()
+    fields_idx = np.add.accumulate([0] + list(fe_space.discrete_spaces_dofs.values()))
+    general_sigma_idx = np.array(range(fields_idx[0], fields_idx[2]), dtype=np.int32)
+    general_u_idx = np.array(range(fields_idx[2], fields_idx[4]), dtype=np.int32)
+    is_general_sigma.createGeneral(general_sigma_idx)
+    is_general_u.createGeneral(general_u_idx)
+
+    ksp.getPC().setFieldSplitIS(('gen_sigma', is_general_sigma),('gen_u', is_general_u))
+    ksp.getPC().setFieldSplitType(PETSc.PC.CompositeType.ADDITIVE)
+    ksp_s, ksp_u = ksp.getPC().getFieldSplitSubKSP()
+    ksp_s.setType("preonly")
+    ksp_s.getPC().setType("lu")
+    ksp_s.getPC().setFactorSolverType("mumps")
+    ksp_u.setType("preonly")
+    ksp_u.getPC().setType("ilu")
     ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=5000, max_it=20000)
     ksp.setConvergenceHistory()
-    ksp.getPC().setType("ilu")
+    # ksp.getPC().setType("ilu")
+    ksp.setFromOptions()
 
     ksp.solve(b, x)
     alpha = x.array
+    residuals_history = ksp.getConvergenceHistory()
     print(
         "Linear solver: After PETSc ksp.solve: Memory used [Bytes] :",
         (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start),
@@ -259,7 +317,7 @@ def four_field_approximation(material_data, method, gmesh):
         (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start),
     )
 
-    return alpha
+    return alpha, residuals_history
 
 def four_field_postprocessing(k_order, material_data, method, gmesh, alpha, write_vtk_q=False):
     dim = gmesh.dimension
@@ -312,6 +370,23 @@ def four_field_postprocessing(k_order, material_data, method, gmesh, alpha, writ
         "div_m": div_m_exact,
     }
 
+    if write_vtk_q:
+        st = time.time()
+
+        lambda_value = material_data["lambda"]
+        gamma_value = material_data["gamma"]
+
+        prefix = method[0] + "_k" + str(k_order) + "_d" + str(dim)
+        prefix += "_lambda_" + str(lambda_value) + "_gamma_" + str(gamma_value)
+        file_name = prefix + "_four_fields_ex_2.vtk"
+
+        write_vtk_file_with_exact_solution(
+            file_name, gmesh, fe_space, exact_functions, alpha
+        )
+        et = time.time()
+        elapsed_time = et - st
+        print("Post-processing time:", elapsed_time, "seconds")
+
     st = time.time()
     m_l2_error, u_l2_error, t_l2_error = l2_error(
         dim, fe_space, exact_functions, alpha, ["s"]
@@ -331,23 +406,6 @@ def four_field_postprocessing(k_order, material_data, method, gmesh, alpha, writ
     print("L2-error div stress: ", div_s_l2_error)
     print("L2-error div couple stress: ", div_m_l2_error)
     print("")
-
-    if write_vtk_q:
-        st = time.time()
-
-        lambda_value = material_data["lambda"]
-        gamma_value = material_data["gamma"]
-
-        prefix = method[0] + "_k" + str(k_order) + "_d" + str(dim)
-        prefix += "_lambda_" + str(lambda_value) + "_gamma_" + str(gamma_value)
-        file_name = prefix + "_four_fields_ex_2.vtk"
-
-        write_vtk_file_with_exact_solution(
-            file_name, gmesh, fe_space, exact_functions, alpha
-        )
-        et = time.time()
-        elapsed_time = et - st
-        print("Post-processing time:", elapsed_time, "seconds")
 
     return n_dof_g, np.array(
         [
@@ -440,8 +498,7 @@ def perform_convergence_approximations(configuration: dict):
         h_val = h * (2**-lh)
         mesher = create_conformal_mesher(domain, h, lh)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
-        h_min, h_mean, h_max = mesh_size(gmesh)
-        alpha = four_field_approximation(
+        alpha, res_history = four_field_approximation(
             material_data, method, gmesh
         )
         file_name = compose_file_name(
@@ -449,7 +506,10 @@ def perform_convergence_approximations(configuration: dict):
         )
         with open(file_name, "wb") as f:
             np.save(f, alpha)
-
+        file_name_res = compose_file_name(
+            method, k_order, lh, gmesh.dimension, material_data, "_res_history_ex_2.txt"
+        )
+        np.savetxt(file_name_res,res_history,delimiter=",",)
 
     return
 
@@ -603,7 +663,7 @@ def material_data_definition():
 
 def main():
     only_approximation_q = True
-    only_postprocessing_q = True
+    only_postprocessing_q = False
     refinements = {1: 4, 2: 4}
     case_data = material_data_definition()
     for k in [2, 1]:
