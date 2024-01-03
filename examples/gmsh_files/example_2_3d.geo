@@ -1,7 +1,14 @@
 // Gmsh project created on Tue Dec 12 23:27:59 2023
 SetFactory("OpenCASCADE");
 
-s=32;
+// ref levels
+//s=2;
+//s=5;
+//s=9;
+//s=18;
+
+s=18;
+
 lc = 1.0/s;
 hi = 1.0/3.0;
 hs = 2.0/3.0;
@@ -41,14 +48,6 @@ po5=newp; Point(po5) = {0, 0, +ho, lc};
 po6=newp; Point(po6) = {+ho, 0, +ho, lc};
 po7=newp; Point(po7) = {+ho, +ho, +ho, lc};
 po8=newp; Point(po8) = {0, +ho, +ho, lc};
-
-
-
-
-
-
-
-
 
 
 
@@ -201,11 +200,27 @@ Plane Surface(18) = {18};
 Surface Loop(1) = {4, 8, 3, 11, 12, 5, 2, 10, 7, 1, 6, 9};
 Volume(1) = {1};
 
+
+
+//+
+Line(37) = {7, 15};
+//+
+Line(38) = {8, 16};
+//+
+Line(39) = {3, 11};
+//+
+Curve Loop(19) = {38, 33, -37, 25};
+//+
+Plane Surface(19) = {19};
+//+
+Curve Loop(20) = {39, 30, -37, -20};
+//+
+Plane Surface(20) = {20};
+
+
+
 Surface{13,14,15,16,17,18} In Volume{1};
-Transfinite Surface {13,14,15,16,17,18};
-//Transfinite Surface {1,2,3,4,5,6,7,8,9,10,11,12};
-
-
+//Transfinite Surface {13,14,15,16,17,18,19,20};
 
 Physical Volume("domain", 1) = {1};
 Physical Surface("south", 2) = {1,2,3};
@@ -214,4 +229,5 @@ Physical Surface("north", 4) = {5};
 Physical Surface("west", 5) = {9,10,11};
 Physical Surface("top", 6) = {12};
 Physical Surface("bottom", 7) = {6,7,8};
+
 
