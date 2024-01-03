@@ -268,10 +268,6 @@ def four_field_scaled_approximation(method, gmesh):
     # ksp.setConvergenceHistory()
 
     ksp.setType("minres")
-    ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=5000, max_it=20000)
-    ksp.setConvergenceHistory()
-    # ksp.getPC().setType("ilu")
-
     ksp.getPC().setType("fieldsplit")
     is_general_sigma = PETSc.IS()
     is_general_u = PETSc.IS()
@@ -289,6 +285,8 @@ def four_field_scaled_approximation(method, gmesh):
     ksp_s.getPC().setFactorSolverType("mumps")
     ksp_u.setType("preonly")
     ksp_u.getPC().setType("ilu")
+    ksp.setTolerances(rtol=0.0, atol=1e-7, divtol=5000, max_it=20000)
+    ksp.setConvergenceHistory()
     ksp.setFromOptions()
 
     ksp.solve(b, x)

@@ -292,9 +292,8 @@ def four_field_approximation(material_data, method, gmesh):
     ksp_s.getPC().setFactorSolverType("mumps")
     ksp_u.setType("preonly")
     ksp_u.getPC().setType("ilu")
-    ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=5000, max_it=20000)
+    ksp.setTolerances(rtol=0.0, atol=1e-9, divtol=5000, max_it=20000)
     ksp.setConvergenceHistory()
-    # ksp.getPC().setType("ilu")
     ksp.setFromOptions()
 
     ksp.solve(b, x)

@@ -230,7 +230,7 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
     # ksp.setConvergenceHistory()
 
     ksp.setType("tfqmr")
-    ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=5000, max_it=20000)
+    ksp.setTolerances(rtol=0.0, atol=1e-7, divtol=5000, max_it=20000)
     ksp.setConvergenceHistory()
     ksp.getPC().setType("ilu")
 
@@ -501,7 +501,7 @@ def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=Fals
     # ksp.setConvergenceHistory()
 
     ksp.setType("tfqmr")
-    ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=5000, max_it=20000)
+    ksp.setTolerances(rtol=0.0, atol=1e-7, divtol=5000, max_it=20000)
     ksp.setConvergenceHistory()
     ksp.getPC().setType("ilu")
 
