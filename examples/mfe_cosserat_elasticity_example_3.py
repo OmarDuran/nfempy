@@ -268,10 +268,6 @@ def four_field_scaled_approximation(method, gmesh):
     # ksp.setConvergenceHistory()
 
     ksp.setType("minres")
-    ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=5000, max_it=20000)
-    ksp.setConvergenceHistory()
-    # ksp.getPC().setType("ilu")
-
     ksp.getPC().setType("fieldsplit")
     is_general_sigma = PETSc.IS()
     is_general_u = PETSc.IS()
@@ -288,7 +284,13 @@ def four_field_scaled_approximation(method, gmesh):
     ksp_s.getPC().setType("lu")
     ksp_s.getPC().setFactorSolverType("mumps")
     ksp_u.setType("preonly")
-    ksp_u.getPC().setType("ilu")
+    ksp_u.getPC().setType("lu")
+    ksp_u.getPC().setFactorSolverType("mumps")
+    ksp_p.setType("preonly")
+    ksp_p.getPC().setType("ilu")
+    ksp.setTolerances(rtol=0.0, atol=1e-10, divtol=5000, max_it=20000)
+    ksp.setConvergenceHistory()
+    # ksp.getPC().setType("ilu")    
     ksp.setFromOptions()
 
     ksp.solve(b, x)
@@ -571,10 +573,10 @@ def method_definition(k_order):
 
 
 def main():
-    only_approximation_q = True
-    only_postprocessing_q = False
-    refinements = {1: 4, 2: 2}
-    for k in [1]:
+    only_approximation_q = False
+    only_postprocessing_q = True
+    refinements = {1: 4, 2: 4}
+    for k in [2]:
         for method in method_definition(k):
             configuration = {
                 "n_refinements": refinements[k],
