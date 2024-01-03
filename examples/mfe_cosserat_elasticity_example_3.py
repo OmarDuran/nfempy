@@ -27,7 +27,7 @@ from weak_forms.lce_scaled_dual_weak_form import (
     LCEScaledDualWeakForm,
     LCEScaledDualWeakFormBCDirichlet,
 )
-
+from weak_forms.lce_riesz_map_weak_form import LCERieszMapWeakForm
 
 def create_product_space(method, gmesh):
     # FESpace: data
@@ -101,6 +101,9 @@ def four_field_scaled_approximation(method, gmesh):
     A = PETSc.Mat()
     A.createAIJ([n_dof_g, n_dof_g])
 
+    P = PETSc.Mat()
+    P.createAIJ([n_dof_g, n_dof_g])
+
     # Material data
     m_lambda = 1.0
     m_mu = 1.0
@@ -152,6 +155,9 @@ def four_field_scaled_approximation(method, gmesh):
     bc_weak_form = LCEScaledDualWeakFormBCDirichlet(fe_space)
     bc_weak_form.functions = exact_functions
 
+    riesz_map_weak_form = LCERieszMapWeakForm(fe_space)
+    riesz_map_weak_form.functions = m_functions
+
     def scatter_form_data(A, i, weak_form, n_els):
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
@@ -187,6 +193,36 @@ def four_field_scaled_approximation(method, gmesh):
                 (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start),
             )
 
+    def scatter_riesz_form_data(P, i, riesz_map_weak_form, n_els):
+        # destination indexes
+        dest = riesz_map_weak_form.space.destination_indexes(i)
+        alpha_l = alpha[dest]
+        r_el, j_el = riesz_map_weak_form.evaluate_form_vectorized(i, alpha_l)
+
+        # contribute rhs
+        rg[dest] += r_el
+
+        # contribute lhs
+        data = j_el.ravel()
+        row = np.repeat(dest, len(dest))
+        col = np.tile(dest, len(dest))
+        nnz_idx = np.where(np.logical_not(np.isclose(data, 1.0e-16)))[0]
+        [
+            P.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
+            for idx in nnz_idx
+        ]
+
+        check_points = [(int(k * n_els / 10)) for k in range(11)]
+        if i in check_points or i == n_els - 1:
+            if i == n_els - 1:
+                print("Assembly: progress [%]: ", 100)
+            else:
+                print("Assembly: progress [%]: ", check_points.index(i) * 10)
+            print(
+                "Assembly: Memory used [Byte] :",
+                (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start),
+            )
+
     def scatter_bc_form(A, i, bc_weak_form):
         dest = fe_space.bc_destination_indexes(i)
         alpha_l = alpha[dest]
@@ -201,7 +237,15 @@ def four_field_scaled_approximation(method, gmesh):
     n_bc_els = len(fe_space.discrete_spaces["s"].bc_elements)
     [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
 
+    print("")
+    print("Assembly preconditioner")
+    n_els = len(fe_space.discrete_spaces["s"].elements)
+    [scatter_riesz_form_data(P, i, riesz_map_weak_form, n_els) for i in range(n_els)]
+
+
+
     A.assemble()
+    P.assemble()
     print("Assembly: nz_allocated:", int(A.getInfo()["nz_allocated"]))
     print("Assembly: nz_used:", int(A.getInfo()["nz_used"]))
     print("Assembly: nz_unneeded:", int(A.getInfo()["nz_unneeded"]))
@@ -218,7 +262,7 @@ def four_field_scaled_approximation(method, gmesh):
     st = time.time()
 
     ksp = PETSc.KSP().create(PETSc.COMM_WORLD)
-    ksp.setOperators(A)
+    ksp.setOperators(A, P)
     b = A.createVecLeft()
     b.array[:] = -rg
     x = A.createVecRight()
@@ -228,13 +272,36 @@ def four_field_scaled_approximation(method, gmesh):
     # ksp.getPC().setFactorSolverType("mumps")
     # ksp.setConvergenceHistory()
 
-    ksp.setType("tfqmr")
+    ksp.setType("fgmres")
     ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=5000, max_it=20000)
     ksp.setConvergenceHistory()
-    ksp.getPC().setType("ilu")
+    # ksp.getPC().setType("ilu")
+
+    ksp.getPC().setType("fieldsplit")
+    is_general_sigma = PETSc.IS()
+    is_general_u = PETSc.IS()
+    fields_idx = np.add.accumulate([0] + list(fe_space.discrete_spaces_dofs.values()))
+    general_sigma_idx = np.array(range(fields_idx[0], fields_idx[2]), dtype=np.int32)
+    general_u_idx = np.array(range(fields_idx[2], fields_idx[4]), dtype=np.int32)
+    is_general_sigma.createGeneral(general_sigma_idx)
+    is_general_u.createGeneral(general_u_idx)
+
+
+    ksp.getPC().setFieldSplitIS(('sigma', is_general_sigma),('displacement', is_general_u))
+    ksp.getPC().setFieldSplitType(PETSc.PC.CompositeType.ADDITIVE)
+    ksp_u, ksp_p = ksp.getPC().getFieldSplitSubKSP()
+    ksp_u.setType("preonly")
+    ksp_u.getPC().setType("lu")
+    ksp_u.getPC().setFactorSolverType("mumps")
+    ksp_p.setType("preonly")
+    ksp_p.getPC().setType("ilu")
+    ksp.setFromOptions()
 
     ksp.solve(b, x)
     alpha = x.array
+    residuals_history = ksp.getConvergenceHistory()
+
+
     print(
         "Linear solver: After PETSc ksp.solve: Memory used [Byte] :",
         (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start),
@@ -252,7 +319,7 @@ def four_field_scaled_approximation(method, gmesh):
         (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start),
     )
 
-    return alpha
+    return alpha, residuals_history
 
 
 def four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk_q=False):
@@ -390,12 +457,16 @@ def perform_convergence_approximations(configuration: dict):
     for lh in range(n_ref):
         mesh_file = "gmsh_files/example_2_" + str(dimension) + "d_l_" + str(lh) + ".msh"
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
-        alpha = four_field_scaled_approximation(method, gmesh)
+        alpha, res_history = four_field_scaled_approximation(method, gmesh)
         file_name = compose_file_name(
             method, k_order, lh, gmesh.dimension, "_alpha_ex_3.npy"
         )
         with open(file_name, "wb") as f:
             np.save(f, alpha)
+        file_name_res = compose_file_name(
+            method, k_order, lh, gmesh.dimension, "_res_history_ex_3.txt"
+        )
+        np.savetxt(file_name_res,res_history,delimiter=",",)
 
     return
 
@@ -511,7 +582,7 @@ def method_definition(k_order):
 def main():
     only_approximation_q = True
     only_postprocessing_q = False
-    refinements = {1: 4, 2: 4}
+    refinements = {1: 4, 2: 2}
     for k in [1]:
         for method in method_definition(k):
             configuration = {
