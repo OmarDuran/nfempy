@@ -780,8 +780,6 @@ def main():
         n_ref = refinements[k]
         methods = method_definition(k)
         for i, method in enumerate(methods):
-            if i != 2:
-                continue
             for material_data in case_data:
                 configuration = {
                     "n_refinements": n_ref,
@@ -789,7 +787,7 @@ def main():
                     "material_data": material_data,
                 }
 
-                for d in [2]:
+                for d in [3]:
                     configuration.__setitem__("k_order", k)
                     configuration.__setitem__("dimension", d)
                     perform_convergence_test(configuration)
