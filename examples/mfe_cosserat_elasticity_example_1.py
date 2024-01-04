@@ -36,7 +36,7 @@ def compose_file_name(method, k_order, ref_l, dim, material_data, suffix):
         + str(ref_l)
         + "_d"
         + str(dim)
-        + "_gamma"
+        + "_gamma_"
         + str(material_data["gamma"])
     )
     file_name = prefix + suffix
@@ -236,6 +236,7 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
 
     ksp.solve(b, x)
     alpha = x.array
+    residuals_history = ksp.getConvergenceHistory()
 
     PETSc.KSP.destroy(ksp)
     PETSc.Mat.destroy(A)
@@ -293,7 +294,7 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
             h_div_s_error,
             h_div_m_error,
         ]
-    )
+    ), residuals_history
 
 
 def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=False):
@@ -507,6 +508,7 @@ def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=Fals
 
     ksp.solve(b, x)
     alpha = x.array
+    residuals_history = ksp.getConvergenceHistory()
 
     PETSc.KSP.destroy(ksp)
     PETSc.Mat.destroy(A)
@@ -565,7 +567,7 @@ def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=Fals
             h_div_s_error,
             h_div_m_error,
         ]
-    )
+    ), residuals_history
 
 
 def create_domain(dimension):
@@ -645,13 +647,17 @@ def perform_convergence_test(configuration: dict):
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
         h_min, h_mean, h_max = mesh_size(gmesh)
         if method[0] == "m2_dnc":
-            n_dof, error_vals = four_field_scaled_formulation(
+            n_dof, error_vals, res_history = four_field_scaled_formulation(
                 material_data, method, gmesh, write_vtk
             )
         else:
-            n_dof, error_vals = four_field_formulation(
+            n_dof, error_vals, res_history = four_field_formulation(
                 material_data, method, gmesh, write_vtk
             )
+        file_name_res = compose_file_name(
+            method, k_order, lh, gmesh.dimension, material_data, "_res_history_ex_1.txt"
+        )
+        np.savetxt(file_name_res,res_history,delimiter=",",)
         chunk = np.concatenate([[n_dof, h_max], error_vals])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
 
@@ -774,6 +780,8 @@ def main():
         n_ref = refinements[k]
         methods = method_definition(k)
         for i, method in enumerate(methods):
+            if i != 2:
+                continue
             for material_data in case_data:
                 configuration = {
                     "n_refinements": n_ref,
@@ -781,7 +789,7 @@ def main():
                     "material_data": material_data,
                 }
 
-                for d in [3]:
+                for d in [2]:
                     configuration.__setitem__("k_order", k)
                     configuration.__setitem__("dimension", d)
                     perform_convergence_test(configuration)
