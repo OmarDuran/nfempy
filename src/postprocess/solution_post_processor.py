@@ -100,7 +100,6 @@ def write_vtk_file(file_name, gmesh, fe_space, alpha):
     )
     mesh.write(file_name)
 
-
 def write_vtk_file_with_exact_solution(file_name, gmesh, fe_space, functions, alpha):
     dim = gmesh.dimension
     vec_families = [
@@ -185,6 +184,32 @@ def write_vtk_file_with_exact_solution(file_name, gmesh, fe_space, functions, al
             fe_data[target_node_id] = f_e.ravel()
 
         p_data_dict.__setitem__(name + "_h", fh_data)
+        p_data_dict.__setitem__(name + "_e", fe_data)
+
+    mesh_points = gmesh.points
+    cells = [cell for cell in gmesh.cells if cell.dimension == gmesh.dimension]
+    con_d = np.array([cell.node_tags for cell in cells])
+    meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
+    cells_dict = {meshio_cell_types[gmesh.dimension]: con_d}
+
+    mesh = meshio.Mesh(
+        points=mesh_points,
+        cells=cells_dict,
+        # Optionally provide extra data on points, cells, etc.
+        point_data=p_data_dict,
+    )
+    mesh.write(file_name)
+
+def write_vtk_file_exact_solution(file_name, gmesh, name_to_fields, functions):
+    dim = gmesh.dimension
+    p_data_dict = {}
+    for item in name_to_fields.items():
+        name, n_data = item
+        f_exact = functions[name]
+        fe_data = np.zeros((len(gmesh.points), n_data))
+        for ip, x in enumerate(gmesh.points):
+            f_e = f_exact(x[0], x[1], x[2])
+            fe_data[ip] = f_e.ravel()
         p_data_dict.__setitem__(name + "_e", fe_data)
 
     mesh_points = gmesh.points

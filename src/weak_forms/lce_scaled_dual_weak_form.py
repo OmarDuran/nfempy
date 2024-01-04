@@ -496,15 +496,14 @@ class LCEScaledDualWeakForm(WeakForm):
         lambda_v = f_lambda(x[:, 0], x[:, 1], x[:, 2])
         mu_v = f_mu(x[:, 0], x[:, 1], x[:, 2])
         kappa_v = f_kappa(x[:, 0], x[:, 1], x[:, 2])
+        gamma_scale_v = f_gamma(x[:, 0], x[:, 1], x[:, 2])
+        grad_gamma_v = f_grad_gamma(x[:, 0], x[:, 1], x[:, 2])
 
         # Vectorized contributions
         # s : stress
         # m : coupled stress
         # u : displacement
         # t : rotation
-
-        gamma_scale_v = f_gamma(x[:, 0], x[:, 1], x[:, 2])
-        grad_gamma_v = f_grad_gamma(x[:, 0], x[:, 1], x[:, 2])
 
         # rhs_u
         for c in range(u_components):
