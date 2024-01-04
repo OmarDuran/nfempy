@@ -22,6 +22,7 @@ from postprocess.l2_error_post_processor import (
     l2_error,
 )
 from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
+from postprocess.solution_post_processor import write_vtk_file_exact_solution
 from spaces.product_space import ProductSpace
 from weak_forms.lce_scaled_dual_weak_form import (
     LCEScaledDualWeakForm,
@@ -372,6 +373,14 @@ def four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk_q=
         write_vtk_file_with_exact_solution(
             file_name, gmesh, fe_space, exact_functions, alpha
         )
+
+        prefix = method[0] + "_k" + str(k_order) + "_d" + str(dim)
+        file_name = prefix + "_gamma_scale_ex_3.vtk"
+        name_to_fields = {"gamma": 1, "grad_gamma": dim}
+        write_vtk_file_exact_solution(
+            file_name, gmesh, name_to_fields, exact_functions
+        )
+
         et = time.time()
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
@@ -571,7 +580,7 @@ def method_definition(k_order):
 def main():
     only_approximation_q = False
     only_postprocessing_q = True
-    refinements = {1: 4, 2: 4}
+    refinements = {1: 4, 2: 2}
     for k in [2]:
         for method in method_definition(k):
             configuration = {
