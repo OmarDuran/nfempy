@@ -7,7 +7,7 @@ SetFactory("OpenCASCADE");
 //s=9;
 //s=18;
 
-s=5;
+s=2;
 
 lc = 1.0/s;
 hi = 1.0/3.0;
