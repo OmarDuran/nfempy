@@ -292,7 +292,7 @@ def four_field_approximation(material_data, method, gmesh):
     ksp_s.getPC().setFactorSolverType("mumps")
     ksp_u.setType("preonly")
     ksp_u.getPC().setType("ilu")
-    ksp.setTolerances(rtol=0.0, atol=1e-9, divtol=5000, max_it=20000)
+    ksp.setTolerances(rtol=0.0, atol=1e-7, divtol=5000, max_it=20000)
     ksp.setConvergenceHistory()
     ksp.setFromOptions()
 
@@ -662,7 +662,7 @@ def material_data_definition():
 
 def main():
     only_approximation_q = True
-    only_postprocessing_q = False
+    only_postprocessing_q = True
     refinements = {1: 4, 2: 4}
     case_data = material_data_definition()
     for k in [2, 1]:
