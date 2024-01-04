@@ -7,7 +7,7 @@ SetFactory("OpenCASCADE");
 //s=9;
 //s=18;
 
-s=18;
+s=5;
 
 lc = 1.0/s;
 hi = 1.0/3.0;
@@ -141,11 +141,10 @@ Surface Loop(1) = {4, 8, 3, 11, 12, 5, 2, 10, 7, 1, 6, 9};
 Volume(1) = {1};
 
 
-
 Line{38} In Surface{10};
 Line{39} In Surface{7};
 Line{40} In Surface{2};
-Surface{13,14,15,16,17,18} In Volume{1};
+Surface{13,14,15,16,17,18,19,20,21} In Volume{1};
 
 Physical Volume("domain", 1) = {1};
 Physical Surface("south", 2) = {1,2,3};
