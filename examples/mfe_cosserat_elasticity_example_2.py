@@ -646,7 +646,7 @@ def method_definition(k_order):
     }
 
     methods = [method_1_dc, method_2_dnc, method_3_dc]
-    method_names = ["m1_dc", "m2_dnc", "m3_dnc"]
+    method_names = ["m1_dc", "m2_dnc", "m3_dc"]
     return zip(method_names, methods)
 
 
@@ -665,7 +665,7 @@ def main():
     only_postprocessing_q = True
     refinements = {1: 4, 2: 4}
     case_data = material_data_definition()
-    for k in [2, 1]:
+    for k in [2]:
         n_ref = refinements[k]
         methods = method_definition(k)
         for i, method in enumerate(methods):

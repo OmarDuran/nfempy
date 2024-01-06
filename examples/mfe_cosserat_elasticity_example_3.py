@@ -531,7 +531,7 @@ def perform_convergence_postprocessing(configuration: dict):
     base_str_header = primal_header
     if dual_form_q:
         base_str_header = dual_header
-    e_str_header = "h, " + base_str_header
+    e_str_header = "n_dof, h, " + base_str_header
 
     file_name_prefix = method[0] + "_k" + str(k_order) + "_" + str(dimension)
     if report_full_precision_data:
