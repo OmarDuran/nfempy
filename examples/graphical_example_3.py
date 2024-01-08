@@ -5,8 +5,8 @@ import vtk
 pyvista.global_theme.colorbar_orientation = "vertical"
 
 
-def paint_on_canvas():
-    crinkle_q = True
+def paint_on_canvas(crinkle_q):
+
     # (xmin, xmax, ymin, ymax, zmin, zmax)
     bounds = [0.3, 1.0, 0.3, 1.0, 0.3, 1.0]
     if crinkle_q:
@@ -16,7 +16,7 @@ def paint_on_canvas():
 
     # load data
     hdiv_solution = pyvista.read("m2_dnc_k2_d3_four_fields_scaled_ex_3.vtk")
-    bc_data = pyvista.read("geometric_mesh_2d_ex_3.vtk")
+    bc_data = pyvista.read("geometric_mesh_2d.vtk")
 
     plotter = pyvista.Plotter(shape=(2, 2))
 
@@ -36,7 +36,7 @@ def paint_on_canvas():
         font_family="courier",
         position_x=0.05,
         position_y=0.05,
-        title=r"$\| \boldsymbol{\sigma} \|$",
+        title=r"$\| \boldsymbol{\sigma}_h \|$",
     )
 
     sh_data = [sh.reshape((3, 3)) for sh in hdiv_solution_clipped.point_data["s_h"]]
@@ -73,7 +73,7 @@ def paint_on_canvas():
         font_family="courier",
         position_x=0.05,
         position_y=0.05,
-        title=r"$\| \tilde{\boldsymbol{\omega}} \|$",
+        title=r"$\| \tilde{\boldsymbol{\omega}}_h \|$",
     )
     mh_data = [mh.reshape((3, 3)) for mh in hdiv_solution_clipped.point_data["m_h"]]
     m_h_norm = np.array([np.sqrt(np.trace(mh.T @ mh)) for mh in mh_data])
@@ -109,7 +109,7 @@ def paint_on_canvas():
         font_family="courier",
         position_x=0.05,
         position_y=0.05,
-        title=r"$\| \mathbf{u} \|$",
+        title=r"$\| \mathbf{u}_h \|$",
     )
     plotter.add_text("Displacement", font_size=14, font="courier")
     u_h_norm = np.linalg.norm(hdiv_solution_clipped.point_data["u_h"], axis=1)
@@ -143,7 +143,7 @@ def paint_on_canvas():
         font_family="courier",
         position_x=0.05,
         position_y=0.05,
-        title=r"$\| \mathbf{r} \|$",
+        title=r"$\| \mathbf{r}_h \|$",
     )
     plotter.add_text("Rotation", font_size=14, font="courier")
     t_h_norm = np.linalg.norm(hdiv_solution_clipped.point_data["t_h"], axis=1)
@@ -169,5 +169,10 @@ def paint_on_canvas():
     return plotter
 
 
-canvas = paint_on_canvas()
+canvas = paint_on_canvas(False)
+canvas.save_graphic("images/approximations_example_3.eps")
+canvas.save_graphic("images/approximations_example_3.pdf")
+
+canvas = paint_on_canvas(True)
 canvas.save_graphic("images/approximations_crinkle_example_3.eps")
+canvas.save_graphic("images/approximations_crinkle_example_3.pdf")
