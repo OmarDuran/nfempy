@@ -745,7 +745,7 @@ def method_definition(k_order):
     }
 
     methods = [method_1_dc, method_2_dnc, method_3_dc]
-    method_names = ["m1_dc", "m2_dnc", "m3_dc"]
+    method_names = ["sc_rt", "wc_afw", "sc_bdm"]
     return zip(method_names, methods)
 
 

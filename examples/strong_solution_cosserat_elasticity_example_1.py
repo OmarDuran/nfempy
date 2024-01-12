@@ -319,8 +319,10 @@ def couple_stress_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
     if dim == 2:
         return lambda x, y, z: m_gamma * np.array(
             [
-                np.pi * np.cos(np.pi * x) * np.sin(np.pi * y),
-                np.pi * np.cos(np.pi * y) * np.sin(np.pi * x),
+                [
+                    np.pi * np.cos(np.pi * x) * np.sin(np.pi * y),
+                    np.pi * np.cos(np.pi * y) * np.sin(np.pi * x),
+                ]
             ]
         )
     else:

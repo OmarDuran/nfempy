@@ -478,9 +478,6 @@ def four_field_scaled_formulation(k_order, material_data, method, gmesh, write_v
         dim, fe_space, exact_functions, alpha
     )
 
-    s_norm, m_norm, u_norm, t_norm = l2_norm(dim, fe_space, exact_functions)
-    div_s_norm, div_m_norm = div_norm(dim, fe_space, exact_functions)
-
     div_s_l2_error = div_error(dim, fe_space, exact_functions, alpha, ["m"])[0]
     div_m_l2_error = div_scaled_error(dim, fe_space, exact_functions, alpha, ["s"])[0]
     h_div_s_error = np.sqrt((s_l2_error**2) + (div_s_l2_error**2))
@@ -920,7 +917,7 @@ def method_definition(k_order):
     }
 
     methods = [method_1_dc, method_2_dnc, method_3_dc]
-    method_names = ["m1_dc", "m2_dnc", "m3_dc"]
+    method_names = ["sc_rt", "wc_afw", "sc_bdm"]
     return zip(method_names, methods)
 
 
@@ -937,7 +934,7 @@ def material_data_definition():
 def main():
     refinements = {1: 4, 2: 4}
     case_data = material_data_definition()
-    for k in [2, 1]:
+    for k in [1, 2]:
         n_ref = refinements[k]
         methods = method_definition(k)
         for i, method in enumerate(methods):
@@ -948,7 +945,7 @@ def main():
                     "material_data": material_data,
                 }
 
-                for d in [3]:
+                for d in [2]:
                     configuration.__setitem__("k_order", k)
                     configuration.__setitem__("dimension", d)
                     perform_convergence_test(configuration)

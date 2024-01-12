@@ -676,7 +676,7 @@ def method_definition(k_order):
         "t": ("Lagrange", k_order - 1),
     }
     methods = [method_2_dnc]
-    method_names = ["m2_dnc"]
+    method_names = ["wc_afw"]
     return zip(method_names, methods)
 
 
