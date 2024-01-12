@@ -31,6 +31,7 @@ from weak_forms.lce_scaled_dual_weak_form import (
 )
 from weak_forms.lce_scaled_riesz_map_weak_form import LCEScaledRieszMapWeakForm
 
+
 def create_product_space(method, gmesh):
     # FESpace: data
     s_k_order = method[1]["s"][1]
@@ -179,10 +180,7 @@ def four_field_scaled_approximation(method, gmesh):
             for idx in nnz_idx
         ]
         # Petsc ILU requires explicit existence of diagonal zeros
-        [
-            A.setValue(row=idx, col=idx, value=0.0, addv=True)
-            for idx in dest
-        ]
+        [A.setValue(row=idx, col=idx, value=0.0, addv=True) for idx in dest]
 
         check_points = [(int(k * n_els / 10)) for k in range(11)]
         if i in check_points or i == n_els - 1:
@@ -279,7 +277,9 @@ def four_field_scaled_approximation(method, gmesh):
     is_general_sigma.createGeneral(general_sigma_idx)
     is_general_u.createGeneral(general_u_idx)
 
-    ksp.getPC().setFieldSplitIS(('gen_sigma', is_general_sigma),('gen_u', is_general_u))
+    ksp.getPC().setFieldSplitIS(
+        ("gen_sigma", is_general_sigma), ("gen_u", is_general_u)
+    )
     ksp.getPC().setFieldSplitType(PETSc.PC.CompositeType.ADDITIVE)
     ksp_s, ksp_u = ksp.getPC().getFieldSplitSubKSP()
     ksp_s.setType("preonly")
@@ -378,9 +378,7 @@ def four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk_q=
         prefix = method[0] + "_k" + str(k_order) + "_d" + str(dim)
         file_name = prefix + "_gamma_scale_ex_3.vtk"
         name_to_fields = {"gamma": 1, "grad_gamma": dim}
-        write_vtk_file_exact_solution(
-            file_name, gmesh, name_to_fields, exact_functions
-        )
+        write_vtk_file_exact_solution(file_name, gmesh, name_to_fields, exact_functions)
 
         et = time.time()
         elapsed_time = et - st
@@ -404,8 +402,6 @@ def four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk_q=
     print("L2-error div couple stress: ", div_m_l2_error)
     print("")
 
-
-
     h_div_s_error = np.sqrt((s_l2_error**2) + (div_s_l2_error**2))
     h_div_m_error = np.sqrt((m_l2_error**2) + (div_m_l2_error**2))
 
@@ -421,6 +417,7 @@ def four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk_q=
             h_div_m_error,
         ]
     )
+
 
 def four_field_scaled_solution_norms(method, gmesh):
     dim = gmesh.dimension
@@ -494,14 +491,14 @@ def four_field_scaled_solution_norms(method, gmesh):
     return np.array(
         [
             [
-            u_norm,
-            t_norm,
-            s_norm,
-            m_norm,
-            div_s_norm,
-            div_m_norm,
-            h_div_s_norm,
-            h_div_m_norm,
+                u_norm,
+                t_norm,
+                s_norm,
+                m_norm,
+                div_s_norm,
+                div_m_norm,
+                h_div_s_norm,
+                h_div_m_norm,
             ]
         ]
     )
@@ -549,7 +546,11 @@ def perform_convergence_approximations(configuration: dict):
         file_name_res = compose_file_name(
             method, k_order, lh, gmesh.dimension, "_res_history_ex_3.txt"
         )
-        np.savetxt(file_name_res,res_history,delimiter=",",)
+        np.savetxt(
+            file_name_res,
+            res_history,
+            delimiter=",",
+        )
 
     return
 
@@ -590,7 +591,6 @@ def perform_convergence_postprocessing(configuration: dict):
         # compute solution norms for the last refinement level
         if lh == n_ref - 1:
             sol_norms = four_field_scaled_solution_norms(method, gmesh)
-
 
     rates_data = np.empty((0, n_data - 2), float)
     for i in range(error_data.shape[0] - 1):

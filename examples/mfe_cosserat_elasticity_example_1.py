@@ -44,6 +44,7 @@ def compose_file_name(method, k_order, ref_l, dim, material_data, suffix):
     file_name = prefix + suffix
     return file_name
 
+
 def create_product_space(method, gmesh):
     # FESpace: data
     s_k_order = method[1]["s"][1]
@@ -98,6 +99,7 @@ def create_product_space(method, gmesh):
     space.make_subspaces_discontinuous(discrete_spaces_disc)
     space.build_structures(discrete_spaces_bc_physical_tags)
     return space
+
 
 def four_field_formulation(k_order, material_data, method, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
@@ -184,10 +186,7 @@ def four_field_formulation(k_order, material_data, method, gmesh, write_vtk_q=Fa
             for idx in nnz_idx
         ]
         # Petsc ILU requires explicit existence of diagonal zeros
-        [
-            A.setValue(row=idx, col=idx, value=0.0, addv=True)
-            for idx in dest
-        ]
+        [A.setValue(row=idx, col=idx, value=0.0, addv=True) for idx in dest]
 
         check_points = [(int(k * n_els / 10)) for k in range(11)]
         if i in check_points or i == n_els - 1:
@@ -196,9 +195,9 @@ def four_field_formulation(k_order, material_data, method, gmesh, write_vtk_q=Fa
             else:
                 print("Assembly: progress [%]: ", check_points.index(i) * 10)
                 print(
-                            "Assembly: Memory used :",
-                            resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start,
-                        )
+                    "Assembly: Memory used :",
+                    resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start,
+                )
 
     def scatter_bc_form(A, i, bc_weak_form):
         dest = fe_space.bc_destination_indexes(i)
@@ -288,21 +287,27 @@ def four_field_formulation(k_order, material_data, method, gmesh, write_vtk_q=Fa
         print("VTK post-processing time:", elapsed_time, "seconds")
 
     gc.collect()
-    return n_dof_g, np.array(
-        [
-            u_l2_error,
-            t_l2_error,
-            s_l2_error,
-            m_l2_error,
-            div_s_l2_error,
-            div_m_l2_error,
-            h_div_s_error,
-            h_div_m_error,
-        ]
-    ), residuals_history
+    return (
+        n_dof_g,
+        np.array(
+            [
+                u_l2_error,
+                t_l2_error,
+                s_l2_error,
+                m_l2_error,
+                div_s_l2_error,
+                div_m_l2_error,
+                h_div_s_error,
+                h_div_m_error,
+            ]
+        ),
+        residuals_history,
+    )
 
 
-def four_field_scaled_formulation(k_order, material_data, method, gmesh, write_vtk_q=False):
+def four_field_scaled_formulation(
+    k_order, material_data, method, gmesh, write_vtk_q=False
+):
     dim = gmesh.dimension
 
     fe_space = create_product_space(method, gmesh)
@@ -405,10 +410,7 @@ def four_field_scaled_formulation(k_order, material_data, method, gmesh, write_v
             for idx in nnz_idx
         ]
         # Petsc ILU requires explicit existence of diagonal zeros
-        [
-            A.setValue(row=idx, col=idx, value=0.0, addv=True)
-            for idx in dest
-        ]
+        [A.setValue(row=idx, col=idx, value=0.0, addv=True) for idx in dest]
 
         check_points = [(int(k * n_els / 10)) for k in range(11)]
         if i in check_points or i == n_els - 1:
@@ -511,18 +513,23 @@ def four_field_scaled_formulation(k_order, material_data, method, gmesh, write_v
         print("VTK post-processing time:", elapsed_time, "seconds")
 
     gc.collect()
-    return n_dof_g, np.array(
-        [
-            u_l2_error,
-            t_l2_error,
-            s_l2_error,
-            m_l2_error,
-            div_s_l2_error,
-            div_m_l2_error,
-            h_div_s_error,
-            h_div_m_error,
-        ]
-    ), residuals_history
+    return (
+        n_dof_g,
+        np.array(
+            [
+                u_l2_error,
+                t_l2_error,
+                s_l2_error,
+                m_l2_error,
+                div_s_l2_error,
+                div_m_l2_error,
+                h_div_s_error,
+                h_div_m_error,
+            ]
+        ),
+        residuals_history,
+    )
+
 
 def four_field_solution_norms(material_data, method, gmesh):
     dim = gmesh.dimension
@@ -576,8 +583,8 @@ def four_field_solution_norms(material_data, method, gmesh):
     st = time.time()
     s_norm, m_norm, u_norm, t_norm = l2_norm(dim, fe_space, exact_functions)
     div_s_norm, div_m_norm = div_norm(dim, fe_space, exact_functions)
-    h_div_s_norm = np.sqrt((s_norm ** 2) + (div_s_norm ** 2))
-    h_div_m_norm = np.sqrt((m_norm ** 2) + (div_m_norm ** 2))
+    h_div_s_norm = np.sqrt((s_norm**2) + (div_s_norm**2))
+    h_div_m_norm = np.sqrt((m_norm**2) + (div_m_norm**2))
     et = time.time()
     elapsed_time = et - st
     print("Solution norms time:", elapsed_time, "seconds")
@@ -594,17 +601,18 @@ def four_field_solution_norms(material_data, method, gmesh):
     return np.array(
         [
             [
-            u_norm,
-            t_norm,
-            s_norm,
-            m_norm,
-            div_s_norm,
-            div_m_norm,
-            h_div_s_norm,
-            h_div_m_norm,
+                u_norm,
+                t_norm,
+                s_norm,
+                m_norm,
+                div_s_norm,
+                div_m_norm,
+                h_div_s_norm,
+                h_div_m_norm,
             ]
         ]
     )
+
 
 def four_field_scaled_solution_norms(material_data, method, gmesh):
     dim = gmesh.dimension
@@ -694,17 +702,18 @@ def four_field_scaled_solution_norms(material_data, method, gmesh):
     return np.array(
         [
             [
-            u_norm,
-            t_norm,
-            s_norm,
-            m_norm,
-            div_s_norm,
-            div_m_norm,
-            h_div_s_norm,
-            h_div_m_norm,
+                u_norm,
+                t_norm,
+                s_norm,
+                m_norm,
+                div_s_norm,
+                div_m_norm,
+                h_div_s_norm,
+                h_div_m_norm,
             ]
         ]
     )
+
 
 def create_domain(dimension):
     if dimension == 1:
@@ -783,28 +792,32 @@ def perform_convergence_test(configuration: dict):
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
         h_min, h_mean, h_max = mesh_size(gmesh)
         if method[0] == "wc_afw":
-            n_dof, error_vals, res_history = four_field_scaled_formulation(k_order,
-                material_data, method, gmesh, write_vtk
+            n_dof, error_vals, res_history = four_field_scaled_formulation(
+                k_order, material_data, method, gmesh, write_vtk
             )
         else:
-            n_dof, error_vals, res_history = four_field_formulation(k_order,
-                material_data, method, gmesh, write_vtk
+            n_dof, error_vals, res_history = four_field_formulation(
+                k_order, material_data, method, gmesh, write_vtk
             )
         file_name_res = compose_file_name(
             method, k_order, lh, gmesh.dimension, material_data, "_res_history_ex_1.txt"
         )
-        np.savetxt(file_name_res,res_history,delimiter=",",)
+        np.savetxt(
+            file_name_res,
+            res_history,
+            delimiter=",",
+        )
         chunk = np.concatenate([[n_dof, h_max], error_vals])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
 
         # compute solution norms for the last refinement level
         if lh == n_ref - 1:
             if method[0] == "wc_afw":
-                sol_norms = four_field_scaled_solution_norms(material_data, method, gmesh)
+                sol_norms = four_field_scaled_solution_norms(
+                    material_data, method, gmesh
+                )
             else:
                 sol_norms = four_field_solution_norms(material_data, method, gmesh)
-
-
 
     rates_data = np.empty((0, n_data - 2), float)
     for i in range(error_data.shape[0] - 1):
@@ -895,7 +908,6 @@ def perform_convergence_test(configuration: dict):
 
 
 def method_definition(k_order):
-
     method_1 = {
         "s": ("RT", k_order + 1),
         "m": ("RT", k_order + 2),

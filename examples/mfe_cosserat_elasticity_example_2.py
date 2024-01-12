@@ -24,6 +24,7 @@ from spaces.product_space import ProductSpace
 from weak_forms.lce_dual_weak_form import LCEDualWeakForm, LCEDualWeakFormBCDirichlet
 from weak_forms.lce_riesz_map_weak_form import LCERieszMapWeakForm
 
+
 def compose_file_name(method, k_order, ref_l, dim, material_data, suffix):
     prefix = (
         method[0]
@@ -38,6 +39,7 @@ def compose_file_name(method, k_order, ref_l, dim, material_data, suffix):
     )
     file_name = prefix + suffix
     return file_name
+
 
 def create_product_space(method, gmesh):
     # FESpace: data
@@ -93,6 +95,7 @@ def create_product_space(method, gmesh):
     space.make_subspaces_discontinuous(discrete_spaces_disc)
     space.build_structures(discrete_spaces_bc_physical_tags)
     return space
+
 
 def four_field_approximation(material_data, method, gmesh):
     dim = gmesh.dimension
@@ -185,10 +188,7 @@ def four_field_approximation(material_data, method, gmesh):
             for idx in nnz_idx
         ]
         # Petsc ILU requires explicit existence of diagonal zeros
-        [
-            A.setValue(row=idx, col=idx, value=0.0, addv=True)
-            for idx in dest
-        ]
+        [A.setValue(row=idx, col=idx, value=0.0, addv=True) for idx in dest]
 
         check_points = [(int(k * n_els / 10)) for k in range(11)]
         if i in check_points or i == n_els - 1:
@@ -285,7 +285,9 @@ def four_field_approximation(material_data, method, gmesh):
     is_general_sigma.createGeneral(general_sigma_idx)
     is_general_u.createGeneral(general_u_idx)
 
-    ksp.getPC().setFieldSplitIS(('gen_sigma', is_general_sigma),('gen_u', is_general_u))
+    ksp.getPC().setFieldSplitIS(
+        ("gen_sigma", is_general_sigma), ("gen_u", is_general_u)
+    )
     ksp.getPC().setFieldSplitType(PETSc.PC.CompositeType.ADDITIVE)
     ksp_s, ksp_u = ksp.getPC().getFieldSplitSubKSP()
     ksp_s.setType("preonly")
@@ -319,12 +321,14 @@ def four_field_approximation(material_data, method, gmesh):
 
     return alpha, residuals_history
 
-def four_field_postprocessing(k_order, material_data, method, gmesh, alpha, write_vtk_q=False):
+
+def four_field_postprocessing(
+    k_order, material_data, method, gmesh, alpha, write_vtk_q=False
+):
     dim = gmesh.dimension
 
     fe_space = create_product_space(method, gmesh)
     n_dof_g = fe_space.n_dof
-
 
     # Material data
     m_lambda = material_data["lambda"]
@@ -420,6 +424,7 @@ def four_field_postprocessing(k_order, material_data, method, gmesh, alpha, writ
         ]
     )
 
+
 def four_field_solution_norms(material_data, method, gmesh):
     dim = gmesh.dimension
 
@@ -491,14 +496,14 @@ def four_field_solution_norms(material_data, method, gmesh):
     return np.array(
         [
             [
-            u_norm,
-            t_norm,
-            dev_s_l2_norm,
-            m_norm,
-            div_s_norm,
-            div_m_norm,
-            h_div_s_norm,
-            h_div_m_norm,
+                u_norm,
+                t_norm,
+                dev_s_l2_norm,
+                m_norm,
+                div_s_norm,
+                div_m_norm,
+                h_div_s_norm,
+                h_div_m_norm,
             ]
         ]
     )
@@ -579,9 +584,7 @@ def perform_convergence_approximations(configuration: dict):
         h_val = h * (2**-lh)
         mesher = create_conformal_mesher(domain, h, lh)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
-        alpha, res_history = four_field_approximation(
-            material_data, method, gmesh
-        )
+        alpha, res_history = four_field_approximation(material_data, method, gmesh)
         file_name = compose_file_name(
             method, k_order, lh, gmesh.dimension, material_data, "_alpha_ex_2.npy"
         )
@@ -590,9 +593,14 @@ def perform_convergence_approximations(configuration: dict):
         file_name_res = compose_file_name(
             method, k_order, lh, gmesh.dimension, material_data, "_res_history_ex_2.txt"
         )
-        np.savetxt(file_name_res,res_history,delimiter=",",)
+        np.savetxt(
+            file_name_res,
+            res_history,
+            delimiter=",",
+        )
 
     return
+
 
 def perform_convergence_postprocessing(configuration: dict):
     # retrieve parameters from given configuration
@@ -722,8 +730,8 @@ def perform_convergence_postprocessing(configuration: dict):
 
     return
 
-def method_definition(k_order):
 
+def method_definition(k_order):
     method_1 = {
         "s": ("RT", k_order + 1),
         "m": ("RT", k_order + 2),

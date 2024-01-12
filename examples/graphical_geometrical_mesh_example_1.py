@@ -89,19 +89,27 @@ def paint_on_canvas():
     plotter = pyvista.Plotter(shape=(2, 2))
 
     plotter.subplot(0, 0)
-    plotter.add_text("h = " + "{:1.2e}".format(mesh_sizes[0]), font_size=14, font="courier")
+    plotter.add_text(
+        "h = " + "{:1.2e}".format(mesh_sizes[0]), font_size=14, font="courier"
+    )
     plotter.add_mesh(meshes[0], show_edges=True)
 
     plotter.subplot(0, 1)
-    plotter.add_text("h = " + "{:1.2e}".format(mesh_sizes[1]), font_size=14, font="courier")
+    plotter.add_text(
+        "h = " + "{:1.2e}".format(mesh_sizes[1]), font_size=14, font="courier"
+    )
     plotter.add_mesh(meshes[1], show_edges=True)
 
     plotter.subplot(1, 0)
-    plotter.add_text("h = " + "{:1.2e}".format(mesh_sizes[2]), font_size=14, font="courier")
+    plotter.add_text(
+        "h = " + "{:1.2e}".format(mesh_sizes[2]), font_size=14, font="courier"
+    )
     plotter.add_mesh(meshes[2], show_edges=True)
 
     plotter.subplot(1, 1)
-    plotter.add_text("h = " + "{:1.2e}".format(mesh_sizes[3]), font_size=14, font="courier")
+    plotter.add_text(
+        "h = " + "{:1.2e}".format(mesh_sizes[3]), font_size=14, font="courier"
+    )
     plotter.add_mesh(meshes[3], show_edges=True)
 
     return plotter
@@ -131,10 +139,13 @@ def paint_on_canvas_simple():
     plotter = pyvista.Plotter(shape=(1, 1))
 
     plotter.subplot(0, 0)
-    plotter.add_text("h = " + "{:1.2e}".format(mesh_sizes[0]), font_size=14, font="courier")
+    plotter.add_text(
+        "h = " + "{:1.2e}".format(mesh_sizes[0]), font_size=14, font="courier"
+    )
     plotter.add_mesh(meshes[0], show_edges=True, line_width=3.0)
 
     return plotter
+
 
 canvas = paint_on_canvas()
 canvas.save_graphic("images/meshes_example_1_full.eps")

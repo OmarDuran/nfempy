@@ -6,7 +6,6 @@ pyvista.global_theme.colorbar_orientation = "vertical"
 
 
 def paint_on_canvas(crinkle_q):
-
     # (xmin, xmax, ymin, ymax, zmin, zmax)
     bounds = [0.3, 1.0, 0.3, 1.0, 0.3, 1.0]
     if crinkle_q:
