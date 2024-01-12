@@ -763,9 +763,9 @@ def material_data_definition():
 def main():
     only_approximation_q = True
     only_postprocessing_q = True
-    refinements = {0: 2, 1: 2}
+    refinements = {0: 4, 1: 4}
     case_data = material_data_definition()
-    for k in [0]:
+    for k in [0, 1]:
         n_ref = refinements[k]
         methods = method_definition(k)
         for i, method in enumerate(methods):
@@ -776,7 +776,7 @@ def main():
                     "material_data": material_data,
                 }
 
-                for d in [3]:
+                for d in [2]:
                     configuration.__setitem__("k_order", k)
                     configuration.__setitem__("dimension", d)
                     if only_approximation_q:

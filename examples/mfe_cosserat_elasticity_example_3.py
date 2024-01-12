@@ -683,14 +683,14 @@ def method_definition(k_order):
 def main():
     only_approximation_q = True
     only_postprocessing_q = True
-    refinements = {0: 2, 1: 4}
-    for k in [0]:
+    refinements = {0: 4, 1: 4}
+    for k in [0, 1]:
         for method in method_definition(k):
             configuration = {
                 "n_refinements": refinements[k],
                 "method": method,
             }
-            for d in [3]:
+            for d in [2]:
                 configuration.__setitem__("k_order", k)
                 configuration.__setitem__("dimension", d)
                 if only_approximation_q:
