@@ -690,7 +690,7 @@ def main():
                 "n_refinements": refinements[k],
                 "method": method,
             }
-            for d in [2]:
+            for d in [3]:
                 configuration.__setitem__("k_order", k)
                 configuration.__setitem__("dimension", d)
                 if only_approximation_q:
