@@ -5,7 +5,12 @@ import numpy as np
 
 def cell_diam(mesh_cell, mesh):
     points = mesh.points[mesh_cell.node_tags]
-    dxs = [p_t - p_o for i, p_o in enumerate(points) for j, p_t in enumerate(points) if i!=j ]
+    dxs = [
+        p_t - p_o
+        for i, p_o in enumerate(points)
+        for j, p_t in enumerate(points)
+        if i != j
+    ]
     cell_diameter = np.max([np.linalg.norm(dx) for dx in dxs])
     return cell_diameter
 

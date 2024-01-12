@@ -27,9 +27,7 @@ def l2_norm(dim, fe_space, functions, skip_fields=[]):
             exact = functions[name]
             if space.family is family_by_name("Lagrange"):
                 f_e_s = exact(x[:, 0], x[:, 1], x[:, 2])[0:dim, :]
-                l2_norm += np.sum(
-                    det_jac * weights * (f_e_s) * (f_e_s)
-                )
+                l2_norm += np.sum(det_jac * weights * (f_e_s) * (f_e_s))
             else:
                 f_e = np.array([exact(xv[0], xv[1], xv[2]) for xv in x])
                 l2_norm += np.sum(
@@ -40,6 +38,7 @@ def l2_norm(dim, fe_space, functions, skip_fields=[]):
 
     return l2_norms
 
+
 def div_norm(dim, fe_space, functions, skip_fields=[]):
     vec_families = [
         family_by_name("RT"),
@@ -48,7 +47,6 @@ def div_norm(dim, fe_space, functions, skip_fields=[]):
     points, weights = fe_space.quadrature
 
     def compute_div_norm(idx):
-
         n_components = space.n_comp
         el_data = space.elements[idx].data
         cell = el_data.cell
@@ -78,7 +76,6 @@ def div_norm(dim, fe_space, functions, skip_fields=[]):
         div_norms.append(np.sqrt(div_norm))
 
     return div_norms
-
 
 
 def devia_l2_norm(dim, fe_space, functions, skip_fields=[]):

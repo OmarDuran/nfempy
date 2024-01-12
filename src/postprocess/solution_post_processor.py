@@ -100,6 +100,7 @@ def write_vtk_file(file_name, gmesh, fe_space, alpha):
     )
     mesh.write(file_name)
 
+
 def write_vtk_file_with_exact_solution(file_name, gmesh, fe_space, functions, alpha):
     dim = gmesh.dimension
     vec_families = [
@@ -199,6 +200,7 @@ def write_vtk_file_with_exact_solution(file_name, gmesh, fe_space, functions, al
         point_data=p_data_dict,
     )
     mesh.write(file_name)
+
 
 def write_vtk_file_exact_solution(file_name, gmesh, name_to_fields, functions):
     dim = gmesh.dimension
