@@ -97,7 +97,7 @@ def paint_on_canvas_simple():
 
     meshes = []
     mesh_sizes = []
-    for lh in [1, 2]:
+    for lh in [1]:
         mesh_file = "gmsh_files/example_2_" + str(dimension) + "d_l_" + str(lh) + ".msh"
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk_q)
         _, _, h_max = mesh_size(gmesh)
@@ -105,16 +105,12 @@ def paint_on_canvas_simple():
         mesh_sizes.append(h_max)
         meshes.append(mesh)
 
-    plotter = pyvista.Plotter(shape=(1, 2))
+    plotter = pyvista.Plotter(shape=(1, 1))
     plotter.subplot(0, 0)
     plotter.add_text("h = " + "{:1.2e}".format(mesh_sizes[0]), font_size=14, font="courier")
-    plotter.add_mesh(meshes[0], show_edges=True)
+    plotter.add_mesh(meshes[0], show_edges=True, line_width=3.0)
     plotter.view_vector(view_dir)
 
-    plotter.subplot(0, 1)
-    plotter.add_text("h = " + "{:1.2e}".format(mesh_sizes[1]), font_size=14, font="courier")
-    plotter.add_mesh(meshes[1], show_edges=True)
-    plotter.view_vector(view_dir)
     return plotter
 
 

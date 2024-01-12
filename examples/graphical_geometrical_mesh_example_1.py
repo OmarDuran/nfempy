@@ -119,7 +119,7 @@ def paint_on_canvas_simple():
 
     meshes = []
     mesh_sizes = []
-    for lh in [1, 2]:
+    for lh in [2]:
         h_val = h * (2**-lh)
         mesher = create_conformal_mesher(domain, h, lh)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk_q)
@@ -128,15 +128,11 @@ def paint_on_canvas_simple():
         mesh_sizes.append(h_max)
         meshes.append(mesh)
 
-    plotter = pyvista.Plotter(shape=(1, 2))
+    plotter = pyvista.Plotter(shape=(1, 1))
 
     plotter.subplot(0, 0)
     plotter.add_text("h = " + "{:1.2e}".format(mesh_sizes[0]), font_size=14, font="courier")
-    plotter.add_mesh(meshes[0], show_edges=True)
-
-    plotter.subplot(0, 1)
-    plotter.add_text("h = " + "{:1.2e}".format(mesh_sizes[1]), font_size=14, font="courier")
-    plotter.add_mesh(meshes[1], show_edges=True)
+    plotter.add_mesh(meshes[0], show_edges=True, line_width=3.0)
 
     return plotter
 
