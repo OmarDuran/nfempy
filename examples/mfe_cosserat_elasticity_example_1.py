@@ -18,6 +18,8 @@ from postprocess.l2_error_post_processor import (
     grad_error,
     l2_error,
 )
+from postprocess.solution_norms_post_processor import l2_norm, div_norm
+
 from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
 from spaces.product_space import ProductSpace
 from weak_forms.lce_dual_weak_form import LCEDualWeakForm, LCEDualWeakFormBCDirichlet
@@ -42,10 +44,7 @@ def compose_file_name(method, k_order, ref_l, dim, material_data, suffix):
     file_name = prefix + suffix
     return file_name
 
-
-def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
-    dim = gmesh.dimension
-
+def create_product_space(method, gmesh):
     # FESpace: data
     s_k_order = method[1]["s"][1]
     m_k_order = method[1]["m"][1]
@@ -56,7 +55,7 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
     m_components = 1
     u_components = 2
     t_components = 1
-    if dim == 3:
+    if gmesh.dimension == 3:
         s_components = 3
         m_components = 3
         u_components = 3
@@ -68,10 +67,10 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
     t_family = method[1]["t"][0]
 
     discrete_spaces_data = {
-        "s": (dim, s_components, s_family, s_k_order, gmesh),
-        "m": (dim, m_components, m_family, m_k_order, gmesh),
-        "u": (dim, u_components, u_family, u_k_order, gmesh),
-        "t": (dim, t_components, t_family, t_k_order, gmesh),
+        "s": (gmesh.dimension, s_components, s_family, s_k_order, gmesh),
+        "m": (gmesh.dimension, m_components, m_family, m_k_order, gmesh),
+        "u": (gmesh.dimension, u_components, u_family, u_k_order, gmesh),
+        "t": (gmesh.dimension, t_components, t_family, t_k_order, gmesh),
     }
 
     s_disc_Q = False
@@ -87,7 +86,7 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
 
     s_field_bc_physical_tags = [2, 3, 4, 5]
     m_field_bc_physical_tags = [2, 3, 4, 5]
-    if dim == 3:
+    if gmesh.dimension == 3:
         s_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
         m_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
     discrete_spaces_bc_physical_tags = {
@@ -95,9 +94,15 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
         "m": m_field_bc_physical_tags,
     }
 
-    fe_space = ProductSpace(discrete_spaces_data)
-    fe_space.make_subspaces_discontinuous(discrete_spaces_disc)
-    fe_space.build_structures(discrete_spaces_bc_physical_tags)
+    space = ProductSpace(discrete_spaces_data)
+    space.make_subspaces_discontinuous(discrete_spaces_disc)
+    space.build_structures(discrete_spaces_bc_physical_tags)
+    return space
+
+def four_field_formulation(k_order, material_data, method, gmesh, write_vtk_q=False):
+    dim = gmesh.dimension
+
+    fe_space = create_product_space(method, gmesh)
 
     n_dof_g = fe_space.n_dof
     rg = np.zeros(n_dof_g)
@@ -271,7 +276,7 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
         lambda_value = material_data["lambda"]
         gamma_value = material_data["gamma"]
 
-        prefix = method[0] + "_k" + str(s_k_order) + "_d" + str(dim)
+        prefix = method[0] + "_k" + str(k_order) + "_d" + str(dim)
         prefix += "_lambda_" + str(lambda_value) + "_gamma_" + str(gamma_value)
         file_name = prefix + "_four_fields_ex_1.vtk"
 
@@ -297,61 +302,10 @@ def four_field_formulation(material_data, method, gmesh, write_vtk_q=False):
     ), residuals_history
 
 
-def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=False):
+def four_field_scaled_formulation(k_order, material_data, method, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
 
-    # FESpace: data
-    s_k_order = method[1]["s"][1]
-    m_k_order = method[1]["m"][1]
-    u_k_order = method[1]["u"][1]
-    t_k_order = method[1]["t"][1]
-
-    s_components = 2
-    m_components = 1
-    u_components = 2
-    t_components = 1
-    if dim == 3:
-        s_components = 3
-        m_components = 3
-        u_components = 3
-        t_components = 3
-
-    s_family = method[1]["s"][0]
-    m_family = method[1]["m"][0]
-    u_family = method[1]["u"][0]
-    t_family = method[1]["t"][0]
-
-    discrete_spaces_data = {
-        "s": (dim, s_components, s_family, s_k_order, gmesh),
-        "m": (dim, m_components, m_family, m_k_order, gmesh),
-        "u": (dim, u_components, u_family, u_k_order, gmesh),
-        "t": (dim, t_components, t_family, t_k_order, gmesh),
-    }
-
-    s_disc_Q = False
-    m_disc_Q = False
-    u_disc_Q = True
-    t_disc_Q = True
-    discrete_spaces_disc = {
-        "s": s_disc_Q,
-        "m": m_disc_Q,
-        "u": u_disc_Q,
-        "t": t_disc_Q,
-    }
-
-    s_field_bc_physical_tags = [2, 3, 4, 5]
-    m_field_bc_physical_tags = [2, 3, 4, 5]
-    if dim == 3:
-        s_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
-        m_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
-    discrete_spaces_bc_physical_tags = {
-        "s": s_field_bc_physical_tags,
-        "m": m_field_bc_physical_tags,
-    }
-
-    fe_space = ProductSpace(discrete_spaces_data)
-    fe_space.make_subspaces_discontinuous(discrete_spaces_disc)
-    fe_space.build_structures(discrete_spaces_bc_physical_tags)
+    fe_space = create_product_space(method, gmesh)
 
     n_dof_g = fe_space.n_dof
     rg = np.zeros(n_dof_g)
@@ -523,6 +477,10 @@ def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=Fals
     s_l2_error, m_l2_error, u_l2_error, t_l2_error = l2_error(
         dim, fe_space, exact_functions, alpha
     )
+
+    s_norm, m_norm, u_norm, t_norm = l2_norm(dim, fe_space, exact_functions)
+    div_s_norm, div_m_norm = div_norm(dim, fe_space, exact_functions)
+
     div_s_l2_error = div_error(dim, fe_space, exact_functions, alpha, ["m"])[0]
     div_m_l2_error = div_scaled_error(dim, fe_space, exact_functions, alpha, ["s"])[0]
     h_div_s_error = np.sqrt((s_l2_error**2) + (div_s_l2_error**2))
@@ -544,7 +502,7 @@ def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=Fals
         lambda_value = material_data["lambda"]
         gamma_value = material_data["gamma"]
 
-        prefix = method[0] + "_k" + str(s_k_order) + "_d" + str(dim)
+        prefix = method[0] + "_k" + str(k_order) + "_d" + str(dim)
         prefix += "_lambda_" + str(lambda_value) + "_gamma_" + str(gamma_value)
         file_name = prefix + "_four_fields_scaled_ex_1.vtk"
 
@@ -569,6 +527,187 @@ def four_field_scaled_formulation(material_data, method, gmesh, write_vtk_q=Fals
         ]
     ), residuals_history
 
+def four_field_solution_norms(material_data, method, gmesh):
+    dim = gmesh.dimension
+
+    fe_space = create_product_space(method, gmesh)
+
+    # Material data
+    m_lambda = material_data["lambda"]
+    m_mu = material_data["mu"]
+    m_kappa = material_data["kappa"]
+    m_gamma = material_data["gamma"]
+
+    # exact solution
+    u_exact = lce.displacement(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    t_exact = lce.rotation(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    s_exact = lce.stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    m_exact = lce.couple_stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    div_s_exact = lce.stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    div_m_exact = lce.couple_stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    f_rhs = lce.rhs(m_lambda, m_mu, m_kappa, m_gamma, dim)
+
+    def f_lambda(x, y, z):
+        return m_lambda
+
+    def f_mu(x, y, z):
+        return m_mu
+
+    def f_kappa(x, y, z):
+        return m_kappa
+
+    def f_gamma(x, y, z):
+        return m_gamma
+
+    m_functions = {
+        "rhs": f_rhs,
+        "lambda": f_lambda,
+        "mu": f_mu,
+        "kappa": f_kappa,
+        "gamma": f_gamma,
+    }
+
+    exact_functions = {
+        "s": s_exact,
+        "m": m_exact,
+        "u": u_exact,
+        "t": t_exact,
+        "div_s": div_s_exact,
+        "div_m": div_m_exact,
+    }
+
+    st = time.time()
+    s_norm, m_norm, u_norm, t_norm = l2_norm(dim, fe_space, exact_functions)
+    div_s_norm, div_m_norm = div_norm(dim, fe_space, exact_functions)
+    h_div_s_norm = np.sqrt((s_norm ** 2) + (div_s_norm ** 2))
+    h_div_m_norm = np.sqrt((m_norm ** 2) + (div_m_norm ** 2))
+    et = time.time()
+    elapsed_time = et - st
+    print("Solution norms time:", elapsed_time, "seconds")
+    print("Displacement norm: ", u_norm)
+    print("Rotation norm: ", t_norm)
+    print("Stress norm: ", s_norm)
+    print("Couple stress norm: ", m_norm)
+    print("div stress norm: ", div_s_norm)
+    print("div couple stress norm: ", div_m_norm)
+    print("Stress hdiv-norm: ", s_norm)
+    print("Couple stress hdiv-norm: ", m_norm)
+    print(" ")
+
+    return np.array(
+        [
+            [
+            u_norm,
+            t_norm,
+            s_norm,
+            m_norm,
+            div_s_norm,
+            div_m_norm,
+            h_div_s_norm,
+            h_div_m_norm,
+            ]
+        ]
+    )
+
+def four_field_scaled_solution_norms(material_data, method, gmesh):
+    dim = gmesh.dimension
+
+    fe_space = create_product_space(method, gmesh)
+
+    # Material data
+    m_lambda = material_data["lambda"]
+    m_mu = material_data["mu"]
+    m_kappa = material_data["kappa"]
+    m_gamma = material_data["gamma"]
+
+    # exact solution
+    u_exact = lce.displacement(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    t_exact = lce.rotation(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    s_exact = lce.stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    m_exact = lce.couple_stress_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    div_s_exact = lce.stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    div_m_exact = lce.couple_stress_divergence_scaled(
+        m_lambda, m_mu, m_kappa, m_gamma, dim
+    )
+    f_rhs = lce.rhs_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim)
+
+    def f_lambda(x, y, z):
+        return m_lambda
+
+    def f_mu(x, y, z):
+        return m_mu
+
+    def f_kappa(x, y, z):
+        return m_kappa
+
+    def f_gamma(x, y, z):
+        return m_gamma * np.ones_like(x)
+
+    def f_grad_gamma(x, y, z):
+        d_gamma_x = 0.0 * x
+        d_gamma_y = 0.0 * y
+        return np.array([d_gamma_x, d_gamma_y])
+
+    if dim == 3:
+
+        def f_grad_gamma(x, y, z):
+            d_gamma_x = 0.0 * x
+            d_gamma_y = 0.0 * y
+            d_gamma_z = 0.0 * z
+            return np.array([d_gamma_x, d_gamma_y, d_gamma_z])
+
+    m_functions = {
+        "rhs": f_rhs,
+        "lambda": f_lambda,
+        "mu": f_mu,
+        "kappa": f_kappa,
+        "gamma": f_gamma,
+        "grad_gamma": f_grad_gamma,
+    }
+
+    exact_functions = {
+        "s": s_exact,
+        "m": m_exact,
+        "u": u_exact,
+        "t": t_exact,
+        "div_s": div_s_exact,
+        "div_m": div_m_exact,
+        "gamma": f_gamma,
+        "grad_gamma": f_grad_gamma,
+    }
+
+    st = time.time()
+    s_norm, m_norm, u_norm, t_norm = l2_norm(dim, fe_space, exact_functions)
+    div_s_norm, div_m_norm = div_norm(dim, fe_space, exact_functions)
+    h_div_s_norm = np.sqrt((s_norm**2) + (div_s_norm**2))
+    h_div_m_norm = np.sqrt((m_norm**2) + (div_m_norm**2))
+    et = time.time()
+    elapsed_time = et - st
+    print("Solution norms time:", elapsed_time, "seconds")
+    print("Displacement norm: ", u_norm)
+    print("Rotation norm: ", t_norm)
+    print("Stress norm: ", s_norm)
+    print("Couple stress star norm: ", m_norm)
+    print("div stress norm: ", div_s_norm)
+    print("div couple stress norm: ", div_m_norm)
+    print("Stress hdiv-norm: ", s_norm)
+    print("Couple stress star hdiv-norm: ", m_norm)
+    print(" ")
+
+    return np.array(
+        [
+            [
+            u_norm,
+            t_norm,
+            s_norm,
+            m_norm,
+            div_s_norm,
+            div_m_norm,
+            h_div_s_norm,
+            h_div_m_norm,
+            ]
+        ]
+    )
 
 def create_domain(dimension):
     if dimension == 1:
@@ -647,11 +786,11 @@ def perform_convergence_test(configuration: dict):
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
         h_min, h_mean, h_max = mesh_size(gmesh)
         if method[0] == "m2_dnc":
-            n_dof, error_vals, res_history = four_field_scaled_formulation(
+            n_dof, error_vals, res_history = four_field_scaled_formulation(k_order,
                 material_data, method, gmesh, write_vtk
             )
         else:
-            n_dof, error_vals, res_history = four_field_formulation(
+            n_dof, error_vals, res_history = four_field_formulation(k_order,
                 material_data, method, gmesh, write_vtk
             )
         file_name_res = compose_file_name(
@@ -660,6 +799,16 @@ def perform_convergence_test(configuration: dict):
         np.savetxt(file_name_res,res_history,delimiter=",",)
         chunk = np.concatenate([[n_dof, h_max], error_vals])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
+
+        # compute solution norms for the last refinement level
+        if lh == n_ref - 1:
+            if method[0] == "m2_dnc":
+                sol_norms = four_field_scaled_solution_norms(material_data, method, gmesh)
+            else:
+                sol_norms = four_field_solution_norms(material_data, method, gmesh)
+            # report
+
+
 
     rates_data = np.empty((0, n_data - 2), float)
     for i in range(error_data.shape[0] - 1):
@@ -718,6 +867,12 @@ def perform_convergence_test(configuration: dict):
             delimiter=",",
             header=base_str_header,
         )
+        np.savetxt(
+            file_name_prefix + "d_solution_norms_ex_1.txt",
+            sol_norms,
+            delimiter=",",
+            header=base_str_header,
+        )
     np.savetxt(
         file_name_prefix + "d_error_ex_1_rounded.txt",
         error_data,
@@ -729,6 +884,13 @@ def perform_convergence_test(configuration: dict):
         file_name_prefix + "d_rates_ex_1_rounded.txt",
         rates_data,
         fmt="%1.3f",
+        delimiter=",",
+        header=base_str_header,
+    )
+    np.savetxt(
+        file_name_prefix + "d_solution_norms_ex_1_rounded.txt",
+        sol_norms,
+        fmt="%1.10f",
         delimiter=",",
         header=base_str_header,
     )
