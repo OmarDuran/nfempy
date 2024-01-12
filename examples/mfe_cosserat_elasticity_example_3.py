@@ -669,13 +669,13 @@ def perform_convergence_postprocessing(configuration: dict):
 
 
 def method_definition(k_order):
-    method_2_dnc = {
-        "s": ("BDM", k_order),
-        "m": ("RT", k_order),
-        "u": ("Lagrange", k_order - 1),
-        "t": ("Lagrange", k_order - 1),
+    method = {
+        "s": ("BDM", k_order + 1),
+        "m": ("RT", k_order + 1),
+        "u": ("Lagrange", k_order),
+        "t": ("Lagrange", k_order),
     }
-    methods = [method_2_dnc]
+    methods = [method]
     method_names = ["wc_afw"]
     return zip(method_names, methods)
 
@@ -683,8 +683,8 @@ def method_definition(k_order):
 def main():
     only_approximation_q = True
     only_postprocessing_q = True
-    refinements = {1: 2, 2: 4}
-    for k in [1]:
+    refinements = {0: 2, 1: 4}
+    for k in [0]:
         for method in method_definition(k):
             configuration = {
                 "n_refinements": refinements[k],

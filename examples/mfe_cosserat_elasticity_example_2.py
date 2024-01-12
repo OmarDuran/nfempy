@@ -723,28 +723,29 @@ def perform_convergence_postprocessing(configuration: dict):
     return
 
 def method_definition(k_order):
-    method_1_dc = {
-        "s": ("RT", k_order),
+
+    method_1 = {
+        "s": ("RT", k_order + 1),
+        "m": ("RT", k_order + 2),
+        "u": ("Lagrange", k_order),
+        "t": ("Lagrange", k_order + 1),
+    }
+
+    method_2 = {
+        "s": ("BDM", k_order + 1),
         "m": ("RT", k_order + 1),
-        "u": ("Lagrange", k_order - 1),
+        "u": ("Lagrange", k_order),
         "t": ("Lagrange", k_order),
     }
 
-    method_2_dnc = {
-        "s": ("BDM", k_order),
-        "m": ("RT", k_order),
-        "u": ("Lagrange", k_order - 1),
-        "t": ("Lagrange", k_order - 1),
+    method_3 = {
+        "s": ("BDM", k_order + 1),
+        "m": ("BDM", k_order + 2),
+        "u": ("Lagrange", k_order),
+        "t": ("Lagrange", k_order + 1),
     }
 
-    method_3_dc = {
-        "s": ("BDM", k_order),
-        "m": ("BDM", k_order + 1),
-        "u": ("Lagrange", k_order - 1),
-        "t": ("Lagrange", k_order),
-    }
-
-    methods = [method_1_dc, method_2_dnc, method_3_dc]
+    methods = [method_1, method_2, method_3]
     method_names = ["sc_rt", "wc_afw", "sc_bdm"]
     return zip(method_names, methods)
 
@@ -762,9 +763,9 @@ def material_data_definition():
 def main():
     only_approximation_q = True
     only_postprocessing_q = True
-    refinements = {1: 2, 2: 2}
+    refinements = {0: 2, 1: 2}
     case_data = material_data_definition()
-    for k in [1]:
+    for k in [0]:
         n_ref = refinements[k]
         methods = method_definition(k)
         for i, method in enumerate(methods):

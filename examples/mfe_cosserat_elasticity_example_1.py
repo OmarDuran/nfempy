@@ -782,7 +782,7 @@ def perform_convergence_test(configuration: dict):
         mesher = create_conformal_mesher(domain, h, lh)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
         h_min, h_mean, h_max = mesh_size(gmesh)
-        if method[0] == "m2_dnc":
+        if method[0] == "wc_afw":
             n_dof, error_vals, res_history = four_field_scaled_formulation(k_order,
                 material_data, method, gmesh, write_vtk
             )
@@ -799,7 +799,7 @@ def perform_convergence_test(configuration: dict):
 
         # compute solution norms for the last refinement level
         if lh == n_ref - 1:
-            if method[0] == "m2_dnc":
+            if method[0] == "wc_afw":
                 sol_norms = four_field_scaled_solution_norms(material_data, method, gmesh)
             else:
                 sol_norms = four_field_solution_norms(material_data, method, gmesh)
@@ -895,28 +895,29 @@ def perform_convergence_test(configuration: dict):
 
 
 def method_definition(k_order):
-    method_1_dc = {
-        "s": ("RT", k_order),
+
+    method_1 = {
+        "s": ("RT", k_order + 1),
+        "m": ("RT", k_order + 2),
+        "u": ("Lagrange", k_order),
+        "t": ("Lagrange", k_order + 1),
+    }
+
+    method_2 = {
+        "s": ("BDM", k_order + 1),
         "m": ("RT", k_order + 1),
-        "u": ("Lagrange", k_order - 1),
+        "u": ("Lagrange", k_order),
         "t": ("Lagrange", k_order),
     }
 
-    method_2_dnc = {
-        "s": ("BDM", k_order),
-        "m": ("RT", k_order),
-        "u": ("Lagrange", k_order - 1),
-        "t": ("Lagrange", k_order - 1),
+    method_3 = {
+        "s": ("BDM", k_order + 1),
+        "m": ("BDM", k_order + 2),
+        "u": ("Lagrange", k_order),
+        "t": ("Lagrange", k_order + 1),
     }
 
-    method_3_dc = {
-        "s": ("BDM", k_order),
-        "m": ("BDM", k_order + 1),
-        "u": ("Lagrange", k_order - 1),
-        "t": ("Lagrange", k_order),
-    }
-
-    methods = [method_1_dc, method_2_dnc, method_3_dc]
+    methods = [method_1, method_2, method_3]
     method_names = ["sc_rt", "wc_afw", "sc_bdm"]
     return zip(method_names, methods)
 
@@ -932,9 +933,9 @@ def material_data_definition():
 
 
 def main():
-    refinements = {1: 4, 2: 4}
+    refinements = {0: 4, 1: 4}
     case_data = material_data_definition()
-    for k in [1, 2]:
+    for k in [0, 1]:
         n_ref = refinements[k]
         methods = method_definition(k)
         for i, method in enumerate(methods):
