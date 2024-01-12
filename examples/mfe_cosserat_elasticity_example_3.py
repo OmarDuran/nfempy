@@ -21,6 +21,7 @@ from postprocess.l2_error_post_processor import (
     grad_error,
     l2_error,
 )
+from postprocess.solution_norms_post_processor import l2_norm, div_norm
 from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
 from postprocess.solution_post_processor import write_vtk_file_exact_solution
 from spaces.product_space import ProductSpace
@@ -383,7 +384,7 @@ def four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk_q=
 
         et = time.time()
         elapsed_time = et - st
-        print("Post-processing time:", elapsed_time, "seconds")
+        print("VTK post-processing time:", elapsed_time, "seconds")
 
     st = time.time()
     s_l2_error, m_l2_error, u_l2_error, t_l2_error = l2_error(
@@ -418,6 +419,90 @@ def four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk_q=
             div_m_l2_error,
             h_div_s_error,
             h_div_m_error,
+        ]
+    )
+
+def four_field_scaled_solution_norms(method, gmesh):
+    dim = gmesh.dimension
+    fe_space = create_product_space(method, gmesh)
+    n_dof_g = fe_space.n_dof
+
+    # Material data
+    m_lambda = 1.0
+    m_mu = 1.0
+    m_kappa = m_mu
+
+    # exact solution
+    u_exact = lce.displacement(m_lambda, m_mu, m_kappa, dim)
+    t_exact = lce.rotation(m_lambda, m_mu, m_kappa, dim)
+    s_exact = lce.stress(m_lambda, m_mu, m_kappa, dim)
+    m_exact = lce.couple_stress_scaled(m_lambda, m_mu, m_kappa, dim)
+    div_s_exact = lce.stress_divergence(m_lambda, m_mu, m_kappa, dim)
+    div_m_exact = lce.couple_stress_divergence_scaled(m_lambda, m_mu, m_kappa, dim)
+    f_rhs = lce.rhs_scaled(m_lambda, m_mu, m_kappa, dim)
+
+    def f_lambda(x, y, z):
+        return m_lambda
+
+    def f_mu(x, y, z):
+        return m_mu
+
+    def f_kappa(x, y, z):
+        return m_kappa
+
+    f_gamma = lce.gamma_s(dim)
+    f_grad_gamma = lce.grad_gamma_s(dim)
+
+    m_functions = {
+        "rhs": f_rhs,
+        "lambda": f_lambda,
+        "mu": f_mu,
+        "kappa": f_kappa,
+        "gamma": f_gamma,
+        "grad_gamma": f_grad_gamma,
+    }
+
+    exact_functions = {
+        "s": s_exact,
+        "m": m_exact,
+        "u": u_exact,
+        "t": t_exact,
+        "div_s": div_s_exact,
+        "div_m": div_m_exact,
+        "gamma": f_gamma,
+        "grad_gamma": f_grad_gamma,
+    }
+
+    st = time.time()
+    s_norm, m_norm, u_norm, t_norm = l2_norm(dim, fe_space, exact_functions)
+    div_s_norm, div_m_norm = div_norm(dim, fe_space, exact_functions)
+    h_div_s_norm = np.sqrt((s_norm**2) + (div_s_norm**2))
+    h_div_m_norm = np.sqrt((m_norm**2) + (div_m_norm**2))
+    et = time.time()
+    elapsed_time = et - st
+    print("Solution norms time:", elapsed_time, "seconds")
+    print("Displacement norm: ", u_norm)
+    print("Rotation norm: ", t_norm)
+    print("Stress norm: ", s_norm)
+    print("Couple stress star norm: ", m_norm)
+    print("div stress norm: ", div_s_norm)
+    print("div couple stress norm: ", div_m_norm)
+    print("Stress hdiv-norm: ", h_div_s_norm)
+    print("Couple stress star hdiv-norm: ", h_div_m_norm)
+    print(" ")
+
+    return np.array(
+        [
+            [
+            u_norm,
+            t_norm,
+            s_norm,
+            m_norm,
+            div_s_norm,
+            div_m_norm,
+            h_div_s_norm,
+            h_div_m_norm,
+            ]
         ]
     )
 
@@ -502,6 +587,11 @@ def perform_convergence_postprocessing(configuration: dict):
         chunk = np.concatenate([[n_dof, h_max], error_vals])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
 
+        # compute solution norms for the last refinement level
+        if lh == n_ref - 1:
+            sol_norms = four_field_scaled_solution_norms(method, gmesh)
+
+
     rates_data = np.empty((0, n_data - 2), float)
     for i in range(error_data.shape[0] - 1):
         chunk_b = np.log(error_data[i])
@@ -547,6 +637,12 @@ def perform_convergence_postprocessing(configuration: dict):
             delimiter=",",
             header=base_str_header,
         )
+        np.savetxt(
+            file_name_prefix + "d_solution_norms_ex_3.txt",
+            sol_norms,
+            delimiter=",",
+            header=base_str_header,
+        )
     np.savetxt(
         file_name_prefix + "d_error_ex_3_rounded.txt",
         error_data,
@@ -558,6 +654,13 @@ def perform_convergence_postprocessing(configuration: dict):
         file_name_prefix + "d_rates_ex_3_rounded.txt",
         rates_data,
         fmt="%1.3f",
+        delimiter=",",
+        header=base_str_header,
+    )
+    np.savetxt(
+        file_name_prefix + "d_solution_norms_ex_3_rounded.txt",
+        sol_norms,
+        fmt="%1.10f",
         delimiter=",",
         header=base_str_header,
     )
@@ -580,8 +683,8 @@ def method_definition(k_order):
 def main():
     only_approximation_q = True
     only_postprocessing_q = True
-    refinements = {1: 4, 2: 4}
-    for k in [2, 1]:
+    refinements = {1: 2, 2: 4}
+    for k in [1]:
         for method in method_definition(k):
             configuration = {
                 "n_refinements": refinements[k],

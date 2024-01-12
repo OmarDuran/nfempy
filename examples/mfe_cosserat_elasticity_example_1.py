@@ -285,7 +285,7 @@ def four_field_formulation(k_order, material_data, method, gmesh, write_vtk_q=Fa
         )
         et = time.time()
         elapsed_time = et - st
-        print("Post-processing time:", elapsed_time, "seconds")
+        print("VTK post-processing time:", elapsed_time, "seconds")
 
     gc.collect()
     return n_dof_g, np.array(
@@ -511,7 +511,7 @@ def four_field_scaled_formulation(k_order, material_data, method, gmesh, write_v
         )
         et = time.time()
         elapsed_time = et - st
-        print("Post-processing time:", elapsed_time, "seconds")
+        print("VTK post-processing time:", elapsed_time, "seconds")
 
     gc.collect()
     return n_dof_g, np.array(
@@ -590,8 +590,8 @@ def four_field_solution_norms(material_data, method, gmesh):
     print("Couple stress norm: ", m_norm)
     print("div stress norm: ", div_s_norm)
     print("div couple stress norm: ", div_m_norm)
-    print("Stress hdiv-norm: ", s_norm)
-    print("Couple stress hdiv-norm: ", m_norm)
+    print("Stress hdiv-norm: ", h_div_s_norm)
+    print("Couple stress hdiv-norm: ", h_div_m_norm)
     print(" ")
 
     return np.array(
@@ -690,8 +690,8 @@ def four_field_scaled_solution_norms(material_data, method, gmesh):
     print("Couple stress star norm: ", m_norm)
     print("div stress norm: ", div_s_norm)
     print("div couple stress norm: ", div_m_norm)
-    print("Stress hdiv-norm: ", s_norm)
-    print("Couple stress star hdiv-norm: ", m_norm)
+    print("Stress hdiv-norm: ", h_div_s_norm)
+    print("Couple stress star hdiv-norm: ", h_div_m_norm)
     print(" ")
 
     return np.array(
@@ -806,7 +806,6 @@ def perform_convergence_test(configuration: dict):
                 sol_norms = four_field_scaled_solution_norms(material_data, method, gmesh)
             else:
                 sol_norms = four_field_solution_norms(material_data, method, gmesh)
-            # report
 
 
 
