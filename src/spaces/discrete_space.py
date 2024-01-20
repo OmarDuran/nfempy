@@ -11,10 +11,10 @@ from spaces.dof_map import DoFMap
 from topology.mesh_topology import MeshTopology
 
 
-class DiscreteField:
-    # The discrete variable representation
+class DiscreteSpace:
+    # The discrete space representation
     def __init__(
-        self, dimension, n_components, family, k_order, mesh, integration_oder=0
+        self, dimension, n_components, family, k_order, mesh, integration_order=0
     ):
         self.dimension = dimension
         self.n_comp = n_components
@@ -22,7 +22,7 @@ class DiscreteField:
         self.element_type = None
         self.bc_element_type = None
         self.k_order = k_order
-        self.integration_oder = integration_oder
+        self.integration_order = integration_order
 
         self.name = "Unnamed"
         self.mesh_topology = MeshTopology(mesh, dimension)
@@ -54,8 +54,10 @@ class DiscreteField:
         self._build_dof_map_on_physical_tags(physical_tags)
         self._build_elements()
 
-    def _build_dof_map(self, only_on_physical_tags=True):
-        st = time.time()
+    def _build_dof_map(self, only_on_physical_tags=True, timing_q=False):
+        if timing_q:
+            st = time.time()
+
         if only_on_physical_tags:
             self.mesh_topology.build_data()
         else:
@@ -85,12 +87,18 @@ class DiscreteField:
         self.dof_map.set_topological_dimension(self.dimension)
         self.dof_map.build_entity_maps(n_components=self.n_comp)
         self.n_dof = self.dof_map.dof_number()
-        et = time.time()
-        elapsed_time = et - st
-        print("DiscreteField:: DoFMap construction time:", elapsed_time, "seconds")
+        if timing_q:
+            et = time.time()
+            elapsed_time = et - st
+            print(
+                self.name + "_fe_space:: DoFMap construction time:",
+                elapsed_time,
+                "seconds",
+            )
 
-    def _build_dof_map_on_physical_tags(self, physical_tags=[]):
-        st = time.time()
+    def _build_dof_map_on_physical_tags(self, physical_tags=[], timing_q=False):
+        if timing_q:
+            st = time.time()
         if len(physical_tags) != 0:
             self.mesh_topology.build_data_on_physical_tags(physical_tags)
         else:
@@ -120,12 +128,18 @@ class DiscreteField:
         self.dof_map.set_topological_dimension(self.dimension)
         self.dof_map.build_entity_maps(n_components=self.n_comp)
         self.n_dof = self.dof_map.dof_number()
-        et = time.time()
-        elapsed_time = et - st
-        print("DiscreteField:: DoFMap construction time:", elapsed_time, "seconds")
+        if timing_q:
+            et = time.time()
+            elapsed_time = et - st
+            print(
+                self.name + "_fe_space:: DoFMap construction time:",
+                elapsed_time,
+                "seconds",
+            )
 
-    def _build_elements(self, parallel_run_q=False):
-        st = time.time()
+    def _build_elements(self, timing_q=False, parallel_run_q=False):
+        if timing_q:
+            st = time.time()
 
         self.element_ids = self.mesh_topology.entities_by_dimension(self.dimension)
         if self.physical_tag_filter:
@@ -140,7 +154,7 @@ class DiscreteField:
 
             @wrap_non_picklable_objects
             def task_create_element(
-                cell_id, family, k_order, mesh, discontinuous, integration_oder
+                cell_id, family, k_order, mesh, discontinuous, integration_order
             ):
                 return FiniteElement(
                     cell_id=cell_id,
@@ -148,7 +162,7 @@ class DiscreteField:
                     k_order=self.k_order,
                     mesh=self.mesh_topology.mesh,
                     discontinuous=self.discontinuous,
-                    integration_oder=self.integration_oder,
+                    integration_order=self.integration_order,
                 )
 
             self.elements = Parallel(
@@ -160,7 +174,7 @@ class DiscreteField:
                     k_order=self.k_order,
                     mesh=self.mesh_topology.mesh,
                     discontinuous=self.discontinuous,
-                    integration_oder=self.integration_oder,
+                    integration_order=self.integration_order,
                 )
                 for id in self.element_ids
             )
@@ -173,21 +187,26 @@ class DiscreteField:
                         k_order=self.k_order,
                         mesh=self.mesh_topology.mesh,
                         discontinuous=self.discontinuous,
-                        integration_oder=self.integration_oder,
+                        integration_order=self.integration_order,
                     ),
                     self.element_ids,
                 )
             )
 
         self.id_to_element = dict(zip(self.element_ids, range(len(self.element_ids))))
-        et = time.time()
-        elapsed_time = et - st
-        n_d_cells = len(self.elements)
-        print("DiscreteField:: Number of processed elements:", n_d_cells)
-        print("DiscreteField:: Elements construction time:", elapsed_time, "seconds")
+        if timing_q:
+            et = time.time()
+            elapsed_time = et - st
+            print(
+                self.name + "_fe_space:: Elements construction time:",
+                elapsed_time,
+                "seconds",
+            )
+        print(self.name + "_fe_space:: Number elements:", len(self.elements))
 
-    def _build_bc_elements(self, physical_tags):
-        st = time.time()
+    def _build_bc_elements(self, physical_tags, timing_q=False):
+        if timing_q:
+            st = time.time()
 
         self.bc_element_ids = self.mesh_topology.entities_by_dimension(
             self.dimension - 1
@@ -200,35 +219,45 @@ class DiscreteField:
                 if mesh.cells[id].material_id in physical_tags
             ]
 
+        bc_discontinuous = self.discontinuous
+        bc_k_order = self.k_order
         bc_familiy = self.family
-        if self.dimension - 1 < 2 :
+        if self.dimension - 1 < 2:  # it implies traces of H(div) and H(curl) elements
             bc_familiy = family_by_name("Lagrange")
+
+        if family_by_name("BDM") == self.family:
+            bc_k_order = self.k_order
+            bc_familiy = family_by_name("Lagrange")
+            bc_discontinuous = True
+
+        if family_by_name("RT") == self.family:
+            bc_k_order = self.k_order - 1
+            bc_familiy = family_by_name("Lagrange")
+            bc_discontinuous = True
 
         self.bc_elements = list(
             map(
                 partial(
                     FiniteElement,
                     family=bc_familiy,
-                    k_order=self.k_order,
+                    k_order=bc_k_order,
                     mesh=self.mesh_topology.mesh,
-                    discontinuous=self.discontinuous,
-                    integration_oder=self.integration_oder,
+                    discontinuous=bc_discontinuous,
+                    integration_order=self.integration_order,
                 ),
                 self.bc_element_ids,
             )
         )
-        #
-        # [element.storage_basis() for element in self.bc_elements]
 
         self.id_to_bc_element = dict(
             zip(self.bc_element_ids, range(len(self.bc_element_ids)))
         )
-        et = time.time()
-        elapsed_time = et - st
-        n_d_cells = len(self.bc_elements)
-        print("DiscreteField:: Number of processed bc elements:", n_d_cells)
-        print(
-            "DiscreteField:: Boundary Elements construction time:",
-            elapsed_time,
-            "seconds",
-        )
+        if timing_q:
+            et = time.time()
+            elapsed_time = et - st
+            print(
+                self.name + "_fe_space:: Boundary Elements construction time:",
+                elapsed_time,
+                "seconds",
+            )
+        print(self.name + "_fe_space:: Number bc elements:", len(self.bc_elements))

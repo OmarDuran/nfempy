@@ -149,15 +149,16 @@ class DoFMap:
         for d in range(dim):
             entity_map = self.mesh_topology.entity_map_by_dimension(d)
             dof_supports = list(entity_map.successors(cell_id))
-            dof_supports = [
+            filtered_dof_supports = [
                 dof_support
-                for dof_support in dof_supports
-                if dof_support in list(bc_cells_ids[d])
+                for dof_support in list(bc_cells_ids[d])
+                if dof_support in dof_supports
             ]
             if int(np.mean(self.ref_element.num_entity_dofs[d])) == 0:
-                dof_supports = []
+                filtered_dof_supports = []
             entity_dest = np.array(
-                [entity_maps[d].get(dof_s) for dof_s in dof_supports], dtype=int
+                [entity_maps[d].get(dof_s) for dof_s in filtered_dof_supports],
+                dtype=int,
             ).ravel()
             dest_by_dim.append(entity_dest)
         dest = np.concatenate(dest_by_dim)

@@ -1,15 +1,15 @@
+import csv
+
 import numpy as np
 
-from geometry.vertex import Vertex
-from geometry.edge import Edge
-from geometry.wire import Wire
-from geometry.face import Face
-from geometry.shell import Shell
-from geometry.solid import Solid
-from geometry.solid import Shape
 from geometry.domain import Domain
+from geometry.edge import Edge
+from geometry.face import Face
 from geometry.shape_manipulation import ShapeManipulation
-import csv
+from geometry.shell import Shell
+from geometry.solid import Shape, Solid
+from geometry.vertex import Vertex
+from geometry.wire import Wire
 
 
 def read_fractures_file(n_points, file_name):
@@ -275,7 +275,6 @@ def build_disjoint_planes(
 
 
 def build_box_3D_with_planes(box_points, planes_file, physical_tags=None):
-
     if physical_tags is None:
         physical_tags = {
             "solid": 1,

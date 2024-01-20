@@ -52,7 +52,7 @@ class DoFData:
         entity_dofs: np.ndarray = np.empty(0),
         transformations_are_identity: bool = True,
         transformations: dict = {},
-        dest: np.ndarray = np.empty(0),
+        num_entity_dofs: np.ndarray = np.empty(0),
     ):
         # entity dofs
         self.entity_dofs: np.ndarray = entity_dofs
@@ -63,16 +63,32 @@ class DoFData:
         # transformations
         self.transformations: dict = transformations
 
-        # destination indexes
-        self.dest: np.ndarray = dest
+        # num entity dofs
+        self.num_entity_dofs: np.ndarray = num_entity_dofs
 
     @classmethod
     def copy(self):
         entity_dofs = self.entity_dofs
         transformations_are_identity = self.transformations_are_identity
         transformations = self.transformations
-        dest: np.ndarray = np.empty(0)
-        return DoFData(entity_dofs, transformations_are_identity, transformations, dest)
+        num_entity_dofs = self.num_entity_dofs
+        return DoFData(
+            entity_dofs, transformations_are_identity, transformations, num_entity_dofs
+        )
+
+
+class BCEntities:
+    def __init__(
+        self,
+        bc_entities: np.ndarray = np.empty(0),
+    ):
+        # basis
+        self.bc_entities: np.ndarray = bc_entities
+
+    @classmethod
+    def copy(self):
+        bc_entities: np.ndarray = np.empty(0)
+        return BCEntities(bc_entities)
 
 
 class BasisData:
@@ -97,6 +113,7 @@ class ElementData:
         self.quadrature: QuadratureData = QuadratureData()
         self.mapping: MappingData = MappingData()
         self.dof: DoFData = DoFData()
+        self.bc_entities: BCEntities = BCEntities()
         self.basis: BasisData = BasisData()
 
     @classmethod

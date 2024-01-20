@@ -7,6 +7,7 @@ import numpy as np
 
 from geometry.domain import Domain
 from mesh.mesh_cell import MeshCell, barycenter, rotate_vector
+from topology.mesh_coloring import coloring_mesh_by_co_dimension
 
 
 class Mesh:
@@ -138,9 +139,9 @@ class Mesh:
             # vertex id
             vertex_ids = [self.entities_0d[node] for node in node_tags]
 
-            edge_0 = node_tags[np.array([1, 2])]
-            edge_1 = node_tags[np.array([0, 2])]
-            edge_2 = node_tags[np.array([0, 1])]
+            edge_0 = np.sort(node_tags[np.array([1, 2])])
+            edge_1 = np.sort(node_tags[np.array([0, 2])])
+            edge_2 = np.sort(node_tags[np.array([0, 1])])
             edges = [edge_0, edge_1, edge_2]
 
             edge_ids = []
@@ -206,7 +207,7 @@ class Mesh:
 
         elif cell_block.dim == 1:
             for node_tags, physical_tag in zip(cell_block.data, physical):
-                node_tags = self.validate_entity(node_tags)
+                # node_tags = self.validate_entity(node_tags)
                 self.insert_edge(node_tags, physical_tag)
 
         elif cell_block.dim == 2:
@@ -399,13 +400,13 @@ class Mesh:
                         ": ",
                         *cells_ids_dim,
                         sep=" ",
-                        file=file
+                        file=file,
                     )
                 print("", file=file)
 
         file.close()
 
-    def write_vtk(self):
+    def write_vtk(self, coloring_mesh_q=False):
         # write vtk files
         physical_tags_3d = np.array(
             [
@@ -440,6 +441,27 @@ class Mesh:
                 "physical_tag": [physical_tags_3d],
                 "entity_tag": [entity_tags_3d],
             }
+            if coloring_mesh_q:
+                c0_cells = np.array(
+                    [
+                        cell.id
+                        for cell in self.cells
+                        if cell.dimension == 3
+                        and cell.id is not None
+                        and cell.material_id is not None
+                    ]
+                )
+
+                cells_c1_con_to_color, _ = coloring_mesh_by_co_dimension(8, self, 3, 1)
+                cells_c2_con_to_color, _ = coloring_mesh_by_co_dimension(8, self, 3, 2)
+                cells_c3_con_to_color, _ = coloring_mesh_by_co_dimension(14, self, 3, 3)
+                c1_colors = [cells_c1_con_to_color[id] for id in c0_cells]
+                c2_colors = [cells_c2_con_to_color[id] for id in c0_cells]
+                c3_colors = [cells_c3_con_to_color[id] for id in c0_cells]
+                cell_data.__setitem__("c1_colors", [c1_colors])
+                cell_data.__setitem__("c2_colors", [c2_colors])
+                cell_data.__setitem__("c3_colors", [c3_colors])
+
             mesh_3d = meshio.Mesh(self.points, cells=cells_dict, cell_data=cell_data)
             meshio.write("geometric_mesh_3d.vtk", mesh_3d)
 
@@ -478,6 +500,25 @@ class Mesh:
                 "physical_tag": [physical_tags_2d],
                 "entity_tag": [entity_tags_2d],
             }
+
+            if coloring_mesh_q:
+                c0_cells = np.array(
+                    [
+                        cell.id
+                        for cell in self.cells
+                        if cell.dimension == 2
+                        and cell.id is not None
+                        and cell.material_id is not None
+                    ]
+                )
+
+                cells_c1_con_to_color, _ = coloring_mesh_by_co_dimension(8, self, 2, 1)
+                cells_c2_con_to_color, _ = coloring_mesh_by_co_dimension(8, self, 2, 2)
+                c1_colors = [cells_c1_con_to_color[id] for id in c0_cells]
+                c2_colors = [cells_c2_con_to_color[id] for id in c0_cells]
+                cell_data.__setitem__("c1_colors", [c1_colors])
+                cell_data.__setitem__("c2_colors", [c2_colors])
+
             mesh_2d = meshio.Mesh(self.points, cells=cells_dict, cell_data=cell_data)
             meshio.write("geometric_mesh_2d.vtk", mesh_2d)
 
@@ -515,6 +556,22 @@ class Mesh:
                 "physical_tag": [physical_tags_1d],
                 "entity_tag": [entity_tags_1d],
             }
+
+            if coloring_mesh_q:
+                c0_cells = np.array(
+                    [
+                        cell.id
+                        for cell in self.cells
+                        if cell.dimension == 1
+                        and cell.id is not None
+                        and cell.material_id is not None
+                    ]
+                )
+
+                cells_c1_con_to_color, _ = coloring_mesh_by_co_dimension(8, self, 1, 1)
+                c1_colors = [cells_c1_con_to_color[id] for id in c0_cells]
+                cell_data.__setitem__("c1_colors", [c1_colors])
+
             mesh_1d = meshio.Mesh(self.points, cells=cells_dict, cell_data=cell_data)
             meshio.write("geometric_mesh_1d.vtk", mesh_1d)
 
@@ -577,7 +634,9 @@ class Mesh:
             if self.cells[id].dimension != dimension:
                 self.gather_graph_edges(dimension, self.cells[id], tuple_id_list)
 
-    def gather_graph_edges_on_physical_tags(self, physical_tags, dimension, mesh_cell, tuple_id_list):
+    def gather_graph_edges_on_physical_tags(
+        self, physical_tags, dimension, mesh_cell, tuple_id_list
+    ):
         if mesh_cell.id is None:
             return
 
@@ -601,7 +660,9 @@ class Mesh:
                 continue
             tuple_id_list.append((mesh_cell.id, id))
             if self.cells[id].dimension != dimension:
-                self.gather_graph_edges_on_physical_tags(physical_tags, dimension, self.cells[id], tuple_id_list)
+                self.gather_graph_edges_on_physical_tags(
+                    physical_tags, dimension, self.cells[id], tuple_id_list
+                )
 
     def build_graph(self, dimension, co_dimension):
         disjoint_cells = [
@@ -640,7 +701,9 @@ class Mesh:
 
         tuple_id_list = [[] for i in range(len(disjoint_cells))]
         for i, cell_i in enumerate(disjoint_cells):
-            self.gather_graph_edges_on_physical_tags(physical_tags, dimension - co_dimension, cell_i, tuple_id_list[i])
+            self.gather_graph_edges_on_physical_tags(
+                physical_tags, dimension - co_dimension, cell_i, tuple_id_list[i]
+            )
         tuple_id_list = list(itertools.chain(*tuple_id_list))
 
         graph = nx.from_edgelist(tuple_id_list, create_using=nx.DiGraph)
@@ -685,7 +748,6 @@ class Mesh:
             self.embed_shape_normals[embed_shape.physical_tag] = (n, xc)
 
     def cut_conformity_on_embed_shapes(self):
-
         # As alternative skins can be identified with
         # for the positive side sp_<physical_tag>
         # for the negative side sm_<physical_tag>
@@ -741,7 +803,9 @@ class Mesh:
                 mesh_cell.set_material_id(mat_id_p)
                 mesh_cell.set_physical_name("sp_" + str(mat_id))
                 mesh_cell.id = cell_id
-                mesh_cell.set_sub_cells_ids(mesh_cell.dimension, np.array([cell_id, f_cells[i].id]))
+                mesh_cell.set_sub_cells_ids(
+                    mesh_cell.dimension, np.array([cell_id, f_cells[i].id])
+                )
                 self.cells = np.append(self.cells, mesh_cell)
                 map_edge_p[f_cells[i].id] = cell_id
 
@@ -752,7 +816,9 @@ class Mesh:
                 mesh_cell.set_material_id(mat_id_n)
                 mesh_cell.set_physical_name("sm_" + str(mat_id))
                 mesh_cell.id = cell_id
-                mesh_cell.set_sub_cells_ids(mesh_cell.dimension, np.array([cell_id, f_cells[i].id]))
+                mesh_cell.set_sub_cells_ids(
+                    mesh_cell.dimension, np.array([cell_id, f_cells[i].id])
+                )
                 self.cells = np.append(self.cells, mesh_cell)
                 map_edge_n[f_cells[i].id] = cell_id
 
@@ -766,7 +832,6 @@ class Mesh:
 
             for cell_n_id in cells_n:
                 self.update_entity_with_dimension(1, cell_n_id, map_edge_n)
-
 
             # vertices duplication
             vertices = np.unique(
@@ -867,8 +932,6 @@ class Mesh:
             for cell_n_id in map_edge_n.values():
                 self.update_entity_with_dimension(0, cell_n_id, map_vertex_n)
                 self.update_nodes_ids(cell_n_id, map_node_n)
-
-
 
         return map_fracs_edge
 
@@ -1441,8 +1504,9 @@ class Mesh:
         self.next_d_m_1(seed_id, skin_cell_id, id, graph, closed_q)
         return closed_q
 
-    def next_d_m_1_cell(self, fracture_tags, seed_id, cell_id, cell_m_1_id, graph, closed_q):
-
+    def next_d_m_1_cell(
+        self, fracture_tags, seed_id, cell_id, cell_m_1_id, graph, closed_q
+    ):
         pc = list(graph.predecessors(cell_m_1_id))
         neighs = [id for id in pc if self.cells[id].material_id not in fracture_tags]
         assert len(neighs) == 2
@@ -1464,10 +1528,11 @@ class Mesh:
             # print("cell_dimension  : ", self.cells[fcell_ids[0]].dimension)
             # print("cell_p_name  : ", self.cells[fcell_ids[0]].physical_name)
             # print("cell_xc  : ", barycenter(self.points[self.cells[fcell_ids[0]].node_tags]))
-            self.next_d_m_1_cell(fracture_tags, seed_id, fcell_ids[0], ids[0], graph, closed_q)
+            self.next_d_m_1_cell(
+                fracture_tags, seed_id, fcell_ids[0], ids[0], graph, closed_q
+            )
 
     def circulate_internal_bc_from_domain(self):
-
         assert self.dimension == 2
         domain: Domain = self.conformal_mesher.domain
         shapes = domain.shapes[self.dimension]

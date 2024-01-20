@@ -146,7 +146,7 @@ The main structure of the proyect
 	- DoFMap
 	- FESpace: Mesh, MeshTopology, DoFMap
 	- FESpaces: Mesh, MeshTopology, list(FESpace), DoFMap
-	- Field
+	- space
 
 ### FEForms:
 	- L2, H1, Hdiv and Hcurl proyectors
@@ -169,9 +169,7 @@ for d in {0,1,2,3}:
 	Hdiv-tensors
 	Hcurl-tensors
 
-### PostProcessor:
-
-#### Discrete Field:
+#### Discrete space -> Discrete space:
 	From cases:
 	* (1) scalar H1/L2-conforming functions
 	* (2) vector Hdiv-conforming functions
@@ -180,14 +178,18 @@ for d in {0,1,2,3}:
 	* (4) From (1) vector, tensor H1/L2-conforming functions
 	* (5) From (2) tensor Hdiv-conforming functions
 	* (6) From (3) tensor Hcurl-conforming functions
-	To unify variables of the kind (1), (2), (3), (4), (5), and (6) the notion of a field should be introduced. 
-	A field is a physical quantity, represented by a scalar, vector, or tensor, that has a value for each point in space and time. 
-	The abstraction of a field in the context of FE approximations should include:
+	To unify variables of the kind (1), (2), (3), (4), (5), and (6) the notion of a space should be introduced. 
+	A space is a physical quantity, represented by a scalar, vector, or tensor, that has a value for each point in space and time. 
+	The abstraction of a space in the context of FE approximations should include:
 	* Conformity: [H1, Hcurl, Hdiv] x discontinuous, with discontinuous = [False, True]
 	* List of elements: list(FiniteElement)
 	* DoFMap
-	* The number of subfields: 0 < n_components represents number of repeated instances of cases (1), (2) and (3)
+	* The number of subspaces: 0 < n_components represents number of repeated instances of cases (1), (2) and (3)
 	* k_order: polynomial order of approximation
+#### A multiphysic:
+	* Finite element space
+
+### PostProcessor:
 
 ### Notes on geometry representation and processing:
 The following refactors are needed: https://dev.opencascade.org/sites/default/files/pdf/Topology.pdf
@@ -218,17 +220,17 @@ The best local vectorization occurs in eliminating integration point loops
 	
 	Performance for
 	- 3D laplacian operator
-	- six component field
+	- six component space
 	- h = 1/16
 	- k_order = 3
 	
 	h-size:  0.0625
-	Field:: DoFMap construction time: 1.7416038513183594 seconds
-	Field:: Number of processed elements: 18842
-	Field:: Element construction time: 128.50061893463135 seconds
-	Field:: DoFMap construction time: 0.31716299057006836 seconds
-	Field:: Number of processed elements: 3700
-	Field:: Element construction time: 7.492000102996826 seconds
+	space:: DoFMap construction time: 1.7416038513183594 seconds
+	space:: Number of processed elements: 18842
+	space:: Element construction time: 128.50061893463135 seconds
+	space:: DoFMap construction time: 0.31716299057006836 seconds
+	space:: Number of processed elements: 3700
+	space:: Element construction time: 7.492000102996826 seconds
 	n_dof:  557622
 	Triplets creation time: 0.08223390579223633 seconds
 	Assembly time: 135.04999828338623 seconds
@@ -239,18 +241,18 @@ The best local vectorization occurs in eliminating integration point loops
 	
 	Performance for:
 	- 3D second-order Cosserat operator
-	- Six component field
+	- Six component space
 	- h = 1/1
 	- l = 3
 	- k_order = 2
 	- 	
 	h-size:  1.0
 	l-refi:  3
-	DiscreteField:: DoFMap construction time: 0.8933699131011963 seconds
-	DiscreteField:: Number of processed elements: 12288
-	DiscreteField:: Elements construction time: 46.39259123802185 seconds
-	DiscreteField:: Number of processed bc elements: 1536
-	DiscreteField:: Boundary Elements construction time: 2.3282089233398438 seconds
+	DiscreteSpace:: DoFMap construction time: 0.8933699131011963 seconds
+	DiscreteSpace:: Number of processed elements: 12288
+	DiscreteSpace:: Elements construction time: 46.39259123802185 seconds
+	DiscreteSpace:: Number of processed bc elements: 1536
+	DiscreteSpace:: Boundary Elements construction time: 2.3282089233398438 seconds
 	n_dof:  107814
 	Triplets creation time: 0.09861302375793457 seconds
 	Assembly time: 174.8708040714264 seconds
@@ -261,18 +263,18 @@ The best local vectorization occurs in eliminating integration point loops
 	
 	Performance for (Simulation not complete):
 	- 3D second-order Cosserat operator
-	- Six component field
+	- Six component space
 	- h = 1/1
 	- l = 4
 	- k_order = 2
 	
 	h-size:  1.0
 	l-refi:  4
-	DiscreteField:: DoFMap construction time: 9.730278968811035 seconds
-	DiscreteField:: Number of processed elements: 98304
-	DiscreteField:: Elements construction time: 334.8427629470825 seconds
-	DiscreteField:: Number of processed bc elements: 6144
-	DiscreteField:: Boundary Elements construction time: 8.834323406219482 seconds
+	DiscreteSpace:: DoFMap construction time: 9.730278968811035 seconds
+	DiscreteSpace:: Number of processed elements: 98304
+	DiscreteSpace:: Elements construction time: 334.8427629470825 seconds
+	DiscreteSpace:: Number of processed bc elements: 6144
+	DiscreteSpace:: Boundary Elements construction time: 8.834323406219482 seconds
 	n_dof:  823878
 	Triplets creation time: 4.465027093887329 seconds
 	Assembly time: 1393.5477249622345 seconds

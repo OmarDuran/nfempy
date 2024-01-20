@@ -1,5 +1,6 @@
-import numpy as np
 import networkx as nx
+import numpy as np
+
 from geometry.shape import Shape
 
 

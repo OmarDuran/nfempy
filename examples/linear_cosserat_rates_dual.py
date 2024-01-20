@@ -44,13 +44,12 @@ from geometry.shape_manipulation import ShapeManipulation
 from geometry.vertex import Vertex
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
-from spaces.discrete_field import DiscreteField
+from spaces.discrete_space import DiscreteSpace
 from spaces.dof_map import DoFMap
 from topology.mesh_topology import MeshTopology
 
 
 def matrix_plot(J, sparse_q=True):
-
     if sparse_q:
         plot.matshow(J.todense())
     else:
@@ -61,7 +60,6 @@ def matrix_plot(J, sparse_q=True):
 
 
 def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
-
     dim = gmesh.dimension
     # Material data
 
@@ -80,34 +78,34 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
     int_order = 2 * k_order + 1
     family_sigma = "BDM"
     family_potential = "Lagrange"
-    s_field = DiscreteField(dim, s_components, family_sigma, k_order, gmesh)
-    u_field = DiscreteField(
+    s_space = DiscreteSpace(dim, s_components, family_sigma, k_order, gmesh)
+    u_space = DiscreteSpace(
         dim,
         u_components,
         family_potential,
         k_order - 1,
         gmesh,
-        integration_oder=int_order,
+        integration_order=int_order,
     )
-    t_field = DiscreteField(
+    t_space = DiscreteSpace(
         dim,
         t_components,
         family_potential,
         k_order - 1,
         gmesh,
-        integration_oder=int_order,
+        integration_order=int_order,
     )
 
-    # u_field.build_structures([2, 3])
+    # u_space.build_structures([2, 3])
     if dim == 2:
-        s_field.build_structures([2, 3, 4, 5])
+        s_space.build_structures([2, 3, 4, 5])
     elif dim == 3:
-        s_field.build_structures([2, 3, 4, 5, 6, 7])
+        s_space.build_structures([2, 3, 4, 5, 6, 7])
 
-    u_field.make_discontinuous()
-    t_field.make_discontinuous()
-    u_field.build_structures()
-    t_field.build_structures()
+    u_space.make_discontinuous()
+    t_space.make_discontinuous()
+    u_space.build_structures()
+    t_space.build_structures()
 
     st = time.time()
     # Assembler
@@ -116,18 +114,18 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
     n_dof_g = 0
     cell_map = {}
 
-    s_n_els = len(s_field.elements)
-    u_n_els = len(u_field.elements)
-    t_n_els = len(t_field.elements)
+    s_n_els = len(s_space.elements)
+    u_n_els = len(u_space.elements)
+    t_n_els = len(t_space.elements)
     assert s_n_els == u_n_els == t_n_els
 
     components = (s_components, u_components, t_components)
-    fields = (s_field, u_field, t_field)
+    spaces = (s_space, u_space, t_space)
 
     for i in range(s_n_els):
-        s_element = s_field.elements[i]
-        u_element = u_field.elements[i]
-        t_element = t_field.elements[i]
+        s_element = s_space.elements[i]
+        u_element = u_space.elements[i]
+        t_element = t_space.elements[i]
         cell = s_element.data.cell
         elements = (s_element, u_element, t_element)
 
@@ -139,7 +137,7 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
         cell_map.__setitem__(cell.id, c_size)
         c_size = c_size + n_dof * n_dof
 
-    for element in u_field.bc_elements:
+    for element in u_space.bc_elements:
         cell = element.data.cell
         n_dof = 0
         for n_entity_dofs in element.basis_generator.num_entity_dofs:
@@ -152,8 +150,8 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
     data = np.zeros((c_size), dtype=np.float64)
 
     n_dof_g = 0
-    for field in fields:
-        n_dof_g += field.dof_map.dof_number()
+    for space in spaces:
+        n_dof_g += space.dof_map.dof_number()
     rg = np.zeros(n_dof_g)
     print("n_dof: ", n_dof_g)
 
@@ -277,18 +275,15 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
             [-f_rhs_x(x, y, z), -f_rhs_y(x, y, z), -f_rhs_z(x, y, z)]
         )
 
-    def scatter_form_data(
-        i, m_lambda, m_mu, f_rhs, fields, cell_map, row, col, data
-    ):
+    def scatter_form_data(i, m_lambda, m_mu, f_rhs, spaces, cell_map, row, col, data):
+        dim = spaces[0].dimension
+        s_components = spaces[0].n_comp
+        u_components = spaces[1].n_comp
+        t_components = spaces[2].n_comp
 
-        dim = fields[0].dimension
-        s_components = fields[0].n_comp
-        u_components = fields[1].n_comp
-        t_components = fields[2].n_comp
-
-        s_data: ElementData = fields[0].elements[i].data
-        u_data: ElementData = fields[1].elements[i].data
-        t_data: ElementData = fields[2].elements[i].data
+        s_data: ElementData = spaces[0].elements[i].data
+        u_data: ElementData = spaces[1].elements[i].data
+        t_data: ElementData = spaces[2].elements[i].data
 
         cell = s_data.cell
 
@@ -304,7 +299,7 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
         t_phi_tab = t_data.basis.phi
 
         # destination indexes
-        dest = u_field.dof_map.destination_indices(cell.id)
+        dest = u_space.dof_map.destination_indices(cell.id)
 
         n_s_phi = s_phi_tab.shape[2]
         n_u_phi = u_phi_tab.shape[2]
@@ -375,15 +370,12 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
         data[block_sequ] += j_el.ravel()
 
     [
-        scatter_form_data(
-            i, m_lambda, m_mu, f_rhs, fields, cell_map, row, col, data
-        )
+        scatter_form_data(i, m_lambda, m_mu, f_rhs, spaces, cell_map, row, col, data)
         for i in range(s_n_els)
     ]
 
-    def scatter_bc_form_data(element, u_field, cell_map, row, col, data):
-
-        n_components = u_field.n_comp
+    def scatter_bc_form_data(element, u_space, cell_map, row, col, data):
+        n_components = u_space.n_comp
         el_data: ElementData = element.data
 
         cell = el_data.cell
@@ -396,7 +388,7 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
         inv_jac = el_data.mapping.inv_jac
 
         # find high-dimension neigh
-        entity_map = u_field.dof_map.mesh_topology.entity_map_by_dimension(
+        entity_map = u_space.dof_map.mesh_topology.entity_map_by_dimension(
             cell.dimension
         )
         neigh_list = list(entity_map.predecessors(cell.id))
@@ -404,12 +396,12 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
         assert neigh_check_q
 
         neigh_cell_id = neigh_list[0]
-        neigh_cell_index = u_field.id_to_element[neigh_cell_id]
-        neigh_cell = u_field.elements[neigh_cell_index].data.cell
+        neigh_cell_index = u_space.id_to_element[neigh_cell_id]
+        neigh_cell = u_space.elements[neigh_cell_index].data.cell
 
         # destination indexes
-        dest_neigh = u_field.dof_map.destination_indices(neigh_cell_id)
-        dest = u_field.dof_map.bc_destination_indices(neigh_cell_id, cell.id)
+        dest_neigh = u_space.dof_map.destination_indices(neigh_cell_id)
+        dest = u_space.dof_map.bc_destination_indices(neigh_cell_id, cell.id)
 
         n_phi = phi_tab.shape[2]
         n_dof = n_phi * n_components
@@ -438,8 +430,8 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
         data[block_sequ] += j_el.ravel()
 
     [
-        scatter_bc_form_data(element, u_field, cell_map, row, col, data)
-        for element in u_field.bc_elements
+        scatter_bc_form_data(element, u_space, cell_map, row, col, data)
+        for element in u_space.bc_elements
     ]
 
     jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
@@ -456,9 +448,9 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
     print("Linear solver time:", elapsed_time, "seconds")
 
     # Computing L2 error
-    def compute_l2_error(element, u_field):
+    def compute_l2_error(element, u_space):
         l2_error = 0.0
-        n_components = u_field.n_comp
+        n_components = u_space.n_comp
         el_data = element.data
         cell = el_data.cell
         points = el_data.quadrature.points
@@ -470,7 +462,7 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
         inv_jac = el_data.mapping.inv_jac
 
         # scattering dof
-        dest = u_field.dof_map.destination_indices(cell.id)
+        dest = u_space.dof_map.destination_indices(cell.id)
         alpha_l = alpha[dest]
 
         # vectorization
@@ -483,7 +475,7 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
         return l2_error
 
     st = time.time()
-    error_vec = [compute_l2_error(element, u_field) for element in u_field.elements]
+    error_vec = [compute_l2_error(element, u_space) for element in u_space.elements]
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
@@ -493,28 +485,28 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
     if write_vtk_q:
         # post-process solution
         st = time.time()
-        cellid_to_element = dict(zip(u_field.element_ids, u_field.elements))
+        cellid_to_element = dict(zip(u_space.element_ids, u_space.elements))
         # writing solution on mesh points
-        vertices = u_field.mesh_topology.entities_by_dimension(0)
+        vertices = u_space.mesh_topology.entities_by_dimension(0)
         fh_data = np.zeros((len(gmesh.points), n_components))
         fe_data = np.zeros((len(gmesh.points), n_components))
-        cell_vertex_map = u_field.mesh_topology.entity_map_by_dimension(0)
+        cell_vertex_map = u_space.mesh_topology.entity_map_by_dimension(0)
         for id in vertices:
             if not cell_vertex_map.has_node(id):
                 continue
 
             pr_ids = list(cell_vertex_map.predecessors(id))
             cell = gmesh.cells[pr_ids[0]]
-            if cell.dimension != u_field.dimension:
+            if cell.dimension != u_space.dimension:
                 continue
 
             element = cellid_to_element[pr_ids[0]]
 
             # scattering dof
-            dest = u_field.dof_map.destination_indices(cell.id)
+            dest = u_space.dof_map.destination_indices(cell.id)
             alpha_l = alpha[dest]
 
-            par_points = basix.geometry(u_field.element_type)
+            par_points = basix.geometry(u_space.element_type)
 
             target_node_id = gmesh.cells[id].node_tags[0]
             par_point_id = np.array(
@@ -526,7 +518,7 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
             )
 
             points = gmesh.points[target_node_id]
-            if u_field.dimension != 0:
+            if u_space.dimension != 0:
                 points = par_points[par_point_id]
 
             # evaluate mapping
@@ -543,9 +535,9 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
             fe_data[target_node_id] = f_e.ravel()
 
         mesh_points = gmesh.points
-        con_d = np.array([element.data.cell.node_tags for element in u_field.elements])
+        con_d = np.array([element.data.cell.node_tags for element in u_space.elements])
         meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
-        cells_dict = {meshio_cell_types[u_field.dimension]: con_d}
+        cells_dict = {meshio_cell_types[u_space.dimension]: con_d}
         p_data_dict = {"u_h": fh_data, "u_exact": fe_data}
 
         mesh = meshio.Mesh(
@@ -563,7 +555,6 @@ def hdiv_elasticity(k_order, gmesh, write_vtk_q=False):
 
 
 def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
-
     dim = gmesh.dimension
     # Material data
 
@@ -579,12 +570,12 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
     family = "BDM"
 
-    u_field = DiscreteField(dim, n_components, family, k_order, gmesh)
-    # u_field.build_structures([2, 3])
+    u_space = DiscreteSpace(dim, n_components, family, k_order, gmesh)
+    # u_space.build_structures([2, 3])
     if dim == 2:
-        u_field.build_structures([2, 3, 4, 5])
+        u_space.build_structures([2, 3, 4, 5])
     elif dim == 3:
-        u_field.build_structures([2, 3, 4, 5, 6, 7])
+        u_space.build_structures([2, 3, 4, 5, 6, 7])
 
     st = time.time()
     # Assembler
@@ -592,7 +583,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     c_size = 0
     n_dof_g = 0
     cell_map = {}
-    for element in u_field.elements:
+    for element in u_space.elements:
         cell = element.data.cell
         n_dof = 0
         for n_entity_dofs in element.basis_generator.num_entity_dofs:
@@ -600,7 +591,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         cell_map.__setitem__(cell.id, c_size)
         c_size = c_size + n_dof * n_dof
 
-    for element in u_field.bc_elements:
+    for element in u_space.bc_elements:
         cell = element.data.cell
         n_dof = 0
         for n_entity_dofs in element.basis_generator.num_entity_dofs:
@@ -612,7 +603,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     col = np.zeros((c_size), dtype=np.int64)
     data = np.zeros((c_size), dtype=np.float64)
 
-    n_dof_g = u_field.dof_map.dof_number()
+    n_dof_g = u_space.dof_map.dof_number()
     rg = np.zeros(n_dof_g)
     print("n_dof: ", n_dof_g)
 
@@ -881,19 +872,18 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         m_kappa,
         m_gamma,
         f_rhs,
-        u_field,
+        u_space,
         cell_map,
         row,
         col,
         data,
     ):
-
-        n_components = u_field.n_comp
+        n_components = u_space.n_comp
         el_data: ElementData = element.data
 
         n_comp_u = 2
         n_comp_t = 1
-        if u_field.dimension == 3:
+        if u_space.dimension == 3:
             n_comp_u = 3
             n_comp_t = 3
 
@@ -907,7 +897,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         inv_jac = el_data.mapping.inv_jac
 
         # destination indexes
-        dest = u_field.dof_map.destination_indices(cell.id)
+        dest = u_space.dof_map.destination_indices(cell.id)
 
         n_phi = phi_tab.shape[2]
         n_dof = n_phi * n_components
@@ -925,7 +915,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         assymetric_block = np.zeros((n_phi * n_comp_t, n_phi * n_comp_u))
         axial_pairs_idx = [[1, 0]]
         axial_dest_pairs_idx = [[0, 1]]
-        if u_field.dimension == 3:
+        if u_space.dimension == 3:
             axial_pairs_idx = [[2, 1], [0, 2], [1, 0]]
             axial_dest_pairs_idx = [[1, 2], [2, 0], [0, 1]]
 
@@ -1025,18 +1015,17 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             m_kappa,
             m_gamma,
             f_rhs,
-            u_field,
+            u_space,
             cell_map,
             row,
             col,
             data,
         )
-        for element in u_field.elements
+        for element in u_space.elements
     ]
 
-    def scatter_bc_form_data(element, u_field, cell_map, row, col, data):
-
-        n_components = u_field.n_comp
+    def scatter_bc_form_data(element, u_space, cell_map, row, col, data):
+        n_components = u_space.n_comp
         el_data: ElementData = element.data
 
         cell = el_data.cell
@@ -1049,7 +1038,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         inv_jac = el_data.mapping.inv_jac
 
         # find high-dimension neigh
-        entity_map = u_field.dof_map.mesh_topology.entity_map_by_dimension(
+        entity_map = u_space.dof_map.mesh_topology.entity_map_by_dimension(
             cell.dimension
         )
         neigh_list = list(entity_map.predecessors(cell.id))
@@ -1057,12 +1046,12 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         assert neigh_check_q
 
         neigh_cell_id = neigh_list[0]
-        neigh_cell_index = u_field.id_to_element[neigh_cell_id]
-        neigh_cell = u_field.elements[neigh_cell_index].data.cell
+        neigh_cell_index = u_space.id_to_element[neigh_cell_id]
+        neigh_cell = u_space.elements[neigh_cell_index].data.cell
 
         # destination indexes
-        dest_neigh = u_field.dof_map.destination_indices(neigh_cell_id)
-        dest = u_field.dof_map.bc_destination_indices(neigh_cell_id, cell.id)
+        dest_neigh = u_space.dof_map.destination_indices(neigh_cell_id)
+        dest = u_space.dof_map.bc_destination_indices(neigh_cell_id, cell.id)
 
         n_phi = phi_tab.shape[2]
         n_dof = n_phi * n_components
@@ -1091,8 +1080,8 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         data[block_sequ] += j_el.ravel()
 
     [
-        scatter_bc_form_data(element, u_field, cell_map, row, col, data)
-        for element in u_field.bc_elements
+        scatter_bc_form_data(element, u_space, cell_map, row, col, data)
+        for element in u_space.bc_elements
     ]
 
     jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
@@ -1109,9 +1098,9 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     print("Linear solver time:", elapsed_time, "seconds")
 
     # Computing L2 error
-    def compute_l2_error(element, u_field):
+    def compute_l2_error(element, u_space):
         l2_error = 0.0
-        n_components = u_field.n_comp
+        n_components = u_space.n_comp
         el_data = element.data
         cell = el_data.cell
         points = el_data.quadrature.points
@@ -1123,7 +1112,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         inv_jac = el_data.mapping.inv_jac
 
         # scattering dof
-        dest = u_field.dof_map.destination_indices(cell.id)
+        dest = u_space.dof_map.destination_indices(cell.id)
         alpha_l = alpha[dest]
 
         # vectorization
@@ -1135,7 +1124,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
         return l2_error
 
     st = time.time()
-    error_vec = [compute_l2_error(element, u_field) for element in u_field.elements]
+    error_vec = [compute_l2_error(element, u_space) for element in u_space.elements]
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
@@ -1145,28 +1134,28 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
     if write_vtk_q:
         # post-process solution
         st = time.time()
-        cellid_to_element = dict(zip(u_field.element_ids, u_field.elements))
+        cellid_to_element = dict(zip(u_space.element_ids, u_space.elements))
         # writing solution on mesh points
-        vertices = u_field.mesh_topology.entities_by_dimension(0)
+        vertices = u_space.mesh_topology.entities_by_dimension(0)
         fh_data = np.zeros((len(gmesh.points), n_components))
         fe_data = np.zeros((len(gmesh.points), n_components))
-        cell_vertex_map = u_field.mesh_topology.entity_map_by_dimension(0)
+        cell_vertex_map = u_space.mesh_topology.entity_map_by_dimension(0)
         for id in vertices:
             if not cell_vertex_map.has_node(id):
                 continue
 
             pr_ids = list(cell_vertex_map.predecessors(id))
             cell = gmesh.cells[pr_ids[0]]
-            if cell.dimension != u_field.dimension:
+            if cell.dimension != u_space.dimension:
                 continue
 
             element = cellid_to_element[pr_ids[0]]
 
             # scattering dof
-            dest = u_field.dof_map.destination_indices(cell.id)
+            dest = u_space.dof_map.destination_indices(cell.id)
             alpha_l = alpha[dest]
 
-            par_points = basix.geometry(u_field.element_type)
+            par_points = basix.geometry(u_space.element_type)
 
             target_node_id = gmesh.cells[id].node_tags[0]
             par_point_id = np.array(
@@ -1178,7 +1167,7 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             )
 
             points = gmesh.points[target_node_id]
-            if u_field.dimension != 0:
+            if u_space.dimension != 0:
                 points = par_points[par_point_id]
 
             # evaluate mapping
@@ -1195,9 +1184,9 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
             fe_data[target_node_id] = f_e.ravel()
 
         mesh_points = gmesh.points
-        con_d = np.array([element.data.cell.node_tags for element in u_field.elements])
+        con_d = np.array([element.data.cell.node_tags for element in u_space.elements])
         meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
-        cells_dict = {meshio_cell_types[u_field.dimension]: con_d}
+        cells_dict = {meshio_cell_types[u_space.dimension]: con_d}
         p_data_dict = {"u_h": fh_data, "u_exact": fe_data}
 
         mesh = meshio.Mesh(
@@ -1215,7 +1204,6 @@ def hdiv_cosserat_elasticity(k_order, gmesh, write_vtk_q=False):
 
 
 def create_domain(dimension):
-
     if dimension == 1:
         box_points = np.array([[0, 0, 0], [1, 0, 0]])
         domain = build_box_1D(box_points)
@@ -1259,7 +1247,6 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 
 def main():
-
     k_order = 1
     h = 1.0
     n_ref = 1
