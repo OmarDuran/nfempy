@@ -1,874 +1,404 @@
-import copy
-import csv
-import functools
-import marshal
-import sys
 import time
 
-# from itertools import permutations
-from functools import partial, reduce
-
-import basix
-import matplotlib.colors as mcolors
-
-# import matplotlib.pyplot as plt
-import matplotlib.pyplot as plt
-import matplotlib.pyplot as plot
-import meshio
-import networkx as nx
 import numpy as np
-import pypardiso as sp_solver
-import scipy.sparse as sp
-import auto_diff as ad
-from auto_diff.vecvalder import VecValDer
+import scipy
+from petsc4py import PETSc
 
-from numpy import linalg as la
-from scipy.sparse import coo_matrix
-from shapely.geometry import LineString
-
-import geometry.fracture_network as fn
 from basis.element_data import ElementData
-from basis.finite_element import FiniteElement
 from geometry.domain import Domain
-from geometry.domain_market import (
-    build_box_1D,
-    build_box_2D,
-    build_box_2D_with_lines,
-    build_box_3D,
-    build_box_3D_with_planes,
-    build_disjoint_lines,
-    read_fractures_file,
-)
-from geometry.edge import Edge
-from geometry.geometry_builder import GeometryBuilder
-from geometry.geometry_cell import GeometryCell
-from geometry.mapping import evaluate_linear_shapes, evaluate_mapping, store_mapping
-from geometry.shape_manipulation import ShapeManipulation
-from geometry.vertex import Vertex
+from geometry.domain_market import build_box_1D, build_box_2D, build_box_3D
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
-from spaces.discrete_field import DiscreteField
-from spaces.dof_map import DoFMap
-from topology.mesh_topology import MeshTopology
-from numba import njit, types
-
-def matrix_plot(J, sparse_q=True):
-
-    if sparse_q:
-        plot.matshow(J.todense())
-    else:
-        plot.matshow(J)
-    plot.colorbar(orientation="vertical")
-    plot.set_cmap("seismic")
-    plot.show()
+from postprocess.l2_error_post_processor import l2_error
+from postprocess.projectors import l2_projector
+from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
+from spaces.product_space import ProductSpace
+from weak_forms.laplace_dual_weak_form import (
+    LaplaceDualWeakForm,
+    LaplaceDualWeakFormBCDirichlet,
+)
+from weak_forms.laplace_primal_weak_form import (
+    LaplacePrimalWeakForm,
+    LaplacePrimalWeakFormBCDirichlet,
+)
 
 
 def h1_laplace(k_order, gmesh, write_vtk_q=False):
-
     dim = gmesh.dimension
-    # Material data
-
-    m_kappa = 1.0
 
     # FESpace: data
-    n_components = 1
+    p_k_order = k_order
 
-    discontinuous = True
-    u_family = "Lagrange"
+    p_components = 1
+    family = "Lagrange"
 
-    # potential field
-    u_field = DiscreteField(dim, n_components, u_family, k_order, gmesh)
+    discrete_spaces_data = {
+        "p": (dim, p_components, family, p_k_order, gmesh),
+    }
 
-    if dim == 2:
-        u_field.build_structures([2, 3, 4, 5])
-    elif dim == 3:
-        u_field.build_structures([2, 3, 4, 5, 6, 7])
+    p_disc_Q = False
+    discrete_spaces_disc = {
+        "p": p_disc_Q,
+    }
 
-    st = time.time()
-    # Assembler
-    # Triplets data
-    c_size = 0
-    n_dof_g = 0
-    cell_map = {}
-    for element in u_field.elements:
-        cell = element.data.cell
-        n_dof = 0
-        for n_entity_dofs in element.basis_generator.num_entity_dofs:
-            n_dof = n_dof + sum(n_entity_dofs) * n_components
-        cell_map.__setitem__(cell.id, c_size)
-        c_size = c_size + n_dof * n_dof
+    p_field_bc_physical_tags = [2, 3, 4, 5]
+    if dim == 3:
+        p_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
+    discrete_spaces_bc_physical_tags = {
+        "p": p_field_bc_physical_tags,
+    }
 
-    for element in u_field.bc_elements:
-        cell = element.data.cell
-        n_dof = 0
-        for n_entity_dofs in element.basis_generator.num_entity_dofs:
-            n_dof = n_dof + sum(n_entity_dofs) * n_components
-        cell_map.__setitem__(cell.id, c_size)
-        c_size = c_size + n_dof * n_dof
+    fe_space = ProductSpace(discrete_spaces_data)
+    fe_space.make_subspaces_discontinuous(discrete_spaces_disc)
+    fe_space.build_structures(discrete_spaces_bc_physical_tags)
 
-    row = np.zeros((c_size), dtype=np.int64)
-    col = np.zeros((c_size), dtype=np.int64)
-    data = np.zeros((c_size), dtype=np.float64)
-
-    n_dof_g = u_field.dof_map.dof_number()
+    n_dof_g = fe_space.n_dof
     rg = np.zeros(n_dof_g)
+    alpha = np.zeros(n_dof_g)
     print("n_dof: ", n_dof_g)
 
-    et = time.time()
-    elapsed_time = et - st
-    print("Triplets creation time:", elapsed_time, "seconds")
+    # Assembler
+    st = time.time()
+    A = PETSc.Mat()
+    A.createAIJ([n_dof_g, n_dof_g])
+
+    # Material data
+    m_kappa = 1.0
+
+    def f_kappa(x, y, z):
+        return m_kappa
 
     st = time.time()
 
     # exact solution
-    f_exact = lambda x, y, z: np.array([(1.0 - x) * x * (1.0 - y) * y])
+    p_exact = lambda x, y, z: np.array([(1.0 - x) * x * (1.0 - y) * y])
     f_rhs = lambda x, y, z: np.array([2 * (1 - x) * x + 2 * (1 - y) * y])
 
     if dim == 3:
-        f_exact = lambda x, y, z: np.array(
-            [(1.0 - x) * x * (1.0 - y) * y * (1.0 - z) * z])
+        p_exact = lambda x, y, z: np.array(
+            [(1.0 - x) * x * (1.0 - y) * y * (1.0 - z) * z]
+        )
 
         f_rhs = lambda x, y, z: np.array(
-            [2 * (1 - x) * x * (1 - y) * y + 2 * (1 - x) * x * (1 - z) * z + 2 * (
-                        1 - y) * y * (1 - z) * z]
+            [
+                2 * (1 - x) * x * (1 - y) * y
+                + 2 * (1 - x) * x * (1 - z) * z
+                + 2 * (1 - y) * y * (1 - z) * z
+            ]
         )
 
-    def scatter_form_data(
-        element, m_lambda, m_mu, f_rhs, u_field, cell_map, row, col, data
-    ):
+    m_functions = {
+        "rhs": f_rhs,
+        "kappa": f_kappa,
+    }
 
-        n_components = u_field.n_comp
-        el_data: ElementData = element.data
+    exact_functions = {
+        "p": p_exact,
+    }
 
-        cell = el_data.cell
-        points = el_data.quadrature.points
-        weights = el_data.quadrature.weights
-        phi_tab = el_data.basis.phi
+    weak_form = LaplacePrimalWeakForm(fe_space)
+    weak_form.functions = m_functions
+    bc_weak_form = LaplacePrimalWeakFormBCDirichlet(fe_space)
+    bc_weak_form.functions = exact_functions
 
-        x = el_data.mapping.x
-        det_jac = el_data.mapping.det_jac
-        inv_jac = el_data.mapping.inv_jac
-
+    def scatter_form_data(A, i, weak_form):
         # destination indexes
-        dest = u_field.dof_map.destination_indices(cell.id)
-
-        n_phi = phi_tab.shape[2]
-        n_dof = n_phi * n_components
-        js = (n_dof, n_dof)
-        rs = n_dof
-        j_el = np.zeros(js)
-        r_el = np.zeros(rs)
-
-        # Partial local vectorization
-        f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
-        phi_s_star = det_jac * weights * phi_tab[0, :, :, 0].T
-
-        for c in range(n_components):
-            b = c
-            e = (c + 1) * n_phi * n_components + 1
-            r_el[b:e:n_components] += phi_s_star @ f_val_star[c]
-
-        # vectorized blocks
-        phi_star_dirs = [[1, 2], [0, 2], [0, 1]]
-        for i, omega in enumerate(weights):
-            grad_phi = inv_jac[i].T @ phi_tab[1 : phi_tab.shape[0] + 1, i, :, 0]
-
-            for i_d in range(n_components):
-                for j_d in range(n_components):
-                    phi_outer = np.outer(grad_phi[j_d], grad_phi[i_d])
-                    stress_grad = m_mu * phi_outer
-                    if i_d == j_d:
-                        phi_outer_star = np.zeros((n_phi, n_phi))
-                        for d in phi_star_dirs[i_d]:
-                            phi_outer_star += np.outer(grad_phi[d], grad_phi[d])
-                        stress_grad += (
-                            m_lambda + m_mu
-                        ) * phi_outer + m_mu * phi_outer_star
-                    else:
-                        stress_grad += m_lambda * np.outer(grad_phi[i_d], grad_phi[j_d])
-                    j_el[
-                        i_d : n_dof + 1 : n_components, j_d : n_dof + 1 : n_components
-                    ] += (det_jac[i] * omega * stress_grad)
-
-        # scattering data
-        c_sequ = cell_map[cell.id]
+        dest = weak_form.space.destination_indexes(i)
+        alpha_l = alpha[dest]
+        r_el, j_el = weak_form.evaluate_form(i, alpha_l)
 
         # contribute rhs
         rg[dest] += r_el
 
         # contribute lhs
-        block_sequ = np.array(range(0, len(dest) * len(dest))) + c_sequ
-        row[block_sequ] += np.repeat(dest, len(dest))
-        col[block_sequ] += np.tile(dest, len(dest))
-        data[block_sequ] += j_el.ravel()
+        data = j_el.ravel()
+        row = np.repeat(dest, len(dest))
+        col = np.tile(dest, len(dest))
+        nnz = data.shape[0]
+        for k in range(nnz):
+            A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
-    def scatter_form_data_ad(
-        element, m_kappa, f_rhs, u_field, cell_map, row, col, data
-    ):
-
-        n_components = u_field.n_comp
-        el_data: ElementData = element.data
-
-        cell = el_data.cell
-        points = el_data.quadrature.points
-        weights = el_data.quadrature.weights
-        phi_tab = el_data.basis.phi
-
-        x = el_data.mapping.x
-        det_jac = el_data.mapping.det_jac
-        inv_jac = el_data.mapping.inv_jac
-
-        # destination indexes
-        dest = u_field.dof_map.destination_indices(cell.id)
-
-        n_phi = phi_tab.shape[2]
-        n_dof = n_phi * n_components
-        alpha = np.zeros(n_dof)
-
-        js = (n_dof, n_dof)
-        rs = n_dof
-        j_el = np.zeros(js)
-        r_el = np.zeros(rs)
-
-        # Partial local vectorization
-        f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
-        phi_s_star = det_jac * weights * phi_tab[0, :, :, 0].T
-        # constant directors
-        e1 = np.array([1, 0, 0])
-        e2 = np.array([0, 1, 0])
-        e3 = np.array([0, 0, 1])
-        with ad.AutoDiff(alpha) as alpha:
-
-                el_form = np.zeros(n_dof)
-                for c in range(n_components):
-                    b = c
-                    e = (c + 1) * n_phi * n_components + 1
-                    el_form[b:e:n_components] += phi_s_star @ f_val_star[c]
-
-                for i, omega in enumerate(weights):
-                    if dim == 2:
-                        inv_jac_m = np.vstack((inv_jac[i] @ e1, inv_jac[i] @ e2))
-                    else:
-                        inv_jac_m = np.vstack((inv_jac[i] @ e1, inv_jac[i] @ e2, inv_jac[i] @ e3))
-                    grad_phi = (inv_jac_m @ phi_tab[1: phi_tab.shape[0] + 1, i, :, 0]).T
-                    grad_uh = alpha @ grad_phi
-                    grad_uh *= m_kappa
-                    energy_h = (grad_phi @ grad_uh.T).reshape((n_dof,))
-                    el_form += det_jac[i] * omega * energy_h
-
-        r_el, j_el = el_form.val, el_form.der.reshape((n_dof,n_dof))
-
-        # scattering data
-        c_sequ = cell_map[cell.id]
+    def scatter_bc_form(A, i, bc_weak_form):
+        dest = fe_space.bc_destination_indexes(i)
+        alpha_l = alpha[dest]
+        r_el, j_el = bc_weak_form.evaluate_form(i, alpha_l)
 
         # contribute rhs
         rg[dest] += r_el
 
         # contribute lhs
-        block_sequ = np.array(range(0, len(dest) * len(dest))) + c_sequ
-        row[block_sequ] += np.repeat(dest, len(dest))
-        col[block_sequ] += np.tile(dest, len(dest))
-        data[block_sequ] += j_el.ravel()
+        data = j_el.ravel()
+        row = np.repeat(dest, len(dest))
+        col = np.tile(dest, len(dest))
+        nnz = data.shape[0]
+        for k in range(nnz):
+            A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
-    [
-        scatter_form_data_ad(
-            element, m_kappa, f_rhs, u_field, cell_map, row, col, data
-        )
-        for element in u_field.elements
-    ]
+    n_els = len(fe_space.discrete_spaces["p"].elements)
+    [scatter_form_data(A, i, weak_form) for i in range(n_els)]
 
+    n_bc_els = len(fe_space.discrete_spaces["p"].bc_elements)
+    [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
 
-    def scatter_bc_form_data(element, u_field, cell_map, row, col, data):
+    A.assemble()
 
-        n_components = u_field.n_comp
-        el_data: ElementData = element.data
-
-        cell = el_data.cell
-        points = el_data.quadrature.points
-        weights = el_data.quadrature.weights
-        phi_tab = el_data.basis.phi
-
-        x = el_data.mapping.x
-        det_jac = el_data.mapping.det_jac
-        inv_jac = el_data.mapping.inv_jac
-
-        # find high-dimension neigh
-        entity_map = u_field.dof_map.mesh_topology.entity_map_by_dimension(
-            cell.dimension
-        )
-        neigh_list = list(entity_map.predecessors(cell.id))
-        neigh_check_q = len(neigh_list) > 0
-        assert neigh_check_q
-
-        neigh_cell_id = neigh_list[0]
-        neigh_cell_index = u_field.id_to_element[neigh_cell_id]
-        neigh_cell = u_field.elements[neigh_cell_index].data.cell
-
-        # destination indexes
-        dest_neigh = u_field.dof_map.destination_indices(neigh_cell_id)
-        dest = u_field.dof_map.bc_destination_indices(neigh_cell_id, cell.id)
-
-        n_phi = phi_tab.shape[2]
-        n_dof = n_phi * n_components
-        js = (n_dof, n_dof)
-        j_el = np.zeros(js)
-
-        # local blocks
-        beta = 1.0e12
-        jac_block = np.zeros((n_phi, n_phi))
-        for i, omega in enumerate(weights):
-            phi = phi_tab[0, i, :, 0]
-            jac_block += beta * det_jac[i] * omega * np.outer(phi, phi)
-
-        for c in range(n_components):
-            b = c
-            e = (c + 1) * n_phi * n_components + 1
-            j_el[b:e:n_components, b:e:n_components] += jac_block
-
-        # scattering data
-        c_sequ = cell_map[cell.id]
-
-        # contribute lhs
-        block_sequ = np.array(range(0, len(dest) * len(dest))) + c_sequ
-        row[block_sequ] += np.repeat(dest, len(dest))
-        col[block_sequ] += np.tile(dest, len(dest))
-        data[block_sequ] += j_el.ravel()
-
-    [
-        scatter_bc_form_data(element, u_field, cell_map, row, col, data)
-        for element in u_field.bc_elements
-    ]
-
-    jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
     et = time.time()
     elapsed_time = et - st
     print("Assembly time:", elapsed_time, "seconds")
 
     # solving ls
     st = time.time()
-    # alpha = sp.linalg.spsolve(jg, rg)
-    alpha = sp_solver.spsolve(jg, rg)
+    ksp = PETSc.KSP().create()
+    ksp.setOperators(A)
+    b = A.createVecLeft()
+    b.array[:] = -rg
+    x = A.createVecRight()
+
+    # petsc_options = {"rtol": 1e-10, "atol": 1e-12, "divtol": 200, "max_it": 500}
+    ksp = PETSc.KSP().create()
+    ksp.create(PETSc.COMM_WORLD)
+    ksp.setOperators(A)
+    ksp.setType("fcg")
+    # ksp.setTolerances(**petsc_options)
+    # ksp.setTolerances(1e-10)
+    ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=500, max_it=2000)
+    ksp.setConvergenceHistory()
+    ksp.getPC().setType("ilu")
+    ksp.solve(b, x)
+    alpha = x.array
+
     et = time.time()
     elapsed_time = et - st
     print("Linear solver time:", elapsed_time, "seconds")
 
-    # Computing L2 error
-    def compute_l2_error(element, u_field):
-        l2_error = 0.0
-        n_components = u_field.n_comp
-        el_data = element.data
-        cell = el_data.cell
-        points = el_data.quadrature.points
-        weights = el_data.quadrature.weights
-        phi_tab = el_data.basis.phi
-
-        x = el_data.mapping.x
-        det_jac = el_data.mapping.det_jac
-        inv_jac = el_data.mapping.inv_jac
-
-        # scattering dof
-        dest = u_field.dof_map.destination_indices(cell.id)
-        alpha_l = alpha[dest]
-
-        # vectorization
-        n_phi = phi_tab.shape[2]
-        p_e_s = f_exact(x[:, 0], x[:, 1], x[:, 2])
-        alpha_star = np.array(np.split(alpha_l, n_phi))
-        p_h_s = (phi_tab[0, :, :, 0] @ alpha_star).T
-        diff_p = p_e_s - p_h_s
-        l2_error = np.sum(det_jac * weights * diff_p * diff_p)
-        return l2_error
-
     st = time.time()
-    error_vec = [compute_l2_error(element, u_field) for element in u_field.elements]
+    p_l2_error = l2_error(dim, fe_space, exact_functions, alpha)
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
-    l2_error = np.sqrt(functools.reduce(lambda x, y: x + y, error_vec))
-    print("L2-error: ", l2_error)
+    print("L2-error: ", p_l2_error)
 
     if write_vtk_q:
         # post-process solution
         st = time.time()
-        cellid_to_element = dict(zip(u_field.element_ids, u_field.elements))
-        # writing solution on mesh points
-        vertices = u_field.mesh_topology.entities_by_dimension(0)
-        fh_data = np.zeros((len(gmesh.points), n_components))
-        fe_data = np.zeros((len(gmesh.points), n_components))
-        cell_vertex_map = u_field.mesh_topology.entity_map_by_dimension(0)
-        for id in vertices:
-            if not cell_vertex_map.has_node(id):
-                continue
-
-            pr_ids = list(cell_vertex_map.predecessors(id))
-            cell = gmesh.cells[pr_ids[0]]
-            if cell.dimension != u_field.dimension:
-                continue
-
-            element = cellid_to_element[pr_ids[0]]
-
-            # scattering dof
-            dest = u_field.dof_map.destination_indices(cell.id)
-            alpha_l = alpha[dest]
-
-            par_points = basix.geometry(u_field.element_type)
-
-            target_node_id = gmesh.cells[id].node_tags[0]
-            par_point_id = np.array(
-                [
-                    i
-                    for i, node_id in enumerate(cell.node_tags)
-                    if node_id == target_node_id
-                ]
-            )
-
-            points = gmesh.points[target_node_id]
-            if u_field.dimension != 0:
-                points = par_points[par_point_id]
-
-            # evaluate mapping
-            phi_shapes = evaluate_linear_shapes(points, element.data)
-            (x, jac, det_jac, inv_jac) = evaluate_mapping(
-                cell.dimension, phi_shapes, gmesh.points[cell.node_tags]
-            )
-            phi_tab = element.evaluate_basis(points)
-            n_phi = phi_tab.shape[2]
-            f_e = f_exact(x[:, 0], x[:, 1], x[:, 2])
-            alpha_star = np.array(np.split(alpha_l, n_phi))
-            f_h = (phi_tab[0, :, :, 0] @ alpha_star).T
-            fh_data[target_node_id] = f_h.ravel()
-            fe_data[target_node_id] = f_e.ravel()
-
-        mesh_points = gmesh.points
-        con_d = np.array([element.data.cell.node_tags for element in u_field.elements])
-        meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
-        cells_dict = {meshio_cell_types[u_field.dimension]: con_d}
-        p_data_dict = {"u_h": fh_data, "u_exact": fe_data}
-
-        mesh = meshio.Mesh(
-            points=mesh_points,
-            cells=cells_dict,
-            # Optionally provide extra data on points, cells, etc.
-            point_data=p_data_dict,
+        file_name = "rates_h1_laplace.vtk"
+        write_vtk_file_with_exact_solution(
+            file_name, gmesh, fe_space, exact_functions, alpha
         )
-        mesh.write("rates_h1_laplace.vtk")
         et = time.time()
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
 
-    return l2_error
+    return p_l2_error[0]
 
 
 def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
-
     dim = gmesh.dimension
-    # Material data
-
-    m_kappa = 1.0
 
     # FESpace: data
+    q_k_order = k_order
+    p_k_order = k_order - 1
+
     q_components = 1
-    u_components = 1
+    p_components = 1
+    q_family = "RT"
+    p_family = "Lagrange"
 
-    q_family = "BDM"
-    u_family = "Lagrange"
+    discrete_spaces_data = {
+        "q": (dim, q_components, q_family, q_k_order, gmesh),
+        "p": (dim, p_components, p_family, p_k_order, gmesh),
+    }
 
-    # flux field
-    q_field = DiscreteField(dim, q_components, q_family, k_order, gmesh, integration_oder = 2 * k_order + 1)
-    if dim == 2:
-        q_field.build_structures([2, 3, 4, 5])
-    elif dim == 3:
-        q_field.build_structures([2, 3, 4, 5, 6, 7])
+    q_disc_Q = False
+    p_disc_Q = True
+    discrete_spaces_disc = {
+        "q": q_disc_Q,
+        "p": p_disc_Q,
+    }
 
-    # potential field
-    u_field = DiscreteField(dim, u_components, u_family, k_order - 1, gmesh, integration_oder = 2 * k_order + 1)
-    u_field.make_discontinuous()
-    u_field.build_structures()
+    q_field_bc_physical_tags = [2, 3, 4, 5]
+    if dim == 3:
+        q_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
+    discrete_spaces_bc_physical_tags = {
+        "q": q_field_bc_physical_tags,
+    }
 
-    st = time.time()
-    # Assembler
-    # Triplets data
-    c_size = 0
-    n_dof_g = 0
-    cell_map = {}
+    fe_space = ProductSpace(discrete_spaces_data)
+    fe_space.make_subspaces_discontinuous(discrete_spaces_disc)
+    fe_space.build_structures(discrete_spaces_bc_physical_tags)
 
-    q_n_els = len(q_field.elements)
-    u_n_els = len(u_field.elements)
-    assert q_n_els == u_n_els
-
-    components = (q_components, u_components)
-    fields = (q_field, u_field)
-
-    for i in range(q_n_els):
-        q_element = q_field.elements[i]
-        u_element = u_field.elements[i]
-        cell = q_element.data.cell
-        elements = (q_element, u_element)
-
-        n_dof = 0
-        for j, element in enumerate(elements):
-            for n_entity_dofs in element.basis_generator.num_entity_dofs:
-                n_dof = n_dof + sum(n_entity_dofs) * components[j]
-
-        cell_map.__setitem__(cell.id, c_size)
-        c_size = c_size + n_dof * n_dof
-
-    for element in q_field.bc_elements:
-        cell = element.data.cell
-        n_dof = 0
-        for n_entity_dofs in element.basis_generator.num_entity_dofs:
-            n_dof = n_dof + sum(n_entity_dofs) * q_components
-        cell_map.__setitem__(cell.id, c_size)
-        c_size = c_size + n_dof * n_dof
-
-    row = np.zeros((c_size), dtype=np.int64)
-    col = np.zeros((c_size), dtype=np.int64)
-    data = np.zeros((c_size), dtype=np.float64)
-
-    q_n_dof_g = q_field.dof_map.dof_number()
-    u_n_dof_g = u_field.dof_map.dof_number()
-    n_dof_g = q_n_dof_g + u_n_dof_g
+    n_dof_g = fe_space.n_dof
     rg = np.zeros(n_dof_g)
+    alpha = np.zeros(n_dof_g)
     print("n_dof: ", n_dof_g)
 
-    et = time.time()
-    elapsed_time = et - st
-    print("Triplets creation time:", elapsed_time, "seconds")
+    # Assembler
+    st = time.time()
+    A = PETSc.Mat()
+    A.createAIJ([n_dof_g, n_dof_g])
+
+    # Material data
+    m_kappa = 1.0
+
+    def f_kappa(x, y, z):
+        return m_kappa
 
     st = time.time()
 
     # exact solution
-    f_exact = lambda x, y, z: np.array([(1.0 - x) * x * (1.0 - y) * y])
-    q_exact = lambda x, y, z: np.array([-((1 - x)*(1 - y)*y) + x*(1 - y)*y, -((1 - x)*x*(1 - y)) + (1 - x)*x*y])
-    f_rhs = lambda x, y, z: np.array([2.0 * (1.0 - x) * x + 2.0 * (1.0 - y) * y])
+    p_exact = lambda x, y, z: np.array([(1.0 - x) * x * (1.0 - y) * y])
+    q_exact = lambda x, y, z: np.array(
+        [
+            -((1 - x) * (1 - y) * y) + x * (1 - y) * y,
+            -((1 - x) * x * (1 - y)) + (1 - x) * x * y,
+        ]
+    )
+    f_rhs = lambda x, y, z: np.array([[2 * (1 - x) * x + 2 * (1 - y) * y]])
 
     if dim == 3:
-        f_exact = lambda x, y, z: np.array(
-            [(1.0 - x)*x*(1.0 - y)*y*(1.0 - z)*z])
-
+        p_exact = lambda x, y, z: np.array(
+            [(1.0 - x) * x * (1.0 - y) * y * (1.0 - z) * z]
+        )
+        q_exact = lambda x, y, z: np.array(
+            [
+                -((1 - x) * (1 - y) * y * (1 - z) * z) + x * (1 - y) * y * (1 - z) * z,
+                -((1 - x) * x * (1 - y) * (1 - z) * z) + (1 - x) * x * y * (1 - z) * z,
+                -((1 - x) * x * (1 - y) * y * (1 - z)) + (1 - x) * x * (1 - y) * y * z,
+            ]
+        )
         f_rhs = lambda x, y, z: np.array(
-            [2.0*(1.0 - x)*x*(1.0 - y)*y + 2.0*(1.0 - x)*x*(1.0 - z)*z + 2.0*(1.0 - y)*y*(1.0 - z)*z]
+            [
+                2 * (1 - x) * x * (1 - y) * y
+                + 2 * (1 - x) * x * (1 - z) * z
+                + 2 * (1 - y) * y * (1 - z) * z
+            ]
         )
 
-    def scatter_form_data_ad(
-            i, m_kappa, f_rhs, fields, cell_map, row, col, data
-    ):
+    m_functions = {
+        "rhs": f_rhs,
+        "kappa": f_kappa,
+    }
 
-        dim = fields[0].dimension
-        q_components = fields[0].n_comp
-        u_components = fields[1].n_comp
+    exact_functions = {
+        "q": q_exact,
+        "p": p_exact,
+    }
 
-        q_data: ElementData = fields[0].elements[i].data
-        u_data: ElementData = fields[1].elements[i].data
+    weak_form = LaplaceDualWeakForm(fe_space)
+    weak_form.functions = m_functions
+    bc_weak_form = LaplaceDualWeakFormBCDirichlet(fe_space)
+    bc_weak_form.functions = exact_functions
 
-        cell = q_data.cell
-
-        points = q_data.quadrature.points
-        weights = q_data.quadrature.weights
-        x = q_data.mapping.x
-        det_jac = q_data.mapping.det_jac
-        inv_jac = q_data.mapping.inv_jac
-
-        # basis
-        q_phi_tab = q_data.basis.phi
-        u_phi_tab = u_data.basis.phi
-
+    def scatter_form_data(A, i, weak_form):
         # destination indexes
-        dest_q = q_field.dof_map.destination_indices(cell.id)
-        dest_u = u_field.dof_map.destination_indices(cell.id) + q_n_dof_g
-        dest = np.concatenate([dest_q,dest_u])
-        n_q_phi = q_phi_tab.shape[2]
-        n_u_phi = u_phi_tab.shape[2]
-
-        n_q_dof = n_q_phi * q_components
-        n_u_dof = n_u_phi * u_components
-
-        n_dof = n_q_dof + n_u_dof
-        js = (n_dof, n_dof)
-        rs = n_dof
-        j_el = np.zeros(js)
-        r_el = np.zeros(rs)
-        alpha = np.zeros(n_dof)
-
-        # Partial local vectorization
-        f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
-        phi_s_star = det_jac * weights * u_phi_tab[0, :, :, 0].T
-        
-        q_val_star = q_exact(x[:, 0], x[:, 1], x[:, 2])
-        u_val_star = f_exact(x[:, 0], x[:, 1], x[:, 2])
-
-        # projectors
-        q_j_el = np.zeros((n_q_dof, n_q_dof))
-        q_r_el = np.zeros(n_q_dof)
-
-        u_j_el = np.zeros((n_u_dof, n_u_dof))
-        u_r_el = np.zeros(n_u_dof)
-
-        # # linear_base
-        # for i, omega in enumerate(weights):
-        #     q_val = q_exact(x[i, 0], x[i, 1], x[i, 2])
-        #     q_r_el = q_r_el + det_jac[i] * omega * q_phi_tab[0, i, :, 0:dim] @ q_val
-        #     for d in range(3):
-        #         q_j_el = q_j_el + det_jac[i] * omega * np.outer(
-        #             q_phi_tab[0, i, :, d], q_phi_tab[0, i, :, d]
-        #         )
-        # alpha_q = np.linalg.solve(q_j_el, q_r_el)
-        #
-        # aka = 0
-        # for i, omega in enumerate(weights):
-        #     u_val = f_exact(x[i, 0], x[i, 1], x[i, 2])
-        #     u_r_el = u_r_el + det_jac[i] * omega * u_phi_tab[0, i, :, :] @ u_val
-        #     for d in range(1):
-        #         u_j_el = u_j_el + det_jac[i] * omega * np.outer(
-        #             u_phi_tab[0, i, :, d], u_phi_tab[0, i, :, d]
-        #         )
-        #
-        # alpha_u = np.linalg.solve(u_j_el, u_r_el)
-
-        # constant directors
-        e1 = np.array([1, 0, 0])
-        e2 = np.array([0, 1, 0])
-        e3 = np.array([0, 0, 1])
-        with ad.AutoDiff(alpha) as alpha:
-
-            el_form = np.zeros(n_dof)
-            for c in range(u_components):
-                el_form[n_q_dof:n_dof:1] += -1.0 * phi_s_star @ f_val_star[c]
-
-            for i, omega in enumerate(weights):
-                if dim == 2:
-                    inv_jac_m = np.vstack((inv_jac[i] @ e1, inv_jac[i] @ e2))
-                else:
-                    inv_jac_m = np.vstack(
-                        (inv_jac[i] @ e1, inv_jac[i] @ e2, inv_jac[i] @ e3))
-
-                qh = alpha[:, 0:n_q_dof:1] @ q_phi_tab[0, i, :, 0:dim]
-                qh *= (1.0 / m_kappa)
-
-                uh = alpha[:, n_q_dof:n_dof:1] @ u_phi_tab[0, i, :, 0:dim]
-
-                grad_qh = q_phi_tab[1: q_phi_tab.shape[0] + 1, i, :, 0:dim]
-                div_vh = np.array([[np.trace(grad_qh[:,j,:]) / det_jac[i] for j in range (n_q_dof)]])
-                div_qh = alpha[:, 0:n_q_dof:1] @ div_vh.T
-
-                equ_1_integrand = (qh @ q_phi_tab[0, i, :, 0:dim].T) + (uh @ div_vh)
-                equ_2_integrand = (div_qh @ u_phi_tab[0, i, :, 0:dim].T)
-                multiphysic_integrand = np.zeros((1,n_dof))
-                multiphysic_integrand[:, 0:n_q_dof:1] = equ_1_integrand
-                multiphysic_integrand[:, n_q_dof:n_dof:1] = equ_2_integrand
-
-                discrete_integrand = (multiphysic_integrand).reshape((n_dof,))
-                el_form += det_jac[i] * omega * discrete_integrand
-
-        r_el, j_el = el_form.val, el_form.der.reshape((n_dof, n_dof))
-
-        # scattering data
-        c_sequ = cell_map[cell.id]
+        dest = weak_form.space.destination_indexes(i)
+        alpha_l = alpha[dest]
+        r_el, j_el = weak_form.evaluate_form(i, alpha_l)
 
         # contribute rhs
         rg[dest] += r_el
 
         # contribute lhs
-        block_sequ = np.array(range(0, len(dest) * len(dest))) + c_sequ
-        row[block_sequ] += np.repeat(dest, len(dest))
-        col[block_sequ] += np.tile(dest, len(dest))
-        data[block_sequ] += j_el.ravel()
+        data = j_el.ravel()
+        row = np.repeat(dest, len(dest))
+        col = np.tile(dest, len(dest))
+        nnz = data.shape[0]
+        for k in range(nnz):
+            A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
-    [
-        scatter_form_data_ad(
-            i, m_kappa, f_rhs, fields, cell_map, row, col, data
-        )
-        for i in range(q_n_els)
-    ]
+    def scatter_bc_form(A, i, bc_weak_form):
+        dest = fe_space.bc_destination_indexes(i)
+        alpha_l = alpha[dest]
+        r_el, j_el = bc_weak_form.evaluate_form(i, alpha_l)
 
-    # def scatter_bc_form_data(element, u_field, cell_map, row, col, data):
-    #
-    #     n_components = u_field.n_comp
-    #     el_data: ElementData = element.data
-    #
-    #     cell = el_data.cell
-    #     points = el_data.quadrature.points
-    #     weights = el_data.quadrature.weights
-    #     phi_tab = el_data.basis.phi
-    #
-    #     x = el_data.mapping.x
-    #     det_jac = el_data.mapping.det_jac
-    #     inv_jac = el_data.mapping.inv_jac
-    #
-    #     # find high-dimension neigh
-    #     entity_map = u_field.dof_map.mesh_topology.entity_map_by_dimension(
-    #         cell.dimension
-    #     )
-    #     neigh_list = list(entity_map.predecessors(cell.id))
-    #     neigh_check_q = len(neigh_list) > 0
-    #     assert neigh_check_q
-    #
-    #     neigh_cell_id = neigh_list[0]
-    #     neigh_cell_index = u_field.id_to_element[neigh_cell_id]
-    #     neigh_cell = u_field.elements[neigh_cell_index].data.cell
-    #
-    #     # destination indexes
-    #     dest_neigh = u_field.dof_map.destination_indices(neigh_cell_id)
-    #     dest = u_field.dof_map.bc_destination_indices(neigh_cell_id, cell.id)
-    #
-    #     n_phi = phi_tab.shape[2]
-    #     n_dof = n_phi * n_components
-    #     js = (n_dof, n_dof)
-    #     j_el = np.zeros(js)
-    #
-    #     # local blocks
-    #     beta = 1.0e12
-    #     jac_block = np.zeros((n_phi, n_phi))
-    #     for i, omega in enumerate(weights):
-    #         phi = phi_tab[0, i, :, 0]
-    #         jac_block += beta * det_jac[i] * omega * np.outer(phi, phi)
-    #
-    #     for c in range(n_components):
-    #         b = c
-    #         e = (c + 1) * n_phi * n_components + 1
-    #         j_el[b:e:n_components, b:e:n_components] += jac_block
-    #
-    #     # scattering data
-    #     c_sequ = cell_map[cell.id]
-    #
-    #     # contribute lhs
-    #     block_sequ = np.array(range(0, len(dest) * len(dest))) + c_sequ
-    #     row[block_sequ] += np.repeat(dest, len(dest))
-    #     col[block_sequ] += np.tile(dest, len(dest))
-    #     data[block_sequ] += j_el.ravel()
+        # contribute rhs
+        rg[dest] += r_el
 
-    # [
-    #     scatter_bc_form_data(element, u_field, cell_map, row, col, data)
-    #     for element in u_field.bc_elements
-    # ]
+        # contribute lhs
+        data = j_el.ravel()
+        row = np.repeat(dest, len(dest))
+        col = np.tile(dest, len(dest))
+        nnz = data.shape[0]
+        for k in range(nnz):
+            A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
-    jg = coo_matrix((data, (row, col)), shape=(n_dof_g, n_dof_g)).tocsr()
+    n_els = len(fe_space.discrete_spaces["q"].elements)
+    [scatter_form_data(A, i, weak_form) for i in range(n_els)]
+
+    n_bc_els = len(fe_space.discrete_spaces["q"].bc_elements)
+    [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
+
+    A.assemble()
+
     et = time.time()
     elapsed_time = et - st
     print("Assembly time:", elapsed_time, "seconds")
 
     # solving ls
     st = time.time()
-    # alpha = sp.linalg.spsolve(jg, rg)
-    alpha = sp_solver.spsolve(jg, rg)
+    ksp = PETSc.KSP().create()
+    ksp.setOperators(A)
+    b = A.createVecLeft()
+    b.array[:] = -rg
+    x = A.createVecRight()
+
+    petsc_options = {"rtol": 1e-12, "atol": 1e-14}
+    ksp = PETSc.KSP().create()
+    ksp.create(PETSc.COMM_WORLD)
+    ksp.setOperators(A)
+    ksp.setType("fgmres")
+    ksp.setTolerances(**petsc_options)
+    ksp.setConvergenceHistory()
+    ksp.getPC().setType("ilu")
+    ksp.solve(b, x)
+    alpha = x.array
+
+    ai, aj, av = A.getValuesCSR()
+    Asp = scipy.sparse.csr_matrix((av, aj, ai))
+
+    # rg[np.array([8, 9])] *= -1.0
+    # alpha_s = scipy.sparse.linalg.spsolve(Asp,-rg)
+    def chop(expr, delta=1.0e-5):
+        return np.ma.masked_inside(expr, -delta, delta).filled(0)
+
+    alpha_p = l2_projector(fe_space, exact_functions)
+    # alpha = alpha_p
     et = time.time()
     elapsed_time = et - st
     print("Linear solver time:", elapsed_time, "seconds")
 
-    # Computing L2 error
-    def compute_l2_error(element, u_field):
-        l2_error = 0.0
-        n_components = u_field.n_comp
-        el_data = element.data
-        cell = el_data.cell
-        points = el_data.quadrature.points
-        weights = el_data.quadrature.weights
-        phi_tab = el_data.basis.phi
-
-        x = el_data.mapping.x
-        det_jac = el_data.mapping.det_jac
-        inv_jac = el_data.mapping.inv_jac
-
-        # scattering dof
-        dest = u_field.dof_map.destination_indices(cell.id) + q_n_dof_g
-        alpha_l = alpha[dest]
-
-        # vectorization
-        n_phi = phi_tab.shape[2]
-        p_e_s = f_exact(x[:, 0], x[:, 1], x[:, 2])
-        alpha_star = np.array(np.split(alpha_l, n_phi))
-        p_h_s = (phi_tab[0, :, :, 0] @ alpha_star).T
-        l2_error = np.sum(det_jac * weights * (p_e_s - p_h_s) * (p_e_s - p_h_s))
-        return l2_error
-
     st = time.time()
-    error_vec = [compute_l2_error(element, u_field) for element in u_field.elements]
+    q_l2_error, p_l2_error = l2_error(dim, fe_space, exact_functions, alpha)
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
-    l2_error = np.sqrt(functools.reduce(lambda x, y: x + y, error_vec))
-    print("L2-error: ", l2_error)
+    print("L2-error in flux: ", q_l2_error)
+    print("L2-error in pressure: ", p_l2_error)
 
     if write_vtk_q:
         # post-process solution
         st = time.time()
-        cellid_to_element = dict(zip(u_field.element_ids, u_field.elements))
-        # writing solution on mesh points
-        vertices = u_field.mesh_topology.entities_by_dimension(0)
-        fh_data = np.zeros((len(gmesh.points), u_components))
-        fe_data = np.zeros((len(gmesh.points), u_components))
-        cell_vertex_map = u_field.mesh_topology.entity_map_by_dimension(0)
-        for id in vertices:
-            if not cell_vertex_map.has_node(id):
-                continue
-
-            pr_ids = list(cell_vertex_map.predecessors(id))
-            cell = gmesh.cells[pr_ids[0]]
-            if cell.dimension != u_field.dimension:
-                continue
-
-            element = cellid_to_element[pr_ids[0]]
-
-            # scattering dof
-            dest = u_field.dof_map.destination_indices(cell.id) + q_n_dof_g
-            alpha_l = alpha[dest]
-
-            par_points = basix.geometry(u_field.element_type)
-
-            target_node_id = gmesh.cells[id].node_tags[0]
-            par_point_id = np.array(
-                [
-                    i
-                    for i, node_id in enumerate(cell.node_tags)
-                    if node_id == target_node_id
-                ]
-            )
-
-            points = gmesh.points[target_node_id]
-            if u_field.dimension != 0:
-                points = par_points[par_point_id]
-
-            # evaluate mapping
-            phi_shapes = evaluate_linear_shapes(points, element.data)
-            (x, jac, det_jac, inv_jac) = evaluate_mapping(
-                cell.dimension, phi_shapes, gmesh.points[cell.node_tags]
-            )
-            phi_tab = element.evaluate_basis(points)
-            n_phi = phi_tab.shape[2]
-            f_e = f_exact(x[:, 0], x[:, 1], x[:, 2])
-            alpha_star = np.array(np.split(alpha_l, n_phi))
-            f_h = (phi_tab[0, :, :, 0] @ alpha_star).T
-            fh_data[target_node_id] = f_h.ravel()
-            fe_data[target_node_id] = f_e.ravel()
-
-        mesh_points = gmesh.points
-        con_d = np.array([element.data.cell.node_tags for element in u_field.elements])
-        meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
-        cells_dict = {meshio_cell_types[u_field.dimension]: con_d}
-        p_data_dict = {"u_h": fh_data, "u_exact": fe_data}
-
-        mesh = meshio.Mesh(
-            points=mesh_points,
-            cells=cells_dict,
-            # Optionally provide extra data on points, cells, etc.
-            point_data=p_data_dict,
+        file_name = "rates_hdiv_laplace.vtk"
+        write_vtk_file_with_exact_solution(
+            file_name, gmesh, fe_space, exact_functions, alpha
         )
-        mesh.write("rates_hdiv_laplace.vtk")
         et = time.time()
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
 
-    return l2_error
+    return p_l2_error
 
 
 def create_domain(dimension):
-
     if dimension == 1:
         box_points = np.array([[0, 0, 0], [1, 0, 0]])
         domain = build_box_1D(box_points)
         return domain
     elif dimension == 2:
         box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
+        box_points = [
+            point + 0.25 * np.array([-1.0, -1.0, 0.0]) for point in box_points
+        ]
         domain = build_box_2D(box_points)
         return domain
     else:
@@ -884,11 +414,14 @@ def create_domain(dimension):
                 [0.0, 1.0, 1.0],
             ]
         )
+        box_points = [
+            point + 0.25 * np.array([-1.0, -1.0, -1.0]) for point in box_points
+        ]
         domain = build_box_3D(box_points)
         return domain
 
 
-def create_conformal_mesher(domain: Domain, h, ref_l = 0):
+def create_conformal_mesher(domain: Domain, h, ref_l=0):
     mesher = ConformalMesher(dimension=domain.dimension)
     mesher.domain = domain
     mesher.generate_from_domain(h, ref_l)
@@ -904,20 +437,20 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
         gmesh.write_vtk()
     return gmesh
 
-def main():
 
+def main():
     k_order = 2
     h = 1.0
-    n_ref = 4
-    dimension = 3
+    n_ref = 0
+    dimension = 2
     ref_l = 0
 
     domain = create_domain(dimension)
     error_data = np.empty((0, 2), float)
-    for l in range(n_ref):
+    for l in range(4, n_ref + 5):
         h_val = h * (2**-l)
-        mesher = create_conformal_mesher(domain, h, l)
-        gmesh = create_mesh(dimension, mesher, False)
+        mesher = create_conformal_mesher(domain, h_val, 0)
+        gmesh = create_mesh(dimension, mesher, True)
         # error_val = h1_laplace(k_order, gmesh, True)
         error_val = hdiv_laplace(k_order, gmesh, True)
         error_data = np.append(error_data, np.array([[h_val, error_val]]), axis=0)

@@ -74,30 +74,36 @@ def _validate_face_orientation_3d(data: ElementData):
             orientation[i] = True
         else:
             perms = list(permutations(list(face_ref)))
-            pos_search = [i for i, perm in enumerate(perms) if perm == tuple(face)]
+            pos_search = [k for k, perm in enumerate(perms) if perm == tuple(face)]
             assert len(pos_search) == 1
             assert pos_search[0] != 0
             position = pos_search[0]
 
             # cases
             if position == 0:
-                rotations[i] = 0
-                reflections[i] = 0
+                rotations[i] += 0
+                reflections[i] += 0
             elif position == 1:
-                rotations[i] = 0
-                reflections[i] = 1
+                rotations[i] += 0
+                reflections[i] += 1
             elif position == 2:
-                rotations[i] = 2
-                reflections[i] = 1
+                rotations[i] += 2
+                reflections[i] += 1
             elif position == 3:
-                rotations[i] = 1
-                reflections[i] = 0
+                rotations[i] += 1
+                reflections[i] += 0
             elif position == 4:
-                rotations[i] = 2
-                reflections[i] = 0
+                rotations[i] += 2
+                reflections[i] += 0
             elif position == 5:
-                rotations[i] = 1
-                reflections[i] = 1
+                rotations[i] += 1
+                reflections[i] += 1
+
+        if data.bc_entities[i] and i in [1, 3]:
+            orientation[i] = False
+            reflections[i] = 1
+            continue
+
     return orientation, rotations, reflections
 
 
