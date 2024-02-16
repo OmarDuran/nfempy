@@ -361,7 +361,7 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
     def chop(expr, delta=1.0e-5):
         return np.ma.masked_inside(expr, -delta, delta).filled(0)
 
-    alpha_p = l2_projector(fe_space, exact_functions)
+    # alpha_p = l2_projector(fe_space, exact_functions)
     # alpha = alpha_p
     et = time.time()
     elapsed_time = et - st
@@ -441,13 +441,13 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 def main():
     k_order = 2
     h = 1.0
-    n_ref = 0
-    dimension = 2
+    n_ref = 4
+    dimension = 3
     ref_l = 0
 
     domain = create_domain(dimension)
     error_data = np.empty((0, 2), float)
-    for l in range(4, n_ref + 5):
+    for l in range(n_ref):
         h_val = h * (2**-l)
         mesher = create_conformal_mesher(domain, h_val, 0)
         gmesh = create_mesh(dimension, mesher, True)

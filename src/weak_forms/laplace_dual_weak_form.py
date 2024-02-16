@@ -30,14 +30,12 @@ class LaplaceDualWeakForm(WeakForm):
 
         cell = q_data.cell
         dim = q_data.dimension
-        points = q_data.quadrature.points
-        weights = q_data.quadrature.weights
-        x = q_data.mapping.x
-        det_jac = q_data.mapping.det_jac
-        inv_jac = q_data.mapping.inv_jac
+        points, weights = self.space.quadrature
+        x, jac, det_jac, inv_jac = q_space.elements[iel].evaluate_mapping(points)
 
-        q_phi_tab = q_data.basis.phi
-        p_phi_tab = p_data.basis.phi
+        # basis
+        q_phi_tab = q_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+        p_phi_tab = p_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
 
         n_q_phi = q_phi_tab.shape[2]
         n_p_phi = p_phi_tab.shape[2]
@@ -103,13 +101,12 @@ class LaplaceDualWeakFormBCDirichlet(WeakForm):
         q_data: ElementData = q_space.bc_elements[iel].data
 
         cell = q_data.cell
-        points = q_data.quadrature.points
-        weights = q_data.quadrature.weights
-        x = q_data.mapping.x
-        det_jac = q_data.mapping.det_jac
-        inv_jac = q_data.mapping.inv_jac
+        points, weights = self.space.bc_quadrature
+        dim = q_data.dimension
+        x, jac, det_jac, inv_jac = q_space.bc_elements[iel].evaluate_mapping(points)
 
-        q_phi_tab = q_data.basis.phi
+        q_phi_tab = q_space.bc_elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+
         n_q_phi = q_phi_tab.shape[2]
         n_q_dof = n_q_phi * q_components
 
@@ -130,7 +127,12 @@ class LaplaceDualWeakFormBCDirichlet(WeakForm):
 
         # compute trace space
         mapped_points = transform_lower_to_higher(points, q_data, neigh_element.data)
-        q_tr_phi_tab = neigh_element.evaluate_basis(mapped_points, False)
+        _, jac_c0, det_jac_c0, inv_jac_c0 = neigh_element.evaluate_mapping(
+            mapped_points
+        )
+        q_tr_phi_tab = neigh_element.evaluate_basis(
+            mapped_points, jac_c0, det_jac_c0, inv_jac_c0
+        )
         facet_index = neigh_cell.sub_cells_ids[cell.dimension].tolist().index(cell.id)
         dof_n_index = neigh_element.data.dof.entity_dofs[cell.dimension][facet_index]
 
