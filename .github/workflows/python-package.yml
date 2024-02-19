@@ -43,8 +43,9 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install pytest
         python -m pip install --upgrade --upgrade-strategy eager -r requirements.txt
-        python -m pip install --upgrade cython
-        python -m pip install mpi4py petsc #petsc4py
+        # python -m pip install --upgrade cython
+        # python -m pip install mpi4py petsc #petsc4py
+        conda install -c conda-forge petsc
         conda install -c conda-forge petsc4py
     #- name: Lint with flake8
     #  run: |
