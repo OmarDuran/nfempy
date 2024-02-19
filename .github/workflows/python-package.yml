@@ -19,18 +19,29 @@ jobs:
         python-version: ["3.9", "3.10", "3.11"]
 
     steps:
-    - uses: actions/checkout@v3
+    # - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
+      # uses: actions/setup-python@v3
+      # with:
+      #   python-version: ${{ matrix.python-version }}
+      #   architecture: x64
+      #   cache: 'pip'
+    - uses: conda-incubator/setup-miniconda@v2
       with:
-        python-version: ${{ matrix.python-version }}
-        architecture: x64
-        cache: 'pip'        
+        architecture: x64      
+        miniconda-version: "latest"
+        channels: bioconda, conda-forge, defaults
+        use-only-tar-bz2: true  # IMPORTANT: This needs to be set for caching to work properly!
+        auto-update-conda: true
+        auto-activate-base: true        
     - name: Install dependencies
       run: |
         sudo apt-get update
         sudo apt-get upgrade
         sudo apt-get install libglu1
+
+        conda create -y --name nfempy python==python-version
+        conda activate nfempy || true        
         
         # # install a message passing interface and mpi4py
         # sudo apt-get install libopenmpi-dev  # alt.: conda install -c conda-forge openmpi
