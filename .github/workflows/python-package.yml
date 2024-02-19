@@ -44,7 +44,8 @@ jobs:
         echo ${{ github.workspace }}
         sudo apt-get install libglu1
         conda init bash
-        conda create -y --name nfempy
+        conda create --yes --name nfempy
+        ls
         conda activate nfempy || true        
         echo ${{ github.workspace }}
         # # install a message passing interface and mpi4py
