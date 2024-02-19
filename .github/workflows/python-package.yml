@@ -29,12 +29,10 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get install libglu1
-        conda install conda-forge::petsc4py
         python -m pip install --upgrade pip
         python -m pip install pytest
         python -m pip install --upgrade --upgrade-strategy eager -r requirements.txt
-        python -m pip freeze
-        python -m pip install -i https://gmsh.info/python-packages --force-reinstall --no-cache-dir gmsh
+        conda install conda-forge::petsc4py        
     #- name: Lint with flake8
     #  run: |
         # stop the build if there are Python syntax errors or undefined names
