@@ -105,7 +105,9 @@ class LaplaceDualWeakFormBCDirichlet(WeakForm):
         dim = q_data.dimension
         x, jac, det_jac, inv_jac = q_space.bc_elements[iel].evaluate_mapping(points)
 
-        q_phi_tab = q_space.bc_elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+        q_phi_tab = q_space.bc_elements[iel].evaluate_basis(
+            points, jac, det_jac, inv_jac
+        )
 
         n_q_phi = q_phi_tab.shape[2]
         n_q_dof = n_q_phi * q_components

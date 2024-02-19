@@ -38,11 +38,11 @@ class FiniteElement:
             self.family = "Lagrange"
             family = family_by_name(self.family)
             self.basis_generator = basix.create_element(
-                family,
-                cell_type,
-                self.k_order,
-                variant,
-                self.discontinuous,
+                family_name=family,
+                cell_name=cell_type,
+                degree=self.k_order,
+                lagrange_variant=variant,
+                discontinuous=self.discontinuous,
             )
             # quadrature = (np.array([1.0]), np.array([1.0]))
         else:
@@ -50,19 +50,19 @@ class FiniteElement:
                 self.family = "Lagrange"
                 family = family_by_name(self.family)
                 self.basis_generator = basix.create_element(
-                    family,
-                    cell_type,
-                    self.k_order,
-                    variant,
-                    self.discontinuous,
+                    family_name=family,
+                    cell_name=cell_type,
+                    degree=self.k_order,
+                    lagrange_variant=variant,
+                    discontinuous=self.discontinuous,
                 )
             else:
                 self.basis_generator = basix.create_element(
-                    family,
-                    cell_type,
-                    self.k_order,
-                    variant,
-                    self.discontinuous,
+                    family_name=family,
+                    cell_name=cell_type,
+                    degree=self.k_order,
+                    lagrange_variant=variant,
+                    discontinuous=self.discontinuous,
                 )
             # quadrature = basix.make_quadrature(
             #     basix.QuadratureType.gauss_jacobi, cell_type, self.integration_order

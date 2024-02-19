@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-
+import os
 from geometry.vertex import Vertex
 from geometry.edge import Edge
 from geometry.wire import Wire
@@ -35,8 +35,9 @@ def generate_domain_2d():
 
 
 def generate_domain_2d_with_lines(lines_file):
+    file_name = os.getcwd() + '/tests/test_geometry/' + lines_file
     box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
-    domain = build_box_2D_with_lines(box_points, lines_file)
+    domain = build_box_2D_with_lines(box_points, file_name)
     domain.build_grahp()
     return domain
 

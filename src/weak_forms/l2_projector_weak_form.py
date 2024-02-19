@@ -50,7 +50,7 @@ class L2ProjectorWeakForm(WeakForm):
                     e = b + n_dof
                     for i, omega in enumerate(weights):
                         phi_s_star = det_jac[i] * weights[i] * phi_tab[0, i, :, 0:dim].T
-                        r_el[b:e:n_comp] -= phi_s_star.T @ f_val_star[c, :, i]
+                        r_el[b:e:n_comp] -= phi_s_star.T @ f_val_star[c, 0:dim, i]
 
             for c in range(n_comp):
                 b = c

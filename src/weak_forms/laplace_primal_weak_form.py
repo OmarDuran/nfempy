@@ -92,7 +92,9 @@ class LaplacePrimalWeakFormBCDirichlet(WeakForm):
         x, jac, det_jac, inv_jac = p_space.bc_elements[iel].evaluate_mapping(points)
 
         # basis
-        p_phi_tab = p_space.bc_elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+        p_phi_tab = p_space.bc_elements[iel].evaluate_basis(
+            points, jac, det_jac, inv_jac
+        )
 
         n_p_phi = p_phi_tab.shape[2]
         n_p_dof = n_p_phi * p_components
@@ -121,8 +123,8 @@ class LaplacePrimalWeakFormBCDirichlet(WeakForm):
             mapped_points, jac_c0, det_jac_c0, inv_jac_c0
         )
         # collect all supported dofs
-        dof_idxs =[]
-        for entity_dim in range(0,cell.dimension+1):
+        dof_idxs = []
+        for entity_dim in range(0, cell.dimension + 1):
             dof_idxs_per_entity = []
             for id in cell.sub_cells_ids[entity_dim]:
                 index = neigh_cell.sub_cells_ids[entity_dim].tolist().index(id)
