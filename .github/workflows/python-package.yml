@@ -44,7 +44,8 @@ jobs:
         python -m pip install pytest
         python -m pip install --upgrade --upgrade-strategy eager -r requirements.txt
         python -m pip install --upgrade cython
-        python -m pip install mpi4py petsc petsc4py
+        python -m pip install mpi4py petsc #petsc4py
+        conda install -c conda-forge petsc4py
     #- name: Lint with flake8
     #  run: |
         # stop the build if there are Python syntax errors or undefined names
