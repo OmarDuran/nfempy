@@ -2,7 +2,7 @@
 
 A lightweight library for defining finite elements and simulating multiphysics problems. It is being developed as part of this exploratory project in Python.
 
-This project aims to provide a general, yet simple, method for using finite elements methods in Python. 
+The objective of this project is to provide a general, yet simple, method for using finite element methods in Python. 
 
 Some features of the library are
 *  Full separation of geometry description, geometry partition, and discrete function spaces;
