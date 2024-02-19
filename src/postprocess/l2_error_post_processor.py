@@ -39,7 +39,7 @@ def l2_error(dim, fe_space, functions, alpha, skip_fields=[]):
                     det_jac * weights * (f_e_s - f_h_s) * (f_e_s - f_h_s)
                 )
             else:
-                f_e = np.array([exact(xv[0], xv[1], xv[2]) for xv in x])
+                f_e = np.array([exact(xv[0], xv[1], xv[2]) for xv in x])[:, :, 0:dim]
                 f_h = np.array(
                     [
                         np.vstack(

@@ -58,13 +58,19 @@ def l2_projector(fe_space, functions):
     b.array[:] = -rg
     x = A.createVecRight()
 
-    ksp = PETSc.KSP().create()
-    ksp.create(PETSc.COMM_WORLD)
-    ksp.setOperators(A)
-    ksp.setType("fcg")
-    ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=500, max_it=2000)
+    ksp.setType("preonly")
+    ksp.getPC().setType("lu")
+    ksp.getPC().setFactorSolverType("mumps")
     ksp.setConvergenceHistory()
-    ksp.getPC().setType("ilu")
+
+    # ksp = PETSc.KSP().create()
+    # ksp.create(PETSc.COMM_WORLD)
+    # ksp.setOperators(A)
+    # ksp.setType("fcg")
+    # ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=500, max_it=2000)
+    # ksp.setConvergenceHistory()
+    # ksp.getPC().setType("ilu")
+
     ksp.solve(b, x)
     alpha = x.array
 
