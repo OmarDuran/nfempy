@@ -13,22 +13,58 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}    
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.9", "3.10", "3.11"]
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
+    # - uses: actions/checkout@v3
+    # - name: Set up Python ${{ matrix.python-version }}
+      # uses: actions/setup-python@v3
+      # with:
+      #   python-version: ${{ matrix.python-version }}
+      #   architecture: x64
+      #   cache: 'pip'
+    - uses: actions/checkout@v3      
+    - uses: conda-incubator/setup-miniconda@v2
       with:
+        architecture: x64      
+        miniconda-version: "latest"
+        channels: anaconda, conda-forge
+        use-only-tar-bz2: true  # IMPORTANT: This needs to be set for caching to work properly!
+        auto-update-conda: true
+        auto-activate-base: true
         python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
+    - name: Install dependencies  
       run: |
+        # sudo apt-get update
+        # sudo apt-get upgrade
+        echo ${{ github.workspace }}
+        sudo apt-get install libglu1
+        # conda init bash
+        # conda create --yes --name nfempy
+        # ls
+        # conda activate nfempy || true        
+        echo ${{ github.workspace }}
+        # # install a message passing interface and mpi4py
+        # sudo apt-get install libopenmpi-dev  # alt.: conda install -c conda-forge openmpi
+        # pip install --user mpi4py  # alt.: conda install -c anaconda mpi4py
+        
+        # # install petsc and and petsc4py
+        # conda install -c conda-forge petsc
+        # conda install -c conda-forge petsc4py
+        
         python -m pip install --upgrade pip
         python -m pip install pytest
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        python -m pip install --upgrade --upgrade-strategy eager -r requirements.txt
+        # python -m pip install --upgrade cython
+        # python -m pip install mpi4py petsc #petsc4py
+        conda install -c conda-forge petsc
+        conda install -c conda-forge petsc4py
     #- name: Lint with flake8
     #  run: |
         # stop the build if there are Python syntax errors or undefined names
