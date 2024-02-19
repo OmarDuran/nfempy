@@ -78,7 +78,7 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
                 (-1.0 + 2.0 * x),
             ]
         )
-        f_rhs = lambda x, y, z: np.array([2.0 + 0.0 * x])
+        f_rhs = lambda x, y, z: np.array([[2.0+0.0*x]])
     elif dim == 2:
         p_exact = lambda x, y, z: np.array([(1.0 - x) * x * (1.0 - y) * y])
         q_exact = lambda x, y, z: np.array(
@@ -419,9 +419,9 @@ def create_domain(dimension):
         return domain
     elif dimension == 2:
         box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
-        box_points = [
-            point + 0.25 * np.array([-1.0, -1.0, 0.0]) for point in box_points
-        ]
+        # box_points = [
+        #     point + 0.25 * np.array([-1.0, -1.0, 0.0]) for point in box_points
+        # ]
         domain = build_box_2D(box_points)
         return domain
     else:
@@ -437,9 +437,9 @@ def create_domain(dimension):
                 [0.0, 1.0, 1.0],
             ]
         )
-        box_points = [
-            point + 0.25 * np.array([-1.0, -1.0, -1.0]) for point in box_points
-        ]
+        # box_points = [
+        #     point + 0.25 * np.array([-1.0, -1.0, -1.0]) for point in box_points
+        # ]
         domain = build_box_3D(box_points)
         return domain
 
@@ -462,10 +462,10 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 
 def main():
-    k_order = 1
+    k_order = 2
     h = 1.0
-    n_ref = 10
-    dimension = 1
+    n_ref = 5
+    dimension = 2
     ref_l = 0
 
     domain = create_domain(dimension)

@@ -5,6 +5,8 @@ from auto_diff.vecvalder import VecValDer
 from basix import CellType
 
 from basis.element_data import ElementData
+from basis.parametric_transformation import transform_lower_to_higher
+from topology.topological_queries import find_higher_dimension_neighs
 from weak_forms.weak_from import WeakForm
 
 
@@ -52,7 +54,7 @@ class LaplacePrimalWeakForm(WeakForm):
             for c in range(p_components):
                 b = c
                 e = b + n_dof
-                el_form[b:e:p_components] -= phi_s_star @ f_val_star[c]
+                el_form[b:e:p_components] -= phi_s_star @ f_val_star[c].T
 
             for i, omega in enumerate(weights):
                 xv = x[i]
@@ -101,11 +103,43 @@ class LaplacePrimalWeakFormBCDirichlet(WeakForm):
         j_el = np.zeros(js)
         r_el = np.zeros(rs)
 
+        # find high-dimension neigh
+        neigh_list = find_higher_dimension_neighs(cell, p_space.dof_map.mesh_topology)
+        neigh_check_q = len(neigh_list) > 0
+        assert neigh_check_q
+        neigh_cell_id = neigh_list[0]
+        neigh_cell_index = p_space.id_to_element[neigh_cell_id]
+        neigh_element = p_space.elements[neigh_cell_index]
+        neigh_cell = neigh_element.data.cell
+
+        # compute trace space
+        mapped_points = transform_lower_to_higher(points, p_data, neigh_element.data)
+        _, jac_c0, det_jac_c0, inv_jac_c0 = neigh_element.evaluate_mapping(
+            mapped_points
+        )
+        p_tr_phi_tab = neigh_element.evaluate_basis(
+            mapped_points, jac_c0, det_jac_c0, inv_jac_c0
+        )
+        # collect all supported dofs
+        dof_idxs =[]
+        for entity_dim in range(0,cell.dimension+1):
+            dof_idxs_per_entity = []
+            for id in cell.sub_cells_ids[entity_dim]:
+                index = neigh_cell.sub_cells_ids[entity_dim].tolist().index(id)
+                if len(neigh_element.data.dof.entity_dofs[entity_dim][index]) == 0:
+                    continue
+                dof_n_index = neigh_element.data.dof.entity_dofs[entity_dim][index][0]
+                dof_idxs_per_entity.append(dof_n_index)
+            if len(dof_idxs_per_entity) == 0:
+                continue
+            dof_idxs.append(dof_idxs_per_entity)
+        dof_n_index = np.concatenate(dof_idxs)
+
         # local blocks
         beta = 1.0e12
         jac_block_p = np.zeros((n_p_phi, n_p_phi))
         for i, omega in enumerate(weights):
-            phi = p_phi_tab[0, i, :, 0]
+            phi = p_tr_phi_tab[0, i, dof_n_index, 0]
             jac_block_p += beta * det_jac[i] * omega * np.outer(phi, phi)
 
         for c in range(p_components):
@@ -114,7 +148,7 @@ class LaplacePrimalWeakFormBCDirichlet(WeakForm):
 
             res_block_p = np.zeros(n_p_phi)
             for i, omega in enumerate(weights):
-                phi = p_phi_tab[0, i, :, 0]
+                phi = p_tr_phi_tab[0, i, dof_n_index, 0]
                 p_D_v = p_D(x[i, 0], x[i, 1], x[i, 2])
                 res_block_p -= beta * det_jac[i] * omega * p_D_v[c] * phi
 
