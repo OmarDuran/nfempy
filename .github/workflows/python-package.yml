@@ -28,11 +28,21 @@ jobs:
         cache: 'pip'        
     - name: Install dependencies
       run: |
+        sudo apt-get update
+        sudo apt-get upgrade
         sudo apt-get install libglu1
+        
+        # install a message passing interface and mpi4py
+        sudo apt-get install libopenmpi-dev  # alt.: conda install -c conda-forge openmpi
+        pip install --user mpi4py  # alt.: conda install -c anaconda mpi4py
+        
+        # install petsc and and petsc4py
+        conda install -c conda-forge petsc
+        conda install -c conda-forge petsc4py
+        
         python -m pip install --upgrade pip
         python -m pip install pytest
-        python -m pip install --upgrade --upgrade-strategy eager -r requirements.txt
-        conda install conda-forge::petsc4py        
+        python -m pip install --upgrade --upgrade-strategy eager -r requirements.txt        
     #- name: Lint with flake8
     #  run: |
         # stop the build if there are Python syntax errors or undefined names
