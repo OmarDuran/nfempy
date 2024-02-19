@@ -30,16 +30,16 @@ jobs:
       with:
         architecture: x64      
         miniconda-version: "latest"
-        channels: bioconda, conda-forge, defaults
+        channels: anaconda, conda-forge
         use-only-tar-bz2: true  # IMPORTANT: This needs to be set for caching to work properly!
         auto-update-conda: true
         auto-activate-base: true        
     - name: Install dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get upgrade
+        # sudo apt-get update
+        # sudo apt-get upgrade
         sudo apt-get install libglu1
-
+        conda init
         conda create -y --name nfempy
         conda activate nfempy || true        
         
