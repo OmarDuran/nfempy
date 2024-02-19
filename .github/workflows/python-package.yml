@@ -31,7 +31,7 @@ jobs:
         python -m pip install pytest
         python -m pip install --upgrade --upgrade-strategy eager -r requirements.txt
         python -m pip freeze
-        python -m pip install -i https://gmsh.info/python-packages --force-reinstall --no-cache-dir gmsh-dev
+        python -m pip install -i https://gmsh.info/python-packages --force-reinstall --no-cache-dir gmsh
     #- name: Lint with flake8
     #  run: |
         # stop the build if there are Python syntax errors or undefined names
