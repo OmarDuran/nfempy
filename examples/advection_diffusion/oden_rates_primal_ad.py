@@ -174,18 +174,37 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
     b.array[:] = -rg
     x = A.createVecRight()
 
-    # petsc_options = {"rtol": 1e-10, "atol": 1e-12, "divtol": 200, "max_it": 500}
-    ksp = PETSc.KSP().create()
-    ksp.create(PETSc.COMM_WORLD)
-    ksp.setOperators(A)
-    ksp.setType("fcg")
-    # ksp.setTolerances(**petsc_options)
-    # ksp.setTolerances(1e-10)
-    ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=500, max_it=2000)
+    ksp.setType("preonly")
+    ksp.getPC().setType("cholesky")
+    ksp.getPC().setFactorSolverType("mumps")
     ksp.setConvergenceHistory()
-    ksp.getPC().setType("ilu")
+
+    # petsc_options = {"rtol": 1e-10, "atol": 1e-12, "divtol": 200, "max_it": 500}
+    # ksp = PETSc.KSP().create()
+    # ksp.create(PETSc.COMM_WORLD)
+    # ksp.setOperators(A)
+    # ksp.setType("fcg")
+    # # ksp.setTolerances(**petsc_options)
+    # # ksp.setTolerances(1e-10)
+    # ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=500, max_it=2000)
+    # ksp.setConvergenceHistory()
+    # ksp.getPC().setType("ilu")
     ksp.solve(b, x)
     alpha = x.array
+
+    ai, aj, av = A.getValuesCSR()
+    Asp = scipy.sparse.csr_matrix((av, aj, ai))
+
+    alpha_s = scipy.sparse.linalg.spsolve(Asp,-rg)
+    def chop(expr, delta=1.0e-5):
+        return np.ma.masked_inside(expr, -delta, delta).filled(0)
+
+    alpha_p = l2_projector(fe_space, exact_functions)
+
+    i = 0
+    dest = fe_space.destination_indexes(i)
+    alpha_l = alpha[dest]
+    r_el, j_el = weak_form.evaluate_form(i, alpha_l)
 
     et = time.time()
     elapsed_time = et - st
@@ -462,7 +481,7 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 
 def main():
-    k_order = 2
+    k_order = 1
     h = 1.0
     n_ref = 5
     dimension = 2
@@ -474,8 +493,8 @@ def main():
         h_val = h * (2**-l)
         mesher = create_conformal_mesher(domain, h_val, 0)
         gmesh = create_mesh(dimension, mesher, True)
-        # error_val = h1_laplace(k_order, gmesh, True)
-        error_val = hdiv_laplace(k_order, gmesh, True)
+        error_val = h1_laplace(k_order, gmesh, True)
+        # error_val = hdiv_laplace(k_order, gmesh, True)
         error_data = np.append(error_data, np.array([[h_val, error_val]]), axis=0)
 
     rates_data = np.empty((0, 1), float)
