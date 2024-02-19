@@ -40,7 +40,7 @@ jobs:
         sudo apt-get upgrade
         sudo apt-get install libglu1
 
-        conda create -y --name nfempy python==python-version
+        conda create -y --name nfempy
         conda activate nfempy || true        
         
         # # install a message passing interface and mpi4py
