@@ -18,7 +18,8 @@ from spaces.product_space import ProductSpace
 from postprocess.l2_error_post_processor import l2_error
 from postprocess.projectors import l2_projector
 
-k_orders = [1, 2, 3, 4, 5]
+# k_orders = [1, 2, 3, 4, 5]
+k_orders = [1, 2, 3]
 
 s_functions = [
     lambda x, y, z: np.array([x + y]),
