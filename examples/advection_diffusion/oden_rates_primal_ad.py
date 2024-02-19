@@ -246,16 +246,24 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
     st = time.time()
 
     # exact solution
-    p_exact = lambda x, y, z: np.array([(1.0 - x) * x * (1.0 - y) * y])
-    q_exact = lambda x, y, z: np.array(
-        [
-            -((1 - x) * (1 - y) * y) + x * (1 - y) * y,
-            -((1 - x) * x * (1 - y)) + (1 - x) * x * y,
-        ]
-    )
-    f_rhs = lambda x, y, z: np.array([[2 * (1 - x) * x + 2 * (1 - y) * y]])
-
-    if dim == 3:
+    if dim == 1:
+        p_exact = lambda x, y, z: np.array([(1.0 - x) * x])
+        q_exact = lambda x, y, z: np.array(
+            [
+                (-1.0 + 2.0 * x),
+            ]
+        )
+        f_rhs = lambda x, y, z: np.array([[2.0+0.0*x]])
+    elif dim == 2:
+        p_exact = lambda x, y, z: np.array([(1.0 - x) * x * (1.0 - y) * y])
+        q_exact = lambda x, y, z: np.array(
+            [
+                -((1 - x) * (1 - y) * y) + x * (1 - y) * y,
+                -((1 - x) * x * (1 - y)) + (1 - x) * x * y,
+            ]
+        )
+        f_rhs = lambda x, y, z: np.array([[2 * (1 - x) * x + 2 * (1 - y) * y]])
+    elif dim == 3:
         p_exact = lambda x, y, z: np.array(
             [(1.0 - x) * x * (1.0 - y) * y * (1.0 - z) * z]
         )
@@ -442,7 +450,7 @@ def main():
     k_order = 2
     h = 1.0
     n_ref = 4
-    dimension = 2
+    dimension = 1
     ref_l = 0
 
     domain = create_domain(dimension)

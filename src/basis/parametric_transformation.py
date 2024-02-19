@@ -4,6 +4,31 @@ from basix import CellType
 
 from basis.element_data import ElementData
 
+def _R0_to_R1(facet_index, points, data_c1: ElementData, data_c0: ElementData):
+    dim = data_c1.cell.dimension
+
+    line_vertices = basix.geometry(CellType.interval)
+    line_connectivities = basix.cell.sub_entity_connectivity(CellType.interval)
+    line_facet = line_connectivities[dim][facet_index][0]
+    line_face_subentities = data_c0.cell.node_tags[line_facet]
+
+    point_facet = data_c1.cell.node_tags
+
+    permutation_q = tuple(point_facet) != tuple(line_face_subentities)
+
+    if permutation_q:
+        assert tuple(np.sort(line_facet)) == tuple(np.sort(line_face_subentities))
+        index_map = dict(zip(line_face_subentities, line_facet))
+        line_facet = [index_map[k] for k in line_facet]
+
+    # perform linear map
+    mapped_points = np.array(
+        [
+            line_vertices[line_facet[0]] * xi
+            for xi in points
+        ]
+    )
+    return mapped_points
 
 def _R1_to_R2(facet_index, points, data_c1: ElementData, data_c0: ElementData):
     dim = data_c1.cell.dimension
@@ -68,7 +93,10 @@ def transform_lower_to_higher(points, data_c1: ElementData, data_c0: ElementData
     cell = data_c1.cell
     neigh_cell = data_c0.cell
     facet_index = neigh_cell.sub_cells_ids[cell.dimension].tolist().index(cell.id)
-    if cell.dimension == 2:
-        return _R2_to_R3(facet_index, points, data_c1, data_c0)
-    else:
+    if cell.dimension == 0:
+        return _R0_to_R1(facet_index, points, data_c1, data_c0)
+    elif cell.dimension == 1:
         return _R1_to_R2(facet_index, points, data_c1, data_c0)
+    elif cell.dimension == 2:
+        return _R2_to_R3(facet_index, points, data_c1, data_c0)
+

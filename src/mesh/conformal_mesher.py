@@ -225,7 +225,7 @@ class ConformalMesher:
                 else:
                     if self.domain.dimension == 1:
                         no_predecessors = (
-                            len(list(self.domain.graph.predecessors((1, curve.tag))))
+                            len(list(self.domain.graph.predecessors((0, curve.tag))))
                             == 0
                         )
                         if no_predecessors:

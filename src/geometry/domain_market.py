@@ -40,7 +40,7 @@ def build_box_1D(box_points, physical_tags=None):
     edge = Edge(shape_tag, domain.shapes[0][vertex_indices])
     edge.physical_tag = physical_tags.get("line", None)
     domain.append_shapes(np.array([edge]))
-
+    domain.build_grahp()
     return domain
 
 
@@ -76,7 +76,7 @@ def build_box_2D(box_points, physical_tags=None):
     surface = Face(0, np.array([wire]))
     surface.physical_tag = physical_tags.get("area", None)
     domain.append_shapes(np.array([surface]))
-
+    domain.build_grahp()
     return domain
 
 
@@ -154,7 +154,7 @@ def build_box_3D(box_points, physical_tags=None):
     solid = Solid(tag, np.array([shell]))
     solid.physical_tag = physical_tags.get("solid", None)
     domain.append_shapes(np.array([solid]))
-
+    domain.build_grahp()
     return domain
 
 
