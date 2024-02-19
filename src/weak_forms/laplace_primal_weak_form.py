@@ -24,12 +24,11 @@ class LaplacePrimalWeakForm(WeakForm):
 
         cell = p_data.cell
         dim = p_data.dimension
-        points = p_data.quadrature.points
-        weights = p_data.quadrature.weights
-        x = p_data.mapping.x
-        det_jac = p_data.mapping.det_jac
-        inv_jac = p_data.mapping.inv_jac
-        p_phi_tab = p_data.basis.phi
+        points, weights = self.space.quadrature
+        x, jac, det_jac, inv_jac = p_space.elements[iel].evaluate_mapping(points)
+
+        # basis
+        p_phi_tab = p_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
 
         n_p_phi = p_phi_tab.shape[2]
         n_p_dof = n_p_phi * p_components
@@ -86,13 +85,13 @@ class LaplacePrimalWeakFormBCDirichlet(WeakForm):
         p_data: ElementData = p_space.bc_elements[iel].data
 
         cell = p_data.cell
-        points = p_data.quadrature.points
-        weights = p_data.quadrature.weights
-        x = p_data.mapping.x
-        det_jac = p_data.mapping.det_jac
-        inv_jac = p_data.mapping.inv_jac
+        points, weights = self.space.bc_quadrature
+        dim = p_data.dimension
+        x, jac, det_jac, inv_jac = p_space.bc_elements[iel].evaluate_mapping(points)
 
-        p_phi_tab = p_data.basis.phi
+        # basis
+        p_phi_tab = p_space.bc_elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+
         n_p_phi = p_phi_tab.shape[2]
         n_p_dof = n_p_phi * p_components
 
