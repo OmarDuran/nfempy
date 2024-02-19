@@ -11,10 +11,10 @@ def evaluate_linear_shapes(points, data: ElementData):
     family = family_by_name("Lagrange")
     variant = basis_variant()
     linear_element = basix.create_element(
-        family,
-        cell_type,
-        1,
-        variant,
+        family_name=family,
+        cell_name=cell_type,
+        degree=1,
+        lagrange_variant=variant,
     )
     phi = linear_element.tabulate(1, points)
     return phi

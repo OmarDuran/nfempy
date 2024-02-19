@@ -31,7 +31,7 @@ class ProductSpace:
         else:
             cell_type = type_by_dimension(dim)
             self.quadrature = basix.make_quadrature(
-                basix.QuadratureType.gauss_jacobi, cell_type, self.integration_order
+                cell_type, self.integration_order, basix.QuadratureType.gauss_jacobi
             )
 
         # bc quadrature
@@ -40,7 +40,7 @@ class ProductSpace:
         else:
             cell_type = type_by_dimension(dim - 1)
             self.bc_quadrature = basix.make_quadrature(
-                basix.QuadratureType.gauss_jacobi, cell_type, self.integration_order
+                cell_type, self.integration_order, basix.QuadratureType.gauss_jacobi
             )
 
     def _define_discrete_spaces(self, discrete_spaces_data):

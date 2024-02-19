@@ -175,3 +175,5 @@ nbproject/
 *.py_o
 *.txt
 *.vtk
+
+!tests/test_geometry/lines/**.csv

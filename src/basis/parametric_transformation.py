@@ -4,6 +4,7 @@ from basix import CellType
 
 from basis.element_data import ElementData
 
+
 def _R0_to_R1(facet_index, points, data_c1: ElementData, data_c0: ElementData):
     dim = data_c1.cell.dimension
 
@@ -22,13 +23,9 @@ def _R0_to_R1(facet_index, points, data_c1: ElementData, data_c0: ElementData):
         line_facet = [index_map[k] for k in line_facet]
 
     # perform linear map
-    mapped_points = np.array(
-        [
-            line_vertices[line_facet[0]] * xi
-            for xi in points
-        ]
-    )
+    mapped_points = np.array([line_vertices[line_facet[0]] * xi for xi in points])
     return mapped_points
+
 
 def _R1_to_R2(facet_index, points, data_c1: ElementData, data_c0: ElementData):
     dim = data_c1.cell.dimension
@@ -99,4 +96,3 @@ def transform_lower_to_higher(points, data_c1: ElementData, data_c0: ElementData
         return _R1_to_R2(facet_index, points, data_c1, data_c0)
     elif cell.dimension == 2:
         return _R2_to_R3(facet_index, points, data_c1, data_c0)
-
