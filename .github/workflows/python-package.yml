@@ -41,11 +41,12 @@ jobs:
       run: |
         # sudo apt-get update
         # sudo apt-get upgrade
+        echo ${{ github.workspace }}
         sudo apt-get install libglu1
         conda init bash
         conda create -y --name nfempy
         conda activate nfempy || true        
-        
+        echo ${{ github.workspace }}
         # # install a message passing interface and mpi4py
         # sudo apt-get install libopenmpi-dev  # alt.: conda install -c conda-forge openmpi
         # pip install --user mpi4py  # alt.: conda install -c anaconda mpi4py
