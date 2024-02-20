@@ -10,7 +10,7 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=true
 
 RUN apt-get update 
-RUN apt-get install -yq curl wget git build-essential libopenblas-dev libtbb2
+RUN apt-get install -yq curl vim wget git build-essential libopenblas-dev libtbb2
 RUN apt-get install -yq libglu1-mesa libxrender1 libxcursor1 libxft2 libxinerama1 ffmpeg libgl1-mesa-glx libsm6 libxext6
 
 ARG CONDA_VER
