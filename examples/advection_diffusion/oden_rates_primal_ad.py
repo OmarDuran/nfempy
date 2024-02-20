@@ -78,7 +78,7 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
                 (-1.0 + 2.0 * x),
             ]
         )
-        f_rhs = lambda x, y, z: np.array([[2.0+0.0*x]])
+        f_rhs = lambda x, y, z: np.array([[2.0 + 0.0 * x]])
     elif dim == 2:
         p_exact = lambda x, y, z: np.array([(1.0 - x) * x * (1.0 - y) * y])
         q_exact = lambda x, y, z: np.array(
@@ -195,7 +195,8 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
     ai, aj, av = A.getValuesCSR()
     Asp = scipy.sparse.csr_matrix((av, aj, ai))
 
-    alpha_s = scipy.sparse.linalg.spsolve(Asp,-rg)
+    alpha_s = scipy.sparse.linalg.spsolve(Asp, -rg)
+
     def chop(expr, delta=1.0e-5):
         return np.ma.masked_inside(expr, -delta, delta).filled(0)
 
@@ -292,7 +293,7 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
                 (-1.0 + 2.0 * x),
             ]
         )
-        f_rhs = lambda x, y, z: np.array([[2.0+0.0*x]])
+        f_rhs = lambda x, y, z: np.array([[2.0 + 0.0 * x]])
     elif dim == 2:
         p_exact = lambda x, y, z: np.array([(1.0 - x) * x * (1.0 - y) * y])
         q_exact = lambda x, y, z: np.array(
@@ -484,7 +485,7 @@ def main():
     k_order = 1
     h = 1.0
     n_ref = 5
-    dimension = 2
+    dimension = 1
     ref_l = 0
 
     domain = create_domain(dimension)
