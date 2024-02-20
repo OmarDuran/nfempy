@@ -10,7 +10,7 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=true
 
 RUN apt-get update 
-RUN apt-get install -yq curl wget git build-essential libopenblas-dev 
+RUN apt-get install -yq curl wget git build-essential libopenblas-dev libtbb2
 RUN apt-get install -yq libglu1-mesa libxrender1 libxcursor1 libxft2 libxinerama1 ffmpeg libgl1-mesa-glx libsm6 libxext6
 
 ARG CONDA_VER
@@ -31,14 +31,17 @@ RUN conda install -c conda-forge -y python=${PY_VER}
 RUN conda install -c conda-forge -y petsc4py 
 
 RUN git clone https://github.com/OmarDuran/nfempy.git
+RUN git clone https://github.com/PTNobel/AutoDiff.git
+
+RUN python -m pip install --upgrade pip
+RUN python -m pip install pytest
+
+WORKDIR /app/AutoDiff
+RUN python -m pip install .
+
 WORKDIR /app/nfempy
-
-RUN python -m pip install --upgrade pip \
-    && python -m pip install pytest \
-    && python -m pip install --upgrade -r requirements.txt \
-    && python -m pip install .
-
-
+RUN python -m pip install --upgrade -r requirements.txt
+RUN python -m pip install --user -e .
 RUN python -m pytest
 
 # ENTRYPOINT ["tini", "-g", "--"]
