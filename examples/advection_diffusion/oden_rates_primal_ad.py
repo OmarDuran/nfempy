@@ -22,30 +22,30 @@ from weak_forms.laplace_primal_weak_form import (
     LaplacePrimalWeakFormBCDirichlet,
 )
 
+from oden_primal_weak_form import OdenPrimalWeakForm, OdenPrimalWeakFormBCDirichlet
 
-def h1_laplace(k_order, gmesh, write_vtk_q=False):
+
+def h1_model_problem(k_order, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
 
     # FESpace: data
-    p_k_order = k_order
+    u_k_order = k_order
 
-    p_components = 1
+    u_components = 1
     family = "Lagrange"
 
     discrete_spaces_data = {
-        "p": (dim, p_components, family, p_k_order, gmesh),
+        "u": (dim, u_components, family, u_k_order, gmesh),
     }
 
-    p_disc_Q = False
+    u_disc_Q = False
     discrete_spaces_disc = {
-        "p": p_disc_Q,
+        "u": u_disc_Q,
     }
 
-    p_field_bc_physical_tags = [2, 3, 4, 5]
-    if dim == 3:
-        p_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
+    u_field_bc_physical_tags = [2, 3]
     discrete_spaces_bc_physical_tags = {
-        "p": p_field_bc_physical_tags,
+        "u": u_field_bc_physical_tags,
     }
 
     fe_space = ProductSpace(discrete_spaces_data)
@@ -72,40 +72,21 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
 
     # exact solution
     if dim == 1:
-        p_exact = lambda x, y, z: np.array([(1.0 - x) * x])
+        u_exact = lambda x, y, z: np.array([-((-np.e + (np.e**(1 + 2*x)) + (np.e**x)*x - (np.e**(2 + x))*x)/
+     ((np.e**x)*(-1 + (np.e**2))))])
         q_exact = lambda x, y, z: np.array(
             [
-                (-1.0 + 2.0 * x),
+                -((-np.e + (np.e ** (1 + 2 * x)) + (np.e ** x) * x - (
+                            np.e ** (2 + x)) * x) /
+                  ((np.e ** x) * (-1 + (np.e ** 2)))) +
+                ((np.e ** x) - (np.e ** (2 + x)) + 2 * (np.e ** (1 + 2 * x)) + (
+                            np.e ** x) * x - (np.e ** (2 + x)) * x) /
+                ((np.e ** x) * (-1 + (np.e ** 2))),
             ]
         )
-        f_rhs = lambda x, y, z: np.array([[2.0 + 0.0 * x]])
-    elif dim == 2:
-        p_exact = lambda x, y, z: np.array([(1.0 - x) * x * (1.0 - y) * y])
-        q_exact = lambda x, y, z: np.array(
-            [
-                -((1 - x) * (1 - y) * y) + x * (1 - y) * y,
-                -((1 - x) * x * (1 - y)) + (1 - x) * x * y,
-            ]
-        )
-        f_rhs = lambda x, y, z: np.array([[2 * (1 - x) * x + 2 * (1 - y) * y]])
-    elif dim == 3:
-        p_exact = lambda x, y, z: np.array(
-            [(1.0 - x) * x * (1.0 - y) * y * (1.0 - z) * z]
-        )
-        q_exact = lambda x, y, z: np.array(
-            [
-                -((1 - x) * (1 - y) * y * (1 - z) * z) + x * (1 - y) * y * (1 - z) * z,
-                -((1 - x) * x * (1 - y) * (1 - z) * z) + (1 - x) * x * y * (1 - z) * z,
-                -((1 - x) * x * (1 - y) * y * (1 - z)) + (1 - x) * x * (1 - y) * y * z,
-            ]
-        )
-        f_rhs = lambda x, y, z: np.array(
-            [
-                2 * (1 - x) * x * (1 - y) * y
-                + 2 * (1 - x) * x * (1 - z) * z
-                + 2 * (1 - y) * y * (1 - z) * z
-            ]
-        )
+        f_rhs = lambda x, y, z: np.array([[x]])
+    else:
+        raise ValueError("Case not implemented.")
 
     m_functions = {
         "rhs": f_rhs,
@@ -113,12 +94,12 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
     }
 
     exact_functions = {
-        "p": p_exact,
+        "u": u_exact,
     }
 
-    weak_form = LaplacePrimalWeakForm(fe_space)
+    weak_form = OdenPrimalWeakForm(fe_space)
     weak_form.functions = m_functions
-    bc_weak_form = LaplacePrimalWeakFormBCDirichlet(fe_space)
+    bc_weak_form = OdenPrimalWeakFormBCDirichlet(fe_space)
     bc_weak_form.functions = exact_functions
 
     def scatter_form_data(A, i, weak_form):
@@ -154,10 +135,10 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
         for k in range(nnz):
             A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
-    n_els = len(fe_space.discrete_spaces["p"].elements)
+    n_els = len(fe_space.discrete_spaces["u"].elements)
     [scatter_form_data(A, i, weak_form) for i in range(n_els)]
 
-    n_bc_els = len(fe_space.discrete_spaces["p"].bc_elements)
+    n_bc_els = len(fe_space.discrete_spaces["u"].bc_elements)
     [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
 
     A.assemble()
@@ -175,7 +156,7 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
     x = A.createVecRight()
 
     ksp.setType("preonly")
-    ksp.getPC().setType("cholesky")
+    ksp.getPC().setType("lu")
     ksp.getPC().setFactorSolverType("mumps")
     ksp.setConvergenceHistory()
 
@@ -212,11 +193,11 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
     print("Linear solver time:", elapsed_time, "seconds")
 
     st = time.time()
-    p_l2_error = l2_error(dim, fe_space, exact_functions, alpha)
+    u_l2_error = l2_error(dim, fe_space, exact_functions, alpha)
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
-    print("L2-error: ", p_l2_error)
+    print("L2-error: ", u_l2_error)
 
     if write_vtk_q:
         # post-process solution
@@ -229,7 +210,7 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
 
-    return p_l2_error[0]
+    return u_l2_error[0]
 
 
 def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
@@ -494,7 +475,7 @@ def main():
         h_val = h * (2**-l)
         mesher = create_conformal_mesher(domain, h_val, 0)
         gmesh = create_mesh(dimension, mesher, True)
-        error_val = h1_laplace(k_order, gmesh, True)
+        error_val = h1_model_problem(k_order, gmesh, True)
         # error_val = hdiv_laplace(k_order, gmesh, True)
         error_data = np.append(error_data, np.array([[h_val, error_val]]), axis=0)
 
