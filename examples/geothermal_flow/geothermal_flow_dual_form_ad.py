@@ -122,12 +122,12 @@ def geothermal_flow_formulation(method, gmesh, write_vtk_q=False):
 
     st = time.time()
 
-    rhs_p = lambda x, y, z: np.array([-2.0 + 0.0 * x])
-    rhs_h = lambda x, y, z: np.array([2.0 + 0.0 * x])
+    rhs_p = lambda x, y, z: np.array([+2.0 + 0.0 * x])
+    rhs_h = lambda x, y, z: np.array([+2.0 + 0.0 * x])
     rhs_z = lambda x, y, z: np.array([0.0 * x])
 
     m_functions = {
-        "rhs_f": rhs_p,
+        "rhs_p": rhs_p,
         "rhs_h": rhs_h,
         "rhs_z": rhs_z,
         "kappa": f_kappa,
@@ -146,7 +146,7 @@ def geothermal_flow_formulation(method, gmesh, write_vtk_q=False):
 
     weak_form = TwoCompMultiPhaseFlowWeakForm(fe_space)
     weak_form.functions = m_functions
-    bc_weak_form =  TwoCompMultiPhaseFlowWeakFormBCDirichlet(fe_space)
+    bc_weak_form = TwoCompMultiPhaseFlowWeakFormBCDirichlet(fe_space)
     bc_weak_form.functions = bc_functions
 
     def scatter_form_data(A, i, weak_form):
@@ -182,10 +182,14 @@ def geothermal_flow_formulation(method, gmesh, write_vtk_q=False):
         for k in range(nnz):
             A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
-    n_els = len(fe_space.discrete_spaces["q"].elements)
+    assert len(fe_space.discrete_spaces["q_mass"].elements) == len(
+        fe_space.discrete_spaces["q_energy"].elements)
+    n_els = len(fe_space.discrete_spaces["q_mass"].elements)
     [scatter_form_data(A, i, weak_form) for i in range(n_els)]
 
-    n_bc_els = len(fe_space.discrete_spaces["q"].bc_elements)
+    assert len(fe_space.discrete_spaces["q_mass"].bc_elements) == len(
+        fe_space.discrete_spaces["q_energy"].bc_elements)
+    n_bc_els = len(fe_space.discrete_spaces["q_mass"].bc_elements)
     [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
 
     A.assemble()
@@ -288,9 +292,8 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 def main():
 
     k_order = 1
-    h = 1.0
-    n_ref = 5
-    dimension = 1
+    h = 0.1
+    dimension = 2
 
 
     domain = create_domain(dimension)
