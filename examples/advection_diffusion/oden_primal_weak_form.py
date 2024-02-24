@@ -55,7 +55,8 @@ class OdenPrimalWeakForm(WeakForm):
             for c in range(u_components):
                 b = c
                 e = b + n_dof
-                el_form[b:e:u_components] -= phi_s_star @ f_val_star[c].T.ravel()
+                integral_value_rhs = phi_s_star @ f_val_star[c].T
+                el_form[b:e:u_components] -= integral_value_rhs.ravel()
 
             for i, omega in enumerate(weights):
                 xv = x[i]
