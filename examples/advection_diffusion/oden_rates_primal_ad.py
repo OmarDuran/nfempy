@@ -22,6 +22,8 @@ from weak_forms.laplace_primal_weak_form import (
     LaplacePrimalWeakFormBCDirichlet,
 )
 
+from oden_primal_weak_form import OdenPrimalWeakForm, OdenPrimalWeakFormBCDirichlet
+
 
 def h1_laplace(k_order, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
@@ -72,40 +74,21 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
 
     # exact solution
     if dim == 1:
-        p_exact = lambda x, y, z: np.array([(1.0 - x) * x])
+        p_exact = lambda x, y, z: np.array([-((-np.e + (np.e**(1 + 2*x)) + (np.e**x)*x - (np.e**(2 + x))*x)/
+     ((np.e**x)*(-1 + (np.e**2))))])
         q_exact = lambda x, y, z: np.array(
             [
-                (-1.0 + 2.0 * x),
+                -((-np.e + (np.e ** (1 + 2 * x)) + (np.e ** x) * x - (
+                            np.e ** (2 + x)) * x) /
+                  ((np.e ** x) * (-1 + (np.e ** 2)))) +
+                ((np.e ** x) - (np.e ** (2 + x)) + 2 * (np.e ** (1 + 2 * x)) + (
+                            np.e ** x) * x - (np.e ** (2 + x)) * x) /
+                ((np.e ** x) * (-1 + (np.e ** 2))),
             ]
         )
-        f_rhs = lambda x, y, z: np.array([[2.0 + 0.0 * x]])
-    elif dim == 2:
-        p_exact = lambda x, y, z: np.array([(1.0 - x) * x * (1.0 - y) * y])
-        q_exact = lambda x, y, z: np.array(
-            [
-                -((1 - x) * (1 - y) * y) + x * (1 - y) * y,
-                -((1 - x) * x * (1 - y)) + (1 - x) * x * y,
-            ]
-        )
-        f_rhs = lambda x, y, z: np.array([[2 * (1 - x) * x + 2 * (1 - y) * y]])
-    elif dim == 3:
-        p_exact = lambda x, y, z: np.array(
-            [(1.0 - x) * x * (1.0 - y) * y * (1.0 - z) * z]
-        )
-        q_exact = lambda x, y, z: np.array(
-            [
-                -((1 - x) * (1 - y) * y * (1 - z) * z) + x * (1 - y) * y * (1 - z) * z,
-                -((1 - x) * x * (1 - y) * (1 - z) * z) + (1 - x) * x * y * (1 - z) * z,
-                -((1 - x) * x * (1 - y) * y * (1 - z)) + (1 - x) * x * (1 - y) * y * z,
-            ]
-        )
-        f_rhs = lambda x, y, z: np.array(
-            [
-                2 * (1 - x) * x * (1 - y) * y
-                + 2 * (1 - x) * x * (1 - z) * z
-                + 2 * (1 - y) * y * (1 - z) * z
-            ]
-        )
+        f_rhs = lambda x, y, z: np.array([[x]])
+    else:
+        raise ValueError("Case not implemented.")
 
     m_functions = {
         "rhs": f_rhs,
@@ -116,9 +99,9 @@ def h1_laplace(k_order, gmesh, write_vtk_q=False):
         "p": p_exact,
     }
 
-    weak_form = LaplacePrimalWeakForm(fe_space)
+    weak_form = OdenPrimalWeakForm(fe_space)
     weak_form.functions = m_functions
-    bc_weak_form = LaplacePrimalWeakFormBCDirichlet(fe_space)
+    bc_weak_form = OdenPrimalWeakFormBCDirichlet(fe_space)
     bc_weak_form.functions = exact_functions
 
     def scatter_form_data(A, i, weak_form):
