@@ -54,7 +54,7 @@ class LaplacePrimalWeakForm(WeakForm):
             for c in range(p_components):
                 b = c
                 e = b + n_dof
-                el_form[b:e:p_components] -= phi_s_star @ f_val_star[c].T
+                el_form[b:e:p_components] -= (phi_s_star @ f_val_star[c].T).ravel()
 
             for i, omega in enumerate(weights):
                 xv = x[i]
