@@ -173,21 +173,6 @@ def h1_model_problem(k_order, gmesh, write_vtk_q=False):
     ksp.solve(b, x)
     alpha = x.array
 
-    ai, aj, av = A.getValuesCSR()
-    Asp = scipy.sparse.csr_matrix((av, aj, ai))
-
-    alpha_s = scipy.sparse.linalg.spsolve(Asp, -rg)
-
-    def chop(expr, delta=1.0e-5):
-        return np.ma.masked_inside(expr, -delta, delta).filled(0)
-
-    alpha_p = l2_projector(fe_space, exact_functions)
-
-    i = 0
-    dest = fe_space.destination_indexes(i)
-    alpha_l = alpha[dest]
-    r_el, j_el = weak_form.evaluate_form(i, alpha_l)
-
     et = time.time()
     elapsed_time = et - st
     print("Linear solver time:", elapsed_time, "seconds")
