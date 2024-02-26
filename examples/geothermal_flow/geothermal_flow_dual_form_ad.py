@@ -83,8 +83,8 @@ def create_product_space(method, gmesh):
 def method_definition(k_order):
     # lower order convention
     method_1 = {
-        "q_mass": ("RT", k_order + 1),
-        "q_energy": ("RT", k_order + 1),
+        "q_mass": ("BDM", k_order + 1),
+        "q_energy": ("BDM", k_order + 1),
         "p": ("Lagrange", k_order),
         "h": ("Lagrange", k_order),
         "z": ("Lagrange", k_order),
@@ -149,6 +149,13 @@ def geothermal_flow_formulation(method, gmesh, write_vtk_q=False):
     bc_weak_form = TwoCompMultiPhaseFlowWeakFormBCDirichlet(fe_space)
     bc_weak_form.functions = bc_functions
 
+    # building interfaces at provided codimension
+    codim = 1
+    cids_codim_1 = [cell.id for cell in gmesh.cells if cell.dimension == dim - codim]
+    g_codim_1 = gmesh.build_graph(dim, codim)
+    neighs = [list(g_codim_1.predecessors(id)) for id in cids_codim_1]
+
+    aka = 0
     def scatter_form_data(A, i, weak_form):
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
@@ -291,8 +298,8 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 def main():
 
-    k_order = 1
-    h = 0.1
+    k_order = 0
+    h = 0.5
     dimension = 2
 
 

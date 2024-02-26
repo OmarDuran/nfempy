@@ -140,8 +140,8 @@ class TwoCompMultiPhaseFlowWeakForm(WeakForm):
                 div_qmh = a_qm @ div_vmh.T
                 div_qeh = a_qe @ div_veh.T
 
-                equ_1_integrand = (qmh @ qm_phi_tab[0, i, :, 0:dim].T) - (ph @ div_vmh)
-                equ_2_integrand = (qeh @ qe_phi_tab[0, i, :, 0:dim].T) - (hh @ div_veh)
+                equ_1_integrand = qmh @ qm_phi_tab[0, i, :, 0:dim].T - ph @ div_vmh
+                equ_2_integrand = qeh @ qe_phi_tab[0, i, :, 0:dim].T - hh @ div_veh
                 equ_3_integrand = div_qmh @ p_phi_tab[0, i, :, 0:dim].T
                 equ_4_integrand = div_qeh @ h_phi_tab[0, i, :, 0:dim].T
                 equ_5_integrand = zh @ z_phi_tab[0, i, :, 0:dim].T
