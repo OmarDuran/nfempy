@@ -77,13 +77,15 @@ class LCEDualWeakForm(WeakForm):
             for c in range(u_components):
                 b = c + n_s_dof + n_m_dof
                 e = b + n_u_dof
-                el_form[b:e:u_components] += -1.0 * u_phi_s_star @ f_val_star[c]
+                el_form[b:e:u_components] += (
+                    -1.0 * u_phi_s_star @ f_val_star[c]
+                ).ravel()
             for c in range(t_components):
                 b = c + n_s_dof + n_m_dof + n_u_dof
                 e = b + n_t_dof
                 el_form[b:e:t_components] += (
                     -1.0 * t_phi_s_star @ f_val_star[c + u_components]
-                )
+                ).ravel()
 
             for i, omega in enumerate(weights):
                 xv = x[i]

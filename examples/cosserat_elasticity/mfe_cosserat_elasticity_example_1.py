@@ -791,7 +791,7 @@ def perform_convergence_test(configuration: dict):
         mesher = create_conformal_mesher(domain, h, lh)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
         h_min, h_mean, h_max = mesh_size(gmesh)
-        if method[0] == "wc_afw":
+        if method[0] == "wc_rt" or method[0] == "wc_bdm":
             n_dof, error_vals, res_history = four_field_scaled_formulation(
                 k_order, material_data, method, gmesh, write_vtk
             )
@@ -917,20 +917,27 @@ def method_definition(k_order):
 
     method_2 = {
         "s": ("BDM", k_order + 1),
-        "m": ("RT", k_order + 1),
-        "u": ("Lagrange", k_order),
-        "t": ("Lagrange", k_order),
-    }
-
-    method_3 = {
-        "s": ("BDM", k_order + 1),
         "m": ("BDM", k_order + 2),
         "u": ("Lagrange", k_order),
         "t": ("Lagrange", k_order + 1),
     }
 
-    methods = [method_1, method_2, method_3]
-    method_names = ["sc_rt", "wc_afw", "sc_bdm"]
+    method_3 = {
+        "s": ("BDM", k_order + 1),
+        "m": ("RT", k_order + 1),
+        "u": ("Lagrange", k_order),
+        "t": ("Lagrange", k_order),
+    }
+
+    method_4 = {
+        "s": ("BDM", k_order + 1),
+        "m": ("BDM", k_order + 1),
+        "u": ("Lagrange", k_order),
+        "t": ("Lagrange", k_order),
+    }
+
+    methods = [method_1, method_2, method_3, method_4]
+    method_names = ["sc_rt", "sc_bdm", "wc_rt", "wc_bdm"]
     return zip(method_names, methods)
 
 
@@ -958,7 +965,7 @@ def main():
                     "material_data": material_data,
                 }
 
-                for d in [3]:
+                for d in [2]:
                     configuration.__setitem__("k_order", k)
                     configuration.__setitem__("dimension", d)
                     perform_convergence_test(configuration)
