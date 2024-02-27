@@ -6,13 +6,21 @@ plt.rcParams["text.usetex"] =True
 import numpy as np
 from pathlib import Path
 from abc import ABC
-# static maps
+
 
 class painter(ABC):
 
     @property
     def figure_size(self):
         return (8, 8)
+
+    @property
+    def file_pattern(self):
+        return self.pattern
+
+    @file_pattern.setter
+    def file_pattern(self, pattern):
+        self.pattern = pattern
 
     @property
     def file_name(self):
@@ -80,24 +88,27 @@ class painter_first_kind(painter):
 
     def color_canvas_with_variable_epsilon(self, k, d, methods, material_values, conv_type):
 
+        p = Path()
+        file_names = list(p.glob(self.file_pattern))
         mat_label = '\epsilon'
         fig, ax = plt.subplots(figsize=self.figure_size)
 
         for method in methods:
-            # if conv_type is 'super' and method in ['wc_rt', 'wc_bdm']:
-            #     continue;
+            if conv_type == 'super' and method in ['wc_rt', 'wc_bdm']:
+                continue
+
             for m_value in material_values:
 
                 filter = painter_first_kind.filter_composer(method=method, m_lambda=self.m_lambda, m_eps=m_value,
                                          k=k, d=d)
-                result = [(idx, path.name) for idx, path in enumerate(ex_1_file_names) if
+                result = [(idx, path.name) for idx, path in enumerate(file_names) if
                           (filter in path.name)]
                 assert len(result) == 1
                 label = self.method_map[method] + ': ' + r'$' + mat_label + ' = ' + \
                         self.mat_values_map[str(m_value)] + '$'
                 marker = self.markers_values_map[str(m_value)]
                 color = self.method_color_map[method]
-                file_name = str(ex_1_file_names[result[0][0]])
+                file_name = str(file_names[result[0][0]])
                 rdata = np.genfromtxt(file_name, dtype=None, delimiter=',', skip_header=1)
                 idxs = self.convergence_type_map[conv_type]
 
@@ -113,83 +124,185 @@ class painter_first_kind(painter):
         plt.xlabel(r"$h$")
         plt.ylabel("Error")
         plt.ylim(self.ordinate_range[0], self.ordinate_range[1])
-        # plt.ylim(0.0001, 30)
         plt.text(0.25, 1.0, r"$\mathbf{1}$")
         plt.legend()
-        # plt.show()
         plt.savefig(self.file_name, format='pdf')
-        aka = 0
 
-# Set the range of x-axis
-p=Path()
-ex_1_file_names = list(p.glob('output_example_1/*_error_ex_1.txt'))
+    def color_canvas_with_variable_lambda(self, k, d, methods, material_values, conv_type):
 
-dim = 2
-aka = 0
+        p = Path()
+        file_names = list(p.glob(self.file_pattern))
+        mat_label = '\lambda_{\sigma}'
+        fig, ax = plt.subplots(figsize=self.figure_size)
 
-conv_type = 'normal'
-k = 0
+        for method in methods:
+            if conv_type == 'super' and method in ['wc_rt', 'wc_bdm']:
+                continue
+
+            for m_value in material_values:
+
+                filter = painter_first_kind.filter_composer(method=method, m_lambda=m_value, m_eps=self.m_epsilon,
+                                         k=k, d=d)
+                result = [(idx, path.name) for idx, path in enumerate(file_names) if
+                          (filter in path.name)]
+                assert len(result) == 1
+                label = self.method_map[method] + ': ' + r'$' + mat_label + ' = ' + \
+                        self.mat_values_map[str(m_value)] + '$'
+                marker = self.markers_values_map[str(m_value)]
+                color = self.method_color_map[method]
+                file_name = str(file_names[result[0][0]])
+                rdata = np.genfromtxt(file_name, dtype=None, delimiter=',', skip_header=1)
+                idxs = self.convergence_type_map[conv_type]
+
+                h = rdata[:, np.array([1])]
+                plt.xlim(np.min(h) / 1.1, np.max(h) * 1.1)
+
+                error = np.sum(rdata[:, idxs], axis=1)
+                plt.loglog(h, error, label=label, marker=marker, color=color)
+
+        ax.grid(True, linestyle='-.', axis='both', which='both', color='black',
+                alpha=0.25)
+        ax.tick_params(which='both', labelcolor='black', labelsize='large', width=2)
+        plt.xlabel(r"$h$")
+        plt.ylabel("Error")
+        plt.ylim(self.ordinate_range[0], self.ordinate_range[1])
+        plt.text(0.25, 1.0, r"$\mathbf{1}$")
+        plt.legend()
+        plt.savefig(self.file_name, format='pdf')
+
+class painter_second_kind(painter):
+
+    @property
+    def markers_values_map(self):
+        map = {'0': "o", '1': "s"}
+        return map
+
+    # @property
+    # def method_color_map(self):
+    #     map = {'0': mcolors.TABLEAU_COLORS['tab:blue'],  '1': mcolors.TABLEAU_COLORS['tab:orange']}
+    #     return map
+
+    @staticmethod
+    def filter_composer(method, k, d):
+        filter_0 = method
+        filter_1 = '_k' + str(k)
+        filter_2 = '_' + str(d) + 'd'
+        filter = filter_0 + filter_1 + filter_2
+        return  filter
+
+    def color_canvas_with_variable_k(self, d, methods):
+
+        p = Path()
+        file_names = list(p.glob(self.file_pattern))
+        fig, ax = plt.subplots(figsize=self.figure_size)
+        idxs = self.convergence_type_map['normal']
+
+        for method in methods:
+
+            for k in [0,1]:
+
+                filter = painter_second_kind.filter_composer(method=method, k=k, d=d)
+                result = [(idx, path.name) for idx, path in enumerate(file_names) if
+                          (filter in path.name)]
+                assert len(result) == 1
+                label = self.method_map[method] + ': ' r'$ k = ' + str(k) + '$'
+                marker = self.markers_values_map[str(k)]
+                color = self.method_color_map[method] #self.method_color_map[str(k)]
+                file_name = str(file_names[result[0][0]])
+                rdata = np.genfromtxt(file_name, dtype=None, delimiter=',', skip_header=1)
+
+                h = rdata[:, np.array([1])]
+                plt.xlim(np.min(h) / 1.1, np.max(h) * 1.1)
+
+                error = np.sum(rdata[:, idxs], axis=1)
+                plt.loglog(h, error, label=label, marker=marker, color=color)
+
+        ax.grid(True, linestyle='-.', axis='both', which='both', color='black',
+                alpha=0.25)
+        ax.tick_params(which='both', labelcolor='black', labelsize='large', width=2)
+        plt.xlabel(r"$h$")
+        plt.ylabel("Error")
+        plt.ylim(self.ordinate_range[0], self.ordinate_range[1])
+        plt.text(0.25, 1.0, r"$\mathbf{1}$")
+        plt.legend()
+        plt.savefig(self.file_name, format='pdf')
+
+def render_figures_example_1():
+
+    d = 2
+    methods = ['sc_rt', 'sc_bdm', 'wc_rt', 'wc_bdm']
+    file_pattern = 'output_example_1/*_error_ex_1.txt'
+
+    painter_ex_1 = painter_first_kind()
+    painter_ex_1.file_pattern = file_pattern
+
+    material_values = [1.0, 0.01, 0.0001]
+    painter_ex_1.ordinate_range = (0.001, 100)
+    conv_type = 'normal'
+
+    k = 0
+    painter_ex_1.file_name = 'normal_convergence_var_eps_k0_ex_1.pdf'
+    painter_ex_1.color_canvas_with_variable_epsilon(k, d, methods, material_values, conv_type)
+
+    k = 1
+    painter_ex_1.file_name = 'normal_convergence_var_eps_k1_ex_1.pdf'
+    painter_ex_1.color_canvas_with_variable_epsilon(k, d, methods, material_values, conv_type)
+
+    painter_ex_1.ordinate_range = (0.00001, 100)
+    conv_type = 'super'
+
+    k = 0
+    painter_ex_1.file_name = 'super_convergence_var_eps_k0_ex_1.pdf'
+    painter_ex_1.color_canvas_with_variable_epsilon(k, d, methods, material_values,
+                                                    conv_type)
+
+    k = 1
+    painter_ex_1.file_name = 'super_convergence_var_eps_k1_ex_1.pdf'
+    painter_ex_1.color_canvas_with_variable_epsilon(k, d, methods, material_values,
+                                                    conv_type)
+
+
+def render_figures_example_2():
+
+    d = 2
+    methods = ['sc_rt', 'sc_bdm', 'wc_rt', 'wc_bdm']
+    file_pattern = 'output_example_2/*_error_ex_2.txt'
+
+    painter_ex_2 = painter_first_kind()
+    painter_ex_2.file_pattern = file_pattern
+
+    material_values = [1.0, 100.0, 10000.0]
+    painter_ex_2.ordinate_range = (0.001, 100)
+    conv_type = 'normal'
+
+    k = 0
+    painter_ex_2.file_name = 'normal_convergence_var_eps_k0_ex_2.pdf'
+    painter_ex_2.color_canvas_with_variable_lambda(k, d, methods, material_values, conv_type)
+
+    k = 1
+    painter_ex_2.file_name = 'normal_convergence_var_eps_k1_ex_2.pdf'
+    painter_ex_2.color_canvas_with_variable_lambda(k, d, methods, material_values, conv_type)
+
+    painter_ex_2.ordinate_range = (0.00001, 100)
+    conv_type = 'super'
+
+    k = 0
+    painter_ex_2.file_name = 'super_convergence_var_eps_k0_ex_2.pdf'
+    painter_ex_2.color_canvas_with_variable_lambda(k, d, methods, material_values,
+                                                    conv_type)
+
+    k = 1
+    painter_ex_2.file_name = 'super_convergence_var_eps_k1_ex_2.pdf'
+    painter_ex_2.color_canvas_with_variable_lambda(k, d, methods, material_values,
+                                                    conv_type)
+
+# render_figures_example_2()
+
 d = 2
-methods = ['sc_rt', 'sc_bdm', 'wc_rt', 'wc_bdm']
-material_values = [1.0, 0.01, 0.0001]
-
-painter_ex_1 = painter_first_kind()
-painter_ex_1.ordinate_range = (0.001, 100)
-
-painter_ex_1.file_name = 'normal_convergence_var_eps_k0_ex_1.pdf'
-painter_ex_1.color_canvas_with_variable_epsilon(0, d, methods, material_values, conv_type)
-
-painter_ex_1.file_name = 'normal_convergence_var_eps_k1_ex_1.pdf'
-painter_ex_1.color_canvas_with_variable_epsilon(1, d, methods, material_values, conv_type)
-
-# fig, ax = plt.subplots(figsize=(8, 8))
-#
-# for method in ['sc_rt', 'sc_bdm', 'wc_rt', 'wc_bdm']:
-#     if conv_type is 'super' and method in ['wc_rt', 'wc_bdm']:
-#         continue;
-#     # method = 'sc_rt'
-#     for m_eps in [1.0, 0.01, 0.0001]:
-#     # m_eps = 1.0
-#
-#         filter = filter_composer(method=method, m_lambda=m_lambda, m_eps=m_eps, k=k, d=d)
-#         result = [(idx, path.name) for idx, path in enumerate(ex_1_file_names) if (filter in path.name)]
-#         assert len(result) == 1
-#         label = method_map[method] + ': '+ r'$'+mat_label+' = '+ mat_values_map[str(m_eps)]+ '$'
-#         marker = markers_values_map[str(m_eps)]
-#         color = method_color_map[method]
-#         file_name = str(ex_1_file_names[result[0][0]])
-#         rdata = np.genfromtxt(file_name, dtype=None, delimiter=',', skip_header=1)
-#         idxs = convergence_type_map[conv_type]
-#
-#         h = rdata[:,np.array([1])]
-#         plt.xlim(np.min(h)/1.1, np.max(h)*1.1)
-#
-#         error = np.sum(rdata[:,idxs],axis=1)
-#         plt.loglog(h, error, label=label, marker=marker,color=color)
-#
-# ax.grid(True, linestyle='-.', axis='both', which='both', color='black', alpha = 0.25)
-# ax.tick_params(which='both',labelcolor='black', labelsize='large', width=2)
-# plt.xlabel(r"$h$")
-# plt.ylabel("Error")
-# plt.ylim(0.0001, 30)
-# plt.text(0.25, 1.0, r"$\mathbf{1}$")
-# plt.legend()
-# # plt.show()
-#
-# aka = 0
-# # Create plots in 2x2 grid
-# for plot in range(4):
-#     # Create plots
-#     x = np.arange(0, 10, 0.1)
-#     y = np.random.randn(len(x))
-#     y2 = np.random.randn(len(x))
-#     ax = fig.add_subplot(2,2,plot+1)
-#     plt.loglog(x, y, label="y")
-#     plt.loglog(x, y2, label="y2")
-#
-# aka = 0
-# # Create custom legend
-# blue_line = mlines.Line2D([], [], color='blue',markersize=15, label='Blue line')
-# green_line = mlines.Line2D([], [], color='green', markersize=15, label='Green line')
-# ax.legend(handles=[blue_line,green_line],bbox_to_anchor=(1.05, 0),  loc='lower left', borderaxespad=0.)
-# aka = 0
+methods = ['wc_rt', 'wc_bdm']
+file_pattern = 'output_example_3/*_error_ex_3.txt'
+painter_ex_3 = painter_second_kind()
+painter_ex_3.file_pattern = file_pattern
+painter_ex_3.ordinate_range = (0.0001, 1)
+painter_ex_3.file_name = 'normal_convergence_var_k_ex_3.pdf'
+painter_ex_3.color_canvas_with_variable_k(d, methods)

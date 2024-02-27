@@ -673,14 +673,22 @@ def perform_convergence_postprocessing(configuration: dict):
 
 
 def method_definition(k_order):
-    method = {
+    method_1 = {
         "s": ("BDM", k_order + 1),
         "m": ("RT", k_order + 1),
         "u": ("Lagrange", k_order),
         "t": ("Lagrange", k_order),
     }
-    methods = [method]
-    method_names = ["wc_afw"]
+
+    method_2 = {
+        "s": ("BDM", k_order + 1),
+        "m": ("BDM", k_order + 1),
+        "u": ("Lagrange", k_order),
+        "t": ("Lagrange", k_order),
+    }
+
+    methods = [method_1, method_2]
+    method_names = ["wc_rt", "wc_bdm"]
     return zip(method_names, methods)
 
 
@@ -694,7 +702,7 @@ def main():
                 "n_refinements": refinements[k],
                 "method": method,
             }
-            for d in [3]:
+            for d in [2]:
                 configuration.__setitem__("k_order", k)
                 configuration.__setitem__("dimension", d)
                 if only_approximation_q:
