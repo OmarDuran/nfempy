@@ -207,7 +207,7 @@ class painter_second_kind(painter):
                 assert len(result) == 1
                 label = self.method_map[method] + ': ' r'$ k = ' + str(k) + '$'
                 marker = self.markers_values_map[str(k)]
-                color = self.method_color_map[method] #self.method_color_map[str(k)]
+                color = self.method_color_map[method]
                 file_name = str(file_names[result[0][0]])
                 rdata = np.genfromtxt(file_name, dtype=None, delimiter=',', skip_header=1)
 
@@ -296,13 +296,16 @@ def render_figures_example_2():
     painter_ex_2.color_canvas_with_variable_lambda(k, d, methods, material_values,
                                                     conv_type)
 
-# render_figures_example_2()
+def render_figures_example_3():
+    d = 2
+    methods = ['wc_rt', 'wc_bdm']
+    file_pattern = 'output_example_3/*_error_ex_3.txt'
+    painter_ex_3 = painter_second_kind()
+    painter_ex_3.file_pattern = file_pattern
+    painter_ex_3.ordinate_range = (0.0001, 1)
+    painter_ex_3.file_name = 'normal_convergence_var_k_ex_3.pdf'
+    painter_ex_3.color_canvas_with_variable_k(d, methods)
 
-d = 2
-methods = ['wc_rt', 'wc_bdm']
-file_pattern = 'output_example_3/*_error_ex_3.txt'
-painter_ex_3 = painter_second_kind()
-painter_ex_3.file_pattern = file_pattern
-painter_ex_3.ordinate_range = (0.0001, 1)
-painter_ex_3.file_name = 'normal_convergence_var_k_ex_3.pdf'
-painter_ex_3.color_canvas_with_variable_k(d, methods)
+render_figures_example_1()
+render_figures_example_2()
+render_figures_example_3()
