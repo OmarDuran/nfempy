@@ -16,28 +16,27 @@ class painter(ABC):
 
     @property
     def file_pattern(self):
-        return self.pattern
+        return self._pattern
 
     @file_pattern.setter
     def file_pattern(self, pattern):
-        self.pattern = pattern
+        self._pattern = pattern
 
     @property
     def file_name(self):
-        return self.name
+        return self._name
 
     @file_name.setter
     def file_name(self, name):
-        self.name = name
-
+        self._name = name
 
     @property
     def ordinate_range(self):
-        return self.v_range
+        return self._v_range
 
     @ordinate_range.setter
     def ordinate_range(self, range):
-        self.v_range = range
+        self._v_range = range
 
     @property
     def method_map(self):
@@ -66,6 +65,10 @@ class painter(ABC):
         map = {'normal': np.array([2,3,4,5]), 'super': np.array([3,5])}
         return map
 
+    @classmethod
+    def create_directory(self):
+        Path("figures").mkdir(parents=True, exist_ok=True)
+
     @staticmethod
     def filter_composer(method, m_lambda, m_eps, k, d):
         filter_0 = method
@@ -78,6 +81,10 @@ class painter(ABC):
 
 class painter_first_kind(painter):
 
+    # @classmethod
+    # def update_file_name(self):
+    #     self._name = Path('figures') / Path(self._name)
+
     @property
     def m_lambda(self):
         return 1.0
@@ -87,6 +94,8 @@ class painter_first_kind(painter):
         return 1.0
 
     def color_canvas_with_variable_epsilon(self, k, d, methods, material_values, conv_type):
+
+        self.create_directory()
 
         p = Path()
         file_names = list(p.glob(self.file_pattern))
@@ -126,9 +135,12 @@ class painter_first_kind(painter):
         plt.ylim(self.ordinate_range[0], self.ordinate_range[1])
         plt.text(0.25, 1.0, r"$\mathbf{1}$")
         plt.legend()
-        plt.savefig(self.file_name, format='pdf')
+
+        plt.savefig(Path('figures') / Path(self._name), format='pdf')
 
     def color_canvas_with_variable_lambda(self, k, d, methods, material_values, conv_type):
+
+        self.create_directory()
 
         p = Path()
         file_names = list(p.glob(self.file_pattern))
@@ -168,7 +180,8 @@ class painter_first_kind(painter):
         plt.ylim(self.ordinate_range[0], self.ordinate_range[1])
         plt.text(0.25, 1.0, r"$\mathbf{1}$")
         plt.legend()
-        plt.savefig(self.file_name, format='pdf')
+
+        plt.savefig(Path('figures') / Path(self._name), format='pdf')
 
 class painter_second_kind(painter):
 
@@ -191,6 +204,8 @@ class painter_second_kind(painter):
         return  filter
 
     def color_canvas_with_variable_k(self, d, methods):
+
+        self.create_directory()
 
         p = Path()
         file_names = list(p.glob(self.file_pattern))
@@ -225,11 +240,11 @@ class painter_second_kind(painter):
         plt.ylim(self.ordinate_range[0], self.ordinate_range[1])
         plt.text(0.25, 1.0, r"$\mathbf{1}$")
         plt.legend()
-        plt.savefig(self.file_name, format='pdf')
+        
+        plt.savefig(Path('figures') / Path(self._name), format='pdf')
 
-def render_figures_example_1():
+def render_figures_example_1(d = 2):
 
-    d = 2
     methods = ['sc_rt', 'sc_bdm', 'wc_rt', 'wc_bdm']
     file_pattern = 'output_example_1/*_error_ex_1.txt'
 
@@ -262,9 +277,7 @@ def render_figures_example_1():
                                                     conv_type)
 
 
-def render_figures_example_2():
-
-    d = 2
+def render_figures_example_2(d = 2):
     methods = ['sc_rt', 'sc_bdm', 'wc_rt', 'wc_bdm']
     file_pattern = 'output_example_2/*_error_ex_2.txt'
 
@@ -296,8 +309,7 @@ def render_figures_example_2():
     painter_ex_2.color_canvas_with_variable_lambda(k, d, methods, material_values,
                                                     conv_type)
 
-def render_figures_example_3():
-    d = 2
+def render_figures_example_3(d = 2):
     methods = ['wc_rt', 'wc_bdm']
     file_pattern = 'output_example_3/*_error_ex_3.txt'
     painter_ex_3 = painter_second_kind()
