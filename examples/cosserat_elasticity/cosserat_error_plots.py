@@ -8,6 +8,94 @@ from pathlib import Path
 from abc import ABC
 
 
+class ConvergenceTriangle:
+
+    def __init__(self, data, rate, h_shift, e_shift, mirror_q):
+        if not self.validate_input(data, rate, h_shift, e_shift, mirror_q):
+            raise ValueError("Not valid input(s).")
+        self._data = np.log(data)
+        self._rate = rate
+        self._h_shift = h_shift
+        self._e_shift = e_shift
+        self._mirror_q = mirror_q
+        self._triangle = None
+        self._label_pos = None
+        self.build_me()
+
+    def validate_input(self, data, rate, h_shift, e_shift, mirror_q):
+
+
+        data_ok = isinstance(data, np.ndarray)
+        rate_ok = isinstance(rate, int)
+        shifts_ok = isinstance(h_shift, float) and isinstance(e_shift, float)
+        mirror_q_ok = isinstance(mirror_q, bool)
+
+        if not data_ok:
+            raise TypeError("Expected type for rate: ", type(rate))
+        else:
+            data_ok = (data.shape[0] > 1 and data.shape[1] > 1)
+            if not data_ok:
+                raise ValueError("Expected at least two points, data.shape is: ", data.shape)
+
+        if not rate_ok:
+            raise TypeError("Expected type for rate: ", type(rate))
+
+        if not shifts_ok:
+            raise TypeError("Expected type for h_shift or e_shift: ", type(h_shift))
+
+        if not mirror_q_ok:
+            raise TypeError("Expected type for mirror_q: ", type(mirror_q))
+
+        valid_input_q = (data_ok and rate_ok and shifts_ok and mirror_q_ok)
+
+        return valid_input_q
+
+    def build_me(self):
+        p0, p2 = self._data[-2], self._data[-1]
+        step = p0[0] - p2[0]
+        if self._mirror_q:
+            p1 = p0 - np.array([step, 0.0])
+            p2 = p0 - np.array([step, self._rate * step])
+            # p0[0] += self._h_shift
+            # p1[0] += self._h_shift
+            # p2[0] += self._h_shift
+            # p0[1] += self._e_shift
+            # p1[1] += self._e_shift
+            # p2[1] += self._e_shift
+            # self._triangle = np.exp(np.vstack((p0, p1, p2, p0)))
+        else:
+            p1 = p0 - np.array([0.0, self._rate * step])
+            p2 = p0 - np.array([step, self._rate * step])
+            # p0[0] -= self._h_shift
+            # p1[0] -= self._h_shift
+            # p2[0] -= self._h_shift
+            # p0[1] -= self._e_shift
+            # p1[1] -= self._e_shift
+            # p2[1] -= self._e_shift
+            # self._triangle = np.exp(np.vstack((p0, p1, p2, p0)))
+        p0[0] += self._h_shift
+        p1[0] += self._h_shift
+        p2[0] += self._h_shift
+        p0[1] += self._e_shift
+        p1[1] += self._e_shift
+        p2[1] += self._e_shift
+        self._triangle = np.exp(np.vstack((p0, p1, p2, p0)))
+
+        xc = np.mean(np.vstack((p0, p1, p2)),axis=0)
+        if self._mirror_q:
+            dirh = xc - np.mean(np.vstack((p2, p1)),axis=0)
+            dire = xc - np.mean(np.vstack((p0, p1)),axis=0)
+            step_pos = np.exp(0.4 * dire + np.mean(np.vstack((p0, p1)),axis=0))
+            rate_pos = np.exp(0.25 * dirh + np.mean(np.vstack((p2, p1)), axis=0))
+            self._label_pos = (step_pos, rate_pos)
+        else:
+            dirh = xc - np.mean(np.vstack((p0, p1)),axis=0)
+            dire = xc - np.mean(np.vstack((p2, p1)),axis=0)
+            step_pos = np.exp(0.4 * dire + np.mean(np.vstack((p2, p1)),axis=0))
+            rate_pos = np.exp(0.25 * dirh + np.mean(np.vstack((p0, p1)), axis=0))
+            self._label_pos = (step_pos, rate_pos)
+
+
 class painter(ABC):
 
     @property
@@ -103,8 +191,8 @@ class painter_first_kind(painter):
         fig, ax = plt.subplots(figsize=self.figure_size)
 
         for method in methods:
-            if conv_type == 'super' and method in ['wc_rt', 'wc_bdm']:
-                continue
+            # if conv_type == 'super' and method in ['wc_rt', 'wc_bdm']:
+            #     continue
 
             for m_value in material_values:
 
@@ -133,8 +221,32 @@ class painter_first_kind(painter):
         plt.xlabel(r"$h$")
         plt.ylabel("Error")
         plt.ylim(self.ordinate_range[0], self.ordinate_range[1])
-        plt.text(0.25, 1.0, r"$\mathbf{1}$")
         plt.legend()
+
+        # ratio = 2.0
+        # xleft, xright = ax.get_xlim()
+        # ybottom, ytop = ax.get_ylim()
+        # ax.set_aspect(abs((xright - xleft) / (ybottom - ytop)) * ratio)
+
+        # build triangle
+        method = 'wc_bdm'
+        m_value = 1.0
+        filter = painter_first_kind.filter_composer(method=method, m_lambda=self.m_lambda,
+                                                    m_eps=m_value,
+                                                    k=k, d=d)
+        result = [(idx, path.name) for idx, path in enumerate(file_names) if
+                  (filter in path.name)]
+        assert len(result) == 1
+        file_name = str(file_names[result[0][0]])
+        rdata = np.genfromtxt(file_name, dtype=None, delimiter=',', skip_header=1)
+        h_shift = 0.0
+        e_shift = -0.5
+        idxs = self.convergence_type_map[conv_type]
+        ldata = np.vstack((rdata[:, 1],np.sum(rdata[:, idxs], axis=1))).T
+        conv_triangle = ConvergenceTriangle(ldata, k+1, h_shift, e_shift, False)
+        plt.loglog(conv_triangle._triangle[:, 0], conv_triangle._triangle[:, 1], linestyle='--', color='gray')
+        plt.text(conv_triangle._label_pos[0][0], conv_triangle._label_pos[0][1], r"$\mathbf{1}$", color='gray')
+        plt.text(conv_triangle._label_pos[1][0], conv_triangle._label_pos[1][1], r"$\mathbf{"+str(k+1)+"}$", color='gray')
 
         plt.savefig(Path('figures') / Path(self._name), format='pdf')
 
@@ -148,8 +260,8 @@ class painter_first_kind(painter):
         fig, ax = plt.subplots(figsize=self.figure_size)
 
         for method in methods:
-            if conv_type == 'super' and method in ['wc_rt', 'wc_bdm']:
-                continue
+            # if conv_type == 'super' and method in ['wc_rt', 'wc_bdm']:
+            #     continue
 
             for m_value in material_values:
 
@@ -252,7 +364,7 @@ def render_figures_example_1(d = 2):
     painter_ex_1.file_pattern = file_pattern
 
     material_values = [1.0, 0.01, 0.0001]
-    painter_ex_1.ordinate_range = (0.001, 100)
+    painter_ex_1.ordinate_range = (0.0001, 20)
     conv_type = 'normal'
 
     k = 0
@@ -263,7 +375,7 @@ def render_figures_example_1(d = 2):
     painter_ex_1.file_name = 'normal_convergence_var_eps_k1_ex_1.pdf'
     painter_ex_1.color_canvas_with_variable_epsilon(k, d, methods, material_values, conv_type)
 
-    painter_ex_1.ordinate_range = (0.00001, 100)
+    painter_ex_1.ordinate_range = (0.00001, 20)
     conv_type = 'super'
 
     k = 0
@@ -285,7 +397,7 @@ def render_figures_example_2(d = 2):
     painter_ex_2.file_pattern = file_pattern
 
     material_values = [1.0, 100.0, 10000.0]
-    painter_ex_2.ordinate_range = (0.001, 100)
+    painter_ex_2.ordinate_range = (0.01, 30.0)
     conv_type = 'normal'
 
     k = 0
@@ -296,7 +408,7 @@ def render_figures_example_2(d = 2):
     painter_ex_2.file_name = 'normal_convergence_var_eps_k1_ex_2.pdf'
     painter_ex_2.color_canvas_with_variable_lambda(k, d, methods, material_values, conv_type)
 
-    painter_ex_2.ordinate_range = (0.00001, 100)
+    painter_ex_2.ordinate_range = (0.0001, 5)
     conv_type = 'super'
 
     k = 0
@@ -314,10 +426,11 @@ def render_figures_example_3(d = 2):
     file_pattern = 'output_example_3/*_error_ex_3.txt'
     painter_ex_3 = painter_second_kind()
     painter_ex_3.file_pattern = file_pattern
-    painter_ex_3.ordinate_range = (0.0001, 1)
+    painter_ex_3.ordinate_range = (0.001, 1)
     painter_ex_3.file_name = 'normal_convergence_var_k_ex_3.pdf'
     painter_ex_3.color_canvas_with_variable_k(d, methods)
 
-render_figures_example_1()
-render_figures_example_2()
-render_figures_example_3()
+dim = 3
+render_figures_example_1(d=dim)
+# render_figures_example_2(d=dim)
+# render_figures_example_3(d=dim)
