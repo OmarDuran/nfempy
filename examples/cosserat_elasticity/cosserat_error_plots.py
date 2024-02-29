@@ -20,7 +20,7 @@ class ConvergenceTriangle:
         self._mirror_q = mirror_q
         self._triangle = None
         self._label_pos = None
-        self.build_me()
+        self._build_me()
 
     def validate_input(self, data, rate, h_shift, e_shift, mirror_q):
 
@@ -51,7 +51,7 @@ class ConvergenceTriangle:
 
         return valid_input_q
 
-    def build_me(self):
+    def _build_me(self):
         p0, p2 = self._data[-2], self._data[-1]
         step = p0[0] - p2[0]
         if self._mirror_q:
@@ -72,16 +72,47 @@ class ConvergenceTriangle:
         if self._mirror_q:
             dirh = xc - np.mean(np.vstack((p2, p1)), axis=0)
             dire = xc - np.mean(np.vstack((p0, p1)), axis=0)
-            step_pos = np.exp(0.4 * dire + np.mean(np.vstack((p0, p1)), axis=0))
-            rate_pos = np.exp(0.25 * dirh + np.mean(np.vstack((p2, p1)), axis=0))
+            # dirh[1] = 0.0
+            # dire[0] = 0.0
+            dirh = dirh / np.linalg.norm(dirh)
+            dire = dire / np.linalg.norm(dire)
+            step_pos = np.exp(0.2 * dire + np.mean(np.vstack((p0, p1)), axis=0))
+            rate_pos = np.exp(0.05 * dirh + np.mean(np.vstack((p2, p1)), axis=0))
             self._label_pos = (step_pos, rate_pos)
         else:
             dirh = xc - np.mean(np.vstack((p0, p1)), axis=0)
             dire = xc - np.mean(np.vstack((p2, p1)), axis=0)
-            step_pos = np.exp(0.4 * dire + np.mean(np.vstack((p2, p1)), axis=0))
-            rate_pos = np.exp(0.25 * dirh + np.mean(np.vstack((p0, p1)), axis=0))
+            # dirh[1] = 0.0
+            # dire[0] = 0.0
+            dirh = dirh / np.linalg.norm(dirh)
+            dire = dire / np.linalg.norm(dire)
+            step_pos = np.exp(0.15 * dire + np.mean(np.vstack((p2, p1)), axis=0))
+            rate_pos = np.exp(0.05 * dirh + np.mean(np.vstack((p0, p1)), axis=0))
             self._label_pos = (step_pos, rate_pos)
 
+    def inset_me(self):
+        plt.fill(
+            self._triangle[:, 0],
+            self._triangle[:, 1],
+            linestyle="--",
+            facecolor='lightgray', edgecolor='gray', linewidth=2
+        )
+        plt.text(
+            self._label_pos[0][0],
+            self._label_pos[0][1],
+            r"$\mathbf{1}$",
+            color="black",
+            horizontalalignment='center',
+            verticalalignment='center',
+        )
+        plt.text(
+            self._label_pos[1][0],
+            self._label_pos[1][1],
+            r"$\mathbf{" + str(self._rate) + "}$",
+            color="black",
+            horizontalalignment='center',
+            verticalalignment='center',
+        )
 
 class painter(ABC):
 
@@ -314,24 +345,7 @@ class painter_first_kind(painter):
         idxs = self.convergence_type_map[conv_type]
         ldata = np.vstack((rdata[:, 1], np.sum(rdata[:, idxs], axis=1))).T
         conv_triangle = ConvergenceTriangle(ldata, rate, h_shift, e_shift, False)
-        plt.loglog(
-            conv_triangle._triangle[:, 0],
-            conv_triangle._triangle[:, 1],
-            linestyle="--",
-            color="black",
-        )
-        plt.text(
-            conv_triangle._label_pos[0][0],
-            conv_triangle._label_pos[0][1],
-            r"$\mathbf{1}$",
-            color="black",
-        )
-        plt.text(
-            conv_triangle._label_pos[1][0],
-            conv_triangle._label_pos[1][1],
-            r"$\mathbf{" + str(rate) + "}$",
-            color="black",
-        )
+        conv_triangle.inset_me()
 
     def build_inset_var_lambda(
         self, k, d, method, m_value, conv_type, rate, h_shift, e_shift
@@ -351,24 +365,7 @@ class painter_first_kind(painter):
         idxs = self.convergence_type_map[conv_type]
         ldata = np.vstack((rdata[:, 1], np.sum(rdata[:, idxs], axis=1))).T
         conv_triangle = ConvergenceTriangle(ldata, rate, h_shift, e_shift, False)
-        plt.loglog(
-            conv_triangle._triangle[:, 0],
-            conv_triangle._triangle[:, 1],
-            linestyle="--",
-            color="black",
-        )
-        plt.text(
-            conv_triangle._label_pos[0][0],
-            conv_triangle._label_pos[0][1],
-            r"$\mathbf{1}$",
-            color="black",
-        )
-        plt.text(
-            conv_triangle._label_pos[1][0],
-            conv_triangle._label_pos[1][1],
-            r"$\mathbf{" + str(rate) + "}$",
-            color="black",
-        )
+        conv_triangle.inset_me()
 
 
 class painter_second_kind(painter):
@@ -443,24 +440,7 @@ class painter_second_kind(painter):
         idxs = self.convergence_type_map[conv_type]
         ldata = np.vstack((rdata[:, 1], np.sum(rdata[:, idxs], axis=1))).T
         conv_triangle = ConvergenceTriangle(ldata, rate, h_shift, e_shift, False)
-        plt.loglog(
-            conv_triangle._triangle[:, 0],
-            conv_triangle._triangle[:, 1],
-            linestyle="--",
-            color="black",
-        )
-        plt.text(
-            conv_triangle._label_pos[0][0],
-            conv_triangle._label_pos[0][1],
-            r"$\mathbf{1}$",
-            color="black",
-        )
-        plt.text(
-            conv_triangle._label_pos[1][0],
-            conv_triangle._label_pos[1][1],
-            r"$\mathbf{" + str(k + 1) + "}$",
-            color="black",
-        )
+        conv_triangle.inset_me()
 
 
 def render_figures_example_1(d=2):
@@ -477,7 +457,7 @@ def render_figures_example_1(d=2):
 
     k = 0
     rate = k + 1
-    painter_ex_1.file_name = "normal_convergence_var_eps_k0_ex_1.pdf"
+    painter_ex_1.file_name = "convergence_k0_example_1.pdf"
     painter_ex_1.color_canvas_with_variable_epsilon(
         k, d, methods, material_values, conv_type
     )
@@ -488,7 +468,7 @@ def render_figures_example_1(d=2):
 
     k = 1
     rate = k + 1
-    painter_ex_1.file_name = "normal_convergence_var_eps_k1_ex_1.pdf"
+    painter_ex_1.file_name = "convergence_k1_example_1.pdf"
     painter_ex_1.color_canvas_with_variable_epsilon(
         k, d, methods, material_values, conv_type
     )
@@ -506,7 +486,7 @@ def render_figures_example_1(d=2):
 
     k = 0
     rate = k + 2
-    painter_ex_1.file_name = "super_convergence_var_eps_k0_ex_1.pdf"
+    painter_ex_1.file_name = "superconvergence_k0_example_1.pdf"
     painter_ex_1.color_canvas_with_variable_epsilon(
         k, d, methods, material_values, conv_type
     )
@@ -517,7 +497,7 @@ def render_figures_example_1(d=2):
 
     k = 1
     rate = k + 2
-    painter_ex_1.file_name = "super_convergence_var_eps_k1_ex_1.pdf"
+    painter_ex_1.file_name = "superconvergence_k1_example_1.pdf"
     painter_ex_1.color_canvas_with_variable_epsilon(
         k, d, methods, material_values, conv_type
     )
@@ -539,7 +519,7 @@ def render_figures_example_2(d=2):
     conv_type = "normal"
 
     k = 0
-    painter_ex_2.file_name = "normal_convergence_var_eps_k0_ex_2.pdf"
+    painter_ex_2.file_name = "convergence_k0_example_2.pdf"
     painter_ex_2.color_canvas_with_variable_lambda(
         k, d, methods, material_values, conv_type
     )
@@ -554,7 +534,7 @@ def render_figures_example_2(d=2):
     painter_ex_2.save_figure()
 
     k = 1
-    painter_ex_2.file_name = "normal_convergence_var_eps_k1_ex_2.pdf"
+    painter_ex_2.file_name = "convergence_k1_example_2.pdf"
     painter_ex_2.color_canvas_with_variable_lambda(
         k, d, methods, material_values, conv_type
     )
@@ -572,7 +552,7 @@ def render_figures_example_2(d=2):
     conv_type = "super"
 
     k = 0
-    painter_ex_2.file_name = "super_convergence_var_eps_k0_ex_2.pdf"
+    painter_ex_2.file_name = "superconvergence_k0_example_2.pdf"
     painter_ex_2.color_canvas_with_variable_lambda(
         k, d, methods, material_values, conv_type
     )
@@ -583,7 +563,7 @@ def render_figures_example_2(d=2):
     painter_ex_2.save_figure()
 
     k = 1
-    painter_ex_2.file_name = "super_convergence_var_eps_k1_ex_2.pdf"
+    painter_ex_2.file_name = "superconvergence_k1_example_2.pdf"
     painter_ex_2.color_canvas_with_variable_lambda(
         k, d, methods, material_values, conv_type
     )
@@ -601,7 +581,7 @@ def render_figures_example_3(d=2):
     painter_ex_3 = painter_second_kind()
     painter_ex_3.file_pattern = file_pattern
     painter_ex_3.ordinate_range = (0.001, 1)
-    painter_ex_3.file_name = "normal_convergence_var_k_ex_3.pdf"
+    painter_ex_3.file_name = "convergence_example_3.pdf"
     painter_ex_3.color_canvas_with_variable_k(d, methods)
     k = 0
     rate = k + 1
