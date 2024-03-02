@@ -9,7 +9,6 @@ plt.rcParams["text.usetex"] = True
 
 
 class ConvergenceTriangle:
-
     def __init__(self, data, rate, h_shift, e_shift, mirror_q):
         if not self.validate_input(data, rate, h_shift, e_shift, mirror_q):
             raise ValueError("Not valid input(s).")
@@ -23,7 +22,6 @@ class ConvergenceTriangle:
         self._build_me()
 
     def validate_input(self, data, rate, h_shift, e_shift, mirror_q):
-
         data_ok = isinstance(data, np.ndarray)
         rate_ok = isinstance(rate, int)
         shifts_ok = isinstance(h_shift, float) and isinstance(e_shift, float)
@@ -95,27 +93,29 @@ class ConvergenceTriangle:
             self._triangle[:, 0],
             self._triangle[:, 1],
             linestyle="-",
-            facecolor='lightgray', edgecolor='gray', linewidth=1
+            facecolor="lightgray",
+            edgecolor="gray",
+            linewidth=1,
         )
         plt.text(
             self._label_pos[0][0],
             self._label_pos[0][1],
             r"$\mathbf{1}$",
             color="gray",
-            horizontalalignment='center',
-            verticalalignment='center',
+            horizontalalignment="center",
+            verticalalignment="center",
         )
         plt.text(
             self._label_pos[1][0],
             self._label_pos[1][1],
             r"$\mathbf{" + str(self._rate) + "}$",
             color="gray",
-            horizontalalignment='center',
-            verticalalignment='center',
+            horizontalalignment="center",
+            verticalalignment="center",
         )
 
-class painter(ABC):
 
+class painter(ABC):
     @property
     def figure_size(self):
         return (8, 8)
@@ -204,7 +204,6 @@ class painter(ABC):
 
 
 class painter_first_kind(painter):
-
     @property
     def m_lambda(self):
         return 1.0
@@ -216,7 +215,6 @@ class painter_first_kind(painter):
     def color_canvas_with_variable_epsilon(
         self, k, d, methods, material_values, conv_type
     ):
-
         self.create_directory()
 
         file_names = list(Path().glob(self.file_pattern))
@@ -228,7 +226,6 @@ class painter_first_kind(painter):
             #     continue
 
             for m_value in material_values:
-
                 filter = painter_first_kind.filter_composer(
                     method=method, m_lambda=self.m_lambda, m_eps=m_value, k=k, d=d
                 )
@@ -273,7 +270,6 @@ class painter_first_kind(painter):
     def color_canvas_with_variable_lambda(
         self, k, d, methods, material_values, conv_type
     ):
-
         self.create_directory()
 
         file_names = list(Path().glob(self.file_pattern))
@@ -285,7 +281,6 @@ class painter_first_kind(painter):
             #     continue
 
             for m_value in material_values:
-
                 filter = painter_first_kind.filter_composer(
                     method=method, m_lambda=m_value, m_eps=self.m_epsilon, k=k, d=d
                 )
@@ -369,7 +364,6 @@ class painter_first_kind(painter):
 
 
 class painter_second_kind(painter):
-
     @property
     def markers_values_map(self):
         map = {"0": "o", "1": "s"}
@@ -384,7 +378,6 @@ class painter_second_kind(painter):
         return filter
 
     def color_canvas_with_variable_k(self, d, methods):
-
         self.create_directory()
 
         p = Path()
@@ -393,9 +386,7 @@ class painter_second_kind(painter):
         idxs = self.convergence_type_map["normal"]
 
         for method in methods:
-
             for k in [0, 1]:
-
                 filter = painter_second_kind.filter_composer(method=method, k=k, d=d)
                 result = [
                     (idx, path.name)
@@ -444,7 +435,6 @@ class painter_second_kind(painter):
 
 
 def render_figures_example_1(d=2):
-
     methods = ["sc_rt", "sc_bdm", "wc_rt", "wc_bdm"]
     file_pattern = "output_example_1/*_error_ex_1.txt"
 

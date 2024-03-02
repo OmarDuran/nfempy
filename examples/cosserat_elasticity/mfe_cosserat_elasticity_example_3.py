@@ -404,8 +404,6 @@ def four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk_q=
     print("L2-error div couple stress: ", div_m_l2_error)
     print("")
 
-
-
     return n_dof_g, np.array(
         [
             u_l2_error,

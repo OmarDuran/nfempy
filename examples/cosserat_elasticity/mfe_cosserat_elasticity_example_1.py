@@ -103,7 +103,9 @@ def create_product_space(method, gmesh):
     return space
 
 
-def four_field_postprocessing(k_order, material_data, method, gmesh, alpha, write_vtk_q=False):
+def four_field_postprocessing(
+    k_order, material_data, method, gmesh, alpha, write_vtk_q=False
+):
     dim = gmesh.dimension
 
     fe_space = create_product_space(method, gmesh)
@@ -171,7 +173,9 @@ def four_field_postprocessing(k_order, material_data, method, gmesh, alpha, writ
         print("VTK post-processing time:", elapsed_time, "seconds")
 
     st = time.time()
-    s_l2_error, m_l2_error, u_l2_error, t_l2_error = l2_error(dim, fe_space, exact_functions, alpha)
+    s_l2_error, m_l2_error, u_l2_error, t_l2_error = l2_error(
+        dim, fe_space, exact_functions, alpha
+    )
     div_s_l2_error, div_m_l2_error = div_error(dim, fe_space, exact_functions, alpha)
     h_div_s_error = np.sqrt((s_l2_error**2) + (div_s_l2_error**2))
     h_div_m_error = np.sqrt((m_l2_error**2) + (div_m_l2_error**2))
@@ -198,6 +202,7 @@ def four_field_postprocessing(k_order, material_data, method, gmesh, alpha, writ
             h_div_m_error,
         ]
     )
+
 
 def four_field_approximation(material_data, method, gmesh):
     dim = gmesh.dimension
@@ -473,6 +478,7 @@ def four_field_scaled_postprocessing(
         return np.array([d_gamma_x, d_gamma_y])
 
     if dim == 3:
+
         def f_grad_gamma(x, y, z):
             d_gamma_x = 0.0 * x
             d_gamma_y = 0.0 * y
@@ -519,8 +525,8 @@ def four_field_scaled_postprocessing(
     )
     div_s_l2_error = div_error(dim, fe_space, exact_functions, alpha, ["m"])[0]
     div_m_l2_error = div_scaled_error(dim, fe_space, exact_functions, alpha, ["s"])[0]
-    h_div_s_error = np.sqrt((s_l2_error ** 2) + (div_s_l2_error ** 2))
-    h_div_m_error = np.sqrt((m_l2_error ** 2) + (div_m_l2_error ** 2))
+    h_div_s_error = np.sqrt((s_l2_error**2) + (div_s_l2_error**2))
+    h_div_m_error = np.sqrt((m_l2_error**2) + (div_m_l2_error**2))
 
     et = time.time()
     elapsed_time = et - st
@@ -545,6 +551,7 @@ def four_field_scaled_postprocessing(
             h_div_m_error,
         ]
     )
+
 
 def four_field_scaled_approximation(material_data, method, gmesh):
     dim = gmesh.dimension
@@ -788,6 +795,7 @@ def four_field_scaled_approximation(material_data, method, gmesh):
 
     return alpha, residuals_history
 
+
 def four_field_solution_norms(material_data, method, gmesh):
     dim = gmesh.dimension
 
@@ -1022,6 +1030,7 @@ def create_mesh_from_file(file_name, dim, write_vtk_q=False):
         gmesh.write_vtk()
     return gmesh
 
+
 def perform_convergence_approximations(configuration: dict):
     # retrieve parameters from given configuration
     k_order = configuration.get("k_order")
@@ -1047,7 +1056,9 @@ def perform_convergence_approximations(configuration: dict):
         mesher = create_conformal_mesher(domain, h, lh)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
         if method[0] == "wc_rt" or method[0] == "wc_bdm":
-            alpha, res_history = four_field_scaled_approximation(material_data, method, gmesh)
+            alpha, res_history = four_field_scaled_approximation(
+                material_data, method, gmesh
+            )
         else:
             alpha, res_history = four_field_approximation(material_data, method, gmesh)
         file_name = compose_file_name(
@@ -1065,6 +1076,7 @@ def perform_convergence_approximations(configuration: dict):
         )
 
     return
+
 
 def perform_convergence_postprocessing(configuration: dict):
     # retrieve parameters from given configuration
@@ -1111,7 +1123,9 @@ def perform_convergence_postprocessing(configuration: dict):
         # compute solution norms for the last refinement level
         if lh == n_ref - 1:
             if method[0] == "wc_rt" or method[0] == "wc_bdm":
-                sol_norms = four_field_scaled_solution_norms(material_data, method, gmesh)
+                sol_norms = four_field_scaled_solution_norms(
+                    material_data, method, gmesh
+                )
             else:
                 sol_norms = four_field_solution_norms(material_data, method, gmesh)
 
