@@ -76,8 +76,8 @@ class ConvergenceTriangle:
             # dire[0] = 0.0
             dirh = dirh / np.linalg.norm(dirh)
             dire = dire / np.linalg.norm(dire)
-            step_pos = np.exp(0.2 * dire + np.mean(np.vstack((p0, p1)), axis=0))
-            rate_pos = np.exp(0.05 * dirh + np.mean(np.vstack((p2, p1)), axis=0))
+            step_pos = np.exp(-0.2 * dire + np.mean(np.vstack((p0, p1)), axis=0))
+            rate_pos = np.exp(-0.05 * dirh + np.mean(np.vstack((p2, p1)), axis=0))
             self._label_pos = (step_pos, rate_pos)
         else:
             dirh = xc - np.mean(np.vstack((p0, p1)), axis=0)
@@ -86,22 +86,22 @@ class ConvergenceTriangle:
             # dire[0] = 0.0
             dirh = dirh / np.linalg.norm(dirh)
             dire = dire / np.linalg.norm(dire)
-            step_pos = np.exp(0.15 * dire + np.mean(np.vstack((p2, p1)), axis=0))
-            rate_pos = np.exp(0.05 * dirh + np.mean(np.vstack((p0, p1)), axis=0))
+            step_pos = np.exp(-0.15 * dire + np.mean(np.vstack((p2, p1)), axis=0))
+            rate_pos = np.exp(-0.05 * dirh + np.mean(np.vstack((p0, p1)), axis=0))
             self._label_pos = (step_pos, rate_pos)
 
     def inset_me(self):
         plt.fill(
             self._triangle[:, 0],
             self._triangle[:, 1],
-            linestyle="--",
-            facecolor='lightgray', edgecolor='gray', linewidth=2
+            linestyle="-",
+            facecolor='lightgray', edgecolor='gray', linewidth=1
         )
         plt.text(
             self._label_pos[0][0],
             self._label_pos[0][1],
             r"$\mathbf{1}$",
-            color="black",
+            color="gray",
             horizontalalignment='center',
             verticalalignment='center',
         )
@@ -109,7 +109,7 @@ class ConvergenceTriangle:
             self._label_pos[1][0],
             self._label_pos[1][1],
             r"$\mathbf{" + str(self._rate) + "}$",
-            color="black",
+            color="gray",
             horizontalalignment='center',
             verticalalignment='center',
         )
