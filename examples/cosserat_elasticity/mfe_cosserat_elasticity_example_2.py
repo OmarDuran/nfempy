@@ -197,7 +197,7 @@ def four_field_approximation(material_data, method, gmesh):
             else:
                 print("Assembly: progress [%]: ", check_points.index(i) * 10)
                 print(
-                    "Assembly: Memory used [Bytes] :",
+                    "Assembly: Memory used [Byte] :",
                     (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start),
                 )
 
@@ -257,7 +257,7 @@ def four_field_approximation(material_data, method, gmesh):
     elapsed_time = et - st
     print("Assembly: Time:", elapsed_time, "seconds")
     print(
-        "Assembly: After PETSc M.assemble: Memory used [Bytes] :",
+        "Assembly: After PETSc M.assemble: Memory used [Byte] :",
         (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start),
     )
 
@@ -303,7 +303,7 @@ def four_field_approximation(material_data, method, gmesh):
     alpha = x.array
     residuals_history = ksp.getConvergenceHistory()
     print(
-        "Linear solver: After PETSc ksp.solve: Memory used [Bytes] :",
+        "Linear solver: After PETSc ksp.solve: Memory used [Byte] :",
         (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start),
     )
     PETSc.KSP.destroy(ksp)
@@ -315,7 +315,7 @@ def four_field_approximation(material_data, method, gmesh):
     elapsed_time = et - st
     print("Linear solver: Time:", elapsed_time, "seconds")
     print(
-        "Linear solver: After PETSc ksp.destroy: Memory used [GiB] :",
+        "Linear solver: After PETSc ksp.destroy: Memory used [Byte] :",
         (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start),
     )
 
@@ -392,20 +392,19 @@ def four_field_postprocessing(
         print("VTK post-processing time:", elapsed_time, "seconds")
 
     st = time.time()
-    m_l2_error, u_l2_error, t_l2_error = l2_error(
-        dim, fe_space, exact_functions, alpha, ["s"]
+    s_l2_error, m_l2_error, u_l2_error, t_l2_error = l2_error(
+        dim, fe_space, exact_functions, alpha
     )
     div_s_l2_error, div_m_l2_error = div_error(dim, fe_space, exact_functions, alpha)
-    dev_s_l2_error = devia_l2_error(dim, fe_space, exact_functions, alpha, ["m"])[0]
 
-    h_div_s_error = np.sqrt((dev_s_l2_error**2) + (div_s_l2_error**2))
+    h_div_s_error = np.sqrt((s_l2_error**2) + (div_s_l2_error**2))
     h_div_m_error = np.sqrt((m_l2_error**2) + (div_m_l2_error**2))
     et = time.time()
     elapsed_time = et - st
     print("Error time:", elapsed_time, "seconds")
     print("L2-error displacement: ", u_l2_error)
     print("L2-error rotation: ", t_l2_error)
-    print("L2-error dev stress: ", dev_s_l2_error)
+    print("L2-error stress: ", s_l2_error)
     print("L2-error couple stress: ", m_l2_error)
     print("L2-error div stress: ", div_s_l2_error)
     print("L2-error div couple stress: ", div_m_l2_error)
@@ -415,7 +414,7 @@ def four_field_postprocessing(
         [
             u_l2_error,
             t_l2_error,
-            dev_s_l2_error,
+            s_l2_error,
             m_l2_error,
             div_s_l2_error,
             div_m_l2_error,

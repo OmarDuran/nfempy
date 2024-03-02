@@ -307,7 +307,7 @@ def four_field_scaled_approximation(method, gmesh):
     elapsed_time = et - st
     print("Linear solver: Time:", elapsed_time, "seconds")
     print(
-        "Linear solver: After PETSc ksp.destroy: Memory used [GiB] :",
+        "Linear solver: After PETSc ksp.destroy: Memory used [Byte] :",
         (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start),
     )
 
@@ -390,6 +390,8 @@ def four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk_q=
     )
     div_s_l2_error = div_error(dim, fe_space, exact_functions, alpha, ["m"])[0]
     div_m_l2_error = div_scaled_error(dim, fe_space, exact_functions, alpha, ["s"])[0]
+    h_div_s_error = np.sqrt((s_l2_error**2) + (div_s_l2_error**2))
+    h_div_m_error = np.sqrt((m_l2_error**2) + (div_m_l2_error**2))
 
     et = time.time()
     elapsed_time = et - st
@@ -402,8 +404,7 @@ def four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk_q=
     print("L2-error div couple stress: ", div_m_l2_error)
     print("")
 
-    h_div_s_error = np.sqrt((s_l2_error**2) + (div_s_l2_error**2))
-    h_div_m_error = np.sqrt((m_l2_error**2) + (div_m_l2_error**2))
+
 
     return n_dof_g, np.array(
         [
