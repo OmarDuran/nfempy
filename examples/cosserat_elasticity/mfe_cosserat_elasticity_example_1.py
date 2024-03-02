@@ -205,6 +205,7 @@ def four_field_postprocessing(
 
 
 def four_field_approximation(material_data, method, gmesh):
+    is_symmetric_q = True
     dim = gmesh.dimension
 
     fe_space = create_product_space(method, gmesh)
@@ -220,11 +221,13 @@ def four_field_approximation(material_data, method, gmesh):
 
     A = PETSc.Mat()
     A.createAIJ([n_dof_g, n_dof_g])
-    # A.setOption(PETSc.Mat.Option.SYMMETRIC, True)
+    if is_symmetric_q:
+        A.setType('sbaij')
 
     P = PETSc.Mat()
     P.createAIJ([n_dof_g, n_dof_g])
-    # P.setOption(PETSc.Mat.Option.SYMMETRIC, True)
+    if is_symmetric_q:
+        P.setType('sbaij')
 
     # Material data
     m_lambda = material_data["lambda"]
@@ -292,10 +295,17 @@ def four_field_approximation(material_data, method, gmesh):
         row = np.repeat(dest, len(dest))
         col = np.tile(dest, len(dest))
         nnz_idx = np.where(np.logical_not(np.isclose(data, 1.0e-16)))[0]
-        [
-            A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
-            for idx in nnz_idx
-        ]
+        if is_symmetric_q:
+            [
+                A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
+                for idx in nnz_idx if row[idx] <= col[idx]
+            ]
+        else:
+            [
+                A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
+                for idx in nnz_idx
+            ]
+
         # Petsc ILU requires explicit existence of diagonal zeros
         [A.setValue(row=idx, col=idx, value=0.0, addv=True) for idx in dest]
 
@@ -321,10 +331,17 @@ def four_field_approximation(material_data, method, gmesh):
         row = np.repeat(dest, len(dest))
         col = np.tile(dest, len(dest))
         nnz_idx = np.where(np.logical_not(np.isclose(data, 1.0e-16)))[0]
-        [
-            P.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
-            for idx in nnz_idx
-        ]
+        if is_symmetric_q:
+            [
+                P.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
+                for idx in nnz_idx if row[idx] <= col[idx]
+            ]
+        else:
+            [
+                P.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
+                for idx in nnz_idx
+            ]
+
 
         check_points = [(int(k * n_els / 10)) for k in range(11)]
         if i in check_points or i == n_els - 1:
@@ -400,10 +417,16 @@ def four_field_approximation(material_data, method, gmesh):
     ksp.getPC().setFieldSplitType(PETSc.PC.CompositeType.ADDITIVE)
     ksp_s, ksp_u = ksp.getPC().getFieldSplitSubKSP()
     ksp_s.setType("preonly")
-    ksp_s.getPC().setType("lu")
+    if is_symmetric_q:
+        ksp_s.getPC().setType("cholesky")
+    else:
+        ksp_s.getPC().setType("lu")
     ksp_s.getPC().setFactorSolverType("mumps")
     ksp_u.setType("preonly")
-    ksp_u.getPC().setType("ilu")
+    if is_symmetric_q:
+        ksp_u.getPC().setType("icc")
+    else:
+        ksp_u.getPC().setType("ilu")
     ksp.setTolerances(rtol=0.0, atol=1e-7, divtol=5000, max_it=20000)
     ksp.setConvergenceHistory()
     ksp.setFromOptions()
@@ -1262,10 +1285,10 @@ def material_data_definition():
 
 def main():
     only_approximation_q = True
-    only_postprocessing_q = True
-    refinements = {0: 4, 1: 4}
+    only_postprocessing_q = False
+    refinements = {0: 4, 1: 4, 2:4}
     case_data = material_data_definition()
-    for k in [0, 1]:
+    for k in [2, 1]:
         n_ref = refinements[k]
         methods = method_definition(k)
         for i, method in enumerate(methods):
