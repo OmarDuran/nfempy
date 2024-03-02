@@ -791,8 +791,8 @@ def main():
                 }
 
                 for d in [2]:
-                    configuration.__setitem__("k_order", k)
-                    configuration.__setitem__("dimension", d)
+                    configuration["k_order"] = k
+                    configuration["dimension"] = d
                     if only_approximation_q:
                         perform_convergence_approximations(configuration)
                     if only_postprocessing_q:
