@@ -1311,7 +1311,7 @@ def material_data_definition():
 def main():
     only_approximation_q = True
     only_postprocessing_q = True
-    refinements = {0: 5, 1: 5}
+    refinements = {0: 4, 1: 4}
     case_data = material_data_definition()
     for k in [0, 1]:
         n_ref = refinements[k]
@@ -1324,7 +1324,7 @@ def main():
                     "material_data": material_data,
                 }
 
-                for d in [2]:
+                for d in [3]:
                     configuration["k_order"] = k
                     configuration["dimension"] = d
                     if only_approximation_q:
