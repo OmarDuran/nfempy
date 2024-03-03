@@ -801,11 +801,6 @@ def four_field_scaled_approximation(material_data, method, gmesh, symmetric_solv
     b.array[:] = -rg
     x = A.createVecRight()
 
-    # ksp.setType("preonly")
-    # ksp.getPC().setType("lu")
-    # ksp.getPC().setFactorSolverType("mumps")
-    # ksp.setConvergenceHistory()
-
     ksp.setType("minres")
     ksp.getPC().setType("fieldsplit")
     is_general_sigma = PETSc.IS()
@@ -1147,7 +1142,6 @@ def perform_convergence_postprocessing(configuration: dict):
     method = configuration.get("method")
     n_ref = configuration.get("n_refinements")
     dimension = configuration.get("dimension")
-    dual_form_q = configuration.get("dual_problem_Q", True)
     material_data = configuration.get("material_data", {})
     write_geometry_vtk = configuration.get("write_geometry_Q", True)
     write_vtk = configuration.get("write_vtk_Q", True)
@@ -1214,12 +1208,8 @@ def perform_convergence_postprocessing(configuration: dict):
     print(" ")
 
     str_fields = "u, r, s, o, "
-    primal_header = str_fields + "grad_u, grad_r, h_grad_u_norm, h_grad_r_norm"
     dual_header = str_fields + "div_s, div_o, s_h_div_norm, o_h_div_norm, Pu, Pr"
-
-    base_str_header = primal_header
-    if dual_form_q:
-        base_str_header = dual_header
+    base_str_header = dual_header
     e_str_header = "n_dof, h, " + base_str_header
 
     lambda_value = material_data["lambda"]

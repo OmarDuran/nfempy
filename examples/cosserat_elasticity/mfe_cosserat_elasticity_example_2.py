@@ -17,8 +17,10 @@ from postprocess.l2_error_post_processor import (
     div_error,
     grad_error,
     l2_error,
+    l2_error_projected,
 )
 from postprocess.solution_norms_post_processor import l2_norm, div_norm, devia_l2_norm
+from postprocess.projectors import l2_projector
 from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
 from spaces.product_space import ProductSpace
 from weak_forms.lce_dual_weak_form import LCEDualWeakForm, LCEDualWeakFormBCDirichlet
@@ -97,7 +99,7 @@ def create_product_space(method, gmesh):
     return space
 
 
-def four_field_approximation(material_data, method, gmesh):
+def four_field_approximation(material_data, method, gmesh, symmetric_solver_q = True):
     dim = gmesh.dimension
 
     fe_space = create_product_space(method, gmesh)
@@ -113,9 +115,13 @@ def four_field_approximation(material_data, method, gmesh):
 
     A = PETSc.Mat()
     A.createAIJ([n_dof_g, n_dof_g])
+    if symmetric_solver_q:
+        A.setType('sbaij')
 
     P = PETSc.Mat()
     P.createAIJ([n_dof_g, n_dof_g])
+    if symmetric_solver_q:
+        P.setType('sbaij')
 
     # Material data
     m_lambda = material_data["lambda"]
@@ -183,10 +189,16 @@ def four_field_approximation(material_data, method, gmesh):
         row = np.repeat(dest, len(dest))
         col = np.tile(dest, len(dest))
         nnz_idx = np.where(np.logical_not(np.isclose(data, 1.0e-16)))[0]
-        [
-            A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
-            for idx in nnz_idx
-        ]
+        if symmetric_solver_q:
+            [
+                A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
+                for idx in nnz_idx if row[idx] <= col[idx]
+            ]
+        else:
+            [
+                A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
+                for idx in nnz_idx
+            ]
         # Petsc ILU requires explicit existence of diagonal zeros
         [A.setValue(row=idx, col=idx, value=0.0, addv=True) for idx in dest]
 
@@ -212,10 +224,16 @@ def four_field_approximation(material_data, method, gmesh):
         row = np.repeat(dest, len(dest))
         col = np.tile(dest, len(dest))
         nnz_idx = np.where(np.logical_not(np.isclose(data, 1.0e-16)))[0]
-        [
-            P.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
-            for idx in nnz_idx
-        ]
+        if symmetric_solver_q:
+            [
+                P.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
+                for idx in nnz_idx if row[idx] <= col[idx]
+            ]
+        else:
+            [
+                P.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
+                for idx in nnz_idx
+            ]
 
         check_points = [(int(k * n_els / 10)) for k in range(11)]
         if i in check_points or i == n_els - 1:
@@ -270,11 +288,6 @@ def four_field_approximation(material_data, method, gmesh):
     b.array[:] = -rg
     x = A.createVecRight()
 
-    # ksp.setType("preonly")
-    # ksp.getPC().setType("lu")
-    # ksp.getPC().setFactorSolverType("mumps")
-    # ksp.setConvergenceHistory()
-
     ksp.setType("minres")
     ksp.getPC().setType("fieldsplit")
     is_general_sigma = PETSc.IS()
@@ -291,11 +304,17 @@ def four_field_approximation(material_data, method, gmesh):
     ksp.getPC().setFieldSplitType(PETSc.PC.CompositeType.ADDITIVE)
     ksp_s, ksp_u = ksp.getPC().getFieldSplitSubKSP()
     ksp_s.setType("preonly")
-    ksp_s.getPC().setType("lu")
+    if symmetric_solver_q:
+        ksp_s.getPC().setType("cholesky")
+    else:
+        ksp_s.getPC().setType("lu")
     ksp_s.getPC().setFactorSolverType("mumps")
     ksp_u.setType("preonly")
-    ksp_u.getPC().setType("ilu")
-    ksp.setTolerances(rtol=0.0, atol=1e-7, divtol=5000, max_it=20000)
+    if symmetric_solver_q:
+        ksp_u.getPC().setType("icc")
+    else:
+        ksp_u.getPC().setType("ilu")
+    ksp.setTolerances(rtol=0.0, atol=1e-9, divtol=5000, max_it=20000)
     ksp.setConvergenceHistory()
     ksp.setFromOptions()
 
@@ -397,8 +416,13 @@ def four_field_postprocessing(
     )
     div_s_l2_error, div_m_l2_error = div_error(dim, fe_space, exact_functions, alpha)
 
-    h_div_s_error = np.sqrt((s_l2_error**2) + (div_s_l2_error**2))
-    h_div_m_error = np.sqrt((m_l2_error**2) + (div_m_l2_error**2))
+    s_h_div_error = np.sqrt((s_l2_error**2) + (div_s_l2_error**2))
+    m_h_div_error = np.sqrt((m_l2_error**2) + (div_m_l2_error**2))
+
+    alpha_proj = l2_projector(fe_space, exact_functions)
+    alpha_e = alpha - alpha_proj
+    u_proj_l2_error, t_proj_l2_error = l2_error_projected(dim, fe_space, alpha_e, ['s','m'])
+
     et = time.time()
     elapsed_time = et - st
     print("Error time:", elapsed_time, "seconds")
@@ -408,6 +432,8 @@ def four_field_postprocessing(
     print("L2-error couple stress: ", m_l2_error)
     print("L2-error div stress: ", div_s_l2_error)
     print("L2-error div couple stress: ", div_m_l2_error)
+    print("L2-error projected displacement: ", u_proj_l2_error)
+    print("L2-error projected rotation: ", t_proj_l2_error)
     print("")
 
     return n_dof_g, np.array(
@@ -418,8 +444,10 @@ def four_field_postprocessing(
             m_l2_error,
             div_s_l2_error,
             div_m_l2_error,
-            h_div_s_error,
-            h_div_m_error,
+            s_h_div_error,
+            m_h_div_error,
+            u_proj_l2_error,
+            t_proj_l2_error,
         ]
     )
 
@@ -607,7 +635,6 @@ def perform_convergence_postprocessing(configuration: dict):
     method = configuration.get("method")
     n_ref = configuration.get("n_refinements")
     dimension = configuration.get("dimension")
-    dual_form_q = configuration.get("dual_problem_Q", True)
     material_data = configuration.get("material_data", {})
     write_geometry_vtk = configuration.get("write_geometry_Q", True)
     write_vtk = configuration.get("write_vtk_Q", True)
@@ -619,7 +646,7 @@ def perform_convergence_postprocessing(configuration: dict):
     # Create a unit squared or a unit cube
     domain = create_domain(dimension)
 
-    n_data = 10
+    n_data = 12
     error_data = np.empty((0, n_data), float)
     for lh in range(n_ref):
         h_val = h * (2**-lh)
@@ -664,12 +691,8 @@ def perform_convergence_postprocessing(configuration: dict):
     print(" ")
 
     str_fields = "u, r, dev s, o, "
-    primal_header = str_fields + "grad_u, grad_r, h_grad_u_norm, h_grad_r_norm"
-    dual_header = str_fields + "div_s, div_o, h_div_s_norm, h_div_o_norm"
-
-    base_str_header = primal_header
-    if dual_form_q:
-        base_str_header = dual_header
+    dual_header = str_fields + "div_s, div_o, s_h_div_norm, o_h_div_norm, Pu, Pr"
+    base_str_header = dual_header
     e_str_header = "n_dof, h, " + base_str_header
 
     lambda_value = material_data["lambda"]
@@ -775,9 +798,9 @@ def material_data_definition():
 
 
 def main():
-    only_approximation_q = True
+    only_approximation_q = False
     only_postprocessing_q = True
-    refinements = {0: 4, 1: 4}
+    refinements = {0: 5, 1: 5}
     case_data = material_data_definition()
     for k in [0, 1]:
         n_ref = refinements[k]
