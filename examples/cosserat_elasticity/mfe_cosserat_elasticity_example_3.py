@@ -550,7 +550,6 @@ def perform_convergence_approximations(configuration: dict):
     method = configuration.get("method")
     n_ref = configuration.get("n_refinements")
     dimension = configuration.get("dimension")
-    dual_form_q = configuration.get("dual_problem_Q", True)
     write_geometry_vtk = configuration.get("write_geometry_Q", True)
     write_vtk = configuration.get("write_vtk_Q", True)
     report_full_precision_data = configuration.get("report_full_precision_data_Q", True)
@@ -589,7 +588,6 @@ def perform_convergence_postprocessing(configuration: dict):
     method = configuration.get("method")
     n_ref = configuration.get("n_refinements")
     dimension = configuration.get("dimension")
-    gamma_value = configuration.get("gamma_value", 1.0)
     write_geometry_vtk = configuration.get("write_geometry_Q", True)
     write_vtk = configuration.get("write_vtk_Q", True)
     report_full_precision_data = configuration.get("report_full_precision_data_Q", True)
@@ -630,10 +628,6 @@ def perform_convergence_postprocessing(configuration: dict):
         rates_data = np.append(rates_data, np.array([list(partial[2:n_data])]), axis=0)
 
     # minimal report
-    if report_full_precision_data:
-        print("error data: ", error_data)
-        print("error rates data: ", rates_data)
-
     np.set_printoptions(precision=3)
     print("Dual problem: ", method[0])
 
@@ -715,9 +709,9 @@ def method_definition(k_order):
 
 def main():
     only_approximation_q = True
-    only_postprocessing_q = True
-    refinements = {0: 4, 1: 4}
-    for k in [0, 1]:
+    only_postprocessing_q = False
+    refinements = {0: 5, 1: 5}
+    for k in [0]:
         for method in method_definition(k):
             configuration = {
                 "n_refinements": refinements[k],

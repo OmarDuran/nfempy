@@ -2,6 +2,10 @@
 SetFactory("OpenCASCADE");
 
 s=1;
+s=2;
+s=4;
+s=8;
+s=16;
 lc = 0.2/s;
 hi = 1.0/3.0;
 hs = 2.0/3.0;

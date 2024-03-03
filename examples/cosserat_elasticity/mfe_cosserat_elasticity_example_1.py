@@ -1095,7 +1095,6 @@ def perform_convergence_approximations(configuration: dict):
     method = configuration.get("method")
     n_ref = configuration.get("n_refinements")
     dimension = configuration.get("dimension")
-    dual_form_q = configuration.get("dual_problem_Q", True)
     material_data = configuration.get("material_data", {})
     write_geometry_vtk = configuration.get("write_geometry_Q", True)
     write_vtk = configuration.get("write_vtk_Q", True)
@@ -1195,10 +1194,6 @@ def perform_convergence_postprocessing(configuration: dict):
         rates_data = np.append(rates_data, np.array([list(partial[2:n_data])]), axis=0)
 
     # minimal report
-    if report_full_precision_data:
-        print("error data: ", error_data)
-        print("error rates data: ", rates_data)
-
     np.set_printoptions(precision=3)
     print("Dual problem: ", method[0])
     print("Polynomial order: ", k_order)
