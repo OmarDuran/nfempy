@@ -62,6 +62,61 @@ def l2_error(dim, fe_space, functions, alpha, skip_fields=[]):
 
     return l2_errors
 
+def l2_error_projected(dim, fe_space, alpha, skip_fields=[]):
+    l2_errors = []
+    points, weights = fe_space.quadrature
+    for item in fe_space.discrete_spaces.items():
+        name, space = item
+        if name in skip_fields:
+            continue
+        l2_error = 0.0
+        indexes = [
+            i
+            for i, element in enumerate(space.elements)
+            if element.data.dimension == dim
+        ]
+        for i in indexes:
+            n_components = space.n_comp
+            el_data = space.elements[i].data
+            cell = el_data.cell
+            x, jac, det_jac, inv_jac = space.elements[i].evaluate_mapping(points)
+            phi_tab = space.elements[i].evaluate_basis(points, jac, det_jac, inv_jac)
+
+            # scattering dof
+            dest = fe_space.discrete_spaces_destination_indexes(i)[name]
+            alpha_l = alpha[dest]
+
+            # vectorization
+            n_phi = phi_tab.shape[2]
+            alpha_star = np.array(np.split(alpha_l, n_phi))
+            if space.family is family_by_name("Lagrange"):
+                f_h_s = (phi_tab[0, :, :, 0] @ alpha_star[:, 0:dim]).T
+                l2_error += np.sum(
+                    det_jac * weights * f_h_s * f_h_s
+                )
+            else:
+                f_h = np.array(
+                    [
+                        np.vstack(
+                            tuple(
+                                [
+                                    phi_tab[0, k, :, 0:dim].T @ alpha_star[:, c]
+                                    for c in range(n_components)
+                                ]
+                            )
+                        )
+                        for k in range(len(points))
+                    ]
+                )
+                diff_f = f_h
+                l2_error += np.sum(
+                    det_jac * weights * np.array([np.trace(e.T @ e) for e in diff_f])
+                )
+
+        l2_errors.append(np.sqrt(l2_error))
+
+    return l2_errors
+
 
 def grad_error(dim, fe_space, functions, alpha):
     # constant directors

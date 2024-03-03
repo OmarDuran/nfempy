@@ -8,7 +8,7 @@ from spaces.product_space import ProductSpace
 from weak_forms.l2_projector_weak_form import L2ProjectorWeakForm
 
 
-def l2_projector(fe_space, functions):
+def l2_projector(fe_space, functions, symmetric_solver_q = True):
     n_dof_g = fe_space.n_dof
     rg = np.zeros(n_dof_g)
     alpha = np.zeros(n_dof_g)
@@ -17,6 +17,8 @@ def l2_projector(fe_space, functions):
     st = time.time()
     A = PETSc.Mat()
     A.createAIJ([n_dof_g, n_dof_g])
+    if symmetric_solver_q:
+        A.setType('sbaij')
 
     st = time.time()
 
@@ -37,8 +39,17 @@ def l2_projector(fe_space, functions):
         row = np.repeat(dest, len(dest))
         col = np.tile(dest, len(dest))
         nnz = data.shape[0]
-        for k in range(nnz):
-            A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
+        nnz_idx = np.where(np.logical_not(np.isclose(data, 1.0e-16)))[0]
+        if symmetric_solver_q:
+            [
+                A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
+                for idx in nnz_idx if row[idx] <= col[idx]
+            ]
+        else:
+            [
+                A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
+                for idx in nnz_idx
+            ]
 
     name = list(fe_space.discrete_spaces.keys())[0]
     n_els = len(fe_space.discrete_spaces[name].elements)
@@ -59,17 +70,12 @@ def l2_projector(fe_space, functions):
     x = A.createVecRight()
 
     ksp.setType("preonly")
-    ksp.getPC().setType("lu")
+    if symmetric_solver_q:
+        ksp.getPC().setType("cholesky")
+    else:
+        ksp.getPC().setType("lu")
     ksp.getPC().setFactorSolverType("mumps")
     ksp.setConvergenceHistory()
-
-    # ksp = PETSc.KSP().create()
-    # ksp.create(PETSc.COMM_WORLD)
-    # ksp.setOperators(A)
-    # ksp.setType("fcg")
-    # ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=500, max_it=2000)
-    # ksp.setConvergenceHistory()
-    # ksp.getPC().setType("ilu")
 
     ksp.solve(b, x)
     alpha = x.array
