@@ -164,7 +164,7 @@ def four_field_postprocessing(
 
         prefix = method[0] + "_k" + str(k_order) + "_d" + str(dim)
         prefix += "_lambda_" + str(lambda_value) + "_gamma_" + str(gamma_value)
-        file_name = prefix + "_four_fields_ex_2.vtk"
+        file_name = prefix + "_four_fields_ex_1.vtk"
 
         write_vtk_file_with_exact_solution(
             file_name, gmesh, fe_space, exact_functions, alpha
@@ -1309,7 +1309,7 @@ def material_data_definition():
 
 
 def main():
-    only_approximation_q = False
+    only_approximation_q = True
     only_postprocessing_q = True
     refinements = {0: 5, 1: 5}
     case_data = material_data_definition()
