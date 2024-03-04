@@ -663,7 +663,7 @@ def main():
                 "n_refinements": refinements[k],
                 "method": method,
             }
-            for d in [2]:
+            for d in [3]:
                 configuration["k_order"] = k
                 configuration["dimension"] = d
                 if only_approximation_q:
