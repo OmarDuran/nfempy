@@ -469,13 +469,15 @@ class LCEDualWeakForm(WeakForm):
         for c in range(u_components):
             b = c + n_s_dof + n_m_dof
             e = b + n_u_dof
-            r_el[b:e:u_components] += -1.0 * u_phi_s_star @ f_val_star[c]
+            r_el[b:e:u_components] += (-1.0 * u_phi_s_star @ f_val_star[c]).ravel()
 
         # rhs_t
         for c in range(t_components):
             b = c + n_s_dof + n_m_dof + n_u_dof
             e = b + n_t_dof
-            r_el[b:e:t_components] += -1.0 * t_phi_s_star @ f_val_star[c + u_components]
+            r_el[b:e:t_components] += (
+                -1.0 * t_phi_s_star @ f_val_star[c + u_components]
+            ).ravel()
 
         # (s,s) block
         s_phi_star = s_phi_tab[0, :, :, 0:dim]

@@ -182,7 +182,12 @@ class painter(ABC):
 
     @property
     def convergence_type_map(self):
-        map = {"normal": np.array([2, 3, 4, 5]), "super": np.array([3, 5])}
+        map = {
+            "sc_rt_normal": np.array([2, 3, 4, 5]), "sc_rt_super": np.array([3, 5]),
+            "sc_bdm_normal": np.array([2, 3, 4, 5]), "sc_bdm_super": np.array([3, 5]),
+            "wc_rt_normal": np.array([2, 3, 4, 5]), "wc_rt_super": np.array([3, 5]),
+            "wc_bdm_normal": np.array([2, 3, 4, 5]), "wc_bdm_super": np.array([3, 5])
+        }
         return map
 
     @classmethod
@@ -201,6 +206,12 @@ class painter(ABC):
         filter_4 = "_" + str(d) + "d"
         filter = filter_0 + filter_1 + filter_2 + filter_3 + filter_4
         return filter
+
+    @staticmethod
+    def convergence_type_key(method, conv_type):
+        composed_key = method + "_" + conv_type
+        return composed_key
+
 
 
 class painter_first_kind(painter):
@@ -250,7 +261,8 @@ class painter_first_kind(painter):
                 rdata = np.genfromtxt(
                     file_name, dtype=None, delimiter=",", skip_header=1
                 )
-                idxs = self.convergence_type_map[conv_type]
+                conv_type_key = painter_first_kind.convergence_type_key(method, conv_type)
+                idxs = self.convergence_type_map[conv_type_key]
 
                 h = rdata[:, np.array([1])]
                 plt.xlim(np.min(h) / 1.1, np.max(h) * 1.1)
@@ -305,7 +317,8 @@ class painter_first_kind(painter):
                 rdata = np.genfromtxt(
                     file_name, dtype=None, delimiter=",", skip_header=1
                 )
-                idxs = self.convergence_type_map[conv_type]
+                conv_type_key = painter_first_kind.convergence_type_key(method, conv_type)
+                idxs = self.convergence_type_map[conv_type_key]
 
                 h = rdata[:, np.array([1])]
                 plt.xlim(np.min(h) / 1.1, np.max(h) * 1.1)
@@ -337,7 +350,8 @@ class painter_first_kind(painter):
         assert len(result) == 1
         file_name = str(file_names[result[0][0]])
         rdata = np.genfromtxt(file_name, dtype=None, delimiter=",", skip_header=1)
-        idxs = self.convergence_type_map[conv_type]
+        conv_type_key = painter_first_kind.convergence_type_key(method, conv_type)
+        idxs = self.convergence_type_map[conv_type_key]
         ldata = np.vstack((rdata[:, 1], np.sum(rdata[:, idxs], axis=1))).T
         conv_triangle = ConvergenceTriangle(ldata, rate, h_shift, e_shift, mirror_q)
         conv_triangle.inset_me()
@@ -357,7 +371,8 @@ class painter_first_kind(painter):
         assert len(result) == 1
         file_name = str(file_names[result[0][0]])
         rdata = np.genfromtxt(file_name, dtype=None, delimiter=",", skip_header=1)
-        idxs = self.convergence_type_map[conv_type]
+        conv_type_key = painter_first_kind.convergence_type_key(method, conv_type)
+        idxs = self.convergence_type_map[conv_type_key]
         ldata = np.vstack((rdata[:, 1], np.sum(rdata[:, idxs], axis=1))).T
         conv_triangle = ConvergenceTriangle(ldata, rate, h_shift, e_shift, mirror_q)
         conv_triangle.inset_me()
@@ -383,7 +398,6 @@ class painter_second_kind(painter):
         p = Path()
         file_names = list(p.glob(self.file_pattern))
         fig, ax = plt.subplots(figsize=self.figure_size)
-        idxs = self.convergence_type_map["normal"]
 
         for method in methods:
             for k in [0, 1]:
@@ -394,6 +408,8 @@ class painter_second_kind(painter):
                     if (filter in path.name)
                 ]
                 assert len(result) == 1
+                conv_type_key = painter_first_kind.convergence_type_key(method, "normal")
+                idxs = self.convergence_type_map[conv_type_key]
                 label = self.method_map[method] + ": " r"$ k = " + str(k) + "$"
                 marker = self.markers_values_map[str(k)]
                 color = self.method_color_map[method]
@@ -428,7 +444,8 @@ class painter_second_kind(painter):
         assert len(result) == 1
         file_name = str(file_names[result[0][0]])
         rdata = np.genfromtxt(file_name, dtype=None, delimiter=",", skip_header=1)
-        idxs = self.convergence_type_map[conv_type]
+        conv_type_key = painter_first_kind.convergence_type_key(method, conv_type)
+        idxs = self.convergence_type_map[conv_type_key]
         ldata = np.vstack((rdata[:, 1], np.sum(rdata[:, idxs], axis=1))).T
         conv_triangle = ConvergenceTriangle(ldata, rate, h_shift, e_shift, mirror_q)
         conv_triangle.inset_me()
@@ -453,6 +470,10 @@ def render_figures_example_1(d=2):
     )
     painter_ex_1.build_inset_var_epsilon(
         k, d, methods[3], material_values[0], conv_type, rate, 0.0, -0.4
+    )
+    rate = k + 2
+    painter_ex_1.build_inset_var_epsilon(
+        k, d, methods[1], material_values[0], conv_type, rate, 0.0, -0.4
     )
     painter_ex_1.save_figure()
 
@@ -586,7 +607,7 @@ def render_figures_example_3(d=2):
     painter_ex_3.save_figure()
 
 
-dim = 2
+dim = 3
 render_figures_example_1(d=dim)
-render_figures_example_2(d=dim)
-render_figures_example_3(d=dim)
+# render_figures_example_2(d=dim)
+# render_figures_example_3(d=dim)

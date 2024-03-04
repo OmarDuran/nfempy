@@ -8,7 +8,7 @@ from spaces.product_space import ProductSpace
 from weak_forms.l2_projector_weak_form import L2ProjectorWeakForm
 
 
-def l2_projector(fe_space, functions, symmetric_solver_q = True):
+def l2_projector(fe_space, functions, symmetric_solver_q=True):
     n_dof_g = fe_space.n_dof
     rg = np.zeros(n_dof_g)
     alpha = np.zeros(n_dof_g)
@@ -18,7 +18,7 @@ def l2_projector(fe_space, functions, symmetric_solver_q = True):
     A = PETSc.Mat()
     A.createAIJ([n_dof_g, n_dof_g])
     if symmetric_solver_q:
-        A.setType('sbaij')
+        A.setType("sbaij")
 
     st = time.time()
 
@@ -43,7 +43,8 @@ def l2_projector(fe_space, functions, symmetric_solver_q = True):
         if symmetric_solver_q:
             [
                 A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
-                for idx in nnz_idx if row[idx] <= col[idx]
+                for idx in nnz_idx
+                if row[idx] <= col[idx]
             ]
         else:
             [

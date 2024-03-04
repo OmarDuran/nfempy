@@ -62,6 +62,7 @@ def l2_error(dim, fe_space, functions, alpha, skip_fields=[]):
 
     return l2_errors
 
+
 def l2_error_projected(dim, fe_space, alpha, skip_fields=[]):
     l2_errors = []
     points, weights = fe_space.quadrature
@@ -91,9 +92,7 @@ def l2_error_projected(dim, fe_space, alpha, skip_fields=[]):
             alpha_star = np.array(np.split(alpha_l, n_phi))
             if space.family is family_by_name("Lagrange"):
                 f_h_s = (phi_tab[0, :, :, 0] @ alpha_star[:, 0:dim]).T
-                l2_error += np.sum(
-                    det_jac * weights * f_h_s * f_h_s
-                )
+                l2_error += np.sum(det_jac * weights * f_h_s * f_h_s)
             else:
                 f_h = np.array(
                     [
