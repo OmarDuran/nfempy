@@ -70,22 +70,22 @@ class ConvergenceTriangle:
         if self._mirror_q:
             dirh = xc - np.mean(np.vstack((p2, p1)), axis=0)
             dire = xc - np.mean(np.vstack((p0, p1)), axis=0)
-            # dirh[1] = 0.0
-            # dire[0] = 0.0
+            dirh[1] = 0.0
+            dire[0] = 0.0
             dirh = dirh / np.linalg.norm(dirh)
             dire = dire / np.linalg.norm(dire)
             step_pos = np.exp(-0.2 * dire + np.mean(np.vstack((p0, p1)), axis=0))
-            rate_pos = np.exp(-0.05 * dirh + np.mean(np.vstack((p2, p1)), axis=0))
+            rate_pos = np.exp(-0.03 * dirh + np.mean(np.vstack((p2, p1)), axis=0))
             self._label_pos = (step_pos, rate_pos)
         else:
             dirh = xc - np.mean(np.vstack((p0, p1)), axis=0)
             dire = xc - np.mean(np.vstack((p2, p1)), axis=0)
-            # dirh[1] = 0.0
-            # dire[0] = 0.0
+            dirh[1] = 0.0
+            dire[0] = 0.0
             dirh = dirh / np.linalg.norm(dirh)
             dire = dire / np.linalg.norm(dire)
             step_pos = np.exp(-0.15 * dire + np.mean(np.vstack((p2, p1)), axis=0))
-            rate_pos = np.exp(-0.05 * dirh + np.mean(np.vstack((p0, p1)), axis=0))
+            rate_pos = np.exp(-0.03 * dirh + np.mean(np.vstack((p0, p1)), axis=0))
             self._label_pos = (step_pos, rate_pos)
 
     def inset_me(self):
@@ -183,10 +183,10 @@ class painter(ABC):
     @property
     def convergence_type_map(self):
         map = {
-            "sc_rt_normal": np.array([2, 3, 4, 5]), "sc_rt_super": np.array([3, 5]),
-            "sc_bdm_normal": np.array([2, 3, 4, 5]), "sc_bdm_super": np.array([3, 5]),
-            "wc_rt_normal": np.array([2, 3, 4, 5]), "wc_rt_super": np.array([3, 5]),
-            "wc_bdm_normal": np.array([2, 3, 4, 5]), "wc_bdm_super": np.array([3, 5])
+            "sc_rt_normal": np.array([2, 3, 8, 9]), "sc_rt_super": np.array([3, 5]),
+            "sc_bdm_normal": np.array([2, 3, 8, 9]), "sc_bdm_super": np.array([3, 5]),
+            "wc_rt_normal": np.array([2, 3, 8, 9]), "wc_rt_super": np.array([3, 5]),
+            "wc_bdm_normal": np.array([2, 3, 8, 9]), "wc_bdm_super": np.array([3, 5])
         }
         return map
 
@@ -459,21 +459,17 @@ def render_figures_example_1(d=2):
     painter_ex_1.file_pattern = file_pattern
 
     material_values = [1.0, 0.01, 0.0001]
-    painter_ex_1.ordinate_range = (0.0001, 20)
+    painter_ex_1.ordinate_range = (0.01, 100)
     conv_type = "normal"
 
     k = 0
     rate = k + 1
-    painter_ex_1.file_name = "convergence_k0_example_1.pdf"
+    painter_ex_1.file_name = "convergence_k0_example_1_"+ str(d) + "d.pdf"
     painter_ex_1.color_canvas_with_variable_epsilon(
         k, d, methods, material_values, conv_type
     )
     painter_ex_1.build_inset_var_epsilon(
-        k, d, methods[3], material_values[0], conv_type, rate, 0.0, -0.4
-    )
-    rate = k + 2
-    painter_ex_1.build_inset_var_epsilon(
-        k, d, methods[1], material_values[0], conv_type, rate, 0.0, -0.4
+        k, d, methods[3], material_values[2], conv_type, rate, 0.0, -0.2
     )
     painter_ex_1.save_figure()
 
@@ -484,15 +480,11 @@ def render_figures_example_1(d=2):
         k, d, methods, material_values, conv_type
     )
     painter_ex_1.build_inset_var_epsilon(
-        k, d, methods[3], material_values[0], conv_type, rate, 0.0, -0.25
-    )
-    rate = k + 2
-    painter_ex_1.build_inset_var_epsilon(
-        k, d, methods[1], material_values[0], conv_type, rate, 0.0, -0.25
+        k, d, methods[3], material_values[2], conv_type, rate, 0.0, -0.25
     )
     painter_ex_1.save_figure()
 
-    painter_ex_1.ordinate_range = (0.000001, 20)
+    painter_ex_1.ordinate_range = (0.000001, 50)
     conv_type = "super"
 
     k = 0
@@ -595,7 +587,7 @@ def render_figures_example_3(d=2):
     conv_type = "normal"
     painter_ex_3 = painter_second_kind()
     painter_ex_3.file_pattern = file_pattern
-    painter_ex_3.ordinate_range = (0.00001, 1)
+    painter_ex_3.ordinate_range = (0.001, 1)
     painter_ex_3.file_name = "convergence_example_3_"+ str(d) + "d.pdf"
     painter_ex_3.color_canvas_with_variable_k(d, methods)
     k = 0
@@ -607,7 +599,7 @@ def render_figures_example_3(d=2):
     painter_ex_3.save_figure()
 
 
-dim = 3
+dim = 2
 render_figures_example_1(d=dim)
 # render_figures_example_2(d=dim)
 # render_figures_example_3(d=dim)
