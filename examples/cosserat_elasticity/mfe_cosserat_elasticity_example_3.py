@@ -1,16 +1,8 @@
-import functools
-import gc
-import time
 import resource
+import time
 
 import numpy as np
-from scipy import sparse
 import strong_solution_cosserat_elasticity_example_3 as lce
-
-import sys
-import petsc4py
-
-petsc4py.init(sys.argv)
 from petsc4py import PETSc
 
 from mesh.mesh import Mesh
@@ -18,14 +10,15 @@ from mesh.mesh_metrics import mesh_size
 from postprocess.l2_error_post_processor import (
     div_error,
     div_scaled_error,
-    grad_error,
     l2_error,
     l2_error_projected,
 )
-from postprocess.solution_norms_post_processor import l2_norm, div_norm
 from postprocess.projectors import l2_projector
-from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
-from postprocess.solution_post_processor import write_vtk_file_exact_solution
+from postprocess.solution_norms_post_processor import div_norm, l2_norm
+from postprocess.solution_post_processor import (
+    write_vtk_file_exact_solution,
+    write_vtk_file_with_exact_solution,
+)
 from spaces.product_space import ProductSpace
 from weak_forms.lce_scaled_dual_weak_form import (
     LCEScaledDualWeakForm,
@@ -90,7 +83,7 @@ def create_product_space(method, gmesh):
     return space
 
 
-def four_field_scaled_approximation(method, gmesh, symmetric_solver_q = True):
+def four_field_scaled_approximation(method, gmesh, symmetric_solver_q=True):
     dim = gmesh.dimension
     fe_space = create_product_space(method, gmesh)
 
@@ -106,12 +99,12 @@ def four_field_scaled_approximation(method, gmesh, symmetric_solver_q = True):
     A = PETSc.Mat()
     A.createAIJ([n_dof_g, n_dof_g])
     if symmetric_solver_q:
-        A.setType('sbaij')
+        A.setType("sbaij")
 
     P = PETSc.Mat()
     P.createAIJ([n_dof_g, n_dof_g])
     if symmetric_solver_q:
-        P.setType('sbaij')
+        P.setType("sbaij")
 
     # Material data
     m_lambda = 1.0
@@ -184,7 +177,8 @@ def four_field_scaled_approximation(method, gmesh, symmetric_solver_q = True):
         if symmetric_solver_q:
             [
                 A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
-                for idx in nnz_idx if row[idx] <= col[idx]
+                for idx in nnz_idx
+                if row[idx] <= col[idx]
             ]
         else:
             [
@@ -219,7 +213,8 @@ def four_field_scaled_approximation(method, gmesh, symmetric_solver_q = True):
         if symmetric_solver_q:
             [
                 P.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
-                for idx in nnz_idx if row[idx] <= col[idx]
+                for idx in nnz_idx
+                if row[idx] <= col[idx]
             ]
         else:
             [
@@ -350,28 +345,8 @@ def four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk_q=
     m_exact = lce.couple_stress_scaled(m_lambda, m_mu, m_kappa, dim)
     div_s_exact = lce.stress_divergence(m_lambda, m_mu, m_kappa, dim)
     div_m_exact = lce.couple_stress_divergence_scaled(m_lambda, m_mu, m_kappa, dim)
-    f_rhs = lce.rhs_scaled(m_lambda, m_mu, m_kappa, dim)
-
-    def f_lambda(x, y, z):
-        return m_lambda
-
-    def f_mu(x, y, z):
-        return m_mu
-
-    def f_kappa(x, y, z):
-        return m_kappa
-
     f_gamma = lce.gamma_s(dim)
     f_grad_gamma = lce.grad_gamma_s(dim)
-
-    m_functions = {
-        "rhs": f_rhs,
-        "lambda": f_lambda,
-        "mu": f_mu,
-        "kappa": f_kappa,
-        "gamma": f_gamma,
-        "grad_gamma": f_grad_gamma,
-    }
 
     exact_functions = {
         "s": s_exact,
@@ -414,7 +389,9 @@ def four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk_q=
 
     alpha_proj = l2_projector(fe_space, exact_functions)
     alpha_e = alpha - alpha_proj
-    u_proj_l2_error, t_proj_l2_error = l2_error_projected(dim, fe_space, alpha_e,['s', 'm'])
+    u_proj_l2_error, t_proj_l2_error = l2_error_projected(
+        dim, fe_space, alpha_e, ["s", "m"]
+    )
 
     et = time.time()
     elapsed_time = et - st
@@ -440,7 +417,7 @@ def four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk_q=
             s_h_div_error,
             m_h_div_error,
             u_proj_l2_error,
-            t_proj_l2_error
+            t_proj_l2_error,
         ]
     )
 
@@ -448,7 +425,6 @@ def four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk_q=
 def four_field_scaled_solution_norms(method, gmesh):
     dim = gmesh.dimension
     fe_space = create_product_space(method, gmesh)
-    n_dof_g = fe_space.n_dof
 
     # Material data
     m_lambda = 1.0
@@ -462,28 +438,8 @@ def four_field_scaled_solution_norms(method, gmesh):
     m_exact = lce.couple_stress_scaled(m_lambda, m_mu, m_kappa, dim)
     div_s_exact = lce.stress_divergence(m_lambda, m_mu, m_kappa, dim)
     div_m_exact = lce.couple_stress_divergence_scaled(m_lambda, m_mu, m_kappa, dim)
-    f_rhs = lce.rhs_scaled(m_lambda, m_mu, m_kappa, dim)
-
-    def f_lambda(x, y, z):
-        return m_lambda
-
-    def f_mu(x, y, z):
-        return m_mu
-
-    def f_kappa(x, y, z):
-        return m_kappa
-
     f_gamma = lce.gamma_s(dim)
     f_grad_gamma = lce.grad_gamma_s(dim)
-
-    m_functions = {
-        "rhs": f_rhs,
-        "lambda": f_lambda,
-        "mu": f_mu,
-        "kappa": f_kappa,
-        "gamma": f_gamma,
-        "grad_gamma": f_grad_gamma,
-    }
 
     exact_functions = {
         "s": s_exact,
@@ -551,14 +507,7 @@ def perform_convergence_approximations(configuration: dict):
     n_ref = configuration.get("n_refinements")
     dimension = configuration.get("dimension")
     write_geometry_vtk = configuration.get("write_geometry_Q", True)
-    write_vtk = configuration.get("write_vtk_Q", True)
-    report_full_precision_data = configuration.get("report_full_precision_data_Q", True)
 
-    # The initial element size
-    h = 1.0 / 3.0
-
-    n_data = 10
-    error_data = np.empty((0, n_data), float)
     for lh in range(n_ref):
         mesh_file = (
             "gmsh_files/ex_3/example_3_" + str(dimension) + "d_l_" + str(lh) + ".msh"
@@ -591,9 +540,6 @@ def perform_convergence_postprocessing(configuration: dict):
     write_geometry_vtk = configuration.get("write_geometry_Q", True)
     write_vtk = configuration.get("write_vtk_Q", True)
     report_full_precision_data = configuration.get("report_full_precision_data_Q", True)
-
-    # The initial element size
-    h = 1.0 / 3.0
 
     n_data = 12
     error_data = np.empty((0, n_data), float)
@@ -717,7 +663,7 @@ def main():
                 "n_refinements": refinements[k],
                 "method": method,
             }
-            for d in [3]:
+            for d in [2]:
                 configuration["k_order"] = k
                 configuration["dimension"] = d
                 if only_approximation_q:
