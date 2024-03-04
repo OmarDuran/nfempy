@@ -22,14 +22,17 @@ from weak_forms.lce_riesz_map_weak_form import LCERieszMapWeakForm
 def compose_file_name(method, k_order, ref_l, dim, material_data, suffix):
     prefix = (
         method[0]
+        + "_lambda_"
+        + str(material_data["lambda"])
+        + "_gamma_"
+        + str(material_data["gamma"])
         + "_k"
         + str(k_order)
         + "_l"
         + str(ref_l)
-        + "_d"
+        + "_"
         + str(dim)
-        + "_lambda_"
-        + str(material_data["lambda"])
+        + "d"
     )
     file_name = prefix + suffix
     return file_name
@@ -568,9 +571,10 @@ def perform_convergence_approximations(configuration: dict):
         file_name_res = compose_file_name(
             method, k_order, lh, gmesh.dimension, material_data, "_res_history_ex_2.txt"
         )
+        # First position includes n_dof
         np.savetxt(
             file_name_res,
-            res_history,
+            np.concatenate((np.array([len(alpha)]),res_history)),
             delimiter=",",
         )
 
@@ -594,7 +598,7 @@ def perform_convergence_postprocessing(configuration: dict):
     # Create a unit squared or a unit cube
     domain = create_domain(dimension)
 
-    n_data = 12
+    n_data = 13
     error_data = np.empty((0, n_data), float)
     for lh in range(n_ref):
         mesher = create_conformal_mesher(domain, h, lh)
@@ -609,20 +613,26 @@ def perform_convergence_postprocessing(configuration: dict):
         n_dof, error_vals = four_field_postprocessing(
             k_order, material_data, method, gmesh, alpha, write_vtk
         )
-        chunk = np.concatenate([[n_dof, h_max], error_vals])
+
+        file_name_res = compose_file_name(
+            method, k_order, lh, gmesh.dimension, material_data, "_res_history_ex_2.txt"
+        )
+        res_data = np.genfromtxt(file_name_res, dtype=None, delimiter=",")
+        n_iterations = res_data.shape[0] - 1 # First position includes n_dof
+        chunk = np.concatenate([[n_dof, n_iterations, h_max], error_vals])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
 
         # compute solution norms for the last refinement level
         if lh == n_ref - 1:
             sol_norms = four_field_solution_norms(material_data, method, gmesh)
 
-    rates_data = np.empty((0, n_data - 2), float)
+    rates_data = np.empty((0, n_data - 3), float)
     for i in range(error_data.shape[0] - 1):
         chunk_b = np.log(error_data[i])
         chunk_e = np.log(error_data[i + 1])
         h_step = chunk_e[1] - chunk_b[1]
         partial = (chunk_e - chunk_b) / h_step
-        rates_data = np.append(rates_data, np.array([list(partial[2:n_data])]), axis=0)
+        rates_data = np.append(rates_data, np.array([list(partial[3:n_data])]), axis=0)
 
     # minimal report
     np.set_printoptions(precision=3)
@@ -633,10 +643,10 @@ def perform_convergence_postprocessing(configuration: dict):
     print("rounded error rates data: ", rates_data)
     print(" ")
 
-    str_fields = "u, r, dev s, o, "
+    str_fields = "u, r, s, o, "
     dual_header = str_fields + "div_s, div_o, s_h_div_norm, o_h_div_norm, Pu, Pr"
     base_str_header = dual_header
-    e_str_header = "n_dof, h, " + base_str_header
+    e_str_header = "n_dof, n_iter, h, " + base_str_header
 
     lambda_value = material_data["lambda"]
     gamma_value = material_data["gamma"]
@@ -746,19 +756,17 @@ def main():
     refinements = {0: 4, 1: 4}
     case_data = material_data_definition()
     for k in [0, 1]:
-        n_ref = refinements[k]
         methods = method_definition(k)
         for i, method in enumerate(methods):
             for material_data in case_data:
-                configuration = {
-                    "n_refinements": n_ref,
-                    "method": method,
-                    "material_data": material_data,
-                }
-
-                for d in [3]:
-                    configuration["k_order"] = k
-                    configuration["dimension"] = d
+                for d in [2]:
+                    configuration = {
+                        "k_order": k,
+                        "dimension": d,
+                        "n_refinements": refinements[k],
+                        "method": method,
+                        "material_data": material_data,
+                    }
                     if only_approximation_q:
                         perform_convergence_approximations(configuration)
                     if only_postprocessing_q:
