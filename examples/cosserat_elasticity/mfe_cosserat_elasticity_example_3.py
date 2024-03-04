@@ -585,7 +585,7 @@ def perform_convergence_postprocessing(configuration: dict):
     for i in range(error_data.shape[0] - 1):
         chunk_b = np.log(error_data[i])
         chunk_e = np.log(error_data[i + 1])
-        h_step = chunk_e[1] - chunk_b[1]
+        h_step = chunk_e[2] - chunk_b[2]
         partial = (chunk_e - chunk_b) / h_step
         rates_data = np.append(rates_data, np.array([list(partial[3:n_data])]), axis=0)
 

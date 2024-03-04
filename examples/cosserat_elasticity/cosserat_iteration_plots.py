@@ -167,6 +167,7 @@ class painter_first_kind(painter):
                 min_res_iterations = np.array(min_res_iterations)
                 plt.xscale("log")
                 plt.plot(dofs, min_res_iterations, label=label, marker=marker, color=color)
+                # plt.bar(dofs, min_res_iterations, label=label, color=color, width=50.0, log = True)
 
         ax.grid(
             True, linestyle="-.", axis="both", which="both", color="black", alpha=0.25
@@ -436,6 +437,6 @@ def render_figures_example_3(d=2):
 
 
 dim = 2
-# render_figures_example_1(d=dim)
-render_figures_example_2(d=dim)
+render_figures_example_1(d=dim)
+# render_figures_example_2(d=dim)
 # render_figures_example_3(d=dim)
