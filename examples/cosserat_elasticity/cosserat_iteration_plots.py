@@ -131,7 +131,6 @@ class painter_first_kind(painter):
         fig, ax = plt.subplots(figsize=self.figure_size)
 
         for method in methods:
-
             for m_value in material_values:
                 min_res_iterations = []
                 dofs = []
@@ -179,7 +178,7 @@ class painter_first_kind(painter):
         plt.legend()
 
     def color_canvas_with_variable_lambda(
-        self, k, d, methods, material_values, conv_type
+        self, k, d, methods, material_values
     ):
         self.create_directory()
 
@@ -188,42 +187,44 @@ class painter_first_kind(painter):
         fig, ax = plt.subplots(figsize=self.figure_size)
 
         for method in methods:
-            if conv_type == 'super' and method in ['wc_rt', 'wc_bdm']:
-                continue
-
             for m_value in material_values:
-                filter = painter_first_kind.filter_composer(
-                    method=method, m_lambda=m_value, m_eps=self.m_epsilon, k=k, d=d
-                )
-                result = [
-                    (idx, path.name)
-                    for idx, path in enumerate(file_names)
-                    if (filter in path.name)
-                ]
-                assert len(result) == 1
-                label = (
-                    self.method_map[method]
-                    + ": "
-                    + r"$"
-                    + mat_label
-                    + " = "
-                    + self.mat_values_map[str(m_value)]
-                    + "$"
-                )
-                marker = self.markers_values_map[str(m_value)]
-                color = self.method_color_map[method]
-                file_name = str(file_names[result[0][0]])
-                rdata = np.genfromtxt(
-                    file_name, dtype=None, delimiter=",", skip_header=1
-                )
-                conv_type_key = painter_first_kind.convergence_type_key(method, conv_type)
-                idxs = self.convergence_type_map[conv_type_key]
+                min_res_iterations = []
+                dofs = []
+                for l in painter_first_kind.ref_levels():
+                    filter = painter_first_kind.filter_composer(
+                        method=method, m_lambda=m_value, m_eps=self.m_epsilon, k=k, d=d,
+                        l=l
+                    )
+                    result = [
+                        (idx, path.name)
+                        for idx, path in enumerate(file_names)
+                        if (filter in path.name)
+                    ]
+                    assert len(result) == 1
+                    label = (
+                            self.method_map[method]
+                            + ": "
+                            + r"$"
+                            + mat_label
+                            + " = "
+                            + self.mat_values_map[str(m_value)]
+                            + "$"
+                    )
+                    marker = self.markers_values_map[str(m_value)]
+                    color = self.method_color_map[method]
+                    file_name = str(file_names[result[0][0]])
+                    rdata = np.genfromtxt(
+                        file_name, dtype=None, delimiter=","
+                    )
+                    dofs.append(rdata[0])
+                    min_res_iterations.append(rdata.shape[0] - 1)
 
-                h = rdata[:, np.array([1])]
-                plt.xlim(np.min(h) / 1.1, np.max(h) * 1.1)
-
-                error = np.sum(rdata[:, idxs], axis=1)
-                plt.loglog(h, error, label=label, marker=marker, color=color)
+                # levels = np.array(painter_first_kind.ref_levels())
+                dofs = np.array(dofs)
+                min_res_iterations = np.array(min_res_iterations)
+                plt.xscale("log")
+                plt.plot(dofs, min_res_iterations, label=label, marker=marker,
+                         color=color)
 
         ax.grid(
             True, linestyle="-.", axis="both", which="both", color="black", alpha=0.25
@@ -233,48 +234,6 @@ class painter_first_kind(painter):
         plt.ylabel("Error")
         plt.ylim(self.ordinate_range[0], self.ordinate_range[1])
         plt.legend()
-
-    def build_inset_var_epsilon(
-        self, k, d, method, m_value, conv_type, rate, h_shift, e_shift, mirror_q = False
-    ):
-        file_names = list(Path().glob(self.file_pattern))
-        filter = painter_first_kind.filter_composer(
-            method=method, m_lambda=self.m_lambda, m_eps=m_value, k=k, d=d
-        )
-        result = [
-            (idx, path.name)
-            for idx, path in enumerate(file_names)
-            if (filter in path.name)
-        ]
-        assert len(result) == 1
-        file_name = str(file_names[result[0][0]])
-        rdata = np.genfromtxt(file_name, dtype=None, delimiter=",", skip_header=1)
-        conv_type_key = painter_first_kind.convergence_type_key(method, conv_type)
-        idxs = self.convergence_type_map[conv_type_key]
-        ldata = np.vstack((rdata[:, 1], np.sum(rdata[:, idxs], axis=1))).T
-        conv_triangle = ConvergenceTriangle(ldata, rate, h_shift, e_shift, mirror_q)
-        conv_triangle.inset_me()
-
-    def build_inset_var_lambda(
-        self, k, d, method, m_value, conv_type, rate, h_shift, e_shift, mirror_q = False
-    ):
-        file_names = list(Path().glob(self.file_pattern))
-        filter = painter_first_kind.filter_composer(
-            method=method, m_lambda=m_value, m_eps=self.m_epsilon, k=k, d=d
-        )
-        result = [
-            (idx, path.name)
-            for idx, path in enumerate(file_names)
-            if (filter in path.name)
-        ]
-        assert len(result) == 1
-        file_name = str(file_names[result[0][0]])
-        rdata = np.genfromtxt(file_name, dtype=None, delimiter=",", skip_header=1)
-        conv_type_key = painter_first_kind.convergence_type_key(method, conv_type)
-        idxs = self.convergence_type_map[conv_type_key]
-        ldata = np.vstack((rdata[:, 1], np.sum(rdata[:, idxs], axis=1))).T
-        conv_triangle = ConvergenceTriangle(ldata, rate, h_shift, e_shift, mirror_q)
-        conv_triangle.inset_me()
 
 
 class painter_second_kind(painter):
@@ -358,7 +317,7 @@ def render_figures_example_1(d=2):
     painter_ex_1.file_pattern = file_pattern
 
     material_values = [1.0, 0.01, 0.0001]
-    painter_ex_1.ordinate_range = (0.001, 200)
+    painter_ex_1.ordinate_range = (0, 200)
 
     k = 0
     painter_ex_1.file_name = "min_res_iterations_k0_example_1_"+ str(d) + "d.pdf"
@@ -377,61 +336,85 @@ def render_figures_example_1(d=2):
 
 def render_figures_example_2(d=2):
     methods = ["sc_rt", "sc_bdm", "wc_rt", "wc_bdm"]
-    file_pattern = "output_example_2/*_error_ex_2.txt"
+    file_pattern = "output_example_2/*_res_history_ex_2.txt"
 
     painter_ex_2 = painter_first_kind()
     painter_ex_2.file_pattern = file_pattern
 
     material_values = [1.0, 100.0, 10000.0]
-    painter_ex_2.ordinate_range = (1.0, 300.0)
-    conv_type = "normal"
+    painter_ex_2.ordinate_range = (0, 200)
 
     k = 0
-    painter_ex_2.file_name = "convergence_k0_example_2_"+ str(d) + "d.pdf"
+    painter_ex_2.file_name = "min_res_iterations_k0_example_2_" + str(d) + "d.pdf"
     painter_ex_2.color_canvas_with_variable_lambda(
-        k, d, methods, material_values, conv_type
-    )
-    rate = k + 1
-    painter_ex_2.build_inset_var_lambda(
-        k, d, methods[0], material_values[0], conv_type, rate, 0.0, -0.2
+        k, d, methods, material_values
     )
     painter_ex_2.save_figure()
 
     k = 1
-    painter_ex_2.file_name = "convergence_k1_example_2_"+ str(d) + "d.pdf"
+    painter_ex_2.file_name = "min_res_iterations_k1_example_2_" + str(d) + "d.pdf"
     painter_ex_2.color_canvas_with_variable_lambda(
-        k, d, methods, material_values, conv_type
-    )
-    rate = k + 1
-    painter_ex_2.build_inset_var_lambda(
-        k, d, methods[0], material_values[0], conv_type, rate, 0.0, -0.2
+        k, d, methods, material_values
     )
     painter_ex_2.save_figure()
 
-    painter_ex_2.ordinate_range = (0.001, 200)
-    conv_type = "super"
 
-    k = 0
-    painter_ex_2.file_name = "superconvergence_k0_example_2_"+ str(d) + "d.pdf"
-    painter_ex_2.color_canvas_with_variable_lambda(
-        k, d, methods, material_values, conv_type
-    )
-    rate = k + 2
-    painter_ex_2.build_inset_var_lambda(
-        k, d, methods[1], material_values[0], conv_type, rate, 0.0, -0.2
-    )
-    painter_ex_2.save_figure()
-
-    k = 1
-    painter_ex_2.file_name = "superconvergence_k1_example_2_"+ str(d) + "d.pdf"
-    painter_ex_2.color_canvas_with_variable_lambda(
-        k, d, methods, material_values, conv_type
-    )
-    rate = k + 2
-    painter_ex_2.build_inset_var_lambda(
-        k, d, methods[1], material_values[0], conv_type, rate, 0.0, -0.2
-    )
-    painter_ex_2.save_figure()
+    # methods = ["sc_rt", "sc_bdm", "wc_rt", "wc_bdm"]
+    # file_pattern = "output_example_2/*_error_ex_2.txt"
+    #
+    # painter_ex_2 = painter_first_kind()
+    # painter_ex_2.file_pattern = file_pattern
+    #
+    # material_values = [1.0, 100.0, 10000.0]
+    # painter_ex_2.ordinate_range = (1.0, 300.0)
+    # conv_type = "normal"
+    #
+    # k = 0
+    # painter_ex_2.file_name = "convergence_k0_example_2_"+ str(d) + "d.pdf"
+    # painter_ex_2.color_canvas_with_variable_lambda(
+    #     k, d, methods, material_values, conv_type
+    # )
+    # rate = k + 1
+    # painter_ex_2.build_inset_var_lambda(
+    #     k, d, methods[0], material_values[0], conv_type, rate, 0.0, -0.2
+    # )
+    # painter_ex_2.save_figure()
+    #
+    # k = 1
+    # painter_ex_2.file_name = "convergence_k1_example_2_"+ str(d) + "d.pdf"
+    # painter_ex_2.color_canvas_with_variable_lambda(
+    #     k, d, methods, material_values, conv_type
+    # )
+    # rate = k + 1
+    # painter_ex_2.build_inset_var_lambda(
+    #     k, d, methods[0], material_values[0], conv_type, rate, 0.0, -0.2
+    # )
+    # painter_ex_2.save_figure()
+    #
+    # painter_ex_2.ordinate_range = (0.001, 200)
+    # conv_type = "super"
+    #
+    # k = 0
+    # painter_ex_2.file_name = "superconvergence_k0_example_2_"+ str(d) + "d.pdf"
+    # painter_ex_2.color_canvas_with_variable_lambda(
+    #     k, d, methods, material_values, conv_type
+    # )
+    # rate = k + 2
+    # painter_ex_2.build_inset_var_lambda(
+    #     k, d, methods[1], material_values[0], conv_type, rate, 0.0, -0.2
+    # )
+    # painter_ex_2.save_figure()
+    #
+    # k = 1
+    # painter_ex_2.file_name = "superconvergence_k1_example_2_"+ str(d) + "d.pdf"
+    # painter_ex_2.color_canvas_with_variable_lambda(
+    #     k, d, methods, material_values, conv_type
+    # )
+    # rate = k + 2
+    # painter_ex_2.build_inset_var_lambda(
+    #     k, d, methods[1], material_values[0], conv_type, rate, 0.0, -0.2
+    # )
+    # painter_ex_2.save_figure()
 
 
 def render_figures_example_3(d=2):
@@ -453,6 +436,6 @@ def render_figures_example_3(d=2):
 
 
 dim = 2
-render_figures_example_1(d=dim)
-# render_figures_example_2(d=dim)
+# render_figures_example_1(d=dim)
+render_figures_example_2(d=dim)
 # render_figures_example_3(d=dim)
