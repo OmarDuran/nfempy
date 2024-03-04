@@ -1,7 +1,5 @@
-import functools
-import gc
-import time
 import resource
+import time
 
 import numpy as np
 import strong_solution_cosserat_elasticity_example_1 as lce
@@ -12,23 +10,18 @@ from geometry.domain_market import build_box_1D, build_box_2D, build_box_3D
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
 from mesh.mesh_metrics import mesh_size
-from postprocess.l2_error_post_processor import (
-    div_error,
-    div_scaled_error,
-    grad_error,
-    l2_error,
-    l2_error_projected,
-)
-from postprocess.solution_norms_post_processor import l2_norm, div_norm
+from postprocess.l2_error_post_processor import (div_error, div_scaled_error,
+                                                 l2_error, l2_error_projected)
 from postprocess.projectors import l2_projector
-from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
+from postprocess.solution_norms_post_processor import div_norm, l2_norm
+from postprocess.solution_post_processor import \
+    write_vtk_file_with_exact_solution
 from spaces.product_space import ProductSpace
-from weak_forms.lce_dual_weak_form import LCEDualWeakForm, LCEDualWeakFormBCDirichlet
-from weak_forms.lce_scaled_dual_weak_form import (
-    LCEScaledDualWeakForm,
-    LCEScaledDualWeakFormBCDirichlet,
-)
+from weak_forms.lce_dual_weak_form import (LCEDualWeakForm,
+                                           LCEDualWeakFormBCDirichlet)
 from weak_forms.lce_riesz_map_weak_form import LCERieszMapWeakForm
+from weak_forms.lce_scaled_dual_weak_form import (
+    LCEScaledDualWeakForm, LCEScaledDualWeakFormBCDirichlet)
 from weak_forms.lce_scaled_riesz_map_weak_form import LCEScaledRieszMapWeakForm
 
 
@@ -125,27 +118,6 @@ def four_field_postprocessing(
     m_exact = lce.couple_stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
     div_s_exact = lce.stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim)
     div_m_exact = lce.couple_stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    f_rhs = lce.rhs(m_lambda, m_mu, m_kappa, m_gamma, dim)
-
-    def f_lambda(x, y, z):
-        return m_lambda
-
-    def f_mu(x, y, z):
-        return m_mu
-
-    def f_kappa(x, y, z):
-        return m_kappa
-
-    def f_gamma(x, y, z):
-        return m_gamma
-
-    m_functions = {
-        "rhs": f_rhs,
-        "lambda": f_lambda,
-        "mu": f_mu,
-        "kappa": f_kappa,
-        "gamma": f_gamma,
-    }
 
     exact_functions = {
         "s": s_exact,
@@ -183,7 +155,9 @@ def four_field_postprocessing(
 
     alpha_proj = l2_projector(fe_space, exact_functions)
     alpha_e = alpha - alpha_proj
-    u_proj_l2_error, t_proj_l2_error = l2_error_projected(dim, fe_space, alpha_e, ['s','m'])
+    u_proj_l2_error, t_proj_l2_error = l2_error_projected(
+        dim, fe_space, alpha_e, ["s", "m"]
+    )
 
     et = time.time()
     elapsed_time = et - st
@@ -214,8 +188,7 @@ def four_field_postprocessing(
     )
 
 
-def four_field_approximation(material_data, method, gmesh, symmetric_solver_q = True):
-
+def four_field_approximation(material_data, method, gmesh, symmetric_solver_q=True):
     dim = gmesh.dimension
 
     fe_space = create_product_space(method, gmesh)
@@ -232,12 +205,12 @@ def four_field_approximation(material_data, method, gmesh, symmetric_solver_q = 
     A = PETSc.Mat()
     A.createAIJ([n_dof_g, n_dof_g])
     if symmetric_solver_q:
-        A.setType('sbaij')
+        A.setType("sbaij")
 
     P = PETSc.Mat()
     P.createAIJ([n_dof_g, n_dof_g])
     if symmetric_solver_q:
-        P.setType('sbaij')
+        P.setType("sbaij")
 
     # Material data
     m_lambda = material_data["lambda"]
@@ -308,7 +281,8 @@ def four_field_approximation(material_data, method, gmesh, symmetric_solver_q = 
         if symmetric_solver_q:
             [
                 A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
-                for idx in nnz_idx if row[idx] <= col[idx]
+                for idx in nnz_idx
+                if row[idx] <= col[idx]
             ]
         else:
             [
@@ -344,14 +318,14 @@ def four_field_approximation(material_data, method, gmesh, symmetric_solver_q = 
         if symmetric_solver_q:
             [
                 P.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
-                for idx in nnz_idx if row[idx] <= col[idx]
+                for idx in nnz_idx
+                if row[idx] <= col[idx]
             ]
         else:
             [
                 P.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
                 for idx in nnz_idx
             ]
-
 
         check_points = [(int(k * n_els / 10)) for k in range(11)]
         if i in check_points or i == n_els - 1:
@@ -491,26 +465,18 @@ def four_field_scaled_postprocessing(
     div_m_exact = lce.couple_stress_divergence_scaled(
         m_lambda, m_mu, m_kappa, m_gamma, dim
     )
-    f_rhs = lce.rhs_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim)
-
-    def f_lambda(x, y, z):
-        return m_lambda
-
-    def f_mu(x, y, z):
-        return m_mu
-
-    def f_kappa(x, y, z):
-        return m_kappa
 
     def f_gamma(x, y, z):
         return m_gamma * np.ones_like(x)
 
-    def f_grad_gamma(x, y, z):
-        d_gamma_x = 0.0 * x
-        d_gamma_y = 0.0 * y
-        return np.array([d_gamma_x, d_gamma_y])
+    if dim == 2:
 
-    if dim == 3:
+        def f_grad_gamma(x, y, z):
+            d_gamma_x = 0.0 * x
+            d_gamma_y = 0.0 * y
+            return np.array([d_gamma_x, d_gamma_y])
+
+    elif dim == 3:
 
         def f_grad_gamma(x, y, z):
             d_gamma_x = 0.0 * x
@@ -518,14 +484,8 @@ def four_field_scaled_postprocessing(
             d_gamma_z = 0.0 * z
             return np.array([d_gamma_x, d_gamma_y, d_gamma_z])
 
-    m_functions = {
-        "rhs": f_rhs,
-        "lambda": f_lambda,
-        "mu": f_mu,
-        "kappa": f_kappa,
-        "gamma": f_gamma,
-        "grad_gamma": f_grad_gamma,
-    }
+    else:
+        raise ValueError("Dimension not implemented: ", dim)
 
     exact_functions = {
         "s": s_exact,
@@ -563,7 +523,9 @@ def four_field_scaled_postprocessing(
 
     alpha_proj = l2_projector(fe_space, exact_functions)
     alpha_e = alpha - alpha_proj
-    u_proj_l2_error, t_proj_l2_error = l2_error_projected(dim, fe_space, alpha_e, ['s','m'])
+    u_proj_l2_error, t_proj_l2_error = l2_error_projected(
+        dim, fe_space, alpha_e, ["s", "m"]
+    )
 
     et = time.time()
     elapsed_time = et - st
@@ -594,7 +556,9 @@ def four_field_scaled_postprocessing(
     )
 
 
-def four_field_scaled_approximation(material_data, method, gmesh, symmetric_solver_q = True):
+def four_field_scaled_approximation(
+    material_data, method, gmesh, symmetric_solver_q=True
+):
     dim = gmesh.dimension
 
     fe_space = create_product_space(method, gmesh)
@@ -611,12 +575,12 @@ def four_field_scaled_approximation(material_data, method, gmesh, symmetric_solv
     A = PETSc.Mat()
     A.createAIJ([n_dof_g, n_dof_g])
     if symmetric_solver_q:
-        A.setType('sbaij')
+        A.setType("sbaij")
 
     P = PETSc.Mat()
     P.createAIJ([n_dof_g, n_dof_g])
     if symmetric_solver_q:
-        P.setType('sbaij')
+        P.setType("sbaij")
 
     # Material data
     m_lambda = material_data["lambda"]
@@ -647,18 +611,23 @@ def four_field_scaled_approximation(material_data, method, gmesh, symmetric_solv
     def f_gamma(x, y, z):
         return m_gamma * np.ones_like(x)
 
-    def f_grad_gamma(x, y, z):
-        d_gamma_x = 0.0 * x
-        d_gamma_y = 0.0 * y
-        return np.array([d_gamma_x, d_gamma_y])
+    if dim == 2:
 
-    if dim == 3:
+        def f_grad_gamma(x, y, z):
+            d_gamma_x = 0.0 * x
+            d_gamma_y = 0.0 * y
+            return np.array([d_gamma_x, d_gamma_y])
+
+    elif dim == 3:
 
         def f_grad_gamma(x, y, z):
             d_gamma_x = 0.0 * x
             d_gamma_y = 0.0 * y
             d_gamma_z = 0.0 * z
             return np.array([d_gamma_x, d_gamma_y, d_gamma_z])
+
+    else:
+        raise ValueError("Dimension not implemented: ", dim)
 
     m_functions = {
         "rhs": f_rhs,
@@ -705,7 +674,8 @@ def four_field_scaled_approximation(material_data, method, gmesh, symmetric_solv
         if symmetric_solver_q:
             [
                 A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
-                for idx in nnz_idx if row[idx] <= col[idx]
+                for idx in nnz_idx
+                if row[idx] <= col[idx]
             ]
         else:
             [
@@ -740,7 +710,8 @@ def four_field_scaled_approximation(material_data, method, gmesh, symmetric_solv
         if symmetric_solver_q:
             [
                 P.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
-                for idx in nnz_idx if row[idx] <= col[idx]
+                for idx in nnz_idx
+                if row[idx] <= col[idx]
             ]
         else:
             [
@@ -872,7 +843,6 @@ def four_field_solution_norms(material_data, method, gmesh):
     m_exact = lce.couple_stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
     div_s_exact = lce.stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim)
     div_m_exact = lce.couple_stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    f_rhs = lce.rhs(m_lambda, m_mu, m_kappa, m_gamma, dim)
 
     def f_lambda(x, y, z):
         return m_lambda
@@ -885,14 +855,6 @@ def four_field_solution_norms(material_data, method, gmesh):
 
     def f_gamma(x, y, z):
         return m_gamma
-
-    m_functions = {
-        "rhs": f_rhs,
-        "lambda": f_lambda,
-        "mu": f_mu,
-        "kappa": f_kappa,
-        "gamma": f_gamma,
-    }
 
     exact_functions = {
         "s": s_exact,
@@ -957,7 +919,6 @@ def four_field_scaled_solution_norms(material_data, method, gmesh):
     div_m_exact = lce.couple_stress_divergence_scaled(
         m_lambda, m_mu, m_kappa, m_gamma, dim
     )
-    f_rhs = lce.rhs_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim)
 
     def f_lambda(x, y, z):
         return m_lambda
@@ -971,12 +932,14 @@ def four_field_scaled_solution_norms(material_data, method, gmesh):
     def f_gamma(x, y, z):
         return m_gamma * np.ones_like(x)
 
-    def f_grad_gamma(x, y, z):
-        d_gamma_x = 0.0 * x
-        d_gamma_y = 0.0 * y
-        return np.array([d_gamma_x, d_gamma_y])
+    if dim == 2:
 
-    if dim == 3:
+        def f_grad_gamma(x, y, z):
+            d_gamma_x = 0.0 * x
+            d_gamma_y = 0.0 * y
+            return np.array([d_gamma_x, d_gamma_y])
+
+    elif dim == 3:
 
         def f_grad_gamma(x, y, z):
             d_gamma_x = 0.0 * x
@@ -984,14 +947,8 @@ def four_field_scaled_solution_norms(material_data, method, gmesh):
             d_gamma_z = 0.0 * z
             return np.array([d_gamma_x, d_gamma_y, d_gamma_z])
 
-    m_functions = {
-        "rhs": f_rhs,
-        "lambda": f_lambda,
-        "mu": f_mu,
-        "kappa": f_kappa,
-        "gamma": f_gamma,
-        "grad_gamma": f_grad_gamma,
-    }
+    else:
+        raise ValueError("Dimension not implemented: ", dim)
 
     exact_functions = {
         "s": s_exact,
@@ -1097,8 +1054,6 @@ def perform_convergence_approximations(configuration: dict):
     dimension = configuration.get("dimension")
     material_data = configuration.get("material_data", {})
     write_geometry_vtk = configuration.get("write_geometry_Q", True)
-    write_vtk = configuration.get("write_vtk_Q", True)
-    report_full_precision_data = configuration.get("report_full_precision_data_Q", True)
 
     # The initial element size
     h = 1.0
@@ -1106,10 +1061,7 @@ def perform_convergence_approximations(configuration: dict):
     # Create a unit squared or a unit cube
     domain = create_domain(dimension)
 
-    n_data = 10
-    error_data = np.empty((0, n_data), float)
     for lh in range(n_ref):
-        h_val = h * (2**-lh)
         mesher = create_conformal_mesher(domain, h, lh)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
         if method[0] == "wc_rt" or method[0] == "wc_bdm":
@@ -1155,7 +1107,6 @@ def perform_convergence_postprocessing(configuration: dict):
     n_data = 12
     error_data = np.empty((0, n_data), float)
     for lh in range(n_ref):
-        h_val = h * (2**-lh)
         mesher = create_conformal_mesher(domain, h, lh)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
         h_min, h_mean, h_max = mesh_size(gmesh)
