@@ -147,10 +147,10 @@ def paint_on_canvas_simple():
     return plotter
 
 
-canvas = paint_on_canvas()
-canvas.save_graphic("images/meshes_example_1_full.eps")
-canvas.save_graphic("images/meshes_example_1_full.pdf")
+# canvas = paint_on_canvas()
+# canvas.save_graphic("figures/meshes_example_1_full.eps")
+# canvas.save_graphic("figures/meshes_example_1_full.pdf")
 
 canvas = paint_on_canvas_simple()
-canvas.save_graphic("images/meshes_example_1.eps")
-canvas.save_graphic("images/meshes_example_1.pdf")
+canvas.save_graphic("figures/meshes_example_1.eps")
+canvas.save_graphic("figures/meshes_example_1.pdf")

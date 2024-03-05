@@ -106,7 +106,7 @@ def paint_on_canvas_simple():
     meshes = []
     mesh_sizes = []
     for lh in [1]:
-        mesh_file = "gmsh_files/example_2_" + str(dimension) + "d_l_" + str(lh) + ".msh"
+        mesh_file = "gmsh_files/ex_3/example_3_" + str(dimension) + "d_l_" + str(lh) + ".msh"
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk_q)
         _, _, h_max = mesh_size(gmesh)
         mesh = pyvista.read("geometric_mesh_3d.vtk")
@@ -124,10 +124,10 @@ def paint_on_canvas_simple():
     return plotter
 
 
-canvas = paint_on_canvas()
-canvas.save_graphic("images/meshes_example_3_full.eps")
-canvas.save_graphic("images/meshes_example_3_full.pdf")
+# canvas = paint_on_canvas()
+# canvas.save_graphic("figures/meshes_example_3_full.eps")
+# canvas.save_graphic("figures/meshes_example_3_full.pdf")
 
 canvas = paint_on_canvas_simple()
-canvas.save_graphic("images/meshes_example_3.eps")
-canvas.save_graphic("images/meshes_example_3.pdf")
+canvas.save_graphic("figures/meshes_example_3.eps")
+canvas.save_graphic("figures/meshes_example_3.pdf")
