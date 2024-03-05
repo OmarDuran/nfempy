@@ -322,7 +322,7 @@ class painter_ex_2(painter):
             "sc_rt_normal": np.array([3, 4, 9, 10]), "sc_rt_super": np.array([4, 6, 11, 12]),
             "sc_bdm_normal": np.array([3, 4, 9, 10]), "sc_bdm_super": np.array([4, 5, 6, 11, 12]),
             "wc_rt_normal": np.array([3, 4, 9, 10]), "wc_rt_super": np.array([11, 12]),
-            "wc_bdm_normal": np.array([3, 4, 9, 10]), "wc_bdm_super": np.array([6, 11,12])
+            "wc_bdm_normal": np.array([3, 4, 9, 10]), "wc_bdm_super": np.array([6, 11, 12])
         }
         return map
 
@@ -566,7 +566,7 @@ def render_figures_example_2(d=2):
     )
     painter.save_figure()
 
-    painter.ordinate_range = (0.025, 100)
+    painter.ordinate_range = (0.00005, 50)
     conv_type = "super"
 
     k = 0
@@ -576,7 +576,7 @@ def render_figures_example_2(d=2):
     )
     rate = k + 2
     painter.build_inset_var_lambda(
-        k, d, methods[1], material_values[0], conv_type, rate, 0.0, -0.2
+        k, d, methods[2], material_values[0], conv_type, rate, 0.0, -0.2
     )
     painter.save_figure()
 
@@ -587,7 +587,7 @@ def render_figures_example_2(d=2):
     )
     rate = k + 2
     painter.build_inset_var_lambda(
-        k, d, methods[1], material_values[0], conv_type, rate, 0.0, -0.2
+        k, d, methods[2], material_values[0], conv_type, rate, 0.0, -0.9
     )
     painter.save_figure()
 
@@ -612,6 +612,6 @@ def render_figures_example_3(d=2):
 
 # Only figure range is adjusted for 3d.
 dim = 3
-render_figures_example_1(d=dim)
-# render_figures_example_2(d=dim)
+# render_figures_example_1(d=dim)
+render_figures_example_2(d=dim)
 # render_figures_example_3(d=dim)
