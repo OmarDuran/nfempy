@@ -1270,8 +1270,8 @@ def material_data_definition():
 
 
 def main():
-    only_approximation_q = True
-    only_postprocessing_q = True
+    approximation_q = True
+    postprocessing_q = True
     refinements = {0: 5, 1: 5}
     case_data = material_data_definition()
     for k in [0, 1]:
@@ -1286,9 +1286,9 @@ def main():
                         "method": method,
                         "material_data": material_data,
                     }
-                    if only_approximation_q:
+                    if approximation_q:
                         perform_convergence_approximations(configuration)
-                    if only_postprocessing_q:
+                    if postprocessing_q:
                         perform_convergence_postprocessing(configuration)
 
 

@@ -670,8 +670,8 @@ def method_definition(k_order):
 
 
 def main():
-    only_approximation_q = True
-    only_postprocessing_q = True
+    approximation_q = True
+    postprocessing_q = True
     refinements = {0: 5, 1: 5}
     for k in [0, 1]:
         for method in method_definition(k):
@@ -682,9 +682,9 @@ def main():
                     "n_refinements": refinements[k],
                     "method": method,
                 }
-                if only_approximation_q:
+                if approximation_q:
                     perform_convergence_approximations(configuration)
-                if only_postprocessing_q:
+                if postprocessing_q:
                     perform_convergence_postprocessing(configuration)
 
 
