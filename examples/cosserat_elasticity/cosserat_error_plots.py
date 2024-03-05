@@ -543,7 +543,7 @@ def render_figures_example_2(d=2):
     )
     painter_ex_2.save_figure()
 
-    painter_ex_2.ordinate_range = (0.001, 200)
+    painter_ex_2.ordinate_range = (0.025, 100)
     conv_type = "super"
 
     k = 0
@@ -589,6 +589,6 @@ def render_figures_example_3(d=2):
 
 # Only figure range is adjusted for 3d.
 dim = 3
-render_figures_example_1(d=dim)
-# render_figures_example_2(d=dim)
+# render_figures_example_1(d=dim)
+render_figures_example_2(d=dim)
 # render_figures_example_3(d=dim)
