@@ -675,7 +675,7 @@ def main():
     refinements = {0: 5, 1: 5}
     for k in [0, 1]:
         for method in method_definition(k):
-            for d in [2]:
+            for d in [3]:
                 configuration = {
                     "k_order": k,
                     "dimension": d,

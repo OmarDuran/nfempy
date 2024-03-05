@@ -759,7 +759,7 @@ def main():
         methods = method_definition(k)
         for i, method in enumerate(methods):
             for material_data in case_data:
-                for d in [2]:
+                for d in [3]:
                     configuration = {
                         "k_order": k,
                         "dimension": d,
