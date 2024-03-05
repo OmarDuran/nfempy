@@ -173,7 +173,7 @@ class painter_first_kind(painter):
             True, linestyle="-.", axis="both", which="both", color="black", alpha=0.25
         )
         ax.tick_params(which="both", labelcolor="black", labelsize="large", width=2)
-        plt.xlabel(r"$l$")
+        plt.xlabel("Number of DoF")
         plt.ylabel("Preconditioned minimal residual iterations")
         plt.ylim(self.ordinate_range[0], self.ordinate_range[1])
         plt.legend()
@@ -231,8 +231,8 @@ class painter_first_kind(painter):
             True, linestyle="-.", axis="both", which="both", color="black", alpha=0.25
         )
         ax.tick_params(which="both", labelcolor="black", labelsize="large", width=2)
-        plt.xlabel(r"$h$")
-        plt.ylabel("Error")
+        plt.xlabel("Number of DoF")
+        plt.ylabel("Preconditioned minimal residual iterations")
         plt.ylim(self.ordinate_range[0], self.ordinate_range[1])
         plt.legend()
 
@@ -318,7 +318,7 @@ def render_figures_example_1(d=2):
     painter_ex_1.file_pattern = file_pattern
 
     material_values = [1.0, 0.01, 0.0001]
-    painter_ex_1.ordinate_range = (0, 200)
+    painter_ex_1.ordinate_range = (0, 300)
 
     k = 0
     painter_ex_1.file_name = "min_res_iterations_k0_example_1_"+ str(d) + "d.pdf"
@@ -436,7 +436,7 @@ def render_figures_example_3(d=2):
     painter_ex_3.save_figure()
 
 
-dim = 2
+dim = 3
 render_figures_example_1(d=dim)
 # render_figures_example_2(d=dim)
 # render_figures_example_3(d=dim)

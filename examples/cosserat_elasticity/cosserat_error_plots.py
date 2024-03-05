@@ -183,10 +183,10 @@ class painter(ABC):
     @property
     def convergence_type_map(self):
         map = {
-            "sc_rt_normal": np.array([2, 3, 8, 9]), "sc_rt_super": np.array([3, 4, 9]),
-            "sc_bdm_normal": np.array([2, 3, 8, 9]), "sc_bdm_super": np.array([3, 4, 9]),
-            "wc_rt_normal": np.array([2, 3, 8, 9]), "wc_rt_super": np.array([10, 11]),
-            "wc_bdm_normal": np.array([2, 3, 8, 9]), "wc_bdm_super": np.array([10, 11])
+            "sc_rt_normal": np.array([3, 4, 9, 10]), "sc_rt_super": np.array([4, 5, 10]),
+            "sc_bdm_normal": np.array([3, 4, 9, 10]), "sc_bdm_super": np.array([4, 5, 10]),
+            "wc_rt_normal": np.array([3, 4, 9, 10]), "wc_rt_super": np.array([11, 12]),
+            "wc_bdm_normal": np.array([3, 4, 9, 10]), "wc_bdm_super": np.array([11, 12])
         }
         return map
 
@@ -264,7 +264,7 @@ class painter_first_kind(painter):
                 conv_type_key = painter_first_kind.convergence_type_key(method, conv_type)
                 idxs = self.convergence_type_map[conv_type_key]
 
-                h = rdata[:, np.array([1])]
+                h = rdata[:, np.array([2])]
                 plt.xlim(np.min(h) / 1.1, np.max(h) * 1.1)
 
                 error = np.sum(rdata[:, idxs], axis=1)
@@ -320,7 +320,7 @@ class painter_first_kind(painter):
                 conv_type_key = painter_first_kind.convergence_type_key(method, conv_type)
                 idxs = self.convergence_type_map[conv_type_key]
 
-                h = rdata[:, np.array([1])]
+                h = rdata[:, np.array([2])]
                 plt.xlim(np.min(h) / 1.1, np.max(h) * 1.1)
 
                 error = np.sum(rdata[:, idxs], axis=1)
@@ -352,7 +352,7 @@ class painter_first_kind(painter):
         rdata = np.genfromtxt(file_name, dtype=None, delimiter=",", skip_header=1)
         conv_type_key = painter_first_kind.convergence_type_key(method, conv_type)
         idxs = self.convergence_type_map[conv_type_key]
-        ldata = np.vstack((rdata[:, 1], np.sum(rdata[:, idxs], axis=1))).T
+        ldata = np.vstack((rdata[:, 2], np.sum(rdata[:, idxs], axis=1))).T
         conv_triangle = ConvergenceTriangle(ldata, rate, h_shift, e_shift, mirror_q)
         conv_triangle.inset_me()
 
@@ -373,7 +373,7 @@ class painter_first_kind(painter):
         rdata = np.genfromtxt(file_name, dtype=None, delimiter=",", skip_header=1)
         conv_type_key = painter_first_kind.convergence_type_key(method, conv_type)
         idxs = self.convergence_type_map[conv_type_key]
-        ldata = np.vstack((rdata[:, 1], np.sum(rdata[:, idxs], axis=1))).T
+        ldata = np.vstack((rdata[:, 2], np.sum(rdata[:, idxs], axis=1))).T
         conv_triangle = ConvergenceTriangle(ldata, rate, h_shift, e_shift, mirror_q)
         conv_triangle.inset_me()
 
@@ -418,7 +418,7 @@ class painter_second_kind(painter):
                     file_name, dtype=None, delimiter=",", skip_header=1
                 )
 
-                h = rdata[:, np.array([1])]
+                h = rdata[:, np.array([2])]
                 plt.xlim(np.min(h) / 1.1, np.max(h) * 1.1)
 
                 error = np.sum(rdata[:, idxs], axis=1)
@@ -446,7 +446,7 @@ class painter_second_kind(painter):
         rdata = np.genfromtxt(file_name, dtype=None, delimiter=",", skip_header=1)
         conv_type_key = painter_first_kind.convergence_type_key(method, conv_type)
         idxs = self.convergence_type_map[conv_type_key]
-        ldata = np.vstack((rdata[:, 1], np.sum(rdata[:, idxs], axis=1))).T
+        ldata = np.vstack((rdata[:, 2], np.sum(rdata[:, idxs], axis=1))).T
         conv_triangle = ConvergenceTriangle(ldata, rate, h_shift, e_shift, mirror_q)
         conv_triangle.inset_me()
 
@@ -459,7 +459,7 @@ def render_figures_example_1(d=2):
     painter_ex_1.file_pattern = file_pattern
 
     material_values = [1.0, 0.01, 0.0001]
-    painter_ex_1.ordinate_range = (0.001, 100)
+    painter_ex_1.ordinate_range = (0.005, 40)
     conv_type = "normal"
 
     k = 0
@@ -480,11 +480,11 @@ def render_figures_example_1(d=2):
         k, d, methods, material_values, conv_type
     )
     painter_ex_1.build_inset_var_epsilon(
-        k, d, methods[3], material_values[2], conv_type, rate, 0.0, -0.25
+        k, d, methods[3], material_values[2], conv_type, rate, 0.0, -0.2
     )
     painter_ex_1.save_figure()
 
-    painter_ex_1.ordinate_range = (0.0001, 100)
+    painter_ex_1.ordinate_range = (0.0001, 40)
     conv_type = "super"
 
     k = 0
@@ -587,7 +587,8 @@ def render_figures_example_3(d=2):
     painter_ex_3.save_figure()
 
 
-dim = 2
+# Only figure range is adjusted for 3d.
+dim = 3
 render_figures_example_1(d=dim)
-render_figures_example_2(d=dim)
-render_figures_example_3(d=dim)
+# render_figures_example_2(d=dim)
+# render_figures_example_3(d=dim)
