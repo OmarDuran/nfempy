@@ -362,14 +362,14 @@ def four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk_q=
     if write_vtk_q:
         st = time.time()
 
-        prefix = method[0] + "_k" + str(k_order) + "_d" + str(dim)
+        prefix = method[0] + "_k" + str(k_order) + "_" + str(dim) + "d"
         file_name = prefix + "_four_fields_scaled_ex_3.vtk"
 
         write_vtk_file_with_exact_solution(
             file_name, gmesh, fe_space, exact_functions, alpha
         )
 
-        prefix = method[0] + "_k" + str(k_order) + "_d" + str(dim)
+        prefix = method[0] + "_k" + str(k_order) + "_" + str(dim) + "d"
         file_name = prefix + "_gamma_scale_ex_3.vtk"
         name_to_fields = {"gamma": 1, "grad_gamma": dim}
         write_vtk_file_exact_solution(file_name, gmesh, name_to_fields, exact_functions)
