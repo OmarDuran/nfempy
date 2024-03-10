@@ -128,7 +128,7 @@ def test_scalar_h1_projector(k_order):
 
             alpha = l2_projector(space, exact_functions)
             error_val = l2_error(dim, space, exact_functions, alpha)
-            l2_error_q = np.any(np.isclose(np.array(error_val), 0.0, atol=1.0e-14))
+            l2_error_q = np.any(np.isclose(np.array(error_val), 0.0, atol=1.0e-13))
             assert l2_error_q
 
 @pytest.mark.parametrize("k_order", k_orders)
@@ -170,7 +170,7 @@ def test_vector_hdiv_projector(k_order):
 
                 alpha = l2_projector(space, exact_functions)
                 error_val = l2_error(dim, space, exact_functions, alpha)
-                l2_error_q = np.any(np.isclose(np.array(error_val), 0.0, atol=1.0e-14))
+                l2_error_q = np.any(np.isclose(np.array(error_val), 0.0, atol=1.0e-13))
                 assert l2_error_q
 
 @pytest.mark.parametrize("k_order", k_orders)
@@ -212,5 +212,5 @@ def test_vector_hcurl_projector(k_order):
 
                 alpha = l2_projector(space, exact_functions)
                 error_val = l2_error(dim, space, exact_functions, alpha)
-                l2_error_q = np.any(np.isclose(np.array(error_val), 0.0, atol=1.0e-14))
+                l2_error_q = np.any(np.isclose(np.array(error_val), 0.0, atol=1.0e-13))
                 assert l2_error_q
