@@ -637,6 +637,6 @@ def render_figures_example_3(d=2):
 
 # Only figure range is adjusted for 3d.
 dim = 3
-# render_figures_example_1(d=dim)
+render_figures_example_1(d=dim)
 render_figures_example_2(d=dim)
-# render_figures_example_3(d=dim)
+render_figures_example_3(d=dim)
