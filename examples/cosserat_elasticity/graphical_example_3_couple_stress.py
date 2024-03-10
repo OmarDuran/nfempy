@@ -14,7 +14,7 @@ def paint_on_canvas(crinkle_q):
 
     view_dir = [1.0, 1.0, 1.0]
     # filters
-    filter = "wc_bdm_k1_d3"
+    filter = "wc_bdm_k1_3d"
     filter_geo = "geometric_mesh_2d.vtk"
 
     # find files

@@ -73,16 +73,6 @@ class painter(ABC):
         map = {"0.0001": "v", "0.01": "s", "1.0": "o", "100.0": "s", "10000.0": "v"}
         return map
 
-    # @property
-    # def convergence_type_map(self):
-    #     map = {
-    #         "sc_rt_normal": np.array([2, 3, 8, 9]), "sc_rt_super": np.array([3, 4, 9]),
-    #         "sc_bdm_normal": np.array([2, 3, 8, 9]), "sc_bdm_super": np.array([3, 4, 9]),
-    #         "wc_rt_normal": np.array([2, 3, 8, 9]), "wc_rt_super": np.array([10, 11]),
-    #         "wc_bdm_normal": np.array([2, 3, 8, 9]), "wc_bdm_super": np.array([10, 11])
-    #     }
-    #     return map
-
     @classmethod
     def create_directory(self):
         Path("figures").mkdir(parents=True, exist_ok=True)
@@ -103,12 +93,23 @@ class painter(ABC):
 
     @staticmethod
     def ref_levels():
-        return [0,1,2,3]
+        return [0,1,2,3,5]
 
     @staticmethod
     def convergence_type_key(method, conv_type):
         composed_key = method + "_" + conv_type
         return composed_key
+
+    def available_ref_levels(self, file_names):
+
+        available_ref_levels = []
+        for l in painter_first_kind.ref_levels():
+            result = [(idx, path.name) for idx, path in enumerate(file_names) if
+                      ("_l" + str(l) in path.name)]
+            if len(result) != 0:
+                available_ref_levels.append(l)
+
+        return available_ref_levels
 
 
 
@@ -130,11 +131,13 @@ class painter_first_kind(painter):
         mat_label = "\epsilon"
         fig, ax = plt.subplots(figsize=self.figure_size)
 
+        # check for refinements available
+        available_ref_levels = self.available_ref_levels(file_names)
         for method in methods:
             for m_value in material_values:
                 min_res_iterations = []
                 dofs = []
-                for l in painter_first_kind.ref_levels():
+                for l in available_ref_levels:
                     filter = painter_first_kind.filter_composer(
                         method=method, m_lambda=self.m_lambda, m_eps=m_value, k=k, d=d,l=l
                     )
@@ -187,11 +190,13 @@ class painter_first_kind(painter):
         mat_label = "\lambda_{\sigma}"
         fig, ax = plt.subplots(figsize=self.figure_size)
 
+        # check for refinements available
+        available_ref_levels = self.available_ref_levels(file_names)
         for method in methods:
             for m_value in material_values:
                 min_res_iterations = []
                 dofs = []
-                for l in painter_first_kind.ref_levels():
+                for l in available_ref_levels:
                     filter = painter_first_kind.filter_composer(
                         method=method, m_lambda=m_value, m_eps=self.m_epsilon, k=k, d=d,
                         l=l
@@ -258,12 +263,12 @@ class painter_second_kind(painter):
         p = Path()
         file_names = list(p.glob(self.file_pattern))
         fig, ax = plt.subplots(figsize=self.figure_size)
-
+        available_ref_levels = self.available_ref_levels(file_names)
         for method in methods:
             for k in [0, 1]:
                 min_res_iterations = []
                 dofs = []
-                for l in painter_first_kind.ref_levels():
+                for l in available_ref_levels:
                     filter = painter_second_kind.filter_composer(
                         method=method, k=k, d=d, l=l
                     )
