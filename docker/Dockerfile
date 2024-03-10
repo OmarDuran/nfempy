@@ -8,10 +8,11 @@ WORKDIR /app
 
 # System packages 
 ENV PYTHONDONTWRITEBYTECODE=true
-
+ENV TZ=Europe/Oslo
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 RUN apt-get update 
 RUN apt-get install -yq curl vim wget git build-essential libopenblas-dev libtbb2
-RUN apt-get install -yq libglu1-mesa libxrender1 libxcursor1 libxft2 libxinerama1 ffmpeg libgl1-mesa-glx libsm6 libxext6 texlive-full
+RUN apt-get install -yq libglu1-mesa libxrender1 libxcursor1 libxft2 libxinerama1 ffmpeg libgl1-mesa-glx libsm6 libxext6 texlive dvipng texlive-fonts-recommended texlive-fonts-extra
 
 ARG CONDA_VER
 ARG OS_TYPE
@@ -34,7 +35,7 @@ RUN git clone https://github.com/OmarDuran/nfempy.git
 RUN git clone https://github.com/PTNobel/AutoDiff.git
 
 RUN python -m pip install --upgrade pip
-RUN python -m pip install pytest
+RUN python -m pip install pytest colorcet
 
 WORKDIR /app/AutoDiff
 RUN python -m pip install .
