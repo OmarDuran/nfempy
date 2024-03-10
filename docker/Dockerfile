@@ -11,7 +11,7 @@ ENV PYTHONDONTWRITEBYTECODE=true
 
 RUN apt-get update 
 RUN apt-get install -yq curl vim wget git build-essential libopenblas-dev libtbb2
-RUN apt-get install -yq libglu1-mesa libxrender1 libxcursor1 libxft2 libxinerama1 ffmpeg libgl1-mesa-glx libsm6 libxext6
+RUN apt-get install -yq libglu1-mesa libxrender1 libxcursor1 libxft2 libxinerama1 ffmpeg libgl1-mesa-glx libsm6 libxext6 texlive-full
 
 ARG CONDA_VER
 ARG OS_TYPE
