@@ -1,7 +1,7 @@
+from pathlib import Path
+
 import numpy as np
 import pyvista
-import vtk
-from pathlib import Path
 
 pyvista.global_theme.colorbar_orientation = "horizontal"
 
@@ -21,9 +21,7 @@ def paint_on_canvas(crinkle_q):
     file_pattern = "output_example_3/*_four_fields_scaled_ex_3.vtk"
     file_names = list(Path().glob(file_pattern))
     result = [
-        (idx, path.name)
-        for idx, path in enumerate(file_names)
-        if (filter in path.name)
+        (idx, path.name) for idx, path in enumerate(file_names) if (filter in path.name)
     ]
     assert len(result) == 1
     file_name = str(file_names[result[0][0]])

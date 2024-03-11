@@ -12,7 +12,7 @@ from mesh.mesh import Mesh
 from mesh.mesh_metrics import mesh_size
 from postprocess.l2_error_post_processor import div_error, l2_error, l2_error_projected
 from postprocess.projectors import l2_projector
-from postprocess.solution_norms_post_processor import devia_l2_norm, div_norm, l2_norm
+from postprocess.solution_norms_post_processor import div_norm, l2_norm
 from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
 from spaces.product_space import ProductSpace
 from weak_forms.lce_dual_weak_form import LCEDualWeakForm, LCEDualWeakFormBCDirichlet
@@ -461,19 +461,18 @@ def four_field_solution_norms(material_data, method, gmesh):
     st = time.time()
     s_norm, m_norm, u_norm, t_norm = l2_norm(dim, fe_space, exact_functions)
     div_s_norm, div_m_norm = div_norm(dim, fe_space, exact_functions)
-    dev_s_l2_norm = devia_l2_norm(dim, fe_space, exact_functions, ["m"])[0]
-    h_div_s_norm = np.sqrt((dev_s_l2_norm**2) + (div_s_norm**2))
+    h_div_s_norm = np.sqrt((s_norm**2) + (div_s_norm**2))
     h_div_m_norm = np.sqrt((m_norm**2) + (div_m_norm**2))
     et = time.time()
     elapsed_time = et - st
     print("Solution norms time:", elapsed_time, "seconds")
     print("Displacement norm: ", u_norm)
     print("Rotation norm: ", t_norm)
-    print("Dev tress norm: ", s_norm)
+    print("Stress norm: ", s_norm)
     print("Couple stress norm: ", m_norm)
-    print("div dev stress norm: ", div_s_norm)
+    print("div stress norm: ", div_s_norm)
     print("div couple stress norm: ", div_m_norm)
-    print("Dev stress hdiv-norm: ", h_div_s_norm)
+    print("Stress hdiv-norm: ", h_div_s_norm)
     print("Couple stress hdiv-norm: ", h_div_m_norm)
     print(" ")
 
@@ -482,7 +481,7 @@ def four_field_solution_norms(material_data, method, gmesh):
             [
                 u_norm,
                 t_norm,
-                dev_s_l2_norm,
+                s_norm,
                 m_norm,
                 div_s_norm,
                 div_m_norm,
@@ -574,7 +573,7 @@ def perform_convergence_approximations(configuration: dict):
         # First position includes n_dof
         np.savetxt(
             file_name_res,
-            np.concatenate((np.array([len(alpha)]),res_history)),
+            np.concatenate((np.array([len(alpha)]), res_history)),
             delimiter=",",
         )
 
@@ -618,7 +617,7 @@ def perform_convergence_postprocessing(configuration: dict):
             method, k_order, lh, gmesh.dimension, material_data, "_res_history_ex_2.txt"
         )
         res_data = np.genfromtxt(file_name_res, dtype=None, delimiter=",")
-        n_iterations = res_data.shape[0] - 1 # First position includes n_dof
+        n_iterations = res_data.shape[0] - 1  # First position includes n_dof
         chunk = np.concatenate([[n_dof, n_iterations, h_max], error_vals])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
 

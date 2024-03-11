@@ -1,7 +1,6 @@
 import numpy as np
 import pyvista
 
-from geometry.domain import Domain
 from geometry.domain_market import build_box_1D, build_box_2D, build_box_3D
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
@@ -50,7 +49,6 @@ def create_mesh_from_file(file_name, dim, write_vtk_q=False):
 
 def paint_on_canvas():
     dimension = 3
-    n_ref = 4
     write_geometry_vtk_q = True
     view_dir = [-1.0, -1.0, -1.0]
 
@@ -99,14 +97,15 @@ def paint_on_canvas():
 
 def paint_on_canvas_simple():
     dimension = 3
-    n_ref = 4
     write_geometry_vtk_q = True
     view_dir = [-1.0, -1.0, -1.0]
 
     meshes = []
     mesh_sizes = []
     for lh in [1]:
-        mesh_file = "gmsh_files/ex_3/example_3_" + str(dimension) + "d_l_" + str(lh) + ".msh"
+        mesh_file = (
+            "gmsh_files/ex_3/example_3_" + str(dimension) + "d_l_" + str(lh) + ".msh"
+        )
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk_q)
         _, _, h_max = mesh_size(gmesh)
         mesh = pyvista.read("geometric_mesh_3d.vtk")

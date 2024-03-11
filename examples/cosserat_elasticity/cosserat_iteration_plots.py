@@ -93,7 +93,7 @@ class painter(ABC):
 
     @staticmethod
     def ref_levels():
-        return [0,1,2,3,5]
+        return [0, 1, 2, 3, 5]
 
     @staticmethod
     def convergence_type_key(method, conv_type):
@@ -101,16 +101,17 @@ class painter(ABC):
         return composed_key
 
     def available_ref_levels(self, file_names):
-
         available_ref_levels = []
         for l in painter_first_kind.ref_levels():
-            result = [(idx, path.name) for idx, path in enumerate(file_names) if
-                      ("_l" + str(l) in path.name)]
+            result = [
+                (idx, path.name)
+                for idx, path in enumerate(file_names)
+                if ("_l" + str(l) in path.name)
+            ]
             if len(result) != 0:
                 available_ref_levels.append(l)
 
         return available_ref_levels
-
 
 
 class painter_first_kind(painter):
@@ -122,9 +123,7 @@ class painter_first_kind(painter):
     def m_epsilon(self):
         return 1.0
 
-    def color_canvas_with_variable_epsilon(
-        self, k, d, methods, material_values
-    ):
+    def color_canvas_with_variable_epsilon(self, k, d, methods, material_values):
         self.create_directory()
 
         file_names = list(Path().glob(self.file_pattern))
@@ -139,7 +138,12 @@ class painter_first_kind(painter):
                 dofs = []
                 for l in available_ref_levels:
                     filter = painter_first_kind.filter_composer(
-                        method=method, m_lambda=self.m_lambda, m_eps=m_value, k=k, d=d,l=l
+                        method=method,
+                        m_lambda=self.m_lambda,
+                        m_eps=m_value,
+                        k=k,
+                        d=d,
+                        l=l,
                     )
                     result = [
                         (idx, path.name)
@@ -159,17 +163,17 @@ class painter_first_kind(painter):
                     marker = self.markers_values_map[str(m_value)]
                     color = self.method_color_map[method]
                     file_name = str(file_names[result[0][0]])
-                    rdata = np.genfromtxt(
-                        file_name, dtype=None, delimiter=","
-                    )
+                    rdata = np.genfromtxt(file_name, dtype=None, delimiter=",")
                     dofs.append(rdata[0])
-                    min_res_iterations.append(rdata.shape[0]-1)
+                    min_res_iterations.append(rdata.shape[0] - 1)
 
                 # levels = np.array(painter_first_kind.ref_levels())
                 dofs = np.array(dofs)
                 min_res_iterations = np.array(min_res_iterations)
                 plt.xscale("log")
-                plt.plot(dofs, min_res_iterations, label=label, marker=marker, color=color)
+                plt.plot(
+                    dofs, min_res_iterations, label=label, marker=marker, color=color
+                )
                 # plt.bar(dofs, min_res_iterations, label=label, color=color, width=50.0, log = True)
 
         ax.grid(
@@ -181,9 +185,7 @@ class painter_first_kind(painter):
         plt.ylim(self.ordinate_range[0], self.ordinate_range[1])
         plt.legend()
 
-    def color_canvas_with_variable_lambda(
-        self, k, d, methods, material_values
-    ):
+    def color_canvas_with_variable_lambda(self, k, d, methods, material_values):
         self.create_directory()
 
         file_names = list(Path().glob(self.file_pattern))
@@ -198,8 +200,12 @@ class painter_first_kind(painter):
                 dofs = []
                 for l in available_ref_levels:
                     filter = painter_first_kind.filter_composer(
-                        method=method, m_lambda=m_value, m_eps=self.m_epsilon, k=k, d=d,
-                        l=l
+                        method=method,
+                        m_lambda=m_value,
+                        m_eps=self.m_epsilon,
+                        k=k,
+                        d=d,
+                        l=l,
                     )
                     result = [
                         (idx, path.name)
@@ -208,20 +214,18 @@ class painter_first_kind(painter):
                     ]
                     assert len(result) == 1
                     label = (
-                            self.method_map[method]
-                            + ": "
-                            + r"$"
-                            + mat_label
-                            + " = "
-                            + self.mat_values_map[str(m_value)]
-                            + "$"
+                        self.method_map[method]
+                        + ": "
+                        + r"$"
+                        + mat_label
+                        + " = "
+                        + self.mat_values_map[str(m_value)]
+                        + "$"
                     )
                     marker = self.markers_values_map[str(m_value)]
                     color = self.method_color_map[method]
                     file_name = str(file_names[result[0][0]])
-                    rdata = np.genfromtxt(
-                        file_name, dtype=None, delimiter=","
-                    )
+                    rdata = np.genfromtxt(file_name, dtype=None, delimiter=",")
                     dofs.append(rdata[0])
                     min_res_iterations.append(rdata.shape[0] - 1)
 
@@ -229,8 +233,9 @@ class painter_first_kind(painter):
                 dofs = np.array(dofs)
                 min_res_iterations = np.array(min_res_iterations)
                 plt.xscale("log")
-                plt.plot(dofs, min_res_iterations, label=label, marker=marker,
-                         color=color)
+                plt.plot(
+                    dofs, min_res_iterations, label=label, marker=marker, color=color
+                )
 
         ax.grid(
             True, linestyle="-.", axis="both", which="both", color="black", alpha=0.25
@@ -280,9 +285,7 @@ class painter_second_kind(painter):
                     assert len(result) == 1
                     color = self.method_color_map[method]
                     file_name = str(file_names[result[0][0]])
-                    rdata = np.genfromtxt(
-                        file_name, dtype=None, delimiter=","
-                    )
+                    rdata = np.genfromtxt(file_name, dtype=None, delimiter=",")
                     dofs.append(rdata[0])
                     min_res_iterations.append(rdata.shape[0] - 1)
 
@@ -293,8 +296,9 @@ class painter_second_kind(painter):
                 dofs = np.array(dofs)
                 min_res_iterations = np.array(min_res_iterations)
                 plt.xscale("log")
-                plt.plot(dofs, min_res_iterations, label=label, marker=marker,
-                         color=color)
+                plt.plot(
+                    dofs, min_res_iterations, label=label, marker=marker, color=color
+                )
 
         ax.grid(
             True, linestyle="-.", axis="both", which="both", color="black", alpha=0.25
@@ -317,17 +321,13 @@ def render_figures_example_1(d=2):
     painter_ex_1.ordinate_range = (0, 300)
 
     k = 0
-    painter_ex_1.file_name = "min_res_iterations_k0_example_1_"+ str(d) + "d.pdf"
-    painter_ex_1.color_canvas_with_variable_epsilon(
-        k, d, methods, material_values
-    )
+    painter_ex_1.file_name = "min_res_iterations_k0_example_1_" + str(d) + "d.pdf"
+    painter_ex_1.color_canvas_with_variable_epsilon(k, d, methods, material_values)
     painter_ex_1.save_figure()
 
     k = 1
-    painter_ex_1.file_name = "min_res_iterations_k1_example_1_"+ str(d) + "d.pdf"
-    painter_ex_1.color_canvas_with_variable_epsilon(
-        k, d, methods, material_values
-    )
+    painter_ex_1.file_name = "min_res_iterations_k1_example_1_" + str(d) + "d.pdf"
+    painter_ex_1.color_canvas_with_variable_epsilon(k, d, methods, material_values)
     painter_ex_1.save_figure()
 
 
@@ -343,16 +343,12 @@ def render_figures_example_2(d=2):
 
     k = 0
     painter_ex_2.file_name = "min_res_iterations_k0_example_2_" + str(d) + "d.pdf"
-    painter_ex_2.color_canvas_with_variable_lambda(
-        k, d, methods, material_values
-    )
+    painter_ex_2.color_canvas_with_variable_lambda(k, d, methods, material_values)
     painter_ex_2.save_figure()
 
     k = 1
     painter_ex_2.file_name = "min_res_iterations_k1_example_2_" + str(d) + "d.pdf"
-    painter_ex_2.color_canvas_with_variable_lambda(
-        k, d, methods, material_values
-    )
+    painter_ex_2.color_canvas_with_variable_lambda(k, d, methods, material_values)
     painter_ex_2.save_figure()
 
 
@@ -362,7 +358,7 @@ def render_figures_example_3(d=2):
     painter_ex_3 = painter_second_kind()
     painter_ex_3.file_pattern = file_pattern
     painter_ex_3.ordinate_range = (0, 300)
-    painter_ex_3.file_name = "min_res_iterations_example_3_"+ str(d) + "d.pdf"
+    painter_ex_3.file_name = "min_res_iterations_example_3_" + str(d) + "d.pdf"
     painter_ex_3.color_canvas_with_variable_k(d, methods)
     painter_ex_3.save_figure()
 

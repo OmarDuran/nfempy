@@ -78,7 +78,6 @@ def paint_on_canvas():
     meshes = []
     mesh_sizes = []
     for lh in range(n_ref):
-        h_val = h * (2**-lh)
         mesher = create_conformal_mesher(domain, h, lh)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk_q)
         _, _, h_max = mesh_size(gmesh)
@@ -119,7 +118,6 @@ def paint_on_canvas_simple():
     # The initial element size
     h = 1.0
     dimension = 3
-    n_ref = 4
     write_geometry_vtk_q = True
 
     # Create a unit squared or a unit cube
@@ -128,7 +126,6 @@ def paint_on_canvas_simple():
     meshes = []
     mesh_sizes = []
     for lh in [2]:
-        h_val = h * (2**-lh)
         mesher = create_conformal_mesher(domain, h, lh)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk_q)
         _, _, h_max = mesh_size(gmesh)

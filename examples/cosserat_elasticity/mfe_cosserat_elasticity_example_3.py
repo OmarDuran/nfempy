@@ -495,16 +495,7 @@ def create_mesh_from_file(file_name, dim, write_vtk_q=False):
 
 
 def compose_file_name(method, k_order, ref_l, dim, suffix):
-    prefix = (
-        method[0]
-        + "_k"
-        + str(k_order)
-        + "_l"
-        + str(ref_l)
-        + "_"
-        + str(dim)
-        + "d"
-    )
+    prefix = method[0] + "_k" + str(k_order) + "_l" + str(ref_l) + "_" + str(dim) + "d"
     file_name = prefix + suffix
     return file_name
 
@@ -534,7 +525,7 @@ def perform_convergence_approximations(configuration: dict):
         # First position includes n_dof
         np.savetxt(
             file_name_res,
-            np.concatenate((np.array([len(alpha)]),res_history)),
+            np.concatenate((np.array([len(alpha)]), res_history)),
             delimiter=",",
         )
 
@@ -573,7 +564,7 @@ def perform_convergence_postprocessing(configuration: dict):
             method, k_order, lh, gmesh.dimension, "_res_history_ex_3.txt"
         )
         res_data = np.genfromtxt(file_name_res, dtype=None, delimiter=",")
-        n_iterations = res_data.shape[0] - 1 # First position includes n_dof
+        n_iterations = res_data.shape[0] - 1  # First position includes n_dof
         chunk = np.concatenate([[n_dof, n_iterations, h_max], error_vals])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
 

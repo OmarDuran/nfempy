@@ -1,6 +1,5 @@
 import numpy as np
 import pyvista
-import vtk
 
 pyvista.global_theme.colorbar_orientation = "vertical"
 

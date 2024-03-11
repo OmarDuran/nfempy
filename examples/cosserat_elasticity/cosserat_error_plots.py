@@ -183,10 +183,14 @@ class painter(ABC):
     @property
     def convergence_type_map(self):
         map = {
-            "sc_rt_normal": np.array([3, 4, 9, 10]), "sc_rt_super": np.array([4, 6, 11, 12]),
-            "sc_bdm_normal": np.array([3, 4, 9, 10]), "sc_bdm_super": np.array([4, 6, 11, 12]),
-            "wc_rt_normal": np.array([3, 4, 9, 10]), "wc_rt_super": np.array([4, 6, 11, 12]),
-            "wc_bdm_normal": np.array([3, 4, 9, 10]), "wc_bdm_super": np.array([4, 6, 11, 12])
+            "sc_rt_normal": np.array([3, 4, 9, 10]),
+            "sc_rt_super": np.array([4, 6, 11, 12]),
+            "sc_bdm_normal": np.array([3, 4, 9, 10]),
+            "sc_bdm_super": np.array([4, 6, 11, 12]),
+            "wc_rt_normal": np.array([3, 4, 9, 10]),
+            "wc_rt_super": np.array([4, 6, 11, 12]),
+            "wc_bdm_normal": np.array([3, 4, 9, 10]),
+            "wc_bdm_super": np.array([4, 6, 11, 12]),
         }
         return map
 
@@ -213,7 +217,6 @@ class painter(ABC):
         return composed_key
 
 
-
 class painter_ex_1(painter):
     @property
     def m_lambda(self):
@@ -226,10 +229,14 @@ class painter_ex_1(painter):
     @property
     def convergence_type_map(self):
         map = {
-            "sc_rt_normal": np.array([3, 4, 9, 10]), "sc_rt_super": np.array([4, 6, 11]),
-            "sc_bdm_normal": np.array([3, 4, 9, 10]), "sc_bdm_super": np.array([4, 5, 10, 11]),
-            "wc_rt_normal": np.array([3, 4, 9, 10]), "wc_rt_super": np.array([11]),
-            "wc_bdm_normal": np.array([3, 4, 9, 10]), "wc_bdm_super": np.array([11])
+            "sc_rt_normal": np.array([3, 4, 9, 10]),
+            "sc_rt_super": np.array([4, 6, 11]),
+            "sc_bdm_normal": np.array([3, 4, 9, 10]),
+            "sc_bdm_super": np.array([4, 5, 10, 11]),
+            "wc_rt_normal": np.array([3, 4, 9, 10]),
+            "wc_rt_super": np.array([11]),
+            "wc_bdm_normal": np.array([3, 4, 9, 10]),
+            "wc_bdm_super": np.array([11]),
         }
         return map
 
@@ -286,7 +293,7 @@ class painter_ex_1(painter):
         plt.legend()
 
     def build_inset_var_epsilon(
-        self, k, d, method, m_value, conv_type, rate, h_shift, e_shift, mirror_q = False
+        self, k, d, method, m_value, conv_type, rate, h_shift, e_shift, mirror_q=False
     ):
         file_names = list(Path().glob(self.file_pattern))
         filter = painter_ex_1.filter_composer(
@@ -319,10 +326,14 @@ class painter_ex_2(painter):
     @property
     def convergence_type_map(self):
         map = {
-            "sc_rt_normal": np.array([3, 4, 9, 10]), "sc_rt_super": np.array([4, 6, 11]),
-            "sc_bdm_normal": np.array([3, 4, 9, 10]), "sc_bdm_super": np.array([4, 5, 10, 11]),
-            "wc_rt_normal": np.array([3, 4, 9, 10]), "wc_rt_super": np.array([5, 10, 11, 12]),
-            "wc_bdm_normal": np.array([3, 4, 9, 10]), "wc_bdm_super": np.array([5, 6, 11, 12])
+            "sc_rt_normal": np.array([3, 4, 9, 10]),
+            "sc_rt_super": np.array([4, 6, 11]),
+            "sc_bdm_normal": np.array([3, 4, 9, 10]),
+            "sc_bdm_super": np.array([4, 5, 10, 11]),
+            "wc_rt_normal": np.array([3, 4, 9, 10]),
+            "wc_rt_super": np.array([5, 10, 11, 12]),
+            "wc_bdm_normal": np.array([3, 4, 9, 10]),
+            "wc_bdm_super": np.array([5, 6, 11, 12]),
         }
         return map
 
@@ -336,7 +347,6 @@ class painter_ex_2(painter):
         fig, ax = plt.subplots(figsize=self.figure_size)
 
         for method in methods:
-
             for m_value in material_values:
                 filter = painter_ex_2.filter_composer(
                     method=method, m_lambda=m_value, m_eps=self.m_epsilon, k=k, d=d
@@ -368,8 +378,8 @@ class painter_ex_2(painter):
                 h = rdata[:, np.array([2])]
                 plt.xlim(np.min(h) / 1.1, np.max(h) * 1.1)
 
-                if conv_type_key == 'wc_rt_' + 'super': # scaling in equation (5.8)
-                    rdata[:, idxs[1]] = np.sqrt(h[:,0]) * rdata[:, idxs[1]]
+                if conv_type_key == "wc_rt_" + "super":  # scaling in equation (5.8)
+                    rdata[:, idxs[1]] = np.sqrt(h[:, 0]) * rdata[:, idxs[1]]
 
                 error = np.sum(rdata[:, idxs], axis=1)
                 plt.loglog(h, error, label=label, marker=marker, color=color)
@@ -384,7 +394,7 @@ class painter_ex_2(painter):
         plt.legend()
 
     def build_inset_var_lambda(
-        self, k, d, method, m_value, conv_type, rate, h_shift, e_shift, mirror_q = False
+        self, k, d, method, m_value, conv_type, rate, h_shift, e_shift, mirror_q=False
     ):
         file_names = list(Path().glob(self.file_pattern))
         filter = painter_ex_2.filter_composer(
@@ -404,6 +414,7 @@ class painter_ex_2(painter):
         conv_triangle = ConvergenceTriangle(ldata, rate, h_shift, e_shift, mirror_q)
         conv_triangle.inset_me()
 
+
 class painter_ex_3(painter):
     @property
     def markers_values_map(self):
@@ -421,10 +432,14 @@ class painter_ex_3(painter):
     @property
     def convergence_type_map(self):
         map = {
-            "sc_rt_normal": np.array([3, 4, 9, 10]), "sc_rt_super": np.array([4, 6, 11]),
-            "sc_bdm_normal": np.array([3, 4, 9, 10]), "sc_bdm_super": np.array([4, 5, 10, 11]),
-            "wc_rt_normal": np.array([3, 4, 9, 10]), "wc_rt_super": np.array([11]),
-            "wc_bdm_normal": np.array([3, 4, 9, 10]), "wc_bdm_super": np.array([11])
+            "sc_rt_normal": np.array([3, 4, 9, 10]),
+            "sc_rt_super": np.array([4, 6, 11]),
+            "sc_bdm_normal": np.array([3, 4, 9, 10]),
+            "sc_bdm_super": np.array([4, 5, 10, 11]),
+            "wc_rt_normal": np.array([3, 4, 9, 10]),
+            "wc_rt_super": np.array([11]),
+            "wc_bdm_normal": np.array([3, 4, 9, 10]),
+            "wc_bdm_super": np.array([11]),
         }
         return map
 
@@ -469,7 +484,9 @@ class painter_ex_3(painter):
         plt.ylim(self.ordinate_range[0], self.ordinate_range[1])
         plt.legend()
 
-    def build_inset_var_k_order(self, k, d, method, conv_type, rate, h_shift, e_shift, mirror_q = False):
+    def build_inset_var_k_order(
+        self, k, d, method, conv_type, rate, h_shift, e_shift, mirror_q=False
+    ):
         file_names = list(Path().glob(self.file_pattern))
         filter = painter_ex_3.filter_composer(method=method, k=k, d=d)
         result = [
@@ -500,7 +517,7 @@ def render_figures_example_1(d=2):
 
     k = 0
     rate = k + 1
-    painter.file_name = "convergence_k0_example_1_"+ str(d) + "d.pdf"
+    painter.file_name = "convergence_k0_example_1_" + str(d) + "d.pdf"
     painter.color_canvas_with_variable_epsilon(
         k, d, methods, material_values, conv_type
     )
@@ -511,7 +528,7 @@ def render_figures_example_1(d=2):
 
     k = 1
     rate = k + 1
-    painter.file_name = "convergence_k1_example_1_"+ str(d) + "d.pdf"
+    painter.file_name = "convergence_k1_example_1_" + str(d) + "d.pdf"
     painter.color_canvas_with_variable_epsilon(
         k, d, methods, material_values, conv_type
     )
@@ -525,7 +542,7 @@ def render_figures_example_1(d=2):
 
     k = 0
     rate = k + 2
-    painter.file_name = "superconvergence_k0_example_1_"+ str(d) + "d.pdf"
+    painter.file_name = "superconvergence_k0_example_1_" + str(d) + "d.pdf"
     painter.color_canvas_with_variable_epsilon(
         k, d, methods, material_values, conv_type
     )
@@ -536,7 +553,7 @@ def render_figures_example_1(d=2):
 
     k = 1
     rate = k + 2
-    painter.file_name = "superconvergence_k1_example_1_"+ str(d) + "d.pdf"
+    painter.file_name = "superconvergence_k1_example_1_" + str(d) + "d.pdf"
     painter.color_canvas_with_variable_epsilon(
         k, d, methods, material_values, conv_type
     )
@@ -558,10 +575,8 @@ def render_figures_example_2(d=2):
     conv_type = "normal"
 
     k = 0
-    painter.file_name = "convergence_k0_example_2_"+ str(d) + "d.pdf"
-    painter.color_canvas_with_variable_lambda(
-        k, d, methods, material_values, conv_type
-    )
+    painter.file_name = "convergence_k0_example_2_" + str(d) + "d.pdf"
+    painter.color_canvas_with_variable_lambda(k, d, methods, material_values, conv_type)
     rate = k + 1
     painter.build_inset_var_lambda(
         k, d, methods[0], material_values[0], conv_type, rate, 0.0, -0.2
@@ -569,10 +584,8 @@ def render_figures_example_2(d=2):
     painter.save_figure()
 
     k = 1
-    painter.file_name = "convergence_k1_example_2_"+ str(d) + "d.pdf"
-    painter.color_canvas_with_variable_lambda(
-        k, d, methods, material_values, conv_type
-    )
+    painter.file_name = "convergence_k1_example_2_" + str(d) + "d.pdf"
+    painter.color_canvas_with_variable_lambda(k, d, methods, material_values, conv_type)
     rate = k + 1
     painter.build_inset_var_lambda(
         k, d, methods[0], material_values[0], conv_type, rate, 0.0, -0.2
@@ -583,10 +596,8 @@ def render_figures_example_2(d=2):
     conv_type = "super"
 
     k = 0
-    painter.file_name = "superconvergence_k0_example_2_"+ str(d) + "d.pdf"
-    painter.color_canvas_with_variable_lambda(
-        k, d, methods, material_values, conv_type
-    )
+    painter.file_name = "superconvergence_k0_example_2_" + str(d) + "d.pdf"
+    painter.color_canvas_with_variable_lambda(k, d, methods, material_values, conv_type)
     rate = k + 2
     painter.build_inset_var_lambda(
         k, d, methods[0], material_values[0], conv_type, rate, 0.0, -0.2
@@ -594,10 +605,8 @@ def render_figures_example_2(d=2):
     painter.save_figure()
 
     k = 1
-    painter.file_name = "superconvergence_k1_example_2_"+ str(d) + "d.pdf"
-    painter.color_canvas_with_variable_lambda(
-        k, d, methods, material_values, conv_type
-    )
+    painter.file_name = "superconvergence_k1_example_2_" + str(d) + "d.pdf"
+    painter.color_canvas_with_variable_lambda(k, d, methods, material_values, conv_type)
     rate = k + 2
     painter.build_inset_var_lambda(
         k, d, methods[0], material_values[0], conv_type, rate, 0.0, -0.2
@@ -612,7 +621,7 @@ def render_figures_example_3(d=2):
     painter.file_pattern = file_pattern
     painter.ordinate_range = (0.001, 20)
     conv_type = "normal"
-    painter.file_name = "convergence_example_3_"+ str(d) + "d.pdf"
+    painter.file_name = "convergence_example_3_" + str(d) + "d.pdf"
     painter.color_canvas_with_variable_k(d, methods, conv_type)
     k = 0
     rate = k + 1
@@ -624,7 +633,7 @@ def render_figures_example_3(d=2):
 
     painter.ordinate_range = (0.000001, 0.01)
     conv_type = "super"
-    painter.file_name = "superconvergence_example_3_"+ str(d) + "d.pdf"
+    painter.file_name = "superconvergence_example_3_" + str(d) + "d.pdf"
     painter.color_canvas_with_variable_k(d, methods, conv_type)
     k = 0
     rate = k + 2
