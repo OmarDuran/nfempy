@@ -1,6 +1,8 @@
+from sys import platform
+
 import numpy as np
 import pyvista
-from sys import platform
+
 if platform == "linux" or platform == "linux2":
     pyvista.start_xvfb()
 
