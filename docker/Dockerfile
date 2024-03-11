@@ -12,7 +12,7 @@ ENV TZ=Europe/Oslo
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 RUN apt-get update 
 RUN apt-get install -yq curl vim wget git build-essential libopenblas-dev libtbb2
-RUN apt-get install -yq libglu1-mesa libxrender1 libxcursor1 libxft2 libxinerama1 ffmpeg libgl1-mesa-glx libsm6 libxext6 
+RUN apt-get install -yq libglu1-mesa libxrender1 libxcursor1 libxft2 libxinerama1 ffmpeg libgl1-mesa-glx libsm6 libxext6 xvfb
 RUN apt-get install -yq texlive dvipng texlive-fonts-recommended texlive-fonts-extra cm-super
 
 ARG CONDA_VER
