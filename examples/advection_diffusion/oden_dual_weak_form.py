@@ -9,7 +9,7 @@ from basis.parametric_transformation import transform_lower_to_higher
 from topology.topological_queries import find_higher_dimension_neighs
 from weak_forms.weak_from import WeakForm
 
-class OdenDualMixedWeakForm(WeakForm):
+class OdenDualWeakForm(WeakForm):
    def evaluate_form(self, element_index, alpha):
     iel = element_index
     if self.space is None or self.functions is None:
@@ -60,7 +60,7 @@ class OdenDualMixedWeakForm(WeakForm):
         for c in range(u_components):
             b = c + n_q_dof
             e = b + n_u_dof
-            el_form[b:e:u_components] -= phi_s_star @ f_val_star[c].T
+            el_form[b:e:u_components] -= np.ravel(phi_s_star @ f_val_star[c].T)
 
             for i, omega in enumerate(weights):
                 xv = x[i]

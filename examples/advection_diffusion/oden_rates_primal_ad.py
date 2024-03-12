@@ -24,7 +24,7 @@ from weak_forms.laplace_primal_weak_form import (
 )
 
 from oden_primal_weak_form import OdenPrimalWeakForm, OdenPrimalWeakFormBCDirichlet
-from oden_dual_mixed_form import OdenDualMixedWeakForm
+from oden_dual_weak_form import OdenDualWeakForm
 
 def h1_model_problem(k_order, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
@@ -267,34 +267,9 @@ def hdiv_model_problem(k_order, gmesh, write_vtk_q=False):
                 ((np.e ** x) * (-1 + (np.e ** 2))),
             ]
         )
-        f_rhs = lambda x, y, z: np.array([[2.0 + 0.0 * x]])
-    elif dim == 2:
-        p_exact = lambda x, y, z: np.array([(1.0 - x) * x * (1.0 - y) * y])
-        q_exact = lambda x, y, z: np.array(
-            [
-                -((1 - x) * (1 - y) * y) + x * (1 - y) * y,
-                -((1 - x) * x * (1 - y)) + (1 - x) * x * y,
-            ]
-        )
-        f_rhs = lambda x, y, z: np.array([[2 * (1 - x) * x + 2 * (1 - y) * y]])
-    elif dim == 3:
-        p_exact = lambda x, y, z: np.array(
-            [(1.0 - x) * x * (1.0 - y) * y * (1.0 - z) * z]
-        )
-        q_exact = lambda x, y, z: np.array(
-            [
-                -((1 - x) * (1 - y) * y * (1 - z) * z) + x * (1 - y) * y * (1 - z) * z,
-                -((1 - x) * x * (1 - y) * (1 - z) * z) + (1 - x) * x * y * (1 - z) * z,
-                -((1 - x) * x * (1 - y) * y * (1 - z)) + (1 - x) * x * (1 - y) * y * z,
-            ]
-        )
-        f_rhs = lambda x, y, z: np.array(
-            [
-                2 * (1 - x) * x * (1 - y) * y
-                + 2 * (1 - x) * x * (1 - z) * z
-                + 2 * (1 - y) * y * (1 - z) * z
-            ]
-        )
+        f_rhs = lambda x, y, z: np.array([[x]])
+    else:
+        raise ValueError("Case not implemented.")
 
     m_functions = {
         "rhs": f_rhs,
@@ -306,7 +281,7 @@ def hdiv_model_problem(k_order, gmesh, write_vtk_q=False):
         "u": u_exact,
     }
 
-    weak_form = OdenDualMixedWeakForm(fe_space)
+    weak_form = OdenDualWeakForm(fe_space)
     weak_form.functions = m_functions
     #bc_weak_form = LaplaceDualWeakFormBCDirichlet(fe_space)
     #bc_weak_form.functions = exact_functions
@@ -458,7 +433,7 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 def main():
     k_order = 1
     h = 1.0
-    n_ref = 4# no. of refinement
+    n_ref = 6# no. of refinement
     dimension = 1
     ref_l = 0
 
