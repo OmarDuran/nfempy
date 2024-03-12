@@ -4,8 +4,8 @@ import numpy as np
 import pyvista
 from sys import platform
 
-# if platform == "linux" or platform == "linux2":
-#     pyvista.start_xvfb()
+if platform == "linux" or platform == "linux2":
+    pyvista.start_xvfb()
 pyvista.global_theme.colorbar_orientation = "horizontal"
 
 
