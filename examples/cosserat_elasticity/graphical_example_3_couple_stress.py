@@ -1,8 +1,8 @@
 from pathlib import Path
+from sys import platform
 
 import numpy as np
 import pyvista
-from sys import platform
 
 if platform == "linux" or platform == "linux2":
     pyvista.start_xvfb()
@@ -61,7 +61,8 @@ def paint_on_canvas(crinkle_q):
         font_family="courier",
         position_x=0.2,
         position_y=0.91,
-        title=r"$\| \tilde{\boldsymbol{\omega}}_h \|$",
+        title='Couple Stress Norm',
+        # title=r'$\| \tilde{\boldsymbol{\omega}}_h \|$',
     )
     mh_data = [mh.reshape((3, 3)) for mh in hdiv_solution_clipped.point_data["m_h"]]
     m_h_norm = np.array([np.sqrt(np.trace(mh.T @ mh)) for mh in mh_data])
@@ -70,7 +71,7 @@ def paint_on_canvas(crinkle_q):
     plotter.add_mesh(
         hdiv_solution_clipped,
         scalars=m_h_norm,
-        cmap="gist_earth",
+        cmap="ocean",
         show_edges=False,
         scalar_bar_args=mh_sargs,
         copy_mesh=True,

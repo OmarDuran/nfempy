@@ -10,22 +10,18 @@ from geometry.domain_market import build_box_1D, build_box_2D, build_box_3D
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
 from mesh.mesh_metrics import mesh_size
-from postprocess.l2_error_post_processor import (
-    div_error,
-    div_scaled_error,
-    l2_error,
-    l2_error_projected,
-)
+from postprocess.l2_error_post_processor import (div_error, div_scaled_error,
+                                                 l2_error, l2_error_projected)
 from postprocess.projectors import l2_projector
 from postprocess.solution_norms_post_processor import div_norm, l2_norm
-from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
+from postprocess.solution_post_processor import \
+    write_vtk_file_with_exact_solution
 from spaces.product_space import ProductSpace
-from weak_forms.lce_dual_weak_form import LCEDualWeakForm, LCEDualWeakFormBCDirichlet
+from weak_forms.lce_dual_weak_form import (LCEDualWeakForm,
+                                           LCEDualWeakFormBCDirichlet)
 from weak_forms.lce_riesz_map_weak_form import LCERieszMapWeakForm
 from weak_forms.lce_scaled_dual_weak_form import (
-    LCEScaledDualWeakForm,
-    LCEScaledDualWeakFormBCDirichlet,
-)
+    LCEScaledDualWeakForm, LCEScaledDualWeakFormBCDirichlet)
 from weak_forms.lce_scaled_riesz_map_weak_form import LCEScaledRieszMapWeakForm
 
 
