@@ -2,7 +2,10 @@ from pathlib import Path
 
 import numpy as np
 import pyvista
+from sys import platform
 
+# if platform == "linux" or platform == "linux2":
+#     pyvista.start_xvfb()
 pyvista.global_theme.colorbar_orientation = "horizontal"
 
 
@@ -67,7 +70,7 @@ def paint_on_canvas(crinkle_q):
     plotter.add_mesh(
         hdiv_solution_clipped,
         scalars=m_h_norm,
-        cmap="balance",
+        cmap="gist_earth",
         show_edges=False,
         scalar_bar_args=mh_sargs,
         copy_mesh=True,
