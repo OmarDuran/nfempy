@@ -1272,7 +1272,7 @@ def material_data_definition():
 def main():
     approximation_q = True
     postprocessing_q = True
-    refinements = {0: 4, 1: 4}
+    refinements = {0: 5, 1: 5}
     case_data = material_data_definition()
     for k in [0, 1]:
         methods = method_definition(k)

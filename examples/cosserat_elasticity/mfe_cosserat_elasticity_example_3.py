@@ -655,7 +655,7 @@ def method_definition(k_order):
 def main():
     approximation_q = True
     postprocessing_q = True
-    refinements = {0: 4, 1: 4}
+    refinements = {0: 5, 1: 5}
     for k in [0, 1]:
         for method in method_definition(k):
             for d in [3]:
