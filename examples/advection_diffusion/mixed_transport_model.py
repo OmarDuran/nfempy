@@ -201,6 +201,8 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
                 + 2 * (1 - y) * y * (1 - z) * z
             ]
         )
+        eta = 10
+        f_reaction = lambda c:np.array([1 + eta*c**2])
     else:
         raise ValueError("Invalid dimension.")
 
@@ -209,6 +211,7 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
         "rhs_r": r_rhs,
         "kappa": f_kappa,
         "delta": f_delta,
+        "reaction": f_reaction,
     }
 
     exact_functions = {
