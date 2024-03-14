@@ -1,9 +1,14 @@
 from abc import ABC
 from pathlib import Path
 
+import matplotlib
+import numpy as np
+
+font = {"family": "normal", "weight": "bold", "size": 15}
+matplotlib.rc("font", **font)
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
-import numpy as np
+from matplotlib.lines import Line2D
 
 plt.rcParams["text.usetex"] = True
 
@@ -74,8 +79,8 @@ class ConvergenceTriangle:
             dire[0] = 0.0
             dirh = dirh / np.linalg.norm(dirh)
             dire = dire / np.linalg.norm(dire)
-            step_pos = np.exp(-0.2 * dire + np.mean(np.vstack((p0, p1)), axis=0))
-            rate_pos = np.exp(-0.03 * dirh + np.mean(np.vstack((p2, p1)), axis=0))
+            step_pos = np.exp(-0.35 * dire + np.mean(np.vstack((p0, p1)), axis=0))
+            rate_pos = np.exp(-0.04 * dirh + np.mean(np.vstack((p2, p1)), axis=0))
             self._label_pos = (step_pos, rate_pos)
         else:
             dirh = xc - np.mean(np.vstack((p0, p1)), axis=0)
@@ -84,8 +89,8 @@ class ConvergenceTriangle:
             dire[0] = 0.0
             dirh = dirh / np.linalg.norm(dirh)
             dire = dire / np.linalg.norm(dire)
-            step_pos = np.exp(-0.15 * dire + np.mean(np.vstack((p2, p1)), axis=0))
-            rate_pos = np.exp(-0.03 * dirh + np.mean(np.vstack((p0, p1)), axis=0))
+            step_pos = np.exp(-0.35 * dire + np.mean(np.vstack((p2, p1)), axis=0))
+            rate_pos = np.exp(-0.04 * dirh + np.mean(np.vstack((p0, p1)), axis=0))
             self._label_pos = (step_pos, rate_pos)
 
     def inset_me(self):
@@ -181,6 +186,17 @@ class painter(ABC):
         return map
 
     @property
+    def style_values_map(self):
+        map = {
+            "0.0001": "dashdot",
+            "0.01": "dashed",
+            "1.0": "-",
+            "100.0": "dashed",
+            "10000.0": "dashdot",
+        }
+        return map
+
+    @property
     def convergence_type_map(self):
         map = {
             "sc_rt_normal": np.array([3, 4, 9, 10]),
@@ -248,6 +264,8 @@ class painter_ex_1(painter):
         file_names = list(Path().glob(self.file_pattern))
         mat_label = "\epsilon"
         fig, ax = plt.subplots(figsize=self.figure_size)
+        label_methods = {}
+        label_parameters = {}
         for method in methods:
             for m_value in material_values:
                 filter = painter_ex_1.filter_composer(
@@ -259,16 +277,11 @@ class painter_ex_1(painter):
                     if (filter in path.name)
                 ]
                 assert len(result) == 1
-                label = (
-                    self.method_map[method]
-                    + ": "
-                    + r"$"
-                    + mat_label
-                    + " = "
-                    + self.mat_values_map[str(m_value)]
-                    + "$"
+                label_method = self.method_map[method]
+                label_parameter = (
+                    r"$" + mat_label + " = " + self.mat_values_map[str(m_value)] + "$"
                 )
-                marker = self.markers_values_map[str(m_value)]
+                line_style = self.style_values_map[str(m_value)]
                 color = self.method_color_map[method]
                 file_name = str(file_names[result[0][0]])
                 rdata = np.genfromtxt(
@@ -281,7 +294,21 @@ class painter_ex_1(painter):
                 plt.xlim(np.min(h) / 1.1, np.max(h) * 1.1)
 
                 error = np.sum(rdata[:, idxs], axis=1)
-                plt.loglog(h, error, label=label, marker=marker, color=color)
+                plt.loglog(h, error, linestyle=line_style, color=color)
+                label_methods[label_method] = color
+                label_parameters[label_parameter] = line_style
+
+        legend_elements = []
+        for chunk in label_methods.items():
+            legend_elements.append(
+                Line2D([0], [0], lw=2, label=chunk[0], color=chunk[1])
+            )
+        for chunk in label_parameters.items():
+            legend_elements.append(
+                Line2D(
+                    [0], [0], lw=2, label=chunk[0], linestyle=chunk[1], color="black"
+                )
+            )
 
         ax.grid(
             True, linestyle="-.", axis="both", which="both", color="black", alpha=0.25
@@ -290,7 +317,13 @@ class painter_ex_1(painter):
         plt.xlabel(r"$h$")
         plt.ylabel("Error")
         plt.ylim(self.ordinate_range[0], self.ordinate_range[1])
-        plt.legend()
+        plt.legend(
+            handles=legend_elements,
+            ncol=2,
+            handleheight=1,
+            handlelength=4.0,
+            labelspacing=0.05,
+        )
 
     def build_inset_var_epsilon(
         self, k, d, method, m_value, conv_type, rate, h_shift, e_shift, mirror_q=False
@@ -345,7 +378,8 @@ class painter_ex_2(painter):
         file_names = list(Path().glob(self.file_pattern))
         mat_label = "\lambda_{\sigma}"
         fig, ax = plt.subplots(figsize=self.figure_size)
-
+        label_methods = {}
+        label_parameters = {}
         for method in methods:
             for m_value in material_values:
                 filter = painter_ex_2.filter_composer(
@@ -357,16 +391,11 @@ class painter_ex_2(painter):
                     if (filter in path.name)
                 ]
                 assert len(result) == 1
-                label = (
-                    self.method_map[method]
-                    + ": "
-                    + r"$"
-                    + mat_label
-                    + " = "
-                    + self.mat_values_map[str(m_value)]
-                    + "$"
+                label_method = self.method_map[method]
+                label_parameter = (
+                    r"$" + mat_label + " = " + self.mat_values_map[str(m_value)] + "$"
                 )
-                marker = self.markers_values_map[str(m_value)]
+                line_style = self.style_values_map[str(m_value)]
                 color = self.method_color_map[method]
                 file_name = str(file_names[result[0][0]])
                 rdata = np.genfromtxt(
@@ -382,7 +411,21 @@ class painter_ex_2(painter):
                     rdata[:, idxs[1]] = np.sqrt(h[:, 0]) * rdata[:, idxs[1]]
 
                 error = np.sum(rdata[:, idxs], axis=1)
-                plt.loglog(h, error, label=label, marker=marker, color=color)
+                plt.loglog(h, error, linestyle=line_style, color=color)
+                label_methods[label_method] = color
+                label_parameters[label_parameter] = line_style
+
+        legend_elements = []
+        for chunk in label_methods.items():
+            legend_elements.append(
+                Line2D([0], [0], lw=2, label=chunk[0], color=chunk[1])
+            )
+        for chunk in label_parameters.items():
+            legend_elements.append(
+                Line2D(
+                    [0], [0], lw=2, label=chunk[0], linestyle=chunk[1], color="black"
+                )
+            )
 
         ax.grid(
             True, linestyle="-.", axis="both", which="both", color="black", alpha=0.25
@@ -391,7 +434,13 @@ class painter_ex_2(painter):
         plt.xlabel(r"$h$")
         plt.ylabel("Error")
         plt.ylim(self.ordinate_range[0], self.ordinate_range[1])
-        plt.legend()
+        plt.legend(
+            handles=legend_elements,
+            ncol=2,
+            handleheight=1,
+            handlelength=4.0,
+            labelspacing=0.05,
+        )
 
     def build_inset_var_lambda(
         self, k, d, method, m_value, conv_type, rate, h_shift, e_shift, mirror_q=False
