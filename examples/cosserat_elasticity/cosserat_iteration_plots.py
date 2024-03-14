@@ -3,7 +3,7 @@ from pathlib import Path
 
 import matplotlib
 
-font = {"family": "normal", "weight": "bold", "size": 15}
+font = {"family": "normal", "weight": "bold", "size": 20}
 matplotlib.rc("font", **font)
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
@@ -188,7 +188,13 @@ class painter_first_kind(painter):
                 dofs = np.array(dofs)
                 min_res_iterations = np.array(min_res_iterations)
                 plt.xscale("log")
-                plt.plot(dofs, min_res_iterations, linestyle=line_style, color=color)
+                plt.plot(
+                    dofs,
+                    min_res_iterations,
+                    marker="o",
+                    linestyle=line_style,
+                    color=color,
+                )
                 label_methods[label_method] = color
                 label_parameters[label_parameter] = line_style
 
@@ -208,6 +214,7 @@ class painter_first_kind(painter):
             True, linestyle="-.", axis="both", which="both", color="black", alpha=0.25
         )
         ax.tick_params(which="both", labelcolor="black", labelsize="large", width=2)
+
         plt.xlabel("Number of DoF")
         plt.ylabel("Preconditioned minimal residual iterations")
         plt.ylim(self.ordinate_range[0], self.ordinate_range[1])
@@ -267,7 +274,13 @@ class painter_first_kind(painter):
                 dofs = np.array(dofs)
                 min_res_iterations = np.array(min_res_iterations)
                 plt.xscale("log")
-                plt.plot(dofs, min_res_iterations, linestyle=line_style, color=color)
+                plt.plot(
+                    dofs,
+                    min_res_iterations,
+                    marker="o",
+                    linestyle=line_style,
+                    color=color,
+                )
                 label_methods[label_method] = color
                 label_parameters[label_parameter] = line_style
 
@@ -287,6 +300,7 @@ class painter_first_kind(painter):
             True, linestyle="-.", axis="both", which="both", color="black", alpha=0.25
         )
         ax.tick_params(which="both", labelcolor="black", labelsize="large", width=2)
+
         plt.xlabel("Number of DoF")
         plt.ylabel("Preconditioned minimal residual iterations")
         plt.ylim(self.ordinate_range[0], self.ordinate_range[1])
@@ -305,6 +319,14 @@ class painter_second_kind(painter):
         map = {"0": "o", "1": "s"}
         return map
 
+    @property
+    def style_values_map(self):
+        map = {
+            "0": "-",
+            "1": "dashed",
+        }
+        return map
+
     @staticmethod
     def filter_composer(method, k, d, l):
         filter_0 = method
@@ -321,6 +343,8 @@ class painter_second_kind(painter):
         file_names = list(p.glob(self.file_pattern))
         fig, ax = plt.subplots(figsize=self.figure_size)
         available_ref_levels = self.available_ref_levels(file_names)
+        label_methods = {}
+        label_parameters = {}
         for method in methods:
             for k in [0, 1]:
                 min_res_iterations = []
@@ -341,25 +365,52 @@ class painter_second_kind(painter):
                     dofs.append(rdata[0])
                     min_res_iterations.append(rdata.shape[0] - 1)
 
-                # levels = np.array(painter_first_kind.ref_levels())
-                marker = self.markers_values_map[str(k)]
+                line_style = self.style_values_map[str(k)]
                 color = self.method_color_map[method]
                 label = self.method_map[method] + ": " r"$ k = " + str(k) + "$"
+                label_method = self.method_map[method]
+                label_parameter = r"$ k = " + str(k) + "$"
                 dofs = np.array(dofs)
                 min_res_iterations = np.array(min_res_iterations)
                 plt.xscale("log")
                 plt.plot(
-                    dofs, min_res_iterations, label=label, marker=marker, color=color
+                    dofs,
+                    min_res_iterations,
+                    label=label,
+                    marker="o",
+                    linestyle=line_style,
+                    color=color,
                 )
+                label_methods[label_method] = color
+                label_parameters[label_parameter] = line_style
+
+        legend_elements = []
+        for chunk in label_methods.items():
+            legend_elements.append(
+                Line2D([0], [0], lw=2, label=chunk[0], color=chunk[1])
+            )
+        for chunk in label_parameters.items():
+            legend_elements.append(
+                Line2D(
+                    [0], [0], lw=2, label=chunk[0], linestyle=chunk[1], color="black"
+                )
+            )
 
         ax.grid(
             True, linestyle="-.", axis="both", which="both", color="black", alpha=0.25
         )
         ax.tick_params(which="both", labelcolor="black", labelsize="large", width=2)
+
         plt.xlabel("Number of DoF")
         plt.ylabel("Preconditioned minimal residual iterations")
         plt.ylim(self.ordinate_range[0], self.ordinate_range[1])
-        plt.legend()
+        plt.legend(
+            handles=legend_elements,
+            ncol=2,
+            handleheight=1,
+            handlelength=4.0,
+            labelspacing=0.05,
+        )
 
 
 def render_figures_example_1(d=2):

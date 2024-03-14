@@ -4,11 +4,12 @@ from pathlib import Path
 import matplotlib
 import numpy as np
 
-font = {"family": "normal", "weight": "bold", "size": 15}
+font = {"family": "normal", "weight": "bold", "size": 20}
 matplotlib.rc("font", **font)
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+from matplotlib.ticker import MultipleLocator
 
 plt.rcParams["text.usetex"] = True
 
@@ -294,7 +295,7 @@ class painter_ex_1(painter):
                 plt.xlim(np.min(h) / 1.1, np.max(h) * 1.1)
 
                 error = np.sum(rdata[:, idxs], axis=1)
-                plt.loglog(h, error, linestyle=line_style, color=color)
+                plt.loglog(h, error, marker="o", linestyle=line_style, color=color)
                 label_methods[label_method] = color
                 label_parameters[label_parameter] = line_style
 
@@ -314,6 +315,7 @@ class painter_ex_1(painter):
             True, linestyle="-.", axis="both", which="both", color="black", alpha=0.25
         )
         ax.tick_params(which="both", labelcolor="black", labelsize="large", width=2)
+        ax.xaxis.set_minor_locator(MultipleLocator(0.2))
         plt.xlabel(r"$h$")
         plt.ylabel("Error")
         plt.ylim(self.ordinate_range[0], self.ordinate_range[1])
@@ -321,8 +323,8 @@ class painter_ex_1(painter):
             handles=legend_elements,
             ncol=2,
             handleheight=1,
-            handlelength=4.0,
-            labelspacing=0.05,
+            handlelength=2.0,
+            labelspacing=0.025,
         )
 
     def build_inset_var_epsilon(
@@ -411,7 +413,7 @@ class painter_ex_2(painter):
                     rdata[:, idxs[1]] = np.sqrt(h[:, 0]) * rdata[:, idxs[1]]
 
                 error = np.sum(rdata[:, idxs], axis=1)
-                plt.loglog(h, error, linestyle=line_style, color=color)
+                plt.loglog(h, error, marker="o", linestyle=line_style, color=color)
                 label_methods[label_method] = color
                 label_parameters[label_parameter] = line_style
 
@@ -431,6 +433,7 @@ class painter_ex_2(painter):
             True, linestyle="-.", axis="both", which="both", color="black", alpha=0.25
         )
         ax.tick_params(which="both", labelcolor="black", labelsize="large", width=2)
+        ax.xaxis.set_minor_locator(MultipleLocator(0.2))
         plt.xlabel(r"$h$")
         plt.ylabel("Error")
         plt.ylim(self.ordinate_range[0], self.ordinate_range[1])
@@ -438,8 +441,8 @@ class painter_ex_2(painter):
             handles=legend_elements,
             ncol=2,
             handleheight=1,
-            handlelength=4.0,
-            labelspacing=0.05,
+            handlelength=2.0,
+            labelspacing=0.025,
         )
 
     def build_inset_var_lambda(
@@ -470,6 +473,14 @@ class painter_ex_3(painter):
         map = {"0": "o", "1": "s"}
         return map
 
+    @property
+    def style_values_map(self):
+        map = {
+            "0": "-",
+            "1": "dashed",
+        }
+        return map
+
     @staticmethod
     def filter_composer(method, k, d):
         filter_0 = method
@@ -498,7 +509,8 @@ class painter_ex_3(painter):
         p = Path()
         file_names = list(p.glob(self.file_pattern))
         fig, ax = plt.subplots(figsize=self.figure_size)
-
+        label_methods = {}
+        label_parameters = {}
         for method in methods:
             for k in [0, 1]:
                 filter = painter_ex_3.filter_composer(method=method, k=k, d=d)
@@ -510,8 +522,9 @@ class painter_ex_3(painter):
                 assert len(result) == 1
                 conv_type_key = painter_ex_3.convergence_type_key(method, conv_type)
                 idxs = self.convergence_type_map[conv_type_key]
-                label = self.method_map[method] + ": " r"$ k = " + str(k) + "$"
-                marker = self.markers_values_map[str(k)]
+                label_method = self.method_map[method]
+                label_parameter = r"$ k = " + str(k) + "$"
+                line_style = self.style_values_map[str(k)]
                 color = self.method_color_map[method]
                 file_name = str(file_names[result[0][0]])
                 rdata = np.genfromtxt(
@@ -522,16 +535,37 @@ class painter_ex_3(painter):
                 plt.xlim(np.min(h) / 1.1, np.max(h) * 1.1)
 
                 error = np.sum(rdata[:, idxs], axis=1)
-                plt.loglog(h, error, label=label, marker=marker, color=color)
+                plt.loglog(h, error, marker="o", linestyle=line_style, color=color)
+                label_methods[label_method] = color
+                label_parameters[label_parameter] = line_style
+
+        legend_elements = []
+        for chunk in label_methods.items():
+            legend_elements.append(
+                Line2D([0], [0], lw=2, label=chunk[0], color=chunk[1])
+            )
+        for chunk in label_parameters.items():
+            legend_elements.append(
+                Line2D(
+                    [0], [0], lw=2, label=chunk[0], linestyle=chunk[1], color="black"
+                )
+            )
 
         ax.grid(
             True, linestyle="-.", axis="both", which="both", color="black", alpha=0.25
         )
         ax.tick_params(which="both", labelcolor="black", labelsize="large", width=2)
+        ax.xaxis.set_minor_locator(MultipleLocator(0.2))
         plt.xlabel(r"$h$")
         plt.ylabel("Error")
         plt.ylim(self.ordinate_range[0], self.ordinate_range[1])
-        plt.legend()
+        plt.legend(
+            handles=legend_elements,
+            ncol=2,
+            handleheight=1,
+            handlelength=2.0,
+            labelspacing=0.025,
+        )
 
     def build_inset_var_k_order(
         self, k, d, method, conv_type, rate, h_shift, e_shift, mirror_q=False
@@ -680,7 +714,7 @@ def render_figures_example_3(d=2):
     painter.build_inset_var_k_order(k, d, methods[1], conv_type, rate, 0.0, -0.2)
     painter.save_figure()
 
-    painter.ordinate_range = (0.000001, 0.01)
+    painter.ordinate_range = (0.0000005, 0.01)
     conv_type = "super"
     painter.file_name = "superconvergence_example_3_" + str(d) + "d.pdf"
     painter.color_canvas_with_variable_k(d, methods, conv_type)
