@@ -1,9 +1,14 @@
 from abc import ABC
 from pathlib import Path
 
+import matplotlib
+
+font = {"family": "normal", "weight": "bold", "size": 15}
+matplotlib.rc("font", **font)
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.lines import Line2D
 
 plt.rcParams["text.usetex"] = True
 
@@ -73,6 +78,17 @@ class painter(ABC):
         map = {"0.0001": "v", "0.01": "s", "1.0": "o", "100.0": "s", "10000.0": "v"}
         return map
 
+    @property
+    def style_values_map(self):
+        map = {
+            "0.0001": "dashdot",
+            "0.01": "dashed",
+            "1.0": "-",
+            "100.0": "dashed",
+            "10000.0": "dashdot",
+        }
+        return map
+
     @classmethod
     def create_directory(self):
         Path("figures").mkdir(parents=True, exist_ok=True)
@@ -132,6 +148,8 @@ class painter_first_kind(painter):
 
         # check for refinements available
         available_ref_levels = self.available_ref_levels(file_names)
+        label_methods = {}
+        label_parameters = {}
         for method in methods:
             for m_value in material_values:
                 min_res_iterations = []
@@ -151,16 +169,15 @@ class painter_first_kind(painter):
                         if (filter in path.name)
                     ]
                     assert len(result) == 1
-                    label = (
-                        self.method_map[method]
-                        + ": "
-                        + r"$"
+                    label_method = self.method_map[method]
+                    label_parameter = (
+                        r"$"
                         + mat_label
                         + " = "
                         + self.mat_values_map[str(m_value)]
                         + "$"
                     )
-                    marker = self.markers_values_map[str(m_value)]
+                    line_style = self.style_values_map[str(m_value)]
                     color = self.method_color_map[method]
                     file_name = str(file_names[result[0][0]])
                     rdata = np.genfromtxt(file_name, dtype=None, delimiter=",")
@@ -171,10 +188,21 @@ class painter_first_kind(painter):
                 dofs = np.array(dofs)
                 min_res_iterations = np.array(min_res_iterations)
                 plt.xscale("log")
-                plt.plot(
-                    dofs, min_res_iterations, label=label, marker=marker, color=color
+                plt.plot(dofs, min_res_iterations, linestyle=line_style, color=color)
+                label_methods[label_method] = color
+                label_parameters[label_parameter] = line_style
+
+        legend_elements = []
+        for chunk in label_methods.items():
+            legend_elements.append(
+                Line2D([0], [0], lw=2, label=chunk[0], color=chunk[1])
+            )
+        for chunk in label_parameters.items():
+            legend_elements.append(
+                Line2D(
+                    [0], [0], lw=2, label=chunk[0], linestyle=chunk[1], color="black"
                 )
-                # plt.bar(dofs, min_res_iterations, label=label, color=color, width=50.0, log = True)
+            )
 
         ax.grid(
             True, linestyle="-.", axis="both", which="both", color="black", alpha=0.25
@@ -183,7 +211,13 @@ class painter_first_kind(painter):
         plt.xlabel("Number of DoF")
         plt.ylabel("Preconditioned minimal residual iterations")
         plt.ylim(self.ordinate_range[0], self.ordinate_range[1])
-        plt.legend()
+        plt.legend(
+            handles=legend_elements,
+            ncol=2,
+            handleheight=1,
+            handlelength=4.0,
+            labelspacing=0.05,
+        )
 
     def color_canvas_with_variable_lambda(self, k, d, methods, material_values):
         self.create_directory()
@@ -194,6 +228,8 @@ class painter_first_kind(painter):
 
         # check for refinements available
         available_ref_levels = self.available_ref_levels(file_names)
+        label_methods = {}
+        label_parameters = {}
         for method in methods:
             for m_value in material_values:
                 min_res_iterations = []
@@ -213,29 +249,39 @@ class painter_first_kind(painter):
                         if (filter in path.name)
                     ]
                     assert len(result) == 1
-                    label = (
-                        self.method_map[method]
-                        + ": "
-                        + r"$"
+                    label_method = self.method_map[method]
+                    label_parameter = (
+                        r"$"
                         + mat_label
                         + " = "
                         + self.mat_values_map[str(m_value)]
                         + "$"
                     )
-                    marker = self.markers_values_map[str(m_value)]
+                    line_style = self.style_values_map[str(m_value)]
                     color = self.method_color_map[method]
                     file_name = str(file_names[result[0][0]])
                     rdata = np.genfromtxt(file_name, dtype=None, delimiter=",")
                     dofs.append(rdata[0])
                     min_res_iterations.append(rdata.shape[0] - 1)
 
-                # levels = np.array(painter_first_kind.ref_levels())
                 dofs = np.array(dofs)
                 min_res_iterations = np.array(min_res_iterations)
                 plt.xscale("log")
-                plt.plot(
-                    dofs, min_res_iterations, label=label, marker=marker, color=color
+                plt.plot(dofs, min_res_iterations, linestyle=line_style, color=color)
+                label_methods[label_method] = color
+                label_parameters[label_parameter] = line_style
+
+        legend_elements = []
+        for chunk in label_methods.items():
+            legend_elements.append(
+                Line2D([0], [0], lw=2, label=chunk[0], color=chunk[1])
+            )
+        for chunk in label_parameters.items():
+            legend_elements.append(
+                Line2D(
+                    [0], [0], lw=2, label=chunk[0], linestyle=chunk[1], color="black"
                 )
+            )
 
         ax.grid(
             True, linestyle="-.", axis="both", which="both", color="black", alpha=0.25
@@ -244,7 +290,13 @@ class painter_first_kind(painter):
         plt.xlabel("Number of DoF")
         plt.ylabel("Preconditioned minimal residual iterations")
         plt.ylim(self.ordinate_range[0], self.ordinate_range[1])
-        plt.legend()
+        plt.legend(
+            handles=legend_elements,
+            ncol=2,
+            handleheight=1,
+            handlelength=4.0,
+            labelspacing=0.05,
+        )
 
 
 class painter_second_kind(painter):
@@ -318,7 +370,7 @@ def render_figures_example_1(d=2):
     painter_ex_1.file_pattern = file_pattern
 
     material_values = [1.0, 0.01, 0.0001]
-    painter_ex_1.ordinate_range = (0, 300)
+    painter_ex_1.ordinate_range = (0, 350)
 
     k = 0
     painter_ex_1.file_name = "min_res_iterations_k0_example_1_" + str(d) + "d.pdf"
@@ -339,7 +391,7 @@ def render_figures_example_2(d=2):
     painter_ex_2.file_pattern = file_pattern
 
     material_values = [1.0, 100.0, 10000.0]
-    painter_ex_2.ordinate_range = (0, 300)
+    painter_ex_2.ordinate_range = (0, 350)
 
     k = 0
     painter_ex_2.file_name = "min_res_iterations_k0_example_2_" + str(d) + "d.pdf"
@@ -357,7 +409,7 @@ def render_figures_example_3(d=2):
     file_pattern = "output_example_3/*_res_history_ex_3.txt"
     painter_ex_3 = painter_second_kind()
     painter_ex_3.file_pattern = file_pattern
-    painter_ex_3.ordinate_range = (0, 300)
+    painter_ex_3.ordinate_range = (0, 350)
     painter_ex_3.file_name = "min_res_iterations_example_3_" + str(d) + "d.pdf"
     painter_ex_3.color_canvas_with_variable_k(d, methods)
     painter_ex_3.save_figure()

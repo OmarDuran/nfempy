@@ -61,7 +61,7 @@ def paint_on_canvas(crinkle_q):
         font_family="courier",
         position_x=0.2,
         position_y=0.91,
-        title='Couple Stress Norm',
+        title="Couple Stress Norm",
         # title=r'$\| \tilde{\boldsymbol{\omega}}_h \|$',
     )
     mh_data = [mh.reshape((3, 3)) for mh in hdiv_solution_clipped.point_data["m_h"]]
