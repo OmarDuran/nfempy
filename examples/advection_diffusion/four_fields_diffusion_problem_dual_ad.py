@@ -22,54 +22,54 @@ import matplotlib.pyplot as plt
 
 def create_product_space(method, gmesh):
     # FESpace: data
-    q_k_order = method[1]["q"][1]
-    u_k_order = method[1]["u"][1]
-    p_k_order = method[1]["p"][1]
-    c_k_order = method[1]["c"][1]
+    mp_k_order = method[1]["mp"][1]
+    mc_k_order = method[1]["mc"][1]
+    p_k_order  = method[1]["p"][1]
+    c_k_order  = method[1]["c"][1]
 
-    q_components = 1
-    u_components = 1
-    p_components = 1
-    c_components = 1
+    mp_components = 1
+    mc_components = 1
+    p_components  = 1
+    c_components  = 1
 
-    q_family = method[1]["q"][0]
-    u_family = method[1]["u"][0]
-    p_family = method[1]["p"][0]
-    c_family = method[1]["c"][0]
+    mp_family = method[1]["mp"][0]
+    mc_family = method[1]["mc"][0]
+    p_family  = method[1]["p"][0]
+    c_family  = method[1]["c"][0]
 
     discrete_spaces_data = {
-        "q": (gmesh.dimension, q_components, q_family, q_k_order, gmesh),
-        "u": (gmesh.dimension, u_components, u_family, u_k_order, gmesh),
-        "p": (gmesh.dimension, p_components, p_family, p_k_order, gmesh),
-        "c": (gmesh.dimension, c_components, c_family, c_k_order, gmesh),
+        "mp": (gmesh.dimension, mp_components, mp_family, mp_k_order, gmesh),
+        "mc": (gmesh.dimension, mc_components, mc_family, mc_k_order, gmesh),
+        "p" : (gmesh.dimension, p_components, p_family, p_k_order, gmesh),
+        "c" : (gmesh.dimension, c_components, c_family, c_k_order, gmesh),
     }
 
-    q_disc_Q = False
-    u_disc_Q = False
-    p_disc_Q = True
-    c_disc_Q = True
+    mp_disc_Q = False
+    mc_disc_Q = False
+    p_disc_Q  = True
+    c_disc_Q  = True
     discrete_spaces_disc = {
-        "q": q_disc_Q,
-        "u": u_disc_Q,
-        "p": p_disc_Q,
-        "c": c_disc_Q,
+        "mp": mp_disc_Q,
+        "mc": mc_disc_Q,
+        "p" : p_disc_Q,
+        "c" : c_disc_Q,
     }
 
     if gmesh.dimension == 1:
-        q_field_bc_physical_tags = [2, 3]
-        u_field_bc_physical_tags = [2, 3]
+        mp_field_bc_physical_tags = [2, 3]
+        mc_field_bc_physical_tags = [2, 3]
     elif gmesh.dimension == 2:
-        q_field_bc_physical_tags = [2, 3, 4, 5]
-        u_field_bc_physical_tags = [2, 3, 4, 5]
+        mp_field_bc_physical_tags = [2, 3, 4, 5]
+        mc_field_bc_physical_tags = [2, 3, 4, 5]
     elif gmesh.dimension == 3:
-        q_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
-        u_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
+        mp_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
+        mc_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
     else:
         raise ValueError("Case not available.")
 
     discrete_spaces_bc_physical_tags = {
-        "q": q_field_bc_physical_tags,
-        "u": u_field_bc_physical_tags,
+        "mp": mp_field_bc_physical_tags,
+        "mc": mc_field_bc_physical_tags,
     }
 
     space = ProductSpace(discrete_spaces_data)
@@ -81,10 +81,10 @@ def create_product_space(method, gmesh):
 def method_definition(k_order):
     # lower order convention
     method_1 = {
-        "q": ("RT", k_order + 1),
-        "u": ("RT", k_order + 1),
-        "p": ("Lagrange", k_order),
-        "c": ("Lagrange", k_order),
+        "mp": ("RT", k_order + 1),
+        "mc": ("RT", k_order + 1),
+        "p" : ("Lagrange", k_order),
+        "c" : ("Lagrange", k_order),
     }
 
     methods = [method_1]
@@ -122,13 +122,13 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
     # exact solution
     if dim == 1:
         p_exact = lambda x, y, z: np.array([(1.0 - x) * x])
-        q_exact = lambda x, y, z: np.array(
+        mp_exact = lambda x, y, z: np.array(
             [
                 (-1.0 + 2.0 * x),
             ]
         )
         c_exact = lambda x, y, z: np.array([(1.0 - x) * x])
-        u_exact = lambda x, y, z: np.array(
+        mc_exact = lambda x, y, z: np.array(
             [
                 (-1.0 + 2.0 * x),
             ]
@@ -137,7 +137,7 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
         r_rhs = lambda x, y, z: np.array([[2.0 + 0.0 * x]])
     elif dim == 2:
         p_exact = lambda x, y, z: np.array([(1.0 - x) * x * (1.0 - y) * y])
-        q_exact = lambda x, y, z: np.array(
+        mp_exact = lambda x, y, z: np.array(
             [
                 [
                     -((1 - x) * (1 - y) * y) + x * (1 - y) * y,
@@ -146,7 +146,7 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
             ]
         )
         c_exact = lambda x, y, z: np.array([(1.0 - x) * x * (1.0 - y) * y])
-        u_exact = lambda x, y, z: np.array(
+        mc_exact = lambda x, y, z: np.array(
             [
                 [
                     -((1 - x) * (1 - y) * y) + x * (1 - y) * y,
@@ -160,7 +160,7 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
         p_exact = lambda x, y, z: np.array(
             [(1.0 - x) * x * (1.0 - y) * y * (1.0 - z) * z]
         )
-        q_exact = lambda x, y, z: np.array(
+        mp_exact = lambda x, y, z: np.array(
             [
                 [
                     -((1 - x) * (1 - y) * y * (1 - z) * z)
@@ -175,7 +175,7 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
         c_exact = lambda x, y, z: np.array(
             [(1.0 - x) * x * (1.0 - y) * y * (1.0 - z) * z]
         )
-        u_exact = lambda x, y, z: np.array(
+        mc_exact = lambda x, y, z: np.array(
             [
                 [
                     -((1 - x) * (1 - y) * y * (1 - z) * z)
@@ -212,10 +212,10 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
     }
 
     exact_functions = {
-        "q": q_exact,
-        "p": p_exact,
-        "u": u_exact,
-        "c": c_exact,
+        "mp": mp_exact,
+        "p" : p_exact,
+        "mc": mc_exact,
+        "c" : c_exact,
     }
 
     weak_form = SundusDualWeakForm(fe_space)
@@ -256,10 +256,10 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
         for k in range(nnz):
             A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
-    n_els = len(fe_space.discrete_spaces["q"].elements)
+    n_els = len(fe_space.discrete_spaces["mp"].elements)
     [scatter_form_data(A, i, weak_form) for i in range(n_els)]
 
-    n_bc_els = len(fe_space.discrete_spaces["q"].bc_elements)
+    n_bc_els = len(fe_space.discrete_spaces["mp"].bc_elements)
     [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
 
     A.assemble()
@@ -297,16 +297,16 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
     print("Linear solver time:", elapsed_time, "seconds")
 
     st = time.time()
-    q_l2_error, u_l2_error, p_l2_error, c_l2_error = l2_error(
+    mp_l2_error, mc_l2_error, p_l2_error, c_l2_error = l2_error(
         dim, fe_space, exact_functions, alpha
     )
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
-    print("L2-error in q: ", q_l2_error)
-    print("L2-error in p: ", p_l2_error)
-    print("L2-error in u: ", u_l2_error)
-    print("L2-error in c: ", c_l2_error)
+    print("L2-error in mp: ", mp_l2_error)
+    print("L2-error in p : ", p_l2_error)
+    print("L2-error in mc: ", mc_l2_error)
+    print("L2-error in c : ", c_l2_error)
 
     if write_vtk_q:
         # post-process solution
@@ -404,6 +404,12 @@ def main():
     print("rounded error data: ", error_data)
     print("rounded error rates data: ", rates_data)
 
+    return
+
+    a = error_data[:,0]
+    b = error_data[:,1]
+    plt.loglog(a, b)
+    plt.show()
     return
 
 
