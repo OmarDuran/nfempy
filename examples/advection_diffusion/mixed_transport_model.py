@@ -98,14 +98,14 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
     fe_space = create_product_space(method, gmesh)
 
     n_dof_g = fe_space.n_dof
-    rg = np.zeros(n_dof_g)
+    res_g = np.zeros(n_dof_g)
     alpha = np.zeros(n_dof_g)
     print("n_dof: ", n_dof_g)
 
     # Assembler
     st = time.time()
-    A = PETSc.Mat()
-    A.createAIJ([n_dof_g, n_dof_g])
+    jac_g = PETSc.Mat()
+    jac_g.createAIJ([n_dof_g, n_dof_g])
 
     # Material data as scalars
     m_kappa = 1.0
@@ -223,14 +223,14 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
     bc_weak_form = SundusDualWeakFormBCDirichlet(fe_space)
     bc_weak_form.functions = exact_functions
 
-    def scatter_form_data(A, i, weak_form):
+    def scatter_form_data(jac_g, i, weak_form):
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
         r_el, j_el = weak_form.evaluate_form(i, alpha_l)
 
         # contribute rhs
-        rg[dest] += r_el
+        res_g[dest] += r_el
 
         # contribute lhs
         data = j_el.ravel()
@@ -238,15 +238,15 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
         col = np.tile(dest, len(dest))
         nnz = data.shape[0]
         for k in range(nnz):
-            A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
+            jac_g.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
-    def scatter_bc_form(A, i, bc_weak_form):
+    def scatter_bc_form(jac_g, i, bc_weak_form):
         dest = fe_space.bc_destination_indexes(i)
         alpha_l = alpha[dest]
         r_el, j_el = bc_weak_form.evaluate_form(i, alpha_l)
 
         # contribute rhs
-        rg[dest] += r_el
+        res_g[dest] += r_el
 
         # contribute lhs
         data = j_el.ravel()
@@ -254,15 +254,15 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
         col = np.tile(dest, len(dest))
         nnz = data.shape[0]
         for k in range(nnz):
-            A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
+            jac_g.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
     n_els = len(fe_space.discrete_spaces["mp"].elements)
-    [scatter_form_data(A, i, weak_form) for i in range(n_els)]
+    [scatter_form_data(jac_g, i, weak_form) for i in range(n_els)]
 
     n_bc_els = len(fe_space.discrete_spaces["mp"].bc_elements)
-    [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
+    [scatter_bc_form(jac_g, i, bc_weak_form) for i in range(n_bc_els)]
 
-    A.assemble()
+    jac_g.assemble()
 
     et = time.time()
     elapsed_time = et - st
@@ -271,10 +271,10 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
     # solving ls
     st = time.time()
     ksp = PETSc.KSP().create()
-    ksp.setOperators(A)
-    b = A.createVecLeft()
-    b.array[:] = -rg
-    x = A.createVecRight()
+    ksp.setOperators(jac_g)
+    b = jac_g.createVecLeft()
+    b.array[:] = -res_g
+    x = jac_g.createVecRight()
 
     ksp.setType("preonly")
     ksp.getPC().setType("lu")
@@ -284,7 +284,7 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
     # petsc_options = {"rtol": 1e-12, "atol": 1e-14}
     # ksp = PETSc.KSP().create()
     # ksp.create(PETSc.COMM_WORLD)
-    # ksp.setOperators(A)
+    # ksp.setOperators(jac_g)
     # ksp.setType("fgmres")
     # ksp.setTolerances(**petsc_options)
     # ksp.setConvergenceHistory()
