@@ -26,6 +26,7 @@ class SundusDualWeakForm(WeakForm):
         f_kappa = self.functions["kappa"]
         f_rhs_r = self.functions["rhs_r"]
         f_delta = self.functions["delta"]
+        f_eta = self.functions["eta"]
 
         mp_components = mp_space.n_comp # mass flux for pressure
         mc_components = mc_space.n_comp # mass flux for concentration
@@ -62,7 +63,7 @@ class SundusDualWeakForm(WeakForm):
         rs = n_dof
         j_el = np.zeros(js)
         r_el = np.zeros(rs)
-        alpha = np.zeros(n_dof)
+
         # Partial local vectorization
         f_f_val_star = f_rhs_f(x[:, 0], x[:, 1], x[:, 2])
         f_r_val_star = f_rhs_r(x[:, 0], x[:, 1], x[:, 2])
@@ -131,12 +132,13 @@ class SundusDualWeakForm(WeakForm):
                 div_mp_h = alpha[:, 0:n_mp_dof:1] @ div_vc_h.T
                 div_mc_h = alpha[:, n_mp_dof : n_mp_dof + n_mc_dof : 1] @ div_wh.T
 
+                # Example of reaction term
+                R_h = (1.0 + f_eta(xv[0], xv[1], xv[2]) * c_h * c_h)
+
                 equ_1_integrand = (mp_h @ mp_phi_tab[0, i, :, 0:dim].T) - (p_h @ div_vc_h)
-                #equ_2_integrand = (mc_h @ mc_phi_tab[0, i, :, 0:dim].T) - (c_h @ div_wh)
-                equ_2_integrand = (mc_h @ mc_phi_tab[0, i, :, 0:dim].T) - (c_h @ div_wh) - (mp_h @ c_h @ mc_phi_tab[0, i, :, 0:dim].T)
+                equ_2_integrand = (mc_h @ mc_phi_tab[0, i, :, 0:dim].T) - (c_h @ div_wh)
                 equ_3_integrand = div_mp_h @ p_phi_tab[0, i, :, 0:dim].T
-                #equ_3_integrand = div_mp_h @ p_phi_tab[0, i, :, 0:dim].T + rc @ p_phi_tab[0, i, :, 0:dim].T
-                equ_4_integrand = div_mc_h @ c_phi_tab[0, i, :, 0:dim].T
+                equ_4_integrand = div_mc_h @ c_phi_tab[0, i, :, 0:dim].T - R_h @ p_phi_tab[0, i, :, 0:dim].T
 
                 multiphysic_integrand = np.zeros((1, n_dof))
                 multiphysic_integrand[:, 0:n_mp_dof:1] = equ_1_integrand
