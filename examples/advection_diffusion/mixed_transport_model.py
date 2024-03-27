@@ -105,7 +105,7 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
     # Material data as scalars
     m_kappa = 1.0
     m_delta = 1.0
-    m_eta  = 1.0
+    m_eta = 1.0
 
 
     def f_kappa(x, y, z):
@@ -113,11 +113,6 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
 
     def f_delta(x, y, z):
         return m_delta
-    def f_reaction(c):
-        return m_delta
-
-
-
 
     def f_eta(x, y, z):
         return m_eta
@@ -139,7 +134,7 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
             ]
         )
         f_rhs = lambda x, y, z: np.array([[2.0 + 0.0 * x]])
-        r_rhs = lambda x, y, z: np.array([[2.0 + 0.0 * x]]) - (
+        r_rhs = lambda x, y, z: np.array([[2.0 + 0.0 * x]]) + (
                     1.0 + m_eta * c_exact(x, y, z) ** 2)
     elif dim == 2:
         p_exact = lambda x, y, z: np.array([(1.0 - x) * x * (1.0 - y) * y])
@@ -161,7 +156,7 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
             ]
         )
         f_rhs = lambda x, y, z: np.array([[2 * (1 - x) * x + 2 * (1 - y) * y]])
-        r_rhs = lambda x, y, z: np.array([[2 * (1 - x) * x + 2 * (1 - y) * y]]) - (
+        r_rhs = lambda x, y, z: np.array([[2 * (1 - x) * x + 2 * (1 - y) * y]]) + (
                     1.0 + m_eta * c_exact(x, y, z) ** 2)
     elif dim == 3:
         p_exact = lambda x, y, z: np.array(
@@ -207,7 +202,7 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
                 + 2 * (1 - x) * x * (1 - z) * z
                 + 2 * (1 - y) * y * (1 - z) * z
             ]
-        ) - (1.0 + m_eta * c_exact(x, y, z) ** 2)
+        ) + (1.0 + m_eta * c_exact(x, y, z) ** 2)
     else:
         raise ValueError("Invalid dimension.")
 
@@ -402,9 +397,8 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 def main():
     k_order = 1
     h = 0.25
-    n_ref = 5
+    n_ref = 4
     dimension = 1
-    ref_l = 0
 
     domain = create_domain(dimension)
     error_data = np.empty((0, 2), float)

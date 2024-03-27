@@ -142,7 +142,7 @@ class SundusDualWeakForm(WeakForm):
                 equ_2_integrand = (mc_h @ mc_phi_tab[0, i, :, 0:dim].T) - (c_h @ div_wh)
 
                 equ_3_integrand = div_mp_h @ p_phi_tab[0, i, :, 0:dim].T
-                equ_4_integrand = div_mc_h @ c_phi_tab[0, i, :, 0:dim].T - R_h @ p_phi_tab[0, i, :, 0:dim].T
+                equ_4_integrand = div_mc_h @ c_phi_tab[0, i, :, 0:dim].T + R_h @ p_phi_tab[0, i, :, 0:dim].T
 
                 multiphysic_integrand = np.zeros((1, n_dof))
                 multiphysic_integrand[:, 0:n_mp_dof:1] = equ_1_integrand
