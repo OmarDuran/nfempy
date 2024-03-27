@@ -3,6 +3,7 @@ import time
 import numpy as np
 import scipy
 from petsc4py import PETSc
+import matplotlib.pyplot as plt
 
 from basis.element_data import ElementData
 from geometry.domain import Domain
@@ -23,7 +24,7 @@ from weak_forms.laplace_primal_weak_form import (
 )
 
 from oden_primal_weak_form import OdenPrimalWeakForm, OdenPrimalWeakFormBCDirichlet
-
+from oden_dual_weak_form import OdenDualWeakForm
 
 def h1_model_problem(k_order, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
@@ -198,28 +199,28 @@ def h1_model_problem(k_order, gmesh, write_vtk_q=False):
     return u_l2_error[0]
 
 
-def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
+def hdiv_model_problem(k_order, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
 
     # FESpace: data
     q_k_order = k_order
-    p_k_order = k_order - 1
+    u_k_order = k_order - 1
 
     q_components = 1
-    p_components = 1
+    u_components = 1
     q_family = "RT"
-    p_family = "Lagrange"
+    u_family = "Lagrange"
 
     discrete_spaces_data = {
         "q": (dim, q_components, q_family, q_k_order, gmesh),
-        "p": (dim, p_components, p_family, p_k_order, gmesh),
+        "u": (dim, u_components, u_family, u_k_order, gmesh),
     }
 
     q_disc_Q = False
-    p_disc_Q = True
+    u_disc_Q = True
     discrete_spaces_disc = {
         "q": q_disc_Q,
-        "p": p_disc_Q,
+        "u": u_disc_Q,
     }
 
     q_field_bc_physical_tags = [2, 3, 4, 5]
@@ -253,40 +254,22 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
 
     # exact solution
     if dim == 1:
-        p_exact = lambda x, y, z: np.array([(1.0 - x) * x])
+        u_exact = lambda x, y, z: np.array(
+            [-((-np.e + (np.e ** (1 + 2 * x)) + (np.e ** x) * x - (np.e ** (2 + x)) * x) /
+               ((np.e ** x) * (-1 + (np.e ** 2))))])
         q_exact = lambda x, y, z: np.array(
             [
-                (-1.0 + 2.0 * x),
+                -((-np.e + (np.e ** (1 + 2 * x)) + (np.e ** x) * x - (
+                        np.e ** (2 + x)) * x) /
+                  ((np.e ** x) * (-1 + (np.e ** 2)))) +
+                ((np.e ** x) - (np.e ** (2 + x)) + 2 * (np.e ** (1 + 2 * x)) + (
+                        np.e ** x) * x - (np.e ** (2 + x)) * x) /
+                ((np.e ** x) * (-1 + (np.e ** 2))),
             ]
         )
-        f_rhs = lambda x, y, z: np.array([[2.0 + 0.0 * x]])
-    elif dim == 2:
-        p_exact = lambda x, y, z: np.array([(1.0 - x) * x * (1.0 - y) * y])
-        q_exact = lambda x, y, z: np.array(
-            [
-                -((1 - x) * (1 - y) * y) + x * (1 - y) * y,
-                -((1 - x) * x * (1 - y)) + (1 - x) * x * y,
-            ]
-        )
-        f_rhs = lambda x, y, z: np.array([[2 * (1 - x) * x + 2 * (1 - y) * y]])
-    elif dim == 3:
-        p_exact = lambda x, y, z: np.array(
-            [(1.0 - x) * x * (1.0 - y) * y * (1.0 - z) * z]
-        )
-        q_exact = lambda x, y, z: np.array(
-            [
-                -((1 - x) * (1 - y) * y * (1 - z) * z) + x * (1 - y) * y * (1 - z) * z,
-                -((1 - x) * x * (1 - y) * (1 - z) * z) + (1 - x) * x * y * (1 - z) * z,
-                -((1 - x) * x * (1 - y) * y * (1 - z)) + (1 - x) * x * (1 - y) * y * z,
-            ]
-        )
-        f_rhs = lambda x, y, z: np.array(
-            [
-                2 * (1 - x) * x * (1 - y) * y
-                + 2 * (1 - x) * x * (1 - z) * z
-                + 2 * (1 - y) * y * (1 - z) * z
-            ]
-        )
+        f_rhs = lambda x, y, z: np.array([[x]])
+    else:
+        raise ValueError("Case not implemented.")
 
     m_functions = {
         "rhs": f_rhs,
@@ -295,13 +278,13 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
 
     exact_functions = {
         "q": q_exact,
-        "p": p_exact,
+        "u": u_exact,
     }
 
-    weak_form = LaplaceDualWeakForm(fe_space)
+    weak_form = OdenDualWeakForm(fe_space)
     weak_form.functions = m_functions
-    bc_weak_form = LaplaceDualWeakFormBCDirichlet(fe_space)
-    bc_weak_form.functions = exact_functions
+    #bc_weak_form = LaplaceDualWeakFormBCDirichlet(fe_space)
+    #bc_weak_form.functions = exact_functions
 
     def scatter_form_data(A, i, weak_form):
         # destination indexes
@@ -339,8 +322,8 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
     n_els = len(fe_space.discrete_spaces["q"].elements)
     [scatter_form_data(A, i, weak_form) for i in range(n_els)]
 
-    n_bc_els = len(fe_space.discrete_spaces["q"].bc_elements)
-    [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
+    #n_bc_els = len(fe_space.discrete_spaces["q"].bc_elements)
+    #[scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
 
     A.assemble()
 
@@ -387,7 +370,7 @@ def hdiv_laplace(k_order, gmesh, write_vtk_q=False):
     if write_vtk_q:
         # post-process solution
         st = time.time()
-        file_name = "rates_hdiv_laplace.vtk"
+        file_name = "rates_hdiv_model_problem.vtk"
         write_vtk_file_with_exact_solution(
             file_name, gmesh, fe_space, exact_functions, alpha
         )
@@ -450,7 +433,7 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 def main():
     k_order = 1
     h = 1.0
-    n_ref = 5
+    n_ref = 6# no. of refinement
     dimension = 1
     ref_l = 0
 
@@ -460,8 +443,8 @@ def main():
         h_val = h * (2**-l)
         mesher = create_conformal_mesher(domain, h_val, 0)
         gmesh = create_mesh(dimension, mesher, True)
-        error_val = h1_model_problem(k_order, gmesh, True)
-        # error_val = hdiv_laplace(k_order, gmesh, True)
+        #error_val = h1_model_problem(k_order, gmesh, True)
+        error_val = hdiv_model_problem(k_order, gmesh, True)
         error_data = np.append(error_data, np.array([[h_val, error_val]]), axis=0)
 
     rates_data = np.empty((0, 1), float)
@@ -479,6 +462,11 @@ def main():
     print("rounded error data: ", error_data)
     print("rounded error rates data: ", rates_data)
 
+
+    a = error_data[:,0]
+    b = error_data[:,1]
+    plt.loglog(a, b)
+    plt.show()
     return
 
 

@@ -16,7 +16,7 @@ class OdenPrimalWeakForm(WeakForm):
         if self.space is None or self.functions is None:
             raise ValueError
 
-        u_space = self.space.discrete_spaces["u"]
+        u_space = self.space.discrete_spaces["u"] # discrete
 
         f_rhs = self.functions["rhs"]
         f_kappa = self.functions["kappa"]
@@ -30,9 +30,9 @@ class OdenPrimalWeakForm(WeakForm):
         x, jac, det_jac, inv_jac = u_space.elements[iel].evaluate_mapping(points)
 
         # basis
-        u_phi_tab = u_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+        u_phi_tab = u_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac) # after mapping
 
-        n_u_phi = u_phi_tab.shape[2]
+        n_u_phi = u_phi_tab.shape[2]# no of test/trial fun
         n_u_dof = n_u_phi * u_components
 
         n_dof = n_u_dof
@@ -71,7 +71,7 @@ class OdenPrimalWeakForm(WeakForm):
                 )
                 uh = u_phi_tab[0, i, :, 0:dim].T @ alpha.T
                 grad_uh = grad_phi @ alpha.T
-                grad_uh *= f_kappa(xv[0], xv[1], xv[2])
+                #grad_uh *= f_kappa(xv[0], xv[1], xv[2])
                 energy_h = (grad_phi.T @ grad_uh + u_phi_tab[0, i, :, 0:dim] @ uh).reshape((n_dof,))
                 el_form += det_jac[i] * omega * energy_h
 
@@ -82,12 +82,12 @@ class OdenPrimalWeakForm(WeakForm):
 
 class OdenPrimalWeakFormBCDirichlet(WeakForm):
     def evaluate_form(self, element_index, alpha):
-        u_D = self.functions["u"]
+        u_D = self.functions["u"] # value of function at boundary
 
         iel = element_index
-        u_space = self.space.discrete_spaces["u"]
-        u_components = u_space.n_comp
-        u_data: ElementData = u_space.bc_elements[iel].data
+        u_space = self.space.discrete_spaces["u"] # u_h space
+        u_components = u_space.n_comp # nature of u (scalar, vector etc)
+        u_data: ElementData = u_space.bc_elements[iel].data #
 
         cell = u_data.cell
         points, weights = self.space.bc_quadrature
@@ -99,7 +99,7 @@ class OdenPrimalWeakFormBCDirichlet(WeakForm):
             points, jac, det_jac, inv_jac
         )
 
-        n_u_phi = u_phi_tab.shape[2]
+        n_u_phi = u_phi_tab.shape[2] # no. of tes
         n_u_dof = n_u_phi * u_components
 
         n_dof = n_u_dof

@@ -91,31 +91,30 @@ def method_definition(k_order):
     method_names = ["mixed_rt"]
     return zip(method_names, methods)
 
-
 def four_fields_formulation(method, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
 
     fe_space = create_product_space(method, gmesh)
 
-    n_dof_g = fe_space.n_dof
-    rg = np.zeros(n_dof_g)
-    alpha = np.zeros(n_dof_g)
-    print("n_dof: ", n_dof_g)
+    # Nonlinear solver data
+    n_iterations = 20
+    eps_tol = 1.0e-10
 
-    # Assembler
-    st = time.time()
-    A = PETSc.Mat()
-    A.createAIJ([n_dof_g, n_dof_g])
+    n_dof_g = fe_space.n_dof
 
     # Material data as scalars
     m_kappa = 1.0
     m_delta = 1.0
+    m_eta  = 1.0
 
     def f_kappa(x, y, z):
         return m_kappa
 
     def f_delta(x, y, z):
         return m_delta
+
+    def f_eta(x, y, z):
+        return m_eta
 
     st = time.time()
 
@@ -134,7 +133,8 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
             ]
         )
         f_rhs = lambda x, y, z: np.array([[2.0 + 0.0 * x]])
-        r_rhs = lambda x, y, z: np.array([[2.0 + 0.0 * x]])
+        r_rhs = lambda x, y, z: np.array([[2.0 + 0.0 * x]]) - (
+                    1.0 + m_eta * c_exact(x, y, z) ** 2)
     elif dim == 2:
         p_exact = lambda x, y, z: np.array([(1.0 - x) * x * (1.0 - y) * y])
         mp_exact = lambda x, y, z: np.array(
@@ -155,7 +155,8 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
             ]
         )
         f_rhs = lambda x, y, z: np.array([[2 * (1 - x) * x + 2 * (1 - y) * y]])
-        r_rhs = lambda x, y, z: np.array([[2 * (1 - x) * x + 2 * (1 - y) * y]])
+        r_rhs = lambda x, y, z: np.array([[2 * (1 - x) * x + 2 * (1 - y) * y]]) - (
+                    1.0 + m_eta * c_exact(x, y, z) ** 2)
     elif dim == 3:
         p_exact = lambda x, y, z: np.array(
             [(1.0 - x) * x * (1.0 - y) * y * (1.0 - z) * z]
@@ -200,7 +201,7 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
                 + 2 * (1 - x) * x * (1 - z) * z
                 + 2 * (1 - y) * y * (1 - z) * z
             ]
-        )
+        ) - (1.0 + m_eta * c_exact(x, y, z) ** 2)
     else:
         raise ValueError("Invalid dimension.")
 
@@ -209,13 +210,14 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
         "rhs_r": r_rhs,
         "kappa": f_kappa,
         "delta": f_delta,
+        "eta": f_eta,
     }
 
     exact_functions = {
         "mp": mp_exact,
-        "p" : p_exact,
+        "p": p_exact,
         "mc": mc_exact,
-        "c" : c_exact,
+        "c": c_exact,
     }
 
     weak_form = SundusDualWeakForm(fe_space)
@@ -223,14 +225,14 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
     bc_weak_form = SundusDualWeakFormBCDirichlet(fe_space)
     bc_weak_form.functions = exact_functions
 
-    def scatter_form_data(A, i, weak_form):
+    def scatter_form_data(jac_g, i, weak_form):
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
         r_el, j_el = weak_form.evaluate_form(i, alpha_l)
 
         # contribute rhs
-        rg[dest] += r_el
+        res_g[dest] += r_el
 
         # contribute lhs
         data = j_el.ravel()
@@ -238,15 +240,15 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
         col = np.tile(dest, len(dest))
         nnz = data.shape[0]
         for k in range(nnz):
-            A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
+            jac_g.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
-    def scatter_bc_form(A, i, bc_weak_form):
+    def scatter_bc_form(jac_g, i, bc_weak_form):
         dest = fe_space.bc_destination_indexes(i)
         alpha_l = alpha[dest]
         r_el, j_el = bc_weak_form.evaluate_form(i, alpha_l)
 
         # contribute rhs
-        rg[dest] += r_el
+        res_g[dest] += r_el
 
         # contribute lhs
         data = j_el.ravel()
@@ -254,47 +256,67 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
         col = np.tile(dest, len(dest))
         nnz = data.shape[0]
         for k in range(nnz):
-            A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
+            jac_g.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
-    n_els = len(fe_space.discrete_spaces["mp"].elements)
-    [scatter_form_data(A, i, weak_form) for i in range(n_els)]
-
-    n_bc_els = len(fe_space.discrete_spaces["mp"].bc_elements)
-    [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
-
-    A.assemble()
-
-    et = time.time()
-    elapsed_time = et - st
-    print("Assembly time:", elapsed_time, "seconds")
-
-    # solving ls
+    # Assembler
     st = time.time()
-    ksp = PETSc.KSP().create()
-    ksp.setOperators(A)
-    b = A.createVecLeft()
-    b.array[:] = -rg
-    x = A.createVecRight()
+    jac_g = PETSc.Mat()
+    jac_g.createAIJ([n_dof_g, n_dof_g])
 
-    ksp.setType("preonly")
-    ksp.getPC().setType("lu")
-    ksp.getPC().setFactorSolverType("mumps")
-    ksp.setConvergenceHistory()
+    res_g = np.zeros(n_dof_g)
+    print("n_dof: ", n_dof_g)
 
-    # petsc_options = {"rtol": 1e-12, "atol": 1e-14}
-    # ksp = PETSc.KSP().create()
-    # ksp.create(PETSc.COMM_WORLD)
-    # ksp.setOperators(A)
-    # ksp.setType("fgmres")
-    # ksp.setTolerances(**petsc_options)
-    # ksp.setConvergenceHistory()
-    # ksp.getPC().setType("ilu")
-    ksp.solve(b, x)
-    alpha = x.array
+    # initial guess
+    alpha = np.zeros(n_dof_g)
 
-    et = time.time()
-    elapsed_time = et - st
-    print("Linear solver time:", elapsed_time, "seconds")
+    for iter in range(n_iterations):
+
+        n_els = len(fe_space.discrete_spaces["mp"].elements)
+        [scatter_form_data(jac_g, i, weak_form) for i in range(n_els)]
+
+        n_bc_els = len(fe_space.discrete_spaces["mp"].bc_elements)
+        [scatter_bc_form(jac_g, i, bc_weak_form) for i in range(n_bc_els)]
+
+        jac_g.assemble()
+
+        et = time.time()
+        elapsed_time = et - st
+        print("Assembly time:", elapsed_time, "seconds")
+
+        res_norm = np.linalg.norm(res_g)
+        stop_criterion_q = res_norm < eps_tol
+        if stop_criterion_q:
+            print("Nonlinear solver converged")
+            print("Residual norm: ", res_norm)
+            print("Number of iterations: ", iter)
+            break
+
+        # solving ls
+        st = time.time()
+        ksp = PETSc.KSP().create()
+        ksp.setOperators(jac_g)
+        b = jac_g.createVecLeft()
+        b.array[:] = -res_g
+        x = jac_g.createVecRight()
+
+        ksp.setType("preonly")
+        ksp.getPC().setType("lu")
+        ksp.getPC().setFactorSolverType("mumps")
+        ksp.setConvergenceHistory()
+        ksp.solve(b, x)
+        delta_alpha = x.array
+
+        et = time.time()
+        elapsed_time = et - st
+        print("Linear solver time:", elapsed_time, "seconds")
+
+        # newton update
+        alpha += delta_alpha
+
+        # Set up to zero lhr and rhs
+        res_g *= 0.0
+        jac_g.scale(0.0)
+
 
     st = time.time()
     mp_l2_error, mc_l2_error, p_l2_error, c_l2_error = l2_error(
@@ -374,8 +396,8 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 def main():
     k_order = 1
     h = 1.0
-    n_ref = 5
-    dimension = 1
+    n_ref = 4
+    dimension = 2
     ref_l = 0
 
     domain = create_domain(dimension)
