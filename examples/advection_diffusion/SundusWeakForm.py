@@ -60,10 +60,10 @@ class SundusDualWeakForm(WeakForm):
         n_c_dof  = n_wc_h * c_components
 
         idx_dof = {
-            "mp" : (0,n_mp_dof),
-            "mc" : (n_mp_dof, n_mp_dof + n_mc_dof),
-            "p" : (n_mp_dof + n_mc_dof, n_mp_dof + n_mc_dof + n_p_dof),
-            "c": (n_mp_dof + n_mc_dof + n_p_dof, n_mp_dof + n_mc_dof + n_p_dof + n_c_dof),
+            "mp" : slice(0,n_mp_dof),
+            "mc" : slice(n_mp_dof, n_mp_dof + n_mc_dof),
+            "p" : slice(n_mp_dof + n_mc_dof, n_mp_dof + n_mc_dof + n_p_dof),
+            "c": slice(n_mp_dof + n_mc_dof + n_p_dof, n_mp_dof + n_mc_dof + n_p_dof + n_c_dof),
         }
 
         n_dof = n_mp_dof + n_mc_dof + n_p_dof + n_c_dof
@@ -118,14 +118,20 @@ class SundusDualWeakForm(WeakForm):
                     [[np.trace(grad_vc_h[:, j, :]) / det_jac[i] for j in range(n_mc_dof)]]
                 )
 
-                # FEM approximation
-                mp_h = alpha[:, idx_dof['mp'][0]:idx_dof['mp'][1]:1] @ vp_h
-                mc_h = alpha[:, idx_dof['mc'][0]:idx_dof['mc'][1]:1] @ vc_h
-                p_h = alpha[:, idx_dof['p'][0]:idx_dof['p'][1]:1] @ wp_h
-                c_h = alpha[:, idx_dof['c'][0]:idx_dof['c'][1]:1] @ wc_h
+                # Dof per field
+                alpha_mp = alpha[:, idx_dof['mp']]
+                alpha_mc = alpha[:, idx_dof['mc']]
+                alpha_p = alpha[:, idx_dof['p']]
+                alpha_c = alpha[:, idx_dof['c']]
 
-                div_mp_h = alpha[:, idx_dof['mp'][0]:idx_dof['mp'][1]:1] @ div_vp_h.T
-                div_mc_h = alpha[:, idx_dof['mc'][0]:idx_dof['mc'][1]:1] @ div_vc_h.T
+                # FEM approximation
+                mp_h = alpha_mp @ vp_h
+                mc_h = alpha_mc @ vc_h
+                p_h = alpha_p @ wp_h
+                c_h = alpha_c @ wc_h
+
+                div_mp_h = alpha_mp @ div_vp_h.T
+                div_mc_h = alpha_mc @ div_vc_h.T
 
                 mp_h *= 1.0 / f_kappa(xv[0], xv[1], xv[2])
                 mc_h *= 1.0 / f_delta(xv[0], xv[1], xv[2])
@@ -140,10 +146,10 @@ class SundusDualWeakForm(WeakForm):
                 equ_4_integrand = div_mc_h @ wc_h.T + R_h @ wc_h.T
 
                 multiphysic_integrand = np.zeros((1, n_dof))
-                multiphysic_integrand[:, idx_dof['mp'][0]:idx_dof['mp'][1]:1] = equ_1_integrand
-                multiphysic_integrand[:, idx_dof['mc'][0]:idx_dof['mc'][1]:1] = equ_2_integrand
-                multiphysic_integrand[:, idx_dof['p'][0]:idx_dof['p'][1]:1] = equ_3_integrand
-                multiphysic_integrand[:, idx_dof['c'][0]:idx_dof['c'][1]:1] = equ_4_integrand
+                multiphysic_integrand[:, idx_dof['mp']] = equ_1_integrand
+                multiphysic_integrand[:, idx_dof['mc']] = equ_2_integrand
+                multiphysic_integrand[:, idx_dof['p']] = equ_3_integrand
+                multiphysic_integrand[:, idx_dof['c']] = equ_4_integrand
                 discrete_integrand = (multiphysic_integrand).reshape((n_dof,))
                 el_form += det_jac[i] * omega * discrete_integrand
 
