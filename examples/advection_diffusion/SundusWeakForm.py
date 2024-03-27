@@ -59,6 +59,13 @@ class SundusDualWeakForm(WeakForm):
         n_p_dof  = n_p_phi * p_components
         n_c_dof  = n_c_phi * c_components
 
+        idx_dof = {
+            "mp" : (0,n_mp_dof),
+            "mc" : (n_mp_dof, n_mp_dof + n_mc_dof),
+            "p" : (n_mp_dof + n_mc_dof, n_mp_dof + n_mc_dof + n_p_dof),
+            "c": (n_mp_dof + n_mc_dof + n_p_dof, n_mp_dof + n_mc_dof + n_p_dof + n_c_dof),
+        }
+
         n_dof = n_mp_dof + n_mc_dof + n_p_dof + n_c_dof
         js = (n_dof, n_dof)
         rs = n_dof
@@ -97,31 +104,14 @@ class SundusDualWeakForm(WeakForm):
                     inv_jac_m = np.vstack(
                         (inv_jac[i] @ e1, inv_jac[i] @ e2, inv_jac[i] @ e3)
                     )
-                mp_h = alpha[:, 0:n_mp_dof:1] @ mp_phi_tab[0, i, :, 0:dim]
-                mc_h = (
-                    alpha[:, n_mp_dof : n_mp_dof + n_mc_dof : 1]
-                    @ mc_phi_tab[0, i, :, 0:dim]
-                )
+                mp_h = alpha[:, idx_dof['mp'][0]:idx_dof['mp'][1]:1] @ mp_phi_tab[0, i, :, 0:dim]
+                mc_h = alpha[:, idx_dof['mc'][0]:idx_dof['mc'][1]:1] @ mc_phi_tab[0, i, :, 0:dim]
 
                 mp_h *= 1.0 / f_kappa(xv[0], xv[1], xv[2])
                 mc_h *= 1.0 / f_delta(xv[0], xv[1], xv[2])
 
-                p_h = (
-                    alpha[:, n_mp_dof + n_mc_dof : n_mp_dof + n_mc_dof + n_p_dof : 1]
-                    @ p_phi_tab[0, i, :, 0:dim]
-                )
-                c_h = (
-                    alpha[
-                        :,
-                        n_mp_dof
-                        + n_mc_dof
-                        + n_p_dof : n_mp_dof
-                        + n_mc_dof
-                        + n_p_dof
-                        + n_dof : 1,
-                    ]
-                    @ c_phi_tab[0, i, :, 0:dim]
-                )
+                p_h = alpha[:, idx_dof['p'][0]:idx_dof['p'][1]:1] @ p_phi_tab[0, i, :, 0:dim]
+                c_h = alpha[:, idx_dof['c'][0]:idx_dof['c'][1]:1] @ c_phi_tab[0, i, :, 0:dim]
 
                 grad_mp_h = mp_phi_tab[1 : mp_phi_tab.shape[0] + 1, i, :, 0:dim]
                 div_vc_h = np.array(
