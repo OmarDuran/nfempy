@@ -17,7 +17,7 @@ class SundusDualWeakForm(WeakForm):
         if self.space is None or self.functions is None:
             raise ValueError
 
-        mp_space = self.space.discrete_spaces["mp"] #flux for pressure
+        mp_space = self.space.discrete_spaces["mp"] # flux for pressure
         mc_space = self.space.discrete_spaces["mc"] # flux  for concentration
         p_space = self.space.discrete_spaces["p"]
         c_space = self.space.discrete_spaces["c"]
@@ -44,20 +44,20 @@ class SundusDualWeakForm(WeakForm):
         x, jac, det_jac, inv_jac = mp_space.elements[iel].evaluate_mapping(points)
 
         # basis
-        mp_phi_tab = mp_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
-        mc_phi_tab = mc_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
-        p_phi_tab = p_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
-        c_phi_tab = c_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+        vp_h_tab = mp_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+        vc_h_tab = mc_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+        wp_h_tab = p_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+        wc_h_tab = c_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
 
-        n_mp_phi = mp_phi_tab.shape[2]
-        n_mc_phi = mc_phi_tab.shape[2]
-        n_p_phi  = p_phi_tab.shape[2]
-        n_c_phi  = c_phi_tab.shape[2]
+        n_vp_h = vp_h_tab.shape[2]
+        n_vc_h = vc_h_tab.shape[2]
+        n_wp_h = wp_h_tab.shape[2]
+        n_wc_h = wc_h_tab.shape[2]
 
-        n_mp_dof = n_mp_phi * mp_components
-        n_mc_dof = n_mc_phi * mc_components
-        n_p_dof  = n_p_phi * p_components
-        n_c_dof  = n_c_phi * c_components
+        n_mp_dof = n_vp_h * mp_components
+        n_mc_dof = n_vc_h * mc_components
+        n_p_dof  = n_wp_h * p_components
+        n_c_dof  = n_wc_h * c_components
 
         idx_dof = {
             "mp" : (0,n_mp_dof),
@@ -76,9 +76,8 @@ class SundusDualWeakForm(WeakForm):
         f_f_val_star = f_rhs_f(x[:, 0], x[:, 1], x[:, 2])
         f_r_val_star = f_rhs_r(x[:, 0], x[:, 1], x[:, 2])
 
-
-        phi_p_star = det_jac * weights * p_phi_tab[0, :, :, 0].T
-        phi_c_star = det_jac * weights * c_phi_tab[0, :, :, 0].T
+        wp_h_star = det_jac * weights * wp_h_tab[0, :, :, 0].T
+        wc_h_star = det_jac * weights * wc_h_tab[0, :, :, 0].T
 
         # constant directors
         e1 = np.array([1, 0, 0])
@@ -89,12 +88,12 @@ class SundusDualWeakForm(WeakForm):
             for c in range(p_components):
                 b = c + n_mp_dof + n_mc_dof
                 e = b + n_p_dof
-                el_form[b:e:p_components] -= phi_p_star @ f_f_val_star[c].T
+                el_form[b:e:p_components] -= wp_h_star @ f_f_val_star[c].T
 
             for c in range(c_components):
                 b = c + n_mp_dof + n_mc_dof + n_p_dof
                 e = b + n_c_dof
-                el_form[b:e:p_components] -= phi_c_star @ f_r_val_star[c].T
+                el_form[b:e:p_components] -= wc_h_star @ f_r_val_star[c].T
 
             for i, omega in enumerate(weights):
                 xv = x[i]
@@ -104,53 +103,47 @@ class SundusDualWeakForm(WeakForm):
                     inv_jac_m = np.vstack(
                         (inv_jac[i] @ e1, inv_jac[i] @ e2, inv_jac[i] @ e3)
                     )
-                mp_h = alpha[:, idx_dof['mp'][0]:idx_dof['mp'][1]:1] @ mp_phi_tab[0, i, :, 0:dim]
-                mc_h = alpha[:, idx_dof['mc'][0]:idx_dof['mc'][1]:1] @ mc_phi_tab[0, i, :, 0:dim]
+
+                # Functions and derivatives at integration point i
+                vp_h = vp_h_tab[0, i, :, 0:dim]
+                vc_h = vc_h_tab[0, i, :, 0:dim]
+                wp_h = wp_h_tab[0, i, :, 0:dim]
+                wc_h = wc_h_tab[0, i, :, 0:dim]
+                grad_vp_h = vp_h_tab[1: vp_h_tab.shape[0] + 1, i, :, 0:dim]
+                grad_vc_h = vc_h_tab[1: vc_h_tab.shape[0] + 1, i, :, 0:dim]
+                div_vp_h = np.array(
+                    [[np.trace(grad_vp_h[:, j, :]) / det_jac[i] for j in range(n_mp_dof)]]
+                )
+                div_vc_h = np.array(
+                    [[np.trace(grad_vc_h[:, j, :]) / det_jac[i] for j in range(n_mc_dof)]]
+                )
+
+                # FEM approximation
+                mp_h = alpha[:, idx_dof['mp'][0]:idx_dof['mp'][1]:1] @ vp_h
+                mc_h = alpha[:, idx_dof['mc'][0]:idx_dof['mc'][1]:1] @ vc_h
+                p_h = alpha[:, idx_dof['p'][0]:idx_dof['p'][1]:1] @ wp_h
+                c_h = alpha[:, idx_dof['c'][0]:idx_dof['c'][1]:1] @ wc_h
+
+                div_mp_h = alpha[:, idx_dof['mp'][0]:idx_dof['mp'][1]:1] @ div_vp_h.T
+                div_mc_h = alpha[:, idx_dof['mc'][0]:idx_dof['mc'][1]:1] @ div_vc_h.T
 
                 mp_h *= 1.0 / f_kappa(xv[0], xv[1], xv[2])
                 mc_h *= 1.0 / f_delta(xv[0], xv[1], xv[2])
 
-                p_h = alpha[:, idx_dof['p'][0]:idx_dof['p'][1]:1] @ p_phi_tab[0, i, :, 0:dim]
-                c_h = alpha[:, idx_dof['c'][0]:idx_dof['c'][1]:1] @ c_phi_tab[0, i, :, 0:dim]
-
-                grad_mp_h = mp_phi_tab[1 : mp_phi_tab.shape[0] + 1, i, :, 0:dim]
-                div_vc_h = np.array(
-                    [[np.trace(grad_mp_h[:, j, :]) / det_jac[i] for j in range(n_mp_dof)]]
-                )
-                grad_wh = mc_phi_tab[1 : mc_phi_tab.shape[0] + 1, i, :, 0:dim]
-                div_wh = np.array(
-                    [[np.trace(grad_wh[:, j, :]) / det_jac[i] for j in range(n_mc_dof)]]
-                )
-
-                div_mp_h = alpha[:, 0:n_mp_dof:1] @ div_vc_h.T
-                div_mc_h = alpha[:, n_mp_dof : n_mp_dof + n_mc_dof : 1] @ div_wh.T
-
                 # Example of reaction term
                 R_h = (1.0 + f_eta(xv[0], xv[1], xv[2]) * c_h * c_h)
 
-                equ_1_integrand = (mp_h @ mp_phi_tab[0, i, :, 0:dim].T) - (p_h @ div_vc_h)
-                equ_2_integrand = (mc_h @ mc_phi_tab[0, i, :, 0:dim].T) - (c_h @ div_wh)
+                equ_1_integrand = (mp_h @ vp_h.T) - (p_h @ div_vp_h)
+                equ_2_integrand = (mc_h @ vc_h.T) - (c_h @ div_vc_h)
 
-                equ_3_integrand = div_mp_h @ p_phi_tab[0, i, :, 0:dim].T
-                equ_4_integrand = div_mc_h @ c_phi_tab[0, i, :, 0:dim].T + R_h @ p_phi_tab[0, i, :, 0:dim].T
+                equ_3_integrand = div_mp_h @ wp_h.T
+                equ_4_integrand = div_mc_h @ wc_h.T + R_h @ wc_h.T
 
                 multiphysic_integrand = np.zeros((1, n_dof))
-                multiphysic_integrand[:, 0:n_mp_dof:1] = equ_1_integrand
-                multiphysic_integrand[
-                    :, n_mp_dof : n_mp_dof + n_mc_dof : 1
-                ] = equ_2_integrand
-                multiphysic_integrand[
-                    :, n_mp_dof + n_mc_dof : n_mp_dof + n_mc_dof + n_p_dof : 1
-                ] = equ_3_integrand
-                multiphysic_integrand[
-                    :,
-                    n_mp_dof
-                    + n_mc_dof
-                    + n_p_dof : n_mp_dof
-                    + n_mc_dof
-                    + n_p_dof
-                    + n_dof : 1,
-                ] = equ_4_integrand
+                multiphysic_integrand[:, idx_dof['mp'][0]:idx_dof['mp'][1]:1] = equ_1_integrand
+                multiphysic_integrand[:, idx_dof['mc'][0]:idx_dof['mc'][1]:1] = equ_2_integrand
+                multiphysic_integrand[:, idx_dof['p'][0]:idx_dof['p'][1]:1] = equ_3_integrand
+                multiphysic_integrand[:, idx_dof['c'][0]:idx_dof['c'][1]:1] = equ_4_integrand
                 discrete_integrand = (multiphysic_integrand).reshape((n_dof,))
                 el_form += det_jac[i] * omega * discrete_integrand
 
