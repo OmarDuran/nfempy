@@ -26,6 +26,7 @@ class SundusDualWeakForm(WeakForm):
         f_kappa = self.functions["kappa"]
         f_rhs_r = self.functions["rhs_r"]
         f_delta = self.functions["delta"]
+
         f_eta = self.functions["eta"]
 
         mp_components = mp_space.n_comp # mass flux for pressure
@@ -67,6 +68,8 @@ class SundusDualWeakForm(WeakForm):
         # Partial local vectorization
         f_f_val_star = f_rhs_f(x[:, 0], x[:, 1], x[:, 2])
         f_r_val_star = f_rhs_r(x[:, 0], x[:, 1], x[:, 2])
+
+
         phi_p_star = det_jac * weights * p_phi_tab[0, :, :, 0].T
         phi_c_star = det_jac * weights * c_phi_tab[0, :, :, 0].T
 
@@ -137,6 +140,7 @@ class SundusDualWeakForm(WeakForm):
 
                 equ_1_integrand = (mp_h @ mp_phi_tab[0, i, :, 0:dim].T) - (p_h @ div_vc_h)
                 equ_2_integrand = (mc_h @ mc_phi_tab[0, i, :, 0:dim].T) - (c_h @ div_wh)
+
                 equ_3_integrand = div_mp_h @ p_phi_tab[0, i, :, 0:dim].T
                 equ_4_integrand = div_mc_h @ c_phi_tab[0, i, :, 0:dim].T - R_h @ p_phi_tab[0, i, :, 0:dim].T
 

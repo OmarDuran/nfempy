@@ -107,11 +107,17 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
     m_delta = 1.0
     m_eta  = 1.0
 
+
     def f_kappa(x, y, z):
         return m_kappa
 
     def f_delta(x, y, z):
         return m_delta
+    def f_reaction(c):
+        return m_delta
+
+
+
 
     def f_eta(x, y, z):
         return m_eta
@@ -395,9 +401,9 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 def main():
     k_order = 1
-    h = 1.0
-    n_ref = 4
-    dimension = 2
+    h = 0.25
+    n_ref = 5
+    dimension = 1
     ref_l = 0
 
     domain = create_domain(dimension)
