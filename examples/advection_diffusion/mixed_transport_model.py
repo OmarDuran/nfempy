@@ -229,8 +229,9 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
     def scatter_form_data(jac_g, i, weak_form):
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
-        alpha_l = alpha[dest]
-        r_el, j_el = weak_form.evaluate_form(i, alpha_l)
+        alpha_l_n_p_1 = alpha_n_p_1[dest]
+        alpha_l_n = alpha_n[dest]
+        r_el, j_el = weak_form.evaluate_form(i, alpha_l_n_p_1, alpha_l_n)
 
         # contribute rhs
         res_g[dest] += r_el
@@ -245,7 +246,7 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
 
     def scatter_bc_form(jac_g, i, bc_weak_form):
         dest = fe_space.bc_destination_indexes(i)
-        alpha_l = alpha[dest]
+        alpha_l = alpha_n_p_1[dest]
         r_el, j_el = bc_weak_form.evaluate_form(i, alpha_l)
 
         # contribute rhs
@@ -267,61 +268,70 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
     res_g = np.zeros(n_dof_g)
     print("n_dof: ", n_dof_g)
 
-    # initial guess
-    alpha = np.zeros(n_dof_g)
 
-    for iter in range(n_iterations):
+    n_steps = 10
 
-        n_els = len(fe_space.discrete_spaces["mp"].elements)
-        [scatter_form_data(jac_g, i, weak_form) for i in range(n_els)]
+    # IC
+    alpha_n = np.zeros(n_dof_g)
 
-        n_bc_els = len(fe_space.discrete_spaces["mp"].bc_elements)
-        [scatter_bc_form(jac_g, i, bc_weak_form) for i in range(n_bc_els)]
+    for time_index in range(n_steps):
 
-        jac_g.assemble()
+        # initial guess
+        alpha_n_p_1 = np.zeros(n_dof_g)
 
-        et = time.time()
-        elapsed_time = et - st
-        print("Assembly time:", elapsed_time, "seconds")
+        for iter in range(n_iterations):
 
-        res_norm = np.linalg.norm(res_g)
-        stop_criterion_q = res_norm < eps_tol
-        if stop_criterion_q:
-            print("Nonlinear solver converged")
-            print("Residual norm: ", res_norm)
-            print("Number of iterations: ", iter)
-            break
+            n_els = len(fe_space.discrete_spaces["mp"].elements)
+            [scatter_form_data(jac_g, i, weak_form) for i in range(n_els)]
 
-        # solving ls
-        st = time.time()
-        ksp = PETSc.KSP().create()
-        ksp.setOperators(jac_g)
-        b = jac_g.createVecLeft()
-        b.array[:] = -res_g
-        x = jac_g.createVecRight()
+            n_bc_els = len(fe_space.discrete_spaces["mp"].bc_elements)
+            [scatter_bc_form(jac_g, i, bc_weak_form) for i in range(n_bc_els)]
 
-        ksp.setType("preonly")
-        ksp.getPC().setType("lu")
-        ksp.getPC().setFactorSolverType("mumps")
-        ksp.setConvergenceHistory()
-        ksp.solve(b, x)
-        delta_alpha = x.array
+            jac_g.assemble()
 
-        et = time.time()
-        elapsed_time = et - st
-        print("Linear solver time:", elapsed_time, "seconds")
+            et = time.time()
+            elapsed_time = et - st
+            print("Assembly time:", elapsed_time, "seconds")
 
-        # newton update
-        alpha += delta_alpha
+            res_norm = np.linalg.norm(res_g)
+            stop_criterion_q = res_norm < eps_tol
+            if stop_criterion_q:
+                print("Nonlinear solver converged")
+                print("Residual norm: ", res_norm)
+                print("Number of iterations: ", iter)
+                break
 
-        # Set up to zero lhr and rhs
-        res_g *= 0.0
-        jac_g.scale(0.0)
+            # solving ls
+            st = time.time()
+            ksp = PETSc.KSP().create()
+            ksp.setOperators(jac_g)
+            b = jac_g.createVecLeft()
+            b.array[:] = -res_g
+            x = jac_g.createVecRight()
 
+            ksp.setType("preonly")
+            ksp.getPC().setType("lu")
+            ksp.getPC().setFactorSolverType("mumps")
+            ksp.setConvergenceHistory()
+            ksp.solve(b, x)
+            delta_alpha = x.array
+
+            et = time.time()
+            elapsed_time = et - st
+            print("Linear solver time:", elapsed_time, "seconds")
+
+            # newton update
+            alpha_n_p_1 += delta_alpha
+
+            # Set up to zero lhr and rhs
+            res_g *= 0.0
+            jac_g.scale(0.0)
+
+        alpha_n = alpha_n_p_1
 
     st = time.time()
     mp_l2_error, mc_l2_error, p_l2_error, c_l2_error = l2_error(
-        dim, fe_space, exact_functions, alpha
+        dim, fe_space, exact_functions, alpha_n_p_1
     )
     et = time.time()
     elapsed_time = et - st
@@ -336,7 +346,7 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
         st = time.time()
         file_name = "rates_four_fields.vtk"
         write_vtk_file_with_exact_solution(
-            file_name, gmesh, fe_space, exact_functions, alpha
+            file_name, gmesh, fe_space, exact_functions, alpha_n_p_1
         )
         et = time.time()
         elapsed_time = et - st
