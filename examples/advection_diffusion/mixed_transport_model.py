@@ -146,8 +146,8 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
         mp_exact = lambda x, y, z, t: np.array(
             [
                 [
-                     t*(-((1 - x) * (1 - y) * y) + x * (1 - y) * y,
-                    -((1 - x) * x * (1 - y)) + (1 - x) * x * y),
+                     t*(-((1 - 2*x) * (1 - y) * y)) ,
+                    -t*((1 - x) * x * (1 - 2*y)) ,
                 ]
             ]
         )
@@ -155,8 +155,8 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
         mc_exact = lambda x, y, z, t: np.array(
             [
                 [
-                     t*(-((1 - x) * (1 - y) * y) + x * (1 - y) * y,
-                    -((1 - x) * x * (1 - y)) + (1 - x) * x * y),
+                    t * (-((1 - 2 * x) * (1 - y) * y)),
+                    -t * ((1 - x) * x * (1 - 2 * y)),
                 ]
             ]
         )
@@ -241,7 +241,7 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
     alpha_n = np.zeros(n_dof_g)
 
     for t in np.arange(delta_t, t_end + delta_t, delta_t):
-        print(t)
+        print("Current time value: ", t)
 
         def scatter_form_data(jac_g, i, weak_form, t):
             # destination indexes
@@ -417,8 +417,8 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 def main():
     k_order = 1
     h = 1.0
-    n_ref = 4
-    dimension = 1
+    n_ref = 5
+    dimension = 2
 
     domain = create_domain(dimension)
     error_data = np.empty((0, 2), float)
