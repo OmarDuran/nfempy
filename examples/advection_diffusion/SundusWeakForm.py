@@ -253,7 +253,7 @@ class SundusDualWeakFormBCDirichlet(WeakForm):
             res_block_mp = np.zeros(n_mp_phi)
             dim = neigh_cell.dimension
             for i, omega in enumerate(weights):
-                p_D_v = p_D(t,x[i, 0], x[i, 1], x[i, 2])
+                p_D_v = p_D(x[i, 0], x[i, 1], x[i, 2], t)
                 phi = mp_tr_phi_tab[0, i, mp_dof_n_index, 0:dim] @ n[0:dim]
                 res_block_mp += det_jac[i] * omega * p_D_v[c] * phi
 
@@ -266,7 +266,7 @@ class SundusDualWeakFormBCDirichlet(WeakForm):
             res_block_mc = np.zeros(n_mc_phi)
             dim = neigh_cell.dimension
             for i, omega in enumerate(weights):
-                c_D_v = c_D(t, x[i, 0], x[i, 1], x[i, 2])
+                c_D_v = c_D( x[i, 0], x[i, 1], x[i, 2], t)
                 phi = mc_tr_phi_tab[0, i, mc_dof_n_index, 0:dim] @ n[0:dim]
                 res_block_mc += det_jac[i] * omega * c_D_v[c] * phi
 

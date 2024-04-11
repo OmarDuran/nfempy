@@ -240,7 +240,7 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
 
     alpha_n = np.zeros(n_dof_g)
 
-    for t in np.arange(0, t_end, delta_t):
+    for t in np.arange(delta_t, t_end + delta_t, delta_t):
         print(t)
 
         def scatter_form_data(jac_g, i, weak_form, t):
@@ -285,7 +285,7 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
         print("n_dof: ", n_dof_g)
 
         # initial guess
-        alpha_n_p_1 = alpha_n
+        alpha_n_p_1 = alpha_n.copy()
 
         for iter in range(n_iterations):
 
@@ -417,7 +417,7 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 def main():
     k_order = 1
     h = 1.0
-    n_ref = 2
+    n_ref = 4
     dimension = 1
 
     domain = create_domain(dimension)
