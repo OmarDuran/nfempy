@@ -12,7 +12,7 @@ from weak_forms.weak_from import WeakForm
 
 
 class SundusDualWeakForm(WeakForm):
-    def evaluate_form(self, element_index, alpha):
+    def evaluate_form(self, element_index, alpha_n_p_1, alpha_n, t):
         iel = element_index
         if self.space is None or self.functions is None:
             raise ValueError
@@ -26,13 +26,15 @@ class SundusDualWeakForm(WeakForm):
         f_kappa = self.functions["kappa"]
         f_rhs_r = self.functions["rhs_r"]
         f_delta = self.functions["delta"]
-
         f_eta = self.functions["eta"]
+        delta_t = self.functions["delta_t"]
 
-        mp_components = mp_space.n_comp # mass flux for pressure
-        mc_components = mc_space.n_comp # mass flux for concentration
-        p_components  = p_space.n_comp
-        c_components  = c_space.n_comp
+
+        mp_components = mp_space.n_comp  # mass flux for pressure
+        mc_components = mc_space.n_comp  # mass flux for concentration
+
+        p_components = p_space.n_comp
+        c_components = c_space.n_comp
         mp_data: ElementData = mp_space.elements[iel].data
         mc_data: ElementData = mc_space.elements[iel].data
         p_data: ElementData = p_space.elements[iel].data
@@ -56,8 +58,9 @@ class SundusDualWeakForm(WeakForm):
 
         n_mp_dof = n_vp_h * mp_components
         n_mc_dof = n_vc_h * mc_components
-        n_p_dof  = n_wp_h * p_components
-        n_c_dof  = n_wc_h * c_components
+
+        n_p_dof = n_wp_h * p_components
+        n_c_dof = n_wc_h * c_components
 
         idx_dof = {
             "mp" : slice(0,n_mp_dof),
@@ -73,8 +76,9 @@ class SundusDualWeakForm(WeakForm):
         r_el = np.zeros(rs)
 
         # Partial local vectorization
-        f_f_val_star = f_rhs_f(x[:, 0], x[:, 1], x[:, 2])
-        f_r_val_star = f_rhs_r(x[:, 0], x[:, 1], x[:, 2])
+        f_f_val_star = f_rhs_f(x[:, 0], x[:, 1], x[:, 2], t)
+        f_r_val_star = f_rhs_r(x[:, 0], x[:, 1], x[:, 2],t)
+
 
         wp_h_star = det_jac * weights * wp_h_tab[0, :, :, 0].T
         wc_h_star = det_jac * weights * wc_h_tab[0, :, :, 0].T
@@ -83,7 +87,7 @@ class SundusDualWeakForm(WeakForm):
         e1 = np.array([1, 0, 0])
         e2 = np.array([0, 1, 0])
         e3 = np.array([0, 0, 1])
-        with ad.AutoDiff(alpha) as alpha:
+        with ad.AutoDiff(alpha_n_p_1) as alpha_n_p_1:
             el_form = np.zeros(n_dof)
             for c in range(p_components):
                 b = c + n_mp_dof + n_mc_dof
@@ -119,31 +123,40 @@ class SundusDualWeakForm(WeakForm):
                 )
 
                 # Dof per field
-                alpha_mp = alpha[:, idx_dof['mp']]
-                alpha_mc = alpha[:, idx_dof['mc']]
-                alpha_p = alpha[:, idx_dof['p']]
-                alpha_c = alpha[:, idx_dof['c']]
+                alpha_mp_n_p_1 = alpha_n_p_1[:, idx_dof['mp']]
+                alpha_mc_n_p_1 = alpha_n_p_1[:, idx_dof['mc']]
+                alpha_p_n_p_1 = alpha_n_p_1[:, idx_dof['p']]
+                alpha_c_n_p_1 = alpha_n_p_1[:, idx_dof['c']]
+
+                alpha_p_n = alpha_n[idx_dof['p']]
+                alpha_c_n = alpha_n[idx_dof['c']]
+
 
                 # FEM approximation
-                mp_h = alpha_mp @ vp_h
-                mc_h = alpha_mc @ vc_h
-                p_h = alpha_p @ wp_h
-                c_h = alpha_c @ wc_h
+                mp_h_n_p_1 = alpha_mp_n_p_1 @ vp_h
+                mc_h_n_p_1 = alpha_mc_n_p_1 @ vc_h
+                p_h_n_p_1 = alpha_p_n_p_1 @ wp_h
+                c_h_n_p_1 = alpha_c_n_p_1 @ wc_h
 
-                div_mp_h = alpha_mp @ div_vp_h.T
-                div_mc_h = alpha_mc @ div_vc_h.T
+                p_h_n = alpha_p_n @ wp_h
+                c_h_n = alpha_c_n @ wc_h
 
-                mp_h *= 1.0 / f_kappa(xv[0], xv[1], xv[2])
-                mc_h *= 1.0 / f_delta(xv[0], xv[1], xv[2])
+                div_mp_h = alpha_mp_n_p_1 @ div_vp_h.T
+                div_mc_h = alpha_mc_n_p_1 @ div_vc_h.T
+
+                mp_h_n_p_1 *= 1.0 / f_kappa(xv[0], xv[1], xv[2])
+                mc_h_n_p_1*= 1.0 / f_delta(xv[0], xv[1], xv[2])
 
                 # Example of reaction term
-                R_h = (1.0 + f_eta(xv[0], xv[1], xv[2]) * c_h * c_h)
+                R_h = (1.0 + f_eta(xv[0], xv[1], xv[2]) * c_h_n_p_1 * c_h_n_p_1)
+                dph_dt = (p_h_n_p_1 - p_h_n)/ delta_t
+                dch_dt = (c_h_n_p_1 - c_h_n) / delta_t
 
-                equ_1_integrand = (mp_h @ vp_h.T) - (p_h @ div_vp_h)
-                equ_2_integrand = (mc_h @ vc_h.T) - (c_h @ div_vc_h)
+                equ_1_integrand = (mp_h_n_p_1 @ vp_h.T) - (p_h_n_p_1 @ div_vp_h)
+                equ_2_integrand = (mc_h_n_p_1 @ vc_h.T) - (c_h_n_p_1 @ div_vc_h)
 
-                equ_3_integrand = div_mp_h @ wp_h.T
-                equ_4_integrand = div_mc_h @ wc_h.T + R_h @ wc_h.T
+                equ_3_integrand = dph_dt @ wp_h.T + div_mp_h @ wp_h.T
+                equ_4_integrand = dch_dt @ wc_h.T + div_mc_h @ wc_h.T + R_h @ wc_h.T
 
                 multiphysic_integrand = np.zeros((1, n_dof))
                 multiphysic_integrand[:, idx_dof['mp']] = equ_1_integrand
@@ -159,7 +172,7 @@ class SundusDualWeakForm(WeakForm):
 
 
 class SundusDualWeakFormBCDirichlet(WeakForm):
-    def evaluate_form(self, element_index, alpha):
+    def evaluate_form(self, element_index, alpha,t):
         iel = element_index
         p_D = self.functions["p"]
         c_D = self.functions["c"]
@@ -240,7 +253,7 @@ class SundusDualWeakFormBCDirichlet(WeakForm):
             res_block_mp = np.zeros(n_mp_phi)
             dim = neigh_cell.dimension
             for i, omega in enumerate(weights):
-                p_D_v = p_D(x[i, 0], x[i, 1], x[i, 2])
+                p_D_v = p_D(t,x[i, 0], x[i, 1], x[i, 2])
                 phi = mp_tr_phi_tab[0, i, mp_dof_n_index, 0:dim] @ n[0:dim]
                 res_block_mp += det_jac[i] * omega * p_D_v[c] * phi
 
@@ -253,7 +266,7 @@ class SundusDualWeakFormBCDirichlet(WeakForm):
             res_block_mc = np.zeros(n_mc_phi)
             dim = neigh_cell.dimension
             for i, omega in enumerate(weights):
-                c_D_v = c_D(x[i, 0], x[i, 1], x[i, 2])
+                c_D_v = c_D(t, x[i, 0], x[i, 1], x[i, 2])
                 phi = mc_tr_phi_tab[0, i, mc_dof_n_index, 0:dim] @ n[0:dim]
                 res_block_mc += det_jac[i] * omega * c_D_v[c] * phi
 

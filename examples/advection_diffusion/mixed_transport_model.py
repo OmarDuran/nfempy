@@ -99,6 +99,8 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
     # Nonlinear solver data
     n_iterations = 20
     eps_tol = 1.0e-10
+    delta_t = 0.1
+    t_end = 1.0
 
     n_dof_g = fe_space.n_dof
 
@@ -106,6 +108,7 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
     m_kappa = 1.0
     m_delta = 1.0
     m_eta = 1.0
+
 
 
     def f_kappa(x, y, z):
@@ -117,92 +120,96 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
     def f_eta(x, y, z):
         return m_eta
 
+
     st = time.time()
 
     # exact solution
     if dim == 1:
-        p_exact = lambda x, y, z: np.array([(1.0 - x) * x])
-        mp_exact = lambda x, y, z: np.array(
+        p_exact = lambda  x, y, z, t: np.array([t*(1.0 - x) * x])
+        mp_exact = lambda x, y, z, t: np.array(
             [
-                (-1.0 + 2.0 * x),
+               t*(-1.0 + 2.0 * x),
             ]
         )
-        c_exact = lambda x, y, z: np.array([(1.0 - x) * x])
-        mc_exact = lambda x, y, z: np.array(
+        c_exact = lambda x, y, z, t: np.array([t*(1.0 - x) * x])
+        mc_exact = lambda x, y, z, t: np.array(
             [
-                (-1.0 + 2.0 * x),
+                t*(-1.0 + 2.0 * x),
             ]
         )
-        f_rhs = lambda x, y, z: np.array([[2.0 + 0.0 * x]])
-        r_rhs = lambda x, y, z: np.array([[2.0 + 0.0 * x]]) + (
-                    1.0 + m_eta * c_exact(x, y, z) ** 2)
+        f_rhs = lambda x, y, z, t: np.array([[t*(2.0 + 0.0 * x) + (x*(1-x))]])
+
+        r_rhs = lambda x, y, z, t: np.array([[t*(2.0 + 0.0 * x) + x*(1-x)]] ) + (
+                    1.0 + m_eta * c_exact(x, y, z, t) ** 2)
     elif dim == 2:
-        p_exact = lambda x, y, z: np.array([(1.0 - x) * x * (1.0 - y) * y])
-        mp_exact = lambda x, y, z: np.array(
+        p_exact = lambda x, y, z, t: np.array([t*((1.0 - x) * x * (1.0 - y) * y)])
+        mp_exact = lambda x, y, z, t: np.array(
             [
                 [
-                    -((1 - x) * (1 - y) * y) + x * (1 - y) * y,
-                    -((1 - x) * x * (1 - y)) + (1 - x) * x * y,
+                     t*(-((1 - x) * (1 - y) * y) + x * (1 - y) * y,
+                    -((1 - x) * x * (1 - y)) + (1 - x) * x * y),
                 ]
             ]
         )
-        c_exact = lambda x, y, z: np.array([(1.0 - x) * x * (1.0 - y) * y])
-        mc_exact = lambda x, y, z: np.array(
+        c_exact = lambda x, y, z, t: np.array([t*((1.0 - x) * x * (1.0 - y) * y)])
+        mc_exact = lambda x, y, z, t: np.array(
             [
                 [
-                    -((1 - x) * (1 - y) * y) + x * (1 - y) * y,
-                    -((1 - x) * x * (1 - y)) + (1 - x) * x * y,
+                     t*(-((1 - x) * (1 - y) * y) + x * (1 - y) * y,
+                    -((1 - x) * x * (1 - y)) + (1 - x) * x * y),
                 ]
             ]
         )
-        f_rhs = lambda x, y, z: np.array([[2 * (1 - x) * x + 2 * (1 - y) * y]])
-        r_rhs = lambda x, y, z: np.array([[2 * (1 - x) * x + 2 * (1 - y) * y]]) + (
-                    1.0 + m_eta * c_exact(x, y, z) ** 2)
+        f_rhs = lambda x, y, z, t: np.array([[t * (2 * (1 - x) * x + 2 * (1 - y) * y) +
+                                              (1-x) * x * (1-y) * y ]])
+        r_rhs = lambda x, y, z, t: np.array([[t * (2 * (1 - x) * x + 2 * (1 - y) * y) + (1-x) * x * (1-y) * y]]) + (
+                    1.0 + m_eta * c_exact(t, x, y, z) ** 2)
     elif dim == 3:
-        p_exact = lambda x, y, z: np.array(
-            [(1.0 - x) * x * (1.0 - y) * y * (1.0 - z) * z]
+        p_exact = lambda x, y, z, t: np.array(
+            [t * ((1.0 - x) * x * (1.0 - y) * y * (1.0 - z) * z)]
         )
-        mp_exact = lambda x, y, z: np.array(
+        mp_exact = lambda x, y, z, t: np.array(
             [
                 [
-                    -((1 - x) * (1 - y) * y * (1 - z) * z)
+                    t * (-((1 - x) * (1 - y) * y * (1 - z) * z)
                     + x * (1 - y) * y * (1 - z) * z,
                     -((1 - x) * x * (1 - y) * (1 - z) * z)
                     + (1 - x) * x * y * (1 - z) * z,
                     -((1 - x) * x * (1 - y) * y * (1 - z))
-                    + (1 - x) * x * (1 - y) * y * z,
+                    + (1 - x) * x * (1 - y) * y * z),
                 ]
             ]
         )
-        c_exact = lambda x, y, z: np.array(
-            [(1.0 - x) * x * (1.0 - y) * y * (1.0 - z) * z]
+        c_exact = lambda x, y, z, t: np.array(
+            [t * ((1.0 - x) * x * (1.0 - y) * y * (1.0 - z) * z)]
         )
-        mc_exact = lambda x, y, z: np.array(
+        mc_exact = lambda x, y, z, t: np.array(
             [
                 [
-                    -((1 - x) * (1 - y) * y * (1 - z) * z)
+                    t * (-((1 - x) * (1 - y) * y * (1 - z) * z)
                     + x * (1 - y) * y * (1 - z) * z,
                     -((1 - x) * x * (1 - y) * (1 - z) * z)
                     + (1 - x) * x * y * (1 - z) * z,
                     -((1 - x) * x * (1 - y) * y * (1 - z))
-                    + (1 - x) * x * (1 - y) * y * z,
+                    + (1 - x) * x * (1 - y) * y * z),
                 ]
             ]
         )
-        f_rhs = lambda x, y, z: np.array(
+        f_rhs = lambda x, y, z, t: np.array(
             [
-                2 * (1 - x) * x * (1 - y) * y
+                t * (2 * (1 - x) * x * (1 - y) * y
                 + 2 * (1 - x) * x * (1 - z) * z
-                + 2 * (1 - y) * y * (1 - z) * z
+                + 2 * (1 - y) * y * (1 - z) * z)
             ]
         )
-        r_rhs = lambda x, y, z: np.array(
+        r_rhs = lambda x, y, z, t: np.array(
             [
-                2 * (1 - x) * x * (1 - y) * y
+                t * (2 * (1 - x) * x * (1 - y) * y
                 + 2 * (1 - x) * x * (1 - z) * z
-                + 2 * (1 - y) * y * (1 - z) * z
+                + 2 * (1 - y) * y * (1 - z) * z)
             ]
-        ) + (1.0 + m_eta * c_exact(x, y, z) ** 2)
+        ) + (1.0 + m_eta * c_exact(x, y, z, t) ** 2)
+        raise ValueError("exact sol are nor created for 3D.")
     else:
         raise ValueError("Invalid dimension.")
 
@@ -212,6 +219,7 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
         "kappa": f_kappa,
         "delta": f_delta,
         "eta": f_eta,
+        "delta_t": delta_t
     }
 
     exact_functions = {
@@ -226,66 +234,68 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
     bc_weak_form = SundusDualWeakFormBCDirichlet(fe_space)
     bc_weak_form.functions = exact_functions
 
-    def scatter_form_data(jac_g, i, weak_form):
-        # destination indexes
-        dest = weak_form.space.destination_indexes(i)
-        alpha_l_n_p_1 = alpha_n_p_1[dest]
-        alpha_l_n = alpha_n[dest]
-        r_el, j_el = weak_form.evaluate_form(i, alpha_l_n_p_1, alpha_l_n)
 
-        # contribute rhs
-        res_g[dest] += r_el
-
-        # contribute lhs
-        data = j_el.ravel()
-        row = np.repeat(dest, len(dest))
-        col = np.tile(dest, len(dest))
-        nnz = data.shape[0]
-        for k in range(nnz):
-            jac_g.setValue(row=row[k], col=col[k], value=data[k], addv=True)
-
-    def scatter_bc_form(jac_g, i, bc_weak_form):
-        dest = fe_space.bc_destination_indexes(i)
-        alpha_l = alpha_n_p_1[dest]
-        r_el, j_el = bc_weak_form.evaluate_form(i, alpha_l)
-
-        # contribute rhs
-        res_g[dest] += r_el
-
-        # contribute lhs
-        data = j_el.ravel()
-        row = np.repeat(dest, len(dest))
-        col = np.tile(dest, len(dest))
-        nnz = data.shape[0]
-        for k in range(nnz):
-            jac_g.setValue(row=row[k], col=col[k], value=data[k], addv=True)
-
-    # Assembler
-    st = time.time()
-    jac_g = PETSc.Mat()
-    jac_g.createAIJ([n_dof_g, n_dof_g])
-
-    res_g = np.zeros(n_dof_g)
-    print("n_dof: ", n_dof_g)
-
-
-    n_steps = 10
 
     # IC
+
     alpha_n = np.zeros(n_dof_g)
 
-    for time_index in range(n_steps):
+    for t in np.arange(0, t_end, delta_t):
+        print(t)
+
+        def scatter_form_data(jac_g, i, weak_form, t):
+            # destination indexes
+            dest = weak_form.space.destination_indexes(i)
+            alpha_l_n = alpha_n[dest]
+            alpha_l_n_p_1 = alpha_n_p_1[dest]
+
+            r_el, j_el = weak_form.evaluate_form(i, alpha_l_n_p_1, alpha_l_n, t)
+
+            # contribute rhs
+            res_g[dest] += r_el
+
+            # contribute lhs
+            data = j_el.ravel()
+            row = np.repeat(dest, len(dest))
+            col = np.tile(dest, len(dest))
+            nnz = data.shape[0]
+            for k in range(nnz):
+                jac_g.setValue(row=row[k], col=col[k], value=data[k], addv=True)
+
+        def scatter_bc_form(jac_g, i, bc_weak_form, t ):
+            dest = fe_space.bc_destination_indexes(i)
+            alpha_l = alpha_n_p_1[dest]
+            r_el, j_el = bc_weak_form.evaluate_form(i, alpha_l, t)
+
+            # contribute rhs
+            res_g[dest] += r_el
+
+            # contribute lhs
+            data = j_el.ravel()
+            row = np.repeat(dest, len(dest))
+            col = np.tile(dest, len(dest))
+            nnz = data.shape[0]
+            for k in range(nnz):
+                jac_g.setValue(row=row[k], col=col[k], value=data[k], addv=True)
+
+        jac_g = PETSc.Mat()
+        jac_g.createAIJ([n_dof_g, n_dof_g])
+
+        res_g = np.zeros(n_dof_g)
+        print("n_dof: ", n_dof_g)
 
         # initial guess
-        alpha_n_p_1 = np.zeros(n_dof_g)
+        alpha_n_p_1 = alpha_n
 
         for iter in range(n_iterations):
 
+            # Assembler
+            st = time.time()
             n_els = len(fe_space.discrete_spaces["mp"].elements)
-            [scatter_form_data(jac_g, i, weak_form) for i in range(n_els)]
+            [scatter_form_data(jac_g, i, weak_form, t) for i in range(n_els)]
 
             n_bc_els = len(fe_space.discrete_spaces["mp"].bc_elements)
-            [scatter_bc_form(jac_g, i, bc_weak_form) for i in range(n_bc_els)]
+            [scatter_bc_form(jac_g, i, bc_weak_form, t) for i in range(n_bc_els)]
 
             jac_g.assemble()
 
@@ -331,7 +341,7 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
 
     st = time.time()
     mp_l2_error, mc_l2_error, p_l2_error, c_l2_error = l2_error(
-        dim, fe_space, exact_functions, alpha_n_p_1
+        dim, fe_space, exact_functions, alpha_n_p_1, t
     )
     et = time.time()
     elapsed_time = et - st
@@ -346,7 +356,7 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
         st = time.time()
         file_name = "rates_four_fields.vtk"
         write_vtk_file_with_exact_solution(
-            file_name, gmesh, fe_space, exact_functions, alpha_n_p_1
+            file_name, gmesh, fe_space, exact_functions, alpha_n_p_1, t
         )
         et = time.time()
         elapsed_time = et - st
@@ -406,8 +416,8 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 def main():
     k_order = 1
-    h = 0.25
-    n_ref = 4
+    h = 1.0
+    n_ref = 2
     dimension = 1
 
     domain = create_domain(dimension)
