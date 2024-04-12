@@ -339,9 +339,21 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
 
         alpha_n = alpha_n_p_1
 
+    p_exact_tf = lambda x, y, z: p_exact(x,y,z,t)
+    mp_exact_tf = lambda x, y, z: mp_exact(x,y,z,t)
+    c_exact_tf = lambda x, y, z: c_exact(x, y, z, t)
+    mc_exact_tf = lambda x, y, z: mc_exact(x, y, z, t)
+
+    exact_functions_at_T = {
+        "mp": p_exact_tf,
+        "p": mp_exact_tf,
+        "mc": c_exact_tf,
+        "c": mc_exact_tf,
+    }
+
     st = time.time()
     mp_l2_error, mc_l2_error, p_l2_error, c_l2_error = l2_error(
-        dim, fe_space, exact_functions, alpha_n_p_1, t
+        dim, fe_space, exact_functions_at_T, alpha_n_p_1
     )
     et = time.time()
     elapsed_time = et - st
@@ -356,7 +368,7 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
         st = time.time()
         file_name = "rates_four_fields.vtk"
         write_vtk_file_with_exact_solution(
-            file_name, gmesh, fe_space, exact_functions, alpha_n_p_1, t
+            file_name, gmesh, fe_space, exact_functions_at_T, alpha_n_p_1
         )
         et = time.time()
         elapsed_time = et - st
@@ -418,7 +430,7 @@ def main():
     k_order = 1
     h = 1.0
     n_ref = 5
-    dimension = 2
+    dimension = 1
 
     domain = create_domain(dimension)
     error_data = np.empty((0, 2), float)
