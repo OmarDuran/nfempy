@@ -171,12 +171,10 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
         mp_exact = lambda x, y, z, t: np.array(
             [
                 [
-                    t * (-((1 - x) * (1 - y) * y * (1 - z) * z)
-                    + x * (1 - y) * y * (1 - z) * z,
-                    -((1 - x) * x * (1 - y) * (1 - z) * z)
-                    + (1 - x) * x * y * (1 - z) * z,
-                    -((1 - x) * x * (1 - y) * y * (1 - z))
-                    + (1 - x) * x * (1 - y) * y * z),
+                    t * (-((1 - 2 * x) * (1 - y) * y * (1 - z) * z)),
+                         -t * ((1 - x) * x * (1 - 2 * y) * (1 - z) * z),
+                         -t * ((1 - x) * x * (1 - y) * y * (1 - 2 * z))
+
                 ]
             ]
         )
@@ -186,12 +184,9 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
         mc_exact = lambda x, y, z, t: np.array(
             [
                 [
-                    t * (-((1 - x) * (1 - y) * y * (1 - z) * z)
-                    + x * (1 - y) * y * (1 - z) * z,
-                    -((1 - x) * x * (1 - y) * (1 - z) * z)
-                    + (1 - x) * x * y * (1 - z) * z,
-                    -((1 - x) * x * (1 - y) * y * (1 - z))
-                    + (1 - x) * x * (1 - y) * y * z),
+                    t * (-((1 - 2 * x) * (1 - y) * y * (1 - z) * z)),
+                    -t * ((1 - x) * x * (1 - 2 * y) * (1 - z) * z),
+                    -t * ((1 - x) * x * (1 - y) * y * (1 - 2 * z))
                 ]
             ]
         )
@@ -199,17 +194,18 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
             [
                 t * (2 * (1 - x) * x * (1 - y) * y
                 + 2 * (1 - x) * x * (1 - z) * z
-                + 2 * (1 - y) * y * (1 - z) * z)
+                + 2 * (1 - y) * y * (1 - z) * z) + (1-x) * x * (1-y) * y * (1-z) * z
             ]
         )
         r_rhs = lambda x, y, z, t: np.array(
             [
                 t * (2 * (1 - x) * x * (1 - y) * y
                 + 2 * (1 - x) * x * (1 - z) * z
-                + 2 * (1 - y) * y * (1 - z) * z)
+                + 2 * (1 - y) * y * (1 - z) * z)  + (1-x) * x * (1-y) * y * (1-z) * z
             ]
         ) + (1.0 + m_eta * c_exact(x, y, z, t) ** 2)
-        raise ValueError("exact sol are nor created for 3D.")
+        aka =0
+        #raise ValueError("exact sol are nor created for 3D.")
     else:
         raise ValueError("Invalid dimension.")
 
@@ -428,9 +424,11 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 def main():
     k_order = 0
-    h = 1.0
-    n_ref = 5
-    dimension = 2
+
+    h = 0.5
+    n_ref = 4
+    dimension = 1
+
 
     domain = create_domain(dimension)
     error_data = np.empty((0, 2), float)
