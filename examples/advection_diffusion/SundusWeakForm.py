@@ -222,7 +222,11 @@ class SundusDualWeakForm(WeakForm):
                         beta = 1.0
                     else:
                         beta = 0.0
-                    equ_4_integrand = beta * (c_h_n_p_1 * mp_h_n_p_1) @ wc_h.T
+
+                    # Example of nonlinear advection function
+                    f_h_n_p_1 = c_h_n_p_1*c_h_n_p_1
+
+                    equ_4_integrand = beta * (f_h_n_p_1 * mp_h_n_p_1) @ wc_h.T
                     multiphysic_integrand = np.zeros((1, n_dof))
                     multiphysic_integrand[:, idx_dof['c']] = equ_4_integrand
                     discrete_integrand = (multiphysic_integrand).reshape((n_dof,))
