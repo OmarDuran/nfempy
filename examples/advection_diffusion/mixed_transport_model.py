@@ -431,9 +431,7 @@ def main():
 
     h = 0.5
     n_ref = 4
-    dimension = 2
-
-
+    dimension = 1
 
     domain = create_domain(dimension)
     error_data = np.empty((0, 2), float)

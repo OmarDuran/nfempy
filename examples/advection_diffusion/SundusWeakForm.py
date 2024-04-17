@@ -43,6 +43,7 @@ class SundusDualWeakForm(WeakForm):
         cell = mp_data.cell
         dim = mp_data.dimension
         points, weights = self.space.quadrature
+        bc_points, bc_weights = self.space.bc_quadrature
         x, jac, det_jac, inv_jac = mp_space.elements[iel].evaluate_mapping(points)
 
         # basis
@@ -82,6 +83,38 @@ class SundusDualWeakForm(WeakForm):
 
         wp_h_star = det_jac * weights * wp_h_tab[0, :, :, 0].T
         wc_h_star = det_jac * weights * wc_h_tab[0, :, :, 0].T
+
+        # information needed for the advection term
+        # compute normals
+        cells_co_dim_1 = mp_data.mesh.cells[cell.sub_cells_ids[dim - 1]]
+        ns = [normal(mp_data.mesh, cell, cell_co_dim_1) for cell_co_dim_1 in
+              cells_co_dim_1]
+        # compute element data on boundary cells
+        co_dim_1_data = [
+            ElementData(cell_co_dim_1.dimension, cell_co_dim_1, mp_data.mesh) for
+            cell_co_dim_1 in cells_co_dim_1]
+
+        # map integration rule to boundary of omega
+        mapped_points_on_facets = [
+            transform_lower_to_higher(bc_points, data, mp_data) for data in
+            co_dim_1_data]
+
+        # compute traces per face
+        vp_h_tabs = []
+        wc_h_tabs = []
+        mp_dof_n_idxs = []
+        for facet_index, mapped_points in enumerate(mapped_points_on_facets):
+            _, tr_jac, tr_det_jac, tr_inv_jac = mp_space.elements[iel].evaluate_mapping(
+                mapped_points
+            )
+            tr_vp_h_tab = mp_space.elements[iel].evaluate_basis(mapped_points, tr_jac,
+                                                             tr_det_jac, tr_inv_jac)
+            vp_h_tabs.append(tr_vp_h_tab)
+            mp_dof_n_idxs.append(
+                np.array([mp_data.dof.entity_dofs[dim - 1][facet_index]]))
+            tr_wc_h_tab = c_space.elements[iel].evaluate_basis(mapped_points, tr_jac,
+                                                            tr_det_jac, tr_inv_jac)
+            wc_h_tabs.append(tr_wc_h_tab)
 
         # constant directors
         e1 = np.array([1, 0, 0])
@@ -167,19 +200,38 @@ class SundusDualWeakForm(WeakForm):
                 discrete_integrand = (multiphysic_integrand).reshape((n_dof,))
                 el_form += det_jac[i] * omega * discrete_integrand
 
+            # Advection term
             # integrals over gamma
-            for i, omega in enumerate(weights):
-                # Functions and derivatives at integration point i
-                vp_h = vp_h_tab[0, i, :, 0:dim]
-                wc_h = wc_h_tab[0, i, :, 0:dim]
-                mp_h_n_p_1 = alpha_mp_n_p_1 @ vp_h
-                c_h_n_p_1 = alpha_c_n_p_1 @ wc_h
+            for facet_index, mp_dof_n in enumerate(mp_dof_n_idxs):
+                # Dof per field
+                alpha_mp_n_p_1 = alpha_n_p_1[:, idx_dof['mp']][:, mp_dof_n.ravel()]
+                alpha_c_n_p_1 = alpha_n_p_1[:, idx_dof['c']]
+                vp_h_tab = vp_h_tabs[facet_index]
+                wc_h_tab = wc_h_tabs[facet_index]
+                n = ns[facet_index]
+                for i, omega in enumerate(bc_weights):
+                    # Functions and derivatives at integration point i
+                    vp_n_h = vp_h_tab[0, i, mp_dof_n, 0:dim] @ n[0:dim]
+                    wc_h = wc_h_tab[0, i, :, 0:dim]
+                    mp_h_n_p_1 = alpha_mp_n_p_1 @ vp_n_h
+                    c_h_n_p_1 = alpha_c_n_p_1 @ wc_h
 
-                # fetch the normal n
-                equ_4_integrand = (c_h_n_p_1 @ mp_h_n_p_1 @ n) @ wc_h.T
-                aka = 0
+                    beta = 0.0
+                    dir_q = mp_h_n_p_1.val[0, 0] >= 0.0
+                    if dir_q:
+                        beta = 1.0
+                    else:
+                        beta = 0.0
+                    equ_4_integrand = beta * (c_h_n_p_1 * mp_h_n_p_1) @ wc_h.T
+                    multiphysic_integrand = np.zeros((1, n_dof))
+                    multiphysic_integrand[:, idx_dof['c']] = equ_4_integrand
+                    discrete_integrand = (multiphysic_integrand).reshape((n_dof,))
+                    el_form += det_jac[i] * omega * discrete_integrand
+
 
         r_el, j_el = el_form.val, el_form.der.reshape((n_dof, n_dof))
+
+
 
         return r_el, j_el
 
