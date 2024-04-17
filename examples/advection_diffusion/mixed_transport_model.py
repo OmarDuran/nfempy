@@ -232,7 +232,7 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
 
 
 
-    # IC
+    # Initial Guess
 
     alpha_n = np.zeros(n_dof_g)
 
@@ -428,6 +428,7 @@ def main():
     h = 0.5
     n_ref = 4
     dimension = 1
+
 
 
     domain = create_domain(dimension)
