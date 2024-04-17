@@ -17,6 +17,7 @@ from SundusWeakForm import (
     SundusDualWeakForm,
     SundusDualWeakFormBCDirichlet,
 )
+from topology.topological_queries import find_neighbors_by_codimension_1
 import matplotlib.pyplot as plt
 
 
@@ -240,6 +241,9 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
         print("Current time value: ", t)
 
         def scatter_form_data(jac_g, i, weak_form, t):
+
+            neighs_map = find_neighbors_by_codimension_1(gmesh)
+
             # destination indexes
             dest = weak_form.space.destination_indexes(i)
             alpha_l_n = alpha_n[dest]
@@ -427,7 +431,7 @@ def main():
 
     h = 0.5
     n_ref = 4
-    dimension = 1
+    dimension = 2
 
 
 

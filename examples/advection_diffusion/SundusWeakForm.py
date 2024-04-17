@@ -99,6 +99,7 @@ class SundusDualWeakForm(WeakForm):
                 e = b + n_c_dof
                 el_form[b:e:p_components] -= wc_h_star @ f_r_val_star[c].T
 
+            # integrals over omega
             for i, omega in enumerate(weights):
                 xv = x[i]
                 if dim == 2:
@@ -165,6 +166,18 @@ class SundusDualWeakForm(WeakForm):
                 multiphysic_integrand[:, idx_dof['c']] = equ_4_integrand
                 discrete_integrand = (multiphysic_integrand).reshape((n_dof,))
                 el_form += det_jac[i] * omega * discrete_integrand
+
+            # integrals over gamma
+            for i, omega in enumerate(weights):
+                # Functions and derivatives at integration point i
+                vp_h = vp_h_tab[0, i, :, 0:dim]
+                wc_h = wc_h_tab[0, i, :, 0:dim]
+                mp_h_n_p_1 = alpha_mp_n_p_1 @ vp_h
+                c_h_n_p_1 = alpha_c_n_p_1 @ wc_h
+
+                # fetch the normal n
+                equ_4_integrand = (c_h_n_p_1 @ mp_h_n_p_1 @ n) @ wc_h.T
+                aka = 0
 
         r_el, j_el = el_form.val, el_form.der.reshape((n_dof, n_dof))
 
