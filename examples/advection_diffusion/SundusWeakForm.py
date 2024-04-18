@@ -224,7 +224,9 @@ class SundusDualWeakForm(WeakForm):
                         beta = 0.0
 
                     # Example of nonlinear advection function
-                    f_h_n_p_1 = c_h_n_p_1*c_h_n_p_1
+                    # f_h_n_p_1 = c_h_n_p_1 * c_h_n_p_1
+                    # Example of linear advection function
+                    f_h_n_p_1 = c_h_n_p_1
 
                     equ_4_integrand = beta * (f_h_n_p_1 * mp_h_n_p_1) @ wc_h.T
                     multiphysic_integrand = np.zeros((1, n_dof))

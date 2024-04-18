@@ -140,7 +140,7 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
         )
         f_rhs = lambda x, y, z, t: np.array([[t*(2.0 + 0.0 * x) + (x*(1-x))]])
 
-        r_rhs = lambda x, y, z, t: np.array([[t*(2.0 + 0.0 * x) + x*(1-x)]] ) + (
+        r_rhs = lambda x, y, z, t: np.array([[2.0*t + x - x**2.0 + (t**2)*(-1.0 - 6.0*(-1 + x)*x)]] ) + (
                     1.0 + m_eta * c_exact(x, y, z, t) ** 2)
     elif dim == 2:
         p_exact = lambda x, y, z, t: np.array([t*((1.0 - x) * x * (1.0 - y) * y)])
@@ -430,7 +430,7 @@ def main():
     k_order = 0
 
     h = 0.5
-    n_ref = 4
+    n_ref = 5
     dimension = 1
 
     domain = create_domain(dimension)
