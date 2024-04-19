@@ -78,23 +78,24 @@ class SundusDualWeakForm(WeakForm):
 
         # Partial local vectorization
         f_f_val_star = f_rhs_f(x[:, 0], x[:, 1], x[:, 2], t)
-        f_r_val_star = f_rhs_r(x[:, 0], x[:, 1], x[:, 2],t)
+        f_r_val_star = f_rhs_r(x[:, 0], x[:, 1], x[:, 2], t)
 
 
         wp_h_star = det_jac * weights * wp_h_tab[0, :, :, 0].T
         wc_h_star = det_jac * weights * wc_h_tab[0, :, :, 0].T
 
-        # information needed for the advection term
+        # Information needed for the advection term
         # compute normals
         cells_co_dim_1 = mp_data.mesh.cells[cell.sub_cells_ids[dim - 1]]
         ns = [normal(mp_data.mesh, cell, cell_co_dim_1) for cell_co_dim_1 in
               cells_co_dim_1]
-        # compute element data on boundary cells
+
+        # compute boundary cell data
         co_dim_1_data = [
             ElementData(cell_co_dim_1.dimension, cell_co_dim_1, mp_data.mesh) for
             cell_co_dim_1 in cells_co_dim_1]
 
-        # map integration rule to boundary of omega
+        # Map integration rule to the boundary
         mapped_points_on_facets = [
             transform_lower_to_higher(bc_points, data, mp_data) for data in
             co_dim_1_data]
@@ -225,10 +226,11 @@ class SundusDualWeakForm(WeakForm):
 
                     # Example of nonlinear advection function
                     # f_h_n_p_1 = c_h_n_p_1 * c_h_n_p_1
+
                     # Example of linear advection function
                     f_h_n_p_1 = c_h_n_p_1
 
-                    equ_4_integrand = beta * (f_h_n_p_1 * mp_h_n_p_1) @ wc_h.T
+                    equ_4_integrand = beta * (f_h_n_p_1 @ mp_h_n_p_1) @ wc_h.T
                     multiphysic_integrand = np.zeros((1, n_dof))
                     multiphysic_integrand[:, idx_dof['c']] = equ_4_integrand
                     discrete_integrand = (multiphysic_integrand).reshape((n_dof,))

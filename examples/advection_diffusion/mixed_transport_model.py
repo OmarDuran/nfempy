@@ -100,8 +100,8 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
     # Nonlinear solver data
     n_iterations = 20
     eps_tol = 1.0e-10
-    delta_t = 0.1
-    t_end = 1.0
+    delta_t = 0.1/10.0
+    t_end = 1.0/1.0
 
     n_dof_g = fe_space.n_dof
 
@@ -351,6 +351,9 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
         "c": c_exact_t_end,
     }
 
+    # alpha_projected = l2_projector(fe_space, exact_functions_at_t_end)
+    # alpha_n_p_1 = alpha_projected
+
     st = time.time()
     mp_l2_error, mc_l2_error, p_l2_error, c_l2_error = l2_error(
         dim, fe_space, exact_functions_at_t_end, alpha_n_p_1
@@ -430,7 +433,7 @@ def main():
     k_order = 0
 
     h = 0.5
-    n_ref = 5
+    n_ref = 4
     dimension = 1
 
     domain = create_domain(dimension)
