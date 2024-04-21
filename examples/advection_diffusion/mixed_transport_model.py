@@ -100,16 +100,16 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
     # Nonlinear solver data
     n_iterations = 20
     eps_tol = 1.0e-10
-    delta_t = 0.1/10.0
-    t_end = 1.0/1.0
+    t_0 = 0.0
+    delta_t = 0.001
+    t_end = 0.1
 
     n_dof_g = fe_space.n_dof
 
     # Material data as scalars
     m_kappa = 1.0
     m_delta = 1.0
-    m_eta = 1.0
-
+    m_eta = 0.0
 
 
     def f_kappa(x, y, z):
@@ -138,9 +138,11 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
                 t*(-1.0 + 2.0 * x),
             ]
         )
-        f_rhs = lambda x, y, z, t: np.array([[t*(2.0 + 0.0 * x) + (x*(1-x))]])
-
-        r_rhs = lambda x, y, z, t: np.array([[2.0*t + x - x**2.0 + (t**2)*(-1.0 - 6.0*(-1 + x)*x)]] ) + (
+        f_rhs = lambda x, y, z, t: np.array([[2.0*t + (1 - x) * x]])
+        # r_rhs = lambda x, y, z, t: np.array(
+        #     [[2.0*t + (1 - x) * x]]) + (
+        #                                    1.0 + m_eta * c_exact(x, y, z, t) ** 2)
+        r_rhs = lambda x, y, z, t: np.array([[ 2.0*t + (1 - x) * x + (t**2)*(-1. + 6.0*x - 6.0*(x**2))]]) + (
                     1.0 + m_eta * c_exact(x, y, z, t) ** 2)
     elif dim == 2:
         p_exact = lambda x, y, z, t: np.array([t*((1.0 - x) * x * (1.0 - y) * y)])
@@ -165,6 +167,7 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
                                               (1-x) * x * (1-y) * y ]])
         r_rhs = lambda x, y, z, t: np.array([[t * (2 * (1 - x) * x + 2 * (1 - y) * y) + (1-x) * x * (1-y) * y]]) + (
                     1.0 + m_eta * c_exact(t, x, y, z) ** 2)
+        raise ValueError("Case not verified.")
     elif dim == 3:
         p_exact = lambda x, y, z, t: np.array(
             [t * ((1.0 - x) * x * (1.0 - y) * y * (1.0 - z) * z)]
@@ -205,8 +208,7 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
                 + 2 * (1 - y) * y * (1 - z) * z)  + (1-x) * x * (1-y) * y * (1-z) * z
             ]
         ) + (1.0 + m_eta * c_exact(x, y, z, t) ** 2)
-        aka =0
-        #raise ValueError("exact sol are nor created for 3D.")
+        raise ValueError("Case not verified.")
     else:
         raise ValueError("Invalid dimension.")
 
@@ -232,9 +234,38 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
     bc_weak_form.functions = exact_functions
 
 
+    # t0 evaluation
+    p_exact_t_0 = lambda x, y, z: p_exact(x,y,z, t_0)
+    mp_exact_t_0 = lambda x, y, z: mp_exact(x,y,z, t_0)
+    c_exact_t_0 = lambda x, y, z: c_exact(x, y, z,  t_0)
+    mc_exact_t_0 = lambda x, y, z: mc_exact(x, y, z, t_0)
+
+    exact_functions_at_t_0 = {
+        "mp": mp_exact_t_0,
+        "p": p_exact_t_0,
+        "mc": mc_exact_t_0,
+        "c": c_exact_t_0,
+    }
+
+    # alpha_n = l2_projector(fe_space, exact_functions_at_t_0)
+
+    # t_1 evaluation
+    t_1 = delta_t
+    p_exact_t_1 = lambda x, y, z: p_exact(x,y,z, t_1)
+    mp_exact_t_1 = lambda x, y, z: mp_exact(x,y,z, t_1)
+    c_exact_t_1 = lambda x, y, z: c_exact(x, y, z,  t_1)
+    mc_exact_t_1 = lambda x, y, z: mc_exact(x, y, z, t_1)
+
+    exact_functions_at_t_1 = {
+        "mp": mp_exact_t_1,
+        "p": p_exact_t_1,
+        "mc": mc_exact_t_1,
+        "c": c_exact_t_1,
+    }
+
+    # alpha_n_p_1_c = l2_projector(fe_space, exact_functions_at_t_1)
 
     # Initial Guess
-
     alpha_n = np.zeros(n_dof_g)
 
     for t in np.arange(delta_t, t_end + delta_t, delta_t):
@@ -337,7 +368,7 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
             res_g *= 0.0
             jac_g.scale(0.0)
 
-        alpha_n = alpha_n_p_1
+        alpha_n = alpha_n_p_1.copy()
 
     p_exact_t_end = lambda x, y, z: p_exact(x,y,z, t_end)
     mp_exact_t_end = lambda x, y, z: mp_exact(x,y,z, t_end)
@@ -432,7 +463,7 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 def main():
     k_order = 0
 
-    h = 0.5
+    h = 0.25
     n_ref = 4
     dimension = 1
 
@@ -464,11 +495,11 @@ def main():
 
     return
 
-    a = error_data[:,0]
-    b = error_data[:,1]
-    plt.loglog(a, b)
-    plt.show()
-    return
+    # a = error_data[:,0]
+    # b = error_data[:,1]
+    # plt.loglog(a, b)
+    # plt.show()
+    # return
 
 
 if __name__ == "__main__":

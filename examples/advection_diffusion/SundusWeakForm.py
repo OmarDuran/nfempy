@@ -80,7 +80,6 @@ class SundusDualWeakForm(WeakForm):
         f_f_val_star = f_rhs_f(x[:, 0], x[:, 1], x[:, 2], t)
         f_r_val_star = f_rhs_r(x[:, 0], x[:, 1], x[:, 2], t)
 
-
         wp_h_star = det_jac * weights * wp_h_tab[0, :, :, 0].T
         wc_h_star = det_jac * weights * wc_h_tab[0, :, :, 0].T
 
@@ -122,6 +121,7 @@ class SundusDualWeakForm(WeakForm):
         e2 = np.array([0, 1, 0])
         e3 = np.array([0, 0, 1])
         with ad.AutoDiff(alpha_n_p_1) as alpha_n_p_1:
+
             el_form = np.zeros(n_dof)
             for c in range(p_components):
                 b = c + n_mp_dof + n_mc_dof
@@ -131,17 +131,11 @@ class SundusDualWeakForm(WeakForm):
             for c in range(c_components):
                 b = c + n_mp_dof + n_mc_dof + n_p_dof
                 e = b + n_c_dof
-                el_form[b:e:p_components] -= wc_h_star @ f_r_val_star[c].T
+                el_form[b:e:c_components] -= wc_h_star @ f_r_val_star[c].T
 
             # integrals over omega
             for i, omega in enumerate(weights):
                 xv = x[i]
-                if dim == 2:
-                    inv_jac_m = np.vstack((inv_jac[i] @ e1, inv_jac[i] @ e2))
-                else:
-                    inv_jac_m = np.vstack(
-                        (inv_jac[i] @ e1, inv_jac[i] @ e2, inv_jac[i] @ e3)
-                    )
 
                 # Functions and derivatives at integration point i
                 vp_h = vp_h_tab[0, i, :, 0:dim]
@@ -166,7 +160,6 @@ class SundusDualWeakForm(WeakForm):
                 alpha_p_n = alpha_n[idx_dof['p']]
                 alpha_c_n = alpha_n[idx_dof['c']]
 
-
                 # FEM approximation
                 mp_h_n_p_1 = alpha_mp_n_p_1 @ vp_h
                 mc_h_n_p_1 = alpha_mc_n_p_1 @ vc_h
@@ -184,7 +177,7 @@ class SundusDualWeakForm(WeakForm):
 
                 # Example of reaction term
                 R_h = (1.0 + f_eta(xv[0], xv[1], xv[2]) * c_h_n_p_1 * c_h_n_p_1)
-                dph_dt = (p_h_n_p_1 - p_h_n)/ delta_t
+                dph_dt = (p_h_n_p_1 - p_h_n) / delta_t
                 dch_dt = (c_h_n_p_1 - c_h_n) / delta_t
 
                 equ_1_integrand = (mp_h_n_p_1 @ vp_h.T) - (p_h_n_p_1 @ div_vp_h)
@@ -245,7 +238,7 @@ class SundusDualWeakForm(WeakForm):
 
 
 class SundusDualWeakFormBCDirichlet(WeakForm):
-    def evaluate_form(self, element_index, alpha,t):
+    def evaluate_form(self, element_index, alpha, t):
         iel = element_index
         p_D = self.functions["p"]
         c_D = self.functions["c"]
@@ -343,6 +336,6 @@ class SundusDualWeakFormBCDirichlet(WeakForm):
                 phi = mc_tr_phi_tab[0, i, mc_dof_n_index, 0:dim] @ n[0:dim]
                 res_block_mc += det_jac[i] * omega * c_D_v[c] * phi
 
-            r_el[b:e:mp_components] += res_block_mc
+            r_el[b:e:mc_components] += res_block_mc
 
         return r_el, j_el
