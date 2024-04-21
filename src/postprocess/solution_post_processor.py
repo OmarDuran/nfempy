@@ -20,6 +20,7 @@ def write_vtk_file(file_name, gmesh, fe_space, alpha):
     for item in fe_space.discrete_spaces.items():
         name, space = item
         n_comp = space.n_comp
+
         n_data = n_comp
         if space.family in vec_families:
             n_data *= dim
@@ -65,7 +66,7 @@ def write_vtk_file(file_name, gmesh, fe_space, alpha):
             (x, jac, det_jac, inv_jac) = evaluate_mapping(
                 cell.dimension, phi_shapes, gmesh.points[cell.node_tags]
             )
-            phi_tab = element.evaluate_basis(points)
+            phi_tab = element.evaluate_basis(points, jac, det_jac, inv_jac)
             n_phi = phi_tab.shape[2]
 
             alpha_star = np.array(np.split(alpha_l, n_phi))
