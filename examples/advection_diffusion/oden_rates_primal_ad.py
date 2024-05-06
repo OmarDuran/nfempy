@@ -30,7 +30,7 @@ def h1_model_problem(k_order, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
 
     # FESpace: data
-    u_k_order = k_order
+    u_k_order = k_order + 1
 
     u_components = 1
     family = "Lagrange"
@@ -203,8 +203,8 @@ def hdiv_model_problem(k_order, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
 
     # FESpace: data
-    q_k_order = k_order
-    u_k_order = k_order - 1
+    q_k_order = k_order + 1
+    u_k_order = k_order
 
     q_components = 1
     u_components = 1
@@ -267,6 +267,7 @@ def hdiv_model_problem(k_order, gmesh, write_vtk_q=False):
                 ((np.e ** x) * (-1 + (np.e ** 2))),
             ]
         )
+        div_q_exact = lambda x, y, z: np.array([[x]]) - u_exact(x,y,z)
         f_rhs = lambda x, y, z: np.array([[x]])
     else:
         raise ValueError("Case not implemented.")
@@ -279,6 +280,7 @@ def hdiv_model_problem(k_order, gmesh, write_vtk_q=False):
     exact_functions = {
         "q": q_exact,
         "u": u_exact,
+        "div_q": div_q_exact,
     }
 
     weak_form = OdenDualWeakForm(fe_space)
@@ -344,14 +346,6 @@ def hdiv_model_problem(k_order, gmesh, write_vtk_q=False):
     ksp.getPC().setFactorSolverType("mumps")
     ksp.setConvergenceHistory()
 
-    # petsc_options = {"rtol": 1e-12, "atol": 1e-14}
-    # ksp = PETSc.KSP().create()
-    # ksp.create(PETSc.COMM_WORLD)
-    # ksp.setOperators(A)
-    # ksp.setType("fgmres")
-    # ksp.setTolerances(**petsc_options)
-    # ksp.setConvergenceHistory()
-    # ksp.getPC().setType("ilu")
     ksp.solve(b, x)
     alpha = x.array
 
@@ -364,8 +358,8 @@ def hdiv_model_problem(k_order, gmesh, write_vtk_q=False):
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
-    print("L2-error in flux: ", q_l2_error)
     print("L2-error in pressure: ", p_l2_error)
+    print("L2-error in flux: ", q_l2_error)
 
     if write_vtk_q:
         # post-process solution
@@ -378,7 +372,7 @@ def hdiv_model_problem(k_order, gmesh, write_vtk_q=False):
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
 
-    return p_l2_error
+    return [p_l2_error, q_l2_error]
 
 
 def create_domain(dimension):
@@ -431,29 +425,30 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 
 def main():
-    k_order = 1
-    h = 1.0
+    k_order = 0
+    h = 0.25
     n_ref = 6# no. of refinement
     dimension = 1
     ref_l = 0
 
+    n_data = 3
     domain = create_domain(dimension)
-    error_data = np.empty((0, 2), float)
+    error_data = np.empty((0, n_data), float)
     for l in range(n_ref):
         h_val = h * (2**-l)
         mesher = create_conformal_mesher(domain, h_val, 0)
         gmesh = create_mesh(dimension, mesher, True)
         #error_val = h1_model_problem(k_order, gmesh, True)
         error_val = hdiv_model_problem(k_order, gmesh, True)
-        error_data = np.append(error_data, np.array([[h_val, error_val]]), axis=0)
+        error_data = np.append(error_data, np.array([[h_val] + error_val]), axis=0)
 
-    rates_data = np.empty((0, 1), float)
+    rates_data = np.empty((0, n_data-1), float)
     for i in range(error_data.shape[0] - 1):
         chunk_b = np.log(error_data[i])
         chunk_e = np.log(error_data[i + 1])
         h_step = chunk_e[0] - chunk_b[0]
         partial = (chunk_e - chunk_b) / h_step
-        rates_data = np.append(rates_data, np.array([list(partial[1:2])]), axis=0)
+        rates_data = np.append(rates_data, np.array([list(partial[1:n_data])]), axis=0)
 
     print("error data: ", error_data)
     print("error rates data: ", rates_data)
@@ -463,9 +458,13 @@ def main():
     print("rounded error rates data: ", rates_data)
 
 
-    a = error_data[:,0]
-    b = error_data[:,1]
-    plt.loglog(a, b)
+    x = error_data[:,0]
+    y = error_data[:,1:n_data]
+    lineObjects = plt.loglog(x, y)
+    plt.legend(iter(lineObjects), ('u', 'q'))
+    plt.title("")
+    plt.xlabel("Element size")
+    plt.ylabel("L2-error")
     plt.show()
     return
 
