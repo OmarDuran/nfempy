@@ -120,17 +120,22 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
     if dim == 1:
 
         # physical variables
-        p_exact = lambda x, y, z: np.array([(-x**beta + 0.5 * (3 + np.sqrt(13)) * x**(0.5*(- 3 + np.sqrt(13)))*beta) / (-1 + beta*(3+beta))])
-        u_exact = lambda x, y, z: np.array(
-            [
-                ((-x**(0.5*(3 + np.sqrt(13))) + x**(3+beta))*beta)/(-1 + beta*(3+beta)),
-            ]
-        )
+        p_exact = lambda x, y, z: np.array([(-(np.abs(x)**beta) + 0.5 * (3 + np.sqrt(13)) * np.abs(x)**(0.5*(- 3 + np.sqrt(13)))*beta) / (-1 + beta*(3+beta))])
+
+        def q_exact(x, y, z):
+            return np.where(x < 0.0, np.zeros_like(x),
+                        np.sqrt(f_porosity(x, y, z)) * p_exact(x, y, z))
+        def u_exact(x, y, z):
+            return np.where(x < 0.0, np.array([x * 0.0]),
+                        np.array([((-np.abs(x)**(0.5*(3 + np.sqrt(13))) + np.abs(x)**(3+beta))*beta)/(-1 + beta*(3+beta)),]))
 
         # unphysical variables
-        v_exact = lambda x, y, z: u_exact(x,y,z) / f_d_phi(x,y,z)
-        q_exact = lambda x, y, z: np.sqrt(f_porosity(x,y,z)) * p_exact(x,y,z)
-        f_rhs = lambda x, y, z: np.array([[(x**beta) * np.sqrt(f_porosity(x,y,z))]])
+        def v_exact(x, y, z):
+            return np.where(x < 0.0, np.array([x * 0.0]),u_exact(x,y,z) / f_d_phi(x,y,z))
+        def q_exact(x, y, z):
+            return np.where(x < 0.0, np.zeros_like(x), np.sqrt(f_porosity(x,y,z)) * p_exact(x,y,z))
+        def f_rhs(x, y, z):
+            return np.where(x < 0.0, np.array([[x * 0.0]]), np.array([[(np.abs(x)**beta)  * np.sqrt(f_porosity(x,y,z))]]))
 
 
     else:
@@ -274,7 +279,7 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
 
 def create_domain(dimension):
     if dimension == 1:
-        box_points = np.array([[0, 0, 0], [1, 0, 0]])
+        box_points = np.array([[-1, 0, 0], [1, 0, 0]])
         domain = build_box_1D(box_points)
         return domain
     elif dimension == 2:
