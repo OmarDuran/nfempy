@@ -24,6 +24,7 @@ class ArbogastDualWeakForm(WeakForm):
         f_kappa = self.functions["kappa"]
         f_porosity = self.functions["porosity"]
         f_d_phi = self.functions["d_phi"]
+        
 
 
         mp_components = mp_space.n_comp # mass flux for pressure
@@ -72,12 +73,11 @@ class ArbogastDualWeakForm(WeakForm):
             for i, omega in enumerate(weights):
                 xv = x[i]
                 mp_h = alpha[:, 0:n_mp_dof:1] @ mp_phi_tab[0, i, :, 0:dim]
-                mp_h *= 1.0 / (f_d_phi(xv[0], xv[1], xv[2])**2)
+                #mp_h *=  1.0 / (f_d_phi(xv[0], xv[1], xv[2])**2)
+                v = (1.0 / ((f_d_phi(xv[0], xv[1], xv[2])))) * mp_h
 
-                p_h = (
-                    alpha[:, n_mp_dof : n_mp_dof + n_p_dof : 1]
-                    @ p_phi_tab[0, i, :, 0:dim]
-                )
+                p_h = (alpha[:, n_mp_dof : n_mp_dof + n_p_dof : 1] @ p_phi_tab[0, i, :, 0:dim])
+                q = np.sqrt(f_porosity(xv[0], xv[1], xv[2])) * p_h
 
                 grad_mp_h = mp_phi_tab[1 : mp_phi_tab.shape[0] + 1, i, :, 0:dim]
                 div_vc_h = np.array(
@@ -85,9 +85,19 @@ class ArbogastDualWeakForm(WeakForm):
                 )
 
                 div_mp_h = alpha[:, 0:n_mp_dof:1] @ div_vc_h.T
+                div_v = div_mp_h / ((f_d_phi(xv[0], xv[1], xv[2])))
 
-                equ_1_integrand = (mp_h @ mp_phi_tab[0, i, :, 0:dim].T) - (p_h @ div_vc_h)
-                equ_2_integrand = div_mp_h @ p_phi_tab[0, i, :, 0:dim].T
+
+               # equ_1_integrand = (mp_h @ mp_phi_tab[0, i, :, 0:dim].T) - (p_h @ div_vc_h)
+               # equ_2_integrand = div_mp_h @ p_phi_tab[0, i, :, 0:dim].T
+
+                equ_1_integrand = (v @ mp_phi_tab[0, i, :, 0:dim].T) - \
+                                  (q * (f_d_phi(xv[0], xv[1], xv[2])) @ div_vc_h) / np.sqrt(f_porosity(xv[0], xv[1], xv[2]))
+
+                #equ_2_integrand = (div_mp_h @ p_phi_tab[0, i, :, 0:dim].T) / (np.sqrt(f_porosity(xv[0], xv[1], xv[2]))) \
+                #                  + (np.sqrt(f_porosity(xv[0], xv[1], xv[2])) * p_h)
+
+                equ_2_integrand = ((f_d_phi(xv[0], xv[1], xv[2])) * div_v @ p_phi_tab[0, i, :, 0:dim].T) / (np.sqrt(f_porosity(xv[0], xv[1], xv[2])))  + q @ p_phi_tab[0, i, :, 0:dim].T
 
                 multiphysic_integrand = np.zeros((1, n_dof))
                 multiphysic_integrand[:, 0:n_mp_dof:1] = equ_1_integrand

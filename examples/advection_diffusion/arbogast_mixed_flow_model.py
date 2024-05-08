@@ -106,6 +106,8 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
     def f_d_phi(x, y, z):
         return np.sqrt(f_kappa(x, y, z)/f_mu(x, y, z) )
 
+    def f_grad_d_phi(x, y, z):
+        return np.sqrt(f_kappa(x, y, z)/f_mu(x, y, z) )
 
     st = time.time()
 
@@ -131,6 +133,7 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
         "kappa": f_kappa,
         "porosity": f_porosity,
         "d_phi" : f_d_phi,
+        "grad_d_phi": f_grad_d_phi,
     }
 
     exact_functions = {
