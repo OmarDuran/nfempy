@@ -27,7 +27,7 @@ class ArbogastDualWeakForm(WeakForm):
         f_grad_d_phi = self.functions["grad_d_phi"]
 
         v_components = v_space.n_comp
-        q_components  = q_space.n_comp
+        q_components = q_space.n_comp
 
         v_data: ElementData = v_space.elements[iel].data
         q_data: ElementData = q_space.elements[iel].data
@@ -42,14 +42,14 @@ class ArbogastDualWeakForm(WeakForm):
         q_phi_tab = q_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
 
         n_v_phi = v_phi_tab.shape[2]
-        n_q_phi  = q_phi_tab.shape[2]
+        n_q_phi = q_phi_tab.shape[2]
 
         n_v_dof = n_v_phi * v_components
         n_q_dof = n_q_phi * q_components
 
         idx_dof = {
-            "v" : slice(0,n_v_dof),
-            "q" : slice(n_v_dof, n_v_dof + n_q_dof),
+            "v": slice(0, n_v_dof),
+            "q": slice(n_v_dof, n_v_dof + n_q_dof),
         }
 
         n_dof = n_v_dof + n_q_dof
@@ -84,14 +84,14 @@ class ArbogastDualWeakForm(WeakForm):
 
                 phi = phi_star[i]
                 delta = delta_star[i]
-                grad_delta = grad_delta_star[: , i]
+                grad_delta = grad_delta_star[:, i]
 
                 # Functions and derivatives at integration point i
                 psi_h = v_phi_tab[0, i, :, 0:dim]
                 w_h = q_phi_tab[0, i, :, 0:dim]
 
-                v_h = alpha[:, idx_dof['v']] @ psi_h
-                q_h = alpha[:, idx_dof['q']] @ w_h
+                v_h = alpha[:, idx_dof["v"]] @ psi_h
+                q_h = alpha[:, idx_dof["q"]] @ w_h
 
                 grad_psi_h = v_phi_tab[1 : v_phi_tab.shape[0] + 1, i, :, 0:dim]
                 div_psi_h = np.array(
@@ -101,25 +101,25 @@ class ArbogastDualWeakForm(WeakForm):
                 grad_delta_dot_psi_h = np.array(
                     [
                         [
-                            np.dot(
-                                grad_delta[0:dim], psi_h[j,0:dim]
-                            )
+                            np.dot(grad_delta[0:dim], psi_h[j, 0:dim])
                             for j in range(n_v_phi)
                         ]
                     ]
                 )
-                if np.isclose(phi,0.0) or phi > 0.0:
-                    div_phi_h_s = (delta * div_psi_h + grad_delta_dot_psi_h) / np.sqrt(phi)
+                if np.isclose(phi, 0.0) or phi > 0.0:
+                    div_phi_h_s = (delta * div_psi_h + grad_delta_dot_psi_h) / np.sqrt(
+                        phi
+                    )
                 else:
                     div_phi_h_s = 0.0 * (delta * div_psi_h + grad_delta_dot_psi_h)
-                div_delta_v_h = alpha[:, idx_dof['v']] @ div_phi_h_s.T
+                div_delta_v_h = alpha[:, idx_dof["v"]] @ div_phi_h_s.T
 
                 equ_1_integrand = (v_h @ psi_h.T) - (q_h @ div_phi_h_s)
                 equ_2_integrand = div_delta_v_h @ w_h.T + q_h @ w_h.T
 
                 multiphysic_integrand = np.zeros((1, n_dof))
-                multiphysic_integrand[:, idx_dof['v']] = equ_1_integrand
-                multiphysic_integrand[:, idx_dof['q']] = equ_2_integrand
+                multiphysic_integrand[:, idx_dof["v"]] = equ_1_integrand
+                multiphysic_integrand[:, idx_dof["q"]] = equ_2_integrand
                 discrete_integrand = (multiphysic_integrand).reshape((n_dof,))
                 el_form += det_jac[i] * omega * discrete_integrand
 
@@ -159,7 +159,9 @@ class ArbogastDualWeakFormBCDirichlet(WeakForm):
         mp_tr_phi_tab = neigh_element.evaluate_basis(
             mapped_points, jac_c0, det_jac_c0, inv_jac_c0
         )
-        mp_facet_index = neigh_cell.sub_cells_ids[cell.dimension].tolist().index(cell.id)
+        mp_facet_index = (
+            neigh_cell.sub_cells_ids[cell.dimension].tolist().index(cell.id)
+        )
         mp_dof_n_index = neigh_element.data.dof.entity_dofs[cell.dimension][
             mp_facet_index
         ]

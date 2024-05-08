@@ -13,7 +13,7 @@ from postprocess.l2_error_post_processor import l2_error
 from postprocess.projectors import l2_projector
 from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
 from spaces.product_space import ProductSpace
-from Arbogast_Weak_Form import (
+from ArbogastWeakForm import (
     ArbogastDualWeakForm,
     ArbogastDualWeakFormBCDirichlet,
 )
@@ -23,24 +23,24 @@ import matplotlib.pyplot as plt
 def create_product_space(method, gmesh):
     # FESpace: data
     mp_k_order = method[1]["v"][1]
-    p_k_order  = method[1]["q"][1]
+    p_k_order = method[1]["q"][1]
 
     mp_components = 1
-    p_components  = 1
+    p_components = 1
 
     mp_family = method[1]["v"][0]
-    p_family  = method[1]["q"][0]
+    p_family = method[1]["q"][0]
 
     discrete_spaces_data = {
         "v": (gmesh.dimension, mp_components, mp_family, mp_k_order, gmesh),
-        "q" : (gmesh.dimension, p_components, p_family, p_k_order, gmesh),
+        "q": (gmesh.dimension, p_components, p_family, p_k_order, gmesh),
     }
 
     mp_disc_Q = False
-    p_disc_Q  = True
+    p_disc_Q = True
     discrete_spaces_disc = {
         "v": mp_disc_Q,
-        "q" : p_disc_Q,
+        "q": p_disc_Q,
     }
 
     if gmesh.dimension == 1:
@@ -66,12 +66,13 @@ def method_definition(k_order):
     # lower order convention
     method_1 = {
         "v": ("RT", k_order + 1),
-        "q" : ("Lagrange", k_order),
+        "q": ("Lagrange", k_order),
     }
 
     methods = [method_1]
     method_names = ["mixed_rt"]
     return zip(method_names, methods)
+
 
 def two_fields_formulation(method, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
@@ -87,27 +88,26 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
     # Material data as scalars
     m_kappa = 1.0
     m_delta = 1.0
-    m_eta  = 1.0
+    m_eta = 1.0
     m_mu = 1.0
-    r1 = (-3 + np.sqrt(13))/2
-    r2 = (-3 - np.sqrt(13))/2
+    r1 = (-3 + np.sqrt(13)) / 2
+    r2 = (-3 - np.sqrt(13)) / 2
     beta = 0.5
-
 
     def f_porosity(x, y, z):
         return np.array(x**2)
 
     def f_grad_porosity(x, y, z):
-        return np.array([2 * x , y * 0.0 , z * 0.0])
+        return np.array([2 * x, y * 0.0, z * 0.0])
 
     def f_kappa(x, y, z):
-        return f_porosity(x, y, z)**2
+        return f_porosity(x, y, z) ** 2
 
     def f_mu(x, y, z):
         return m_mu
 
     def f_d_phi(x, y, z):
-        return np.sqrt(f_kappa(x, y, z)/f_mu(x, y, z) )
+        return np.sqrt(f_kappa(x, y, z) / f_mu(x, y, z))
 
     def f_grad_d_phi(x, y, z):
         scalar_part = f_porosity(x, y, z) / (f_mu(x, y, z) * f_d_phi(x, y, z))
@@ -118,25 +118,64 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
 
     # exact solution
     if dim == 1:
-
         # physical variables
-        p_exact = lambda x, y, z: np.array([(-(np.abs(x)**beta) + 0.5 * (3 + np.sqrt(13)) * np.abs(x)**(0.5*(- 3 + np.sqrt(13)))*beta) / (-1 + beta*(3+beta))])
+        p_exact = lambda x, y, z: np.array(
+            [
+                (
+                    -(np.abs(x) ** beta)
+                    + 0.5
+                    * (3 + np.sqrt(13))
+                    * np.abs(x) ** (0.5 * (-3 + np.sqrt(13)))
+                    * beta
+                )
+                / (-1 + beta * (3 + beta))
+            ]
+        )
 
         def q_exact(x, y, z):
-            return np.where(x < 0.0, np.zeros_like(x),
-                        np.sqrt(f_porosity(x, y, z)) * p_exact(x, y, z))
+            return np.where(
+                x < 0.0,
+                np.zeros_like(x),
+                np.sqrt(f_porosity(x, y, z)) * p_exact(x, y, z),
+            )
+
         def u_exact(x, y, z):
-            return np.where(x < 0.0, np.array([x * 0.0]),
-                        np.array([((-np.abs(x)**(0.5*(3 + np.sqrt(13))) + np.abs(x)**(3+beta))*beta)/(-1 + beta*(3+beta)),]))
+            return np.where(
+                x < 0.0,
+                np.array([x * 0.0]),
+                np.array(
+                    [
+                        (
+                            (
+                                -np.abs(x) ** (0.5 * (3 + np.sqrt(13)))
+                                + np.abs(x) ** (3 + beta)
+                            )
+                            * beta
+                        )
+                        / (-1 + beta * (3 + beta)),
+                    ]
+                ),
+            )
 
         # unphysical variables
         def v_exact(x, y, z):
-            return np.where(x < 0.0, np.array([x * 0.0]),u_exact(x,y,z) / f_d_phi(x,y,z))
-        def q_exact(x, y, z):
-            return np.where(x < 0.0, np.zeros_like(x), np.sqrt(f_porosity(x,y,z)) * p_exact(x,y,z))
-        def f_rhs(x, y, z):
-            return np.where(x < 0.0, np.array([[x * 0.0]]), np.array([[(np.abs(x)**beta)  * np.sqrt(f_porosity(x,y,z))]]))
+            return np.where(
+                x < 0.0, np.array([x * 0.0]), u_exact(x, y, z) / f_d_phi(x, y, z)
+            )
 
+        def q_exact(x, y, z):
+            return np.where(
+                x < 0.0,
+                np.zeros_like(x),
+                np.sqrt(f_porosity(x, y, z)) * p_exact(x, y, z),
+            )
+
+        def f_rhs(x, y, z):
+            return np.where(
+                x < 0.0,
+                np.array([[x * 0.0]]),
+                np.array([[(np.abs(x) ** beta) * np.sqrt(f_porosity(x, y, z))]]),
+            )
 
     else:
         raise ValueError("Invalid dimension.")
@@ -145,7 +184,7 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
         "rhs_f": f_rhs,
         "kappa": f_kappa,
         "porosity": f_porosity,
-        "d_phi" : f_d_phi,
+        "d_phi": f_d_phi,
         "grad_d_phi": f_grad_d_phi,
     }
 
@@ -204,7 +243,6 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
     alpha = np.zeros(n_dof_g)
 
     for iter in range(n_iterations):
-
         n_els = len(fe_space.discrete_spaces["v"].elements)
         [scatter_form_data(jac_g, i, weak_form) for i in range(n_els)]
 
@@ -251,17 +289,16 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
         res_g *= 0.0
         jac_g.scale(0.0)
 
-
     st = time.time()
-    v_l2_error, q_l2_error,= l2_error(
-        dim, fe_space, exact_functions, alpha
-    )
+    (
+        v_l2_error,
+        q_l2_error,
+    ) = l2_error(dim, fe_space, exact_functions, alpha)
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
     print("L2-error in v: ", v_l2_error)
     print("L2-error in q: ", q_l2_error)
-
 
     if write_vtk_q:
         # post-process solution
@@ -339,7 +376,7 @@ def main():
     error_data = np.empty((0, n_data), float)
     for method in method_definition(k_order):
         for l in range(n_ref):
-            h_val = h * (2 ** -l)
+            h_val = h * (2**-l)
             mesher = create_conformal_mesher(domain, h_val, 0)
             gmesh = create_mesh(dimension, mesher, True)
             error_val = two_fields_formulation(method, gmesh, True)
@@ -363,7 +400,7 @@ def main():
     x = error_data[:, 0]
     y = error_data[:, 1:n_data]
     lineObjects = plt.loglog(x, y)
-    plt.legend(iter(lineObjects), ('q', 'v'))
+    plt.legend(iter(lineObjects), ("q", "v"))
     plt.title("")
     plt.xlabel("Element size")
     plt.ylabel("L2-error")
