@@ -17,38 +17,42 @@ class ArbogastDualWeakForm(WeakForm):
         if self.space is None or self.functions is None:
             raise ValueError
 
-        mp_space = self.space.discrete_spaces["mp"] #flux for pressure
-        p_space = self.space.discrete_spaces["p"]
+        mp_space = self.space.discrete_spaces["v"] #flux for pressure
+        p_space = self.space.discrete_spaces["q"]
 
         f_rhs_f = self.functions["rhs_f"]
         f_kappa = self.functions["kappa"]
         f_porosity = self.functions["porosity"]
         f_d_phi = self.functions["d_phi"]
-        
+        f_grad_d_phi = self.functions["grad_d_phi"]
 
+        v_components = mp_space.n_comp
+        q_components  = p_space.n_comp
 
-        mp_components = mp_space.n_comp # mass flux for pressure
-        p_components  = p_space.n_comp
+        v_data: ElementData = mp_space.elements[iel].data
+        q_data: ElementData = p_space.elements[iel].data
 
-        mp_data: ElementData = mp_space.elements[iel].data
-        p_data: ElementData = p_space.elements[iel].data
-
-        cell = mp_data.cell
-        dim = mp_data.dimension
+        cell = v_data.cell
+        dim = v_data.dimension
         points, weights = self.space.quadrature
         x, jac, det_jac, inv_jac = mp_space.elements[iel].evaluate_mapping(points)
 
         # basis
-        mp_phi_tab = mp_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
-        p_phi_tab = p_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+        v_phi_tab = mp_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+        q_phi_tab = p_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
 
-        n_mp_phi = mp_phi_tab.shape[2]
-        n_p_phi  = p_phi_tab.shape[2]
+        n_v_phi = v_phi_tab.shape[2]
+        n_q_phi  = q_phi_tab.shape[2]
 
-        n_mp_dof = n_mp_phi * mp_components
-        n_p_dof  = n_p_phi * p_components
+        n_v_dof = n_v_phi * v_components
+        n_q_dof = n_q_phi * q_components
 
-        n_dof = n_mp_dof + n_p_dof
+        idx_dof = {
+            "v" : slice(0,n_v_dof),
+            "q" : slice(n_v_dof, n_v_dof + n_q_dof),
+        }
+
+        n_dof = n_v_dof + n_q_dof
         js = (n_dof, n_dof)
         rs = n_dof
         j_el = np.zeros(js)
@@ -57,7 +61,7 @@ class ArbogastDualWeakForm(WeakForm):
         # Partial local vectorization
         f_f_val_star = f_rhs_f(x[:, 0], x[:, 1], x[:, 2])
 
-        phi_p_star = det_jac * weights * p_phi_tab[0, :, :, 0].T
+        phi_q_star = det_jac * weights * q_phi_tab[0, :, :, 0].T
 
         # constant directors
         e1 = np.array([1, 0, 0])
@@ -65,43 +69,49 @@ class ArbogastDualWeakForm(WeakForm):
         e3 = np.array([0, 0, 1])
         with ad.AutoDiff(alpha) as alpha:
             el_form = np.zeros(n_dof)
-            for c in range(p_components):
-                b = c + n_mp_dof
-                e = b + n_p_dof
-                el_form[b:e:p_components] -= phi_p_star @ f_f_val_star[c].T
+            for c in range(q_components):
+                b = c + n_v_dof
+                e = b + n_q_dof
+                el_form[b:e:q_components] -= phi_q_star @ f_f_val_star[c].T
 
             for i, omega in enumerate(weights):
                 xv = x[i]
-                mp_h = alpha[:, 0:n_mp_dof:1] @ mp_phi_tab[0, i, :, 0:dim]
-                #mp_h *=  1.0 / (f_d_phi(xv[0], xv[1], xv[2])**2)
-                v = (1.0 / ((f_d_phi(xv[0], xv[1], xv[2])))) * mp_h
 
-                p_h = (alpha[:, n_mp_dof : n_mp_dof + n_p_dof : 1] @ p_phi_tab[0, i, :, 0:dim])
-                q = np.sqrt(f_porosity(xv[0], xv[1], xv[2])) * p_h
+                # nick name for d_phi
+                delta = f_d_phi(xv[0],xv[1],xv[2])
+                grad_delta = f_grad_d_phi(xv[0],xv[1],xv[2])
 
-                grad_mp_h = mp_phi_tab[1 : mp_phi_tab.shape[0] + 1, i, :, 0:dim]
-                div_vc_h = np.array(
-                    [[np.trace(grad_mp_h[:, j, :]) / det_jac[i] for j in range(n_mp_dof)]]
+                # Functions and derivatives at integration point i
+                psi_h = v_phi_tab[0, i, :, 0:dim]
+                w_h = q_phi_tab[0, i, :, 0:dim]
+
+                v_h = alpha[:, idx_dof['v']] @ psi_h
+                q_h = alpha[:, idx_dof['q']] @ w_h
+
+                grad_psi_h = v_phi_tab[1 : v_phi_tab.shape[0] + 1, i, :, 0:dim]
+                div_psi_h = np.array(
+                    [np.trace(grad_psi_h, axis1=0, axis2=2) / det_jac[i]]
                 )
 
-                div_mp_h = alpha[:, 0:n_mp_dof:1] @ div_vc_h.T
-                div_v = div_mp_h / ((f_d_phi(xv[0], xv[1], xv[2])))
+                grad_delta_dot_psi_h = np.array(
+                    [
+                        [
+                            np.dot(
+                                grad_delta, psi_h[i, j]
+                            )
+                            for j in range(n_v_phi)
+                        ]
+                    ]
+                )
+                div_phi_h_s = delta * div_psi_h + grad_delta_dot_psi_h
+                div_delta_v_h = alpha[:, idx_dof['v']] @ div_phi_h_s.T
 
-
-               # equ_1_integrand = (mp_h @ mp_phi_tab[0, i, :, 0:dim].T) - (p_h @ div_vc_h)
-               # equ_2_integrand = div_mp_h @ p_phi_tab[0, i, :, 0:dim].T
-
-                equ_1_integrand = (v @ mp_phi_tab[0, i, :, 0:dim].T) - \
-                                  (q * (f_d_phi(xv[0], xv[1], xv[2])) @ div_vc_h) / np.sqrt(f_porosity(xv[0], xv[1], xv[2]))
-
-                #equ_2_integrand = (div_mp_h @ p_phi_tab[0, i, :, 0:dim].T) / (np.sqrt(f_porosity(xv[0], xv[1], xv[2]))) \
-                #                  + (np.sqrt(f_porosity(xv[0], xv[1], xv[2])) * p_h)
-
-                equ_2_integrand = ((f_d_phi(xv[0], xv[1], xv[2])) * div_v @ p_phi_tab[0, i, :, 0:dim].T) / (np.sqrt(f_porosity(xv[0], xv[1], xv[2])))  + q @ p_phi_tab[0, i, :, 0:dim].T
+                equ_1_integrand = (v_h @ psi_h.T) - (q_h @ div_phi_h_s)
+                equ_2_integrand = div_delta_v_h @ w_h.T
 
                 multiphysic_integrand = np.zeros((1, n_dof))
-                multiphysic_integrand[:, 0:n_mp_dof:1] = equ_1_integrand
-                multiphysic_integrand[:, n_mp_dof : n_mp_dof + n_p_dof: 1] = equ_2_integrand
+                multiphysic_integrand[:, idx_dof['v']] = equ_1_integrand
+                multiphysic_integrand[:, idx_dof['q']] = equ_2_integrand
                 discrete_integrand = (multiphysic_integrand).reshape((n_dof,))
                 el_form += det_jac[i] * omega * discrete_integrand
 
