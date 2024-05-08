@@ -119,14 +119,17 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
     # exact solution
     if dim == 1:
 
-
+        # physical variables
         p_exact = lambda x, y, z: np.array([(-x**beta + 0.5 * (3 + np.sqrt(13)) * x**(0.5*(- 3 + np.sqrt(13)))*beta) / (-1 + beta*(3+beta))])
-        mp_exact = lambda x, y, z: np.array(
+        u_exact = lambda x, y, z: np.array(
             [
                 ((-x**(0.5*(3 + np.sqrt(13))) + x**(3+beta))*beta)/(-1 + beta*(3+beta)),
             ]
         )
 
+        # unphysical variables
+        v_exact = lambda x, y, z: u_exact(x,y,z) / f_d_phi(x,y,z)
+        q_exact = lambda x, y, z: np.sqrt(f_porosity(x,y,z)) * p_exact(x,y,z)
         f_rhs = lambda x, y, z: np.array([[(x**beta) * np.sqrt(f_porosity(x,y,z))]])
 
 
@@ -142,8 +145,8 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
     }
 
     exact_functions = {
-        "v": mp_exact,
-        "q": p_exact,
+        "v": v_exact,
+        "q": q_exact,
     }
 
     weak_form = ArbogastDualWeakForm(fe_space)
@@ -266,7 +269,7 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
 
-    return q_l2_error
+    return [q_l2_error, v_l2_error]
 
 
 def create_domain(dimension):
@@ -326,23 +329,24 @@ def main():
     ref_l = 0
 
     domain = create_domain(dimension)
-    error_data = np.empty((0, 2), float)
 
+    n_data = 3
+    error_data = np.empty((0, n_data), float)
     for method in method_definition(k_order):
         for l in range(n_ref):
-            h_val = h * (2**-l)
+            h_val = h * (2 ** -l)
             mesher = create_conformal_mesher(domain, h_val, 0)
             gmesh = create_mesh(dimension, mesher, True)
             error_val = two_fields_formulation(method, gmesh, True)
-            error_data = np.append(error_data, np.array([[h_val, error_val]]), axis=0)
+            error_data = np.append(error_data, np.array([[h_val] + error_val]), axis=0)
 
-    rates_data = np.empty((0, 1), float)
+    rates_data = np.empty((0, n_data - 1), float)
     for i in range(error_data.shape[0] - 1):
         chunk_b = np.log(error_data[i])
         chunk_e = np.log(error_data[i + 1])
         h_step = chunk_e[0] - chunk_b[0]
         partial = (chunk_e - chunk_b) / h_step
-        rates_data = np.append(rates_data, np.array([list(partial[1:2])]), axis=0)
+        rates_data = np.append(rates_data, np.array([list(partial[1:n_data])]), axis=0)
 
     print("error data: ", error_data)
     print("error rates data: ", rates_data)
@@ -351,13 +355,14 @@ def main():
     print("rounded error data: ", error_data)
     print("rounded error rates data: ", rates_data)
 
-    return
-
-    a = error_data[:,0]
-    b = error_data[:,1]
-    plt.loglog(a, b)
+    x = error_data[:, 0]
+    y = error_data[:, 1:n_data]
+    lineObjects = plt.loglog(x, y)
+    plt.legend(iter(lineObjects), ('q', 'v'))
+    plt.title("")
+    plt.xlabel("Element size")
+    plt.ylabel("L2-error")
     plt.show()
-    return
 
 
 if __name__ == "__main__":
