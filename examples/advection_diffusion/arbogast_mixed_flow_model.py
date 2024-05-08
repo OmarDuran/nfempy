@@ -95,10 +95,10 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
 
 
     def f_porosity(x, y, z):
-        return x**2
+        return np.array(x**2)
 
     def f_grad_porosity(x, y, z):
-        return np.array([2 * x , 0.0 , 0.0])
+        return np.array([2 * x , y * 0.0 , z * 0.0])
 
     def f_kappa(x, y, z):
         return f_porosity(x, y, z)**2
@@ -120,14 +120,14 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
     if dim == 1:
 
 
-        p_exact = lambda x, y, z: np.array([((-x**beta + 0.5 * (3 + np.sqrt(13)) * x**(0.5*(- 3 + np.sqrt(13))))*beta) / (-1 + beta*(3+beta))])
+        p_exact = lambda x, y, z: np.array([(-x**beta + 0.5 * (3 + np.sqrt(13)) * x**(0.5*(- 3 + np.sqrt(13)))*beta) / (-1 + beta*(3+beta))])
         mp_exact = lambda x, y, z: np.array(
             [
                 ((-x**(0.5*(3 + np.sqrt(13))) + x**(3+beta))*beta)/(-1 + beta*(3+beta)),
             ]
         )
 
-        f_rhs = lambda x, y, z: np.array([[(x**beta) * f_porosity(x,y,z)]])
+        f_rhs = lambda x, y, z: np.array([[(x**beta) * np.sqrt(f_porosity(x,y,z))]])
 
 
     else:
@@ -319,7 +319,7 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 
 def main():
-    k_order = 1
+    k_order = 0
     h = 0.25
     n_ref = 5
     dimension = 1

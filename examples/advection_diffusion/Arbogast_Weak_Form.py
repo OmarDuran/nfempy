@@ -59,8 +59,13 @@ class ArbogastDualWeakForm(WeakForm):
         r_el = np.zeros(rs)
 
         # Partial local vectorization
-        f_f_val_star = f_rhs_f(x[:, 0], x[:, 1], x[:, 2])
 
+        phi_star = f_porosity(x[:, 0], x[:, 1], x[:, 2])
+        # nick name for d_phi
+        delta_star = f_d_phi(x[:, 0], x[:, 1], x[:, 2])
+        grad_delta_star = f_grad_d_phi(x[:, 0], x[:, 1], x[:, 2])
+
+        f_f_val_star = f_rhs_f(x[:, 0], x[:, 1], x[:, 2])
         phi_q_star = det_jac * weights * q_phi_tab[0, :, :, 0].T
 
         # constant directors
@@ -77,9 +82,9 @@ class ArbogastDualWeakForm(WeakForm):
             for i, omega in enumerate(weights):
                 xv = x[i]
 
-                # nick name for d_phi
-                delta = f_d_phi(xv[0],xv[1],xv[2])
-                grad_delta = f_grad_d_phi(xv[0],xv[1],xv[2])
+                phi = phi_star[i]
+                delta = delta_star[i]
+                grad_delta = grad_delta_star[: , i]
 
                 # Functions and derivatives at integration point i
                 psi_h = v_phi_tab[0, i, :, 0:dim]
@@ -97,7 +102,7 @@ class ArbogastDualWeakForm(WeakForm):
                     [
                         [
                             np.dot(
-                                grad_delta, psi_h[i, j]
+                                grad_delta[0:dim], psi_h[j,0:dim]
                             )
                             for j in range(n_v_phi)
                         ]
@@ -107,7 +112,7 @@ class ArbogastDualWeakForm(WeakForm):
                 div_delta_v_h = alpha[:, idx_dof['v']] @ div_phi_h_s.T
 
                 equ_1_integrand = (v_h @ psi_h.T) - (q_h @ div_phi_h_s)
-                equ_2_integrand = div_delta_v_h @ w_h.T
+                equ_2_integrand = div_delta_v_h @ w_h.T + q_h @ w_h.T
 
                 multiphysic_integrand = np.zeros((1, n_dof))
                 multiphysic_integrand[:, idx_dof['v']] = equ_1_integrand
@@ -123,9 +128,9 @@ class ArbogastDualWeakForm(WeakForm):
 class ArbogastDualWeakFormBCDirichlet(WeakForm):
     def evaluate_form(self, element_index, alpha):
         iel = element_index
-        p_D = self.functions["p"]
+        q_D = self.functions["q"]
 
-        mp_space = self.space.discrete_spaces["mp"]
+        mp_space = self.space.discrete_spaces["v"]
         mp_components = mp_space.n_comp
         mp_data: ElementData = mp_space.bc_elements[iel].data
 
@@ -174,9 +179,9 @@ class ArbogastDualWeakFormBCDirichlet(WeakForm):
             res_block_mp = np.zeros(n_mp_phi)
             dim = neigh_cell.dimension
             for i, omega in enumerate(weights):
-                p_D_v = p_D(x[i, 0], x[i, 1], x[i, 2])
+                q_D_v = q_D(x[i, 0], x[i, 1], x[i, 2])
                 phi = mp_tr_phi_tab[0, i, mp_dof_n_index, 0:dim] @ n[0:dim]
-                res_block_mp += det_jac[i] * omega * p_D_v[c] * phi
+                res_block_mp += det_jac[i] * omega * q_D_v[c] * phi
 
             r_el[b:e:mp_components] += res_block_mp
 
