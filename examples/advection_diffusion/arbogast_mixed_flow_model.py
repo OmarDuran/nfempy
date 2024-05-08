@@ -22,25 +22,25 @@ import matplotlib.pyplot as plt
 
 def create_product_space(method, gmesh):
     # FESpace: data
-    mp_k_order = method[1]["mp"][1]
-    p_k_order  = method[1]["p"][1]
+    mp_k_order = method[1]["v"][1]
+    p_k_order  = method[1]["q"][1]
 
     mp_components = 1
     p_components  = 1
 
-    mp_family = method[1]["mp"][0]
-    p_family  = method[1]["p"][0]
+    mp_family = method[1]["v"][0]
+    p_family  = method[1]["q"][0]
 
     discrete_spaces_data = {
-        "mp": (gmesh.dimension, mp_components, mp_family, mp_k_order, gmesh),
-        "p" : (gmesh.dimension, p_components, p_family, p_k_order, gmesh),
+        "v": (gmesh.dimension, mp_components, mp_family, mp_k_order, gmesh),
+        "q" : (gmesh.dimension, p_components, p_family, p_k_order, gmesh),
     }
 
     mp_disc_Q = False
     p_disc_Q  = True
     discrete_spaces_disc = {
-        "mp": mp_disc_Q,
-        "p" : p_disc_Q,
+        "v": mp_disc_Q,
+        "q" : p_disc_Q,
     }
 
     if gmesh.dimension == 1:
@@ -53,7 +53,7 @@ def create_product_space(method, gmesh):
         raise ValueError("Case not available.")
 
     discrete_spaces_bc_physical_tags = {
-        "mp": mp_field_bc_physical_tags,
+        "v": mp_field_bc_physical_tags,
     }
 
     space = ProductSpace(discrete_spaces_data)
@@ -65,8 +65,8 @@ def create_product_space(method, gmesh):
 def method_definition(k_order):
     # lower order convention
     method_1 = {
-        "mp": ("RT", k_order + 1),
-        "p" : ("Lagrange", k_order),
+        "v": ("RT", k_order + 1),
+        "q" : ("Lagrange", k_order),
     }
 
     methods = [method_1]
@@ -142,8 +142,8 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
     }
 
     exact_functions = {
-        "mp": mp_exact,
-        "p": p_exact,
+        "v": mp_exact,
+        "q": p_exact,
     }
 
     weak_form = ArbogastDualWeakForm(fe_space)
@@ -197,10 +197,10 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
 
     for iter in range(n_iterations):
 
-        n_els = len(fe_space.discrete_spaces["mp"].elements)
+        n_els = len(fe_space.discrete_spaces["v"].elements)
         [scatter_form_data(jac_g, i, weak_form) for i in range(n_els)]
 
-        n_bc_els = len(fe_space.discrete_spaces["mp"].bc_elements)
+        n_bc_els = len(fe_space.discrete_spaces["v"].bc_elements)
         [scatter_bc_form(jac_g, i, bc_weak_form) for i in range(n_bc_els)]
 
         jac_g.assemble()
@@ -245,14 +245,14 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
 
 
     st = time.time()
-    mp_l2_error, p_l2_error,= l2_error(
+    v_l2_error, q_l2_error,= l2_error(
         dim, fe_space, exact_functions, alpha
     )
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
-    print("L2-error in mp: ", mp_l2_error)
-    print("L2-error in p : ", p_l2_error)
+    print("L2-error in v: ", v_l2_error)
+    print("L2-error in q: ", q_l2_error)
 
 
     if write_vtk_q:
@@ -266,7 +266,7 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
 
-    return p_l2_error
+    return q_l2_error
 
 
 def create_domain(dimension):
