@@ -187,6 +187,9 @@ def div_error(dim, fe_space, functions, alpha, skip_fields=[]):
         family_by_name("RT"),
         family_by_name("BDM"),
     ]
+    vec_families_in_1d = [
+        family_by_name("Lagrange")
+    ]
     points, weights = fe_space.quadrature
 
     def compute_div_error(idx):
@@ -214,8 +217,12 @@ def div_error(dim, fe_space, functions, alpha, skip_fields=[]):
     div_errors = []
     for item in fe_space.discrete_spaces.items():
         name, space = item
-        if space.family not in vec_families:
-            continue
+        if dim == 1:
+            if space.family not in vec_families_in_1d:
+                continue
+        else:
+            if space.family not in vec_families:
+                continue
         if name in skip_fields:
             continue
         indexes = [
