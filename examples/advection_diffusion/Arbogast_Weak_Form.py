@@ -17,8 +17,8 @@ class ArbogastDualWeakForm(WeakForm):
         if self.space is None or self.functions is None:
             raise ValueError
 
-        mp_space = self.space.discrete_spaces["v"] #flux for pressure
-        p_space = self.space.discrete_spaces["q"]
+        v_space = self.space.discrete_spaces["v"]
+        q_space = self.space.discrete_spaces["q"]
 
         f_rhs_f = self.functions["rhs_f"]
         f_kappa = self.functions["kappa"]
@@ -26,20 +26,20 @@ class ArbogastDualWeakForm(WeakForm):
         f_d_phi = self.functions["d_phi"]
         f_grad_d_phi = self.functions["grad_d_phi"]
 
-        v_components = mp_space.n_comp
-        q_components  = p_space.n_comp
+        v_components = v_space.n_comp
+        q_components  = q_space.n_comp
 
-        v_data: ElementData = mp_space.elements[iel].data
-        q_data: ElementData = p_space.elements[iel].data
+        v_data: ElementData = v_space.elements[iel].data
+        q_data: ElementData = q_space.elements[iel].data
 
         cell = v_data.cell
         dim = v_data.dimension
         points, weights = self.space.quadrature
-        x, jac, det_jac, inv_jac = mp_space.elements[iel].evaluate_mapping(points)
+        x, jac, det_jac, inv_jac = v_space.elements[iel].evaluate_mapping(points)
 
         # basis
-        v_phi_tab = mp_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
-        q_phi_tab = p_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+        v_phi_tab = v_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+        q_phi_tab = q_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
 
         n_v_phi = v_phi_tab.shape[2]
         n_q_phi  = q_phi_tab.shape[2]
