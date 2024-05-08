@@ -108,7 +108,10 @@ class ArbogastDualWeakForm(WeakForm):
                         ]
                     ]
                 )
-                div_phi_h_s = (delta * div_psi_h + grad_delta_dot_psi_h) / np.sqrt(phi)
+                if np.isclose(phi,0.0) or phi > 0.0:
+                    div_phi_h_s = (delta * div_psi_h + grad_delta_dot_psi_h) / np.sqrt(phi)
+                else:
+                    div_phi_h_s = 0.0 * (delta * div_psi_h + grad_delta_dot_psi_h)
                 div_delta_v_h = alpha[:, idx_dof['v']] @ div_phi_h_s.T
 
                 equ_1_integrand = (v_h @ psi_h.T) - (q_h @ div_phi_h_s)
