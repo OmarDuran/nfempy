@@ -9,7 +9,7 @@ from geometry.domain import Domain
 from geometry.domain_market import build_box_1D, build_box_2D, build_box_3D
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
-from postprocess.l2_error_post_processor import l2_error
+from postprocess.l2_error_post_processor import l2_error, l2_error_projected
 from postprocess.projectors import l2_projector
 from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
 from spaces.product_space import ProductSpace
@@ -380,11 +380,19 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
         v_l2_error,
         q_l2_error,
     ) = l2_error(dim, fe_space, exact_functions, alpha)
+
+    alpha_proj = l2_projector(fe_space, exact_functions)
+    alpha_e = alpha - alpha_proj
+    q_proj_l2_error = l2_error_projected(
+        dim, fe_space, alpha_e, ["v"]
+    )[0]
+
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
     print("L2-error in v: ", v_l2_error)
     print("L2-error in q: ", q_l2_error)
+    print("L2-error in q projected: ", q_proj_l2_error)
 
     if write_vtk_q:
         # post-process solution
@@ -397,7 +405,7 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
 
-    return [q_l2_error, v_l2_error]
+    return [q_l2_error, v_l2_error, q_proj_l2_error]
 
 
 def create_domain(dimension):
@@ -450,7 +458,7 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 
 def main():
-    k_order = 1
+    k_order = 0
     h = 0.25
     n_ref = 4
     dimension = 2
@@ -458,7 +466,7 @@ def main():
 
     domain = create_domain(dimension)
 
-    n_data = 3
+    n_data = 4
     error_data = np.empty((0, n_data), float)
     for method in method_definition(k_order):
         for l in range(n_ref):
@@ -486,7 +494,7 @@ def main():
     x = error_data[:, 0]
     y = error_data[:, 1:n_data]
     lineObjects = plt.loglog(x, y)
-    plt.legend(iter(lineObjects), ("q", "v"))
+    plt.legend(iter(lineObjects), ("q", "v", "projected q"))
     plt.title("")
     plt.xlabel("Element size")
     plt.ylabel("L2-error")
