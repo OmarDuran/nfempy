@@ -90,34 +90,24 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
     m_delta = 1.0
     m_eta = 1.0
     m_mu = 1.0
-    r1 = (-3 + np.sqrt(13)) / 2
-    r2 = (-3 - np.sqrt(13)) / 2
-    beta = 0.5
 
-    def f_porosity(x, y, z):
-        return np.array(x**2)
-
-    def f_grad_porosity(x, y, z):
-        return np.array([2 * x, y * 0.0, z * 0.0])
-
-    def f_kappa(x, y, z):
-        return f_porosity(x, y, z) ** 2
-
-    def f_mu(x, y, z):
-        return m_mu
-
-    def f_d_phi(x, y, z):
-        return np.sqrt(f_kappa(x, y, z) / f_mu(x, y, z))
-
-    def f_grad_d_phi(x, y, z):
-        scalar_part = f_porosity(x, y, z) / (f_mu(x, y, z) * f_d_phi(x, y, z))
-        vector_part = f_grad_porosity(x, y, z)
-        return scalar_part * vector_part
 
     st = time.time()
 
     # exact solution
     if dim == 1:
+
+        r1 = (-3 + np.sqrt(13)) / 2
+        r2 = (-3 - np.sqrt(13)) / 2
+
+        beta = 0.5
+
+        def f_porosity(x, y, z):
+            return np.array(x ** 2)
+
+        def f_grad_porosity(x, y, z):
+            return np.array([2 * x, y * 0.0, z * 0.0])
+
         # physical variables
         p_exact = lambda x, y, z: np.array(
             [
@@ -131,13 +121,6 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
                 / (-1 + beta * (3 + beta))
             ]
         )
-
-        def q_exact(x, y, z):
-            return np.where(
-                x < 0.0,
-                np.zeros_like(x),
-                np.sqrt(f_porosity(x, y, z)) * p_exact(x, y, z),
-            )
 
         def u_exact(x, y, z):
             return np.where(
@@ -158,16 +141,16 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
             )
 
         # unphysical variables
-        def v_exact(x, y, z):
-            return np.where(
-                x < 0.0, np.array([x * 0.0]), u_exact(x, y, z) / f_d_phi(x, y, z)
-            )
-
         def q_exact(x, y, z):
             return np.where(
                 x < 0.0,
                 np.zeros_like(x),
                 np.sqrt(f_porosity(x, y, z)) * p_exact(x, y, z),
+            )
+
+        def v_exact(x, y, z):
+            return np.where(
+                x < 0.0, np.array([x * 0.0]), u_exact(x, y, z) / f_d_phi(x, y, z)
             )
 
         def f_rhs(x, y, z):
@@ -176,9 +159,103 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
                 np.array([[x * 0.0]]),
                 np.array([[(np.abs(x) ** beta) * np.sqrt(f_porosity(x, y, z))]]),
             )
+    elif dim == 2:
+
+        gamma = 2.0
+
+        def f_porosity(x, y, z):
+            return np.where(np.logical_or(x < -3/4, y < -3/4),
+                np.zeros_like(x),
+                ((0.75 + x)**gamma)*((0.75 + y)**(2*gamma)),
+            )
+
+        def f_grad_porosity(x, y, z):
+            return np.where(np.logical_or(x < -3 / 4, y < -3 / 4),
+                np.array([x * 0.0, y * 0.0]),
+                np.array(
+                    [
+                        ((0.75 + x)**(-1 + gamma))*((0.75 + y)**(2*gamma))*gamma
+                        ,
+                        2*((0.75 + x)**gamma)*((0.75 + y)**(-1 + 2*gamma))*gamma
+                    ]
+                ),
+            )
+
+        # physical variables
+        p_exact = lambda x, y, z: np.array(
+            [
+                np.cos(6 * x * (y ** 2))
+            ]
+        )
+
+        def u_exact(x, y, z):
+            return np.where(np.logical_or(x < -3/4, y < -3/4),
+                np.array([[x * 0.0,y * 0.0]]),
+                np.array(
+                    [
+                    [
+                        6 * ((0.75 + x) ** (2 * gamma)) * (y ** 2) * (
+                                    (0.75 + y) ** (4 * gamma)) * np.sin(6 * x * (y ** 2))
+                        ,
+                        12 * x * ((0.75 + x) ** (2 * gamma)) * y * (
+                                    (0.75 + y) ** (4 * gamma)) * np.sin(6 * x * (y ** 2))
+                    ]
+                    ]
+                ),
+            )
+
+        # unphysical variables
+        def q_exact(x, y, z):
+            return np.where(np.logical_or(x < -3/4, y < -3/4),
+                np.array([np.zeros_like(x)]),
+                np.array([np.sqrt(((0.75 + x)**gamma)*((0.75 + y)**(2*gamma)))*np.cos(6*x*(y**2))]),
+            )
+
+        def v_exact(x, y, z):
+            return np.where(np.logical_or(x < -3/4, y < -3/4),
+                np.array([[x * 0.0,y * 0.0]]),
+                np.array(
+                    [
+                    [
+                        6*(y**2)*np.sqrt(((0.75 + x)**(2*gamma))*((0.75 + y)**(4*gamma)))*np.sin(6*x*(y**2))
+                        ,
+                        12*x*y*np.sqrt(((0.75 + x)**(2*gamma))*((0.75 + y)**(4*gamma)))*np.sin(6*x*(y**2))
+                    ]
+                    ]
+                ),
+            )
+
+        def f_rhs(x, y, z):
+            return np.where(np.logical_or(x < -3/4, y < -3/4),
+                np.array([[x * 0.0]]),
+                np.array([[np.sqrt(f_porosity(x, y, z)) *
+                            ((1 + 36 * ((0.75 + x) ** gamma) * (y ** 2) * ((0.75 + y) ** (2 * gamma)) * (
+                            4 * (x** 2) + (y ** 2))) *
+                np.cos(6 * x * (y ** 2)) + (
+                            12 * ((0.75 + x) ** gamma) * ((0.75 + y) ** (2 * gamma)) *
+                            (x * (3 + 4 * x) * (3 + 4 * y) + 4 * y * (
+                                        4 * x * (3 + 4 * x) + y * (
+                                            3 + 4 * y)) * gamma) * np.sin(
+                        6 * x * (y ** 2)))
+                / ((3 + 4 * x) * (3 + 4 * y)))]]),
+            )
 
     else:
         raise ValueError("Invalid dimension.")
+
+    def f_kappa(x, y, z):
+        return f_porosity(x, y, z) ** 2
+
+    def f_mu(x, y, z):
+        return m_mu
+
+    def f_d_phi(x, y, z):
+        return np.sqrt(f_kappa(x, y, z) / f_mu(x, y, z))
+
+    def f_grad_d_phi(x, y, z):
+        scalar_part = f_porosity(x, y, z) / (f_mu(x, y, z) * f_d_phi(x, y, z))
+        vector_part = f_grad_porosity(x, y, z)
+        return scalar_part * vector_part
 
     m_functions = {
         "rhs_f": f_rhs,
@@ -188,15 +265,23 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
         "grad_d_phi": f_grad_d_phi,
     }
 
+    bc_functions = {
+        "v": v_exact,
+        "q": q_exact,
+        "d_phi": f_d_phi,
+        "porosity": f_porosity,
+    }
+
     exact_functions = {
         "v": v_exact,
         "q": q_exact,
     }
 
+
     weak_form = ArbogastDualWeakForm(fe_space)
     weak_form.functions = m_functions
     bc_weak_form = ArbogastDualWeakFormBCDirichlet(fe_space)
-    bc_weak_form.functions = exact_functions
+    bc_weak_form.functions = bc_functions
 
     def scatter_form_data(jac_g, i, weak_form):
         # destination indexes
@@ -320,7 +405,7 @@ def create_domain(dimension):
         domain = build_box_1D(box_points)
         return domain
     elif dimension == 2:
-        box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
+        box_points = np.array([[-0.75, -0.75, 0], [1, -0.75, 0], [1, 1, 0], [-0.75, 1, 0]])
         # box_points = [
         #     point + 0.25 * np.array([-1.0, -1.0, 0.0]) for point in box_points
         # ]
@@ -364,10 +449,10 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 
 def main():
-    k_order = 0
+    k_order = 1
     h = 0.25
-    n_ref = 5
-    dimension = 1
+    n_ref = 4
+    dimension = 2
     ref_l = 0
 
     domain = create_domain(dimension)
