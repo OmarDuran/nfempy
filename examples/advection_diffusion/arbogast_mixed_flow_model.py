@@ -17,6 +17,7 @@ from ArbogastWeakForm import (
     ArbogastDualWeakForm,
     ArbogastDualWeakFormBCDirichlet,
 )
+from ToPhysicalProjectionWeakForm import ToPhysicalProjectionWeakForm
 import matplotlib.pyplot as plt
 
 
@@ -77,7 +78,11 @@ def method_definition(k_order):
 def two_fields_formulation(method, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
 
+    st = time.time()
     fe_space = create_product_space(method, gmesh)
+    et = time.time()
+    elapsed_time = et - st
+    print("Creation of product space:", elapsed_time, "seconds")
 
     # Nonlinear solver data
     n_iterations = 20
@@ -109,18 +114,24 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
             return np.array([2 * x, y * 0.0, z * 0.0])
 
         # physical variables
-        p_exact = lambda x, y, z: np.array(
-            [
-                (
-                    -(np.abs(x) ** beta)
-                    + 0.5
-                    * (3 + np.sqrt(13))
-                    * np.abs(x) ** (0.5 * (-3 + np.sqrt(13)))
-                    * beta
-                )
-                / (-1 + beta * (3 + beta))
-            ]
-        )
+        def p_exact(x, y, z):
+            return np.where(
+                x < 0.0,
+                np.array([x * 0.0]),
+                np.array(
+                    [
+                        (
+                                -(np.abs(x) ** beta)
+                                + 0.5
+                                * (3 + np.sqrt(13))
+                                * np.abs(x) ** (0.5 * (-3 + np.sqrt(13)))
+                                * beta
+                        )
+                        / (-1 + beta * (3 + beta)),
+                    ]
+                ),
+            )
+
 
         def u_exact(x, y, z):
             return np.where(
@@ -183,11 +194,11 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
             )
 
         # physical variables
-        p_exact = lambda x, y, z: np.array(
-            [
-                np.cos(6 * x * (y ** 2))
-            ]
-        )
+        def p_exact(x, y, z):
+            return np.where(np.logical_or(x < -3/4, y < -3/4),
+                np.array([np.zeros_like(x)]),
+                np.array([np.cos(6 * x * (y ** 2))]),
+            )
 
         def u_exact(x, y, z):
             return np.where(np.logical_or(x < -3/4, y < -3/4),
@@ -284,7 +295,10 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
     bc_weak_form = ArbogastDualWeakFormBCDirichlet(fe_space)
     bc_weak_form.functions = bc_functions
 
-    def scatter_form_data(jac_g, i, weak_form):
+    to_physical_weak_form = ToPhysicalProjectionWeakForm(fe_space)
+    to_physical_weak_form.functions = m_functions
+
+    def scatter_form_data(jac_g, res_g, i, weak_form):
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
@@ -301,7 +315,25 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
         for k in range(nnz):
             jac_g.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
-    def scatter_bc_form(jac_g, i, bc_weak_form):
+    def scatter_form_data_mapping(jac_g, res_g, i, weak_form):
+        # destination indexes
+        dest = weak_form.space.destination_indexes(i)
+        alpha_unscaled_l = alpha_unscaled[dest]
+        alpha_l = alpha[dest]
+        r_el, j_el = weak_form.evaluate_form(i, alpha_unscaled_l, alpha_l)
+
+        # contribute rhs
+        res_g[dest] += r_el
+
+        # contribute lhs
+        data = j_el.ravel()
+        row = np.repeat(dest, len(dest))
+        col = np.tile(dest, len(dest))
+        nnz = data.shape[0]
+        for k in range(nnz):
+            jac_g.setValue(row=row[k], col=col[k], value=data[k], addv=True)
+
+    def scatter_bc_form(jac_g, res_g, i, bc_weak_form):
         dest = fe_space.bc_destination_indexes(i)
         alpha_l = alpha[dest]
         r_el, j_el = bc_weak_form.evaluate_form(i, alpha_l)
@@ -330,10 +362,10 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
 
     for iter in range(n_iterations):
         n_els = len(fe_space.discrete_spaces["v"].elements)
-        [scatter_form_data(jac_g, i, weak_form) for i in range(n_els)]
+        [scatter_form_data(jac_g, res_g, i, weak_form) for i in range(n_els)]
 
         n_bc_els = len(fe_space.discrete_spaces["v"].bc_elements)
-        [scatter_bc_form(jac_g, i, bc_weak_form) for i in range(n_bc_els)]
+        [scatter_bc_form(jac_g, res_g, i, bc_weak_form) for i in range(n_bc_els)]
 
         jac_g.assemble()
 
@@ -387,12 +419,55 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
         dim, fe_space, alpha_e, ["v"]
     )[0]
 
+    # mapping variables to physical domain
+    alpha_unscaled = np.zeros(n_dof_g)
+    operator_lhs_g = PETSc.Mat()
+    operator_lhs_g.createAIJ([n_dof_g, n_dof_g])
+    operator_rhs_g = np.zeros(n_dof_g)
+    n_els = len(fe_space.discrete_spaces["v"].elements)
+    [scatter_form_data_mapping(operator_lhs_g, operator_rhs_g, i, to_physical_weak_form) for i in range(n_els)]
+    operator_lhs_g.assemble()
+
+    # solving ls
+    st = time.time()
+    ksp = PETSc.KSP().create()
+    ksp.setOperators(operator_lhs_g)
+    b = operator_lhs_g.createVecLeft()
+    b.array[:] = -operator_rhs_g
+    x = operator_lhs_g.createVecRight()
+
+    ksp.setType("preonly")
+    ksp.getPC().setType("lu")
+    ksp.getPC().setFactorSolverType("mumps")
+    ksp.setConvergenceHistory()
+    ksp.solve(b, x)
+    alpha_unscaled = x.array
+
+    physical_exact_functions = {
+        "v": u_exact,
+        "q": p_exact,
+    }
+
+    (
+        u_l2_error,
+        p_l2_error,
+    ) = l2_error(dim, fe_space, physical_exact_functions, alpha_unscaled)
+
+    alpha_unscaled_proj = l2_projector(fe_space, physical_exact_functions)
+    alpha_unscaled_e = alpha_unscaled - alpha_unscaled_proj
+    p_proj_l2_error = l2_error_projected(
+        dim, fe_space, alpha_unscaled_e, ["v"]
+    )[0]
+
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
     print("L2-error in v: ", v_l2_error)
     print("L2-error in q: ", q_l2_error)
+    print("L2-error in u: ", u_l2_error)
+    print("L2-error in p: ", p_l2_error)
     print("L2-error in q projected: ", q_proj_l2_error)
+    print("L2-error in p projected: ", p_proj_l2_error)
 
     if write_vtk_q:
         # post-process solution
@@ -401,11 +476,15 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
         write_vtk_file_with_exact_solution(
             file_name, gmesh, fe_space, exact_functions, alpha
         )
+        file_name = "rates_arbogast_physical_two_fields.vtk"
+        write_vtk_file_with_exact_solution(
+            file_name, gmesh, fe_space, physical_exact_functions, alpha_unscaled
+        )
         et = time.time()
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
 
-    return [q_l2_error, v_l2_error, q_proj_l2_error]
+    return [q_l2_error, v_l2_error, p_l2_error, u_l2_error, q_proj_l2_error, p_proj_l2_error]
 
 
 def create_domain(dimension):
@@ -466,7 +545,7 @@ def main():
 
     domain = create_domain(dimension)
 
-    n_data = 4
+    n_data = 7
     error_data = np.empty((0, n_data), float)
     for method in method_definition(k_order):
         for l in range(n_ref):
@@ -494,7 +573,7 @@ def main():
     x = error_data[:, 0]
     y = error_data[:, 1:n_data]
     lineObjects = plt.loglog(x, y)
-    plt.legend(iter(lineObjects), ("q", "v", "projected q"))
+    plt.legend(iter(lineObjects), ("q", "v", "p", "u", "projected q", "projected p"))
     plt.title("")
     plt.xlabel("Element size")
     plt.ylabel("L2-error")
