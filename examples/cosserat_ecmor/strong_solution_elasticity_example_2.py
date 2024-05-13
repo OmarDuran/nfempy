@@ -46,7 +46,7 @@ def rhs(m_lambda, m_mu, dim: int = 2):
             [
                 -4*np.pi*(np.pi*(m_lambda + 2*m_mu) + m_mu*np.cos(2*np.pi*y))*np.sin(2*np.pi*x),
                 4*np.pi*(-(np.pi*(m_lambda + 2*m_mu)) + m_mu*np.cos(2*np.pi*x))*np.sin(2*np.pi*y),
-                4 * m_mu * np.sin(2 * np.pi * x) * np.sin(2 * np.pi * y),
+                -4 * m_mu * np.sin(2 * np.pi * x) * np.sin(2 * np.pi * y),
             ]
         )
     else:

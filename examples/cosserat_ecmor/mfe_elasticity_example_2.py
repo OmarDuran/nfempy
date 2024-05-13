@@ -151,8 +151,8 @@ def three_field_approximation(material_data, method, gmesh, symmetric_solver_q=T
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
-        r_el, j_el = weak_form.evaluate_form(i, alpha_l)
-        # r_el, j_el = weak_form.evaluate_form_vectorized(i, alpha_l)
+        # r_el, j_el = weak_form.evaluate_form(i, alpha_l)
+        r_el, j_el = weak_form.evaluate_form_vectorized(i, alpha_l)
 
         # contribute rhs
         rg[dest] += r_el
@@ -678,8 +678,8 @@ def material_data_definition():
     case_1 = {"lambda": 1.0e2, "mu": 1.0}
     case_2 = {"lambda": 1.0e4, "mu": 1.0}
     case_3 = {"lambda": 1.0e8, "mu": 1.0}
-    cases = [case_0, case_1, case_2, case_3]
-
+    # cases = [case_0, case_1, case_2, case_3]
+    cases = [case_0]
     return cases
 
 
@@ -687,7 +687,7 @@ def main():
     dimension = 2
     approximation_q = True
     postprocessing_q = True
-    refinements = {0: 2}
+    refinements = {0: 5, 1: 5}
     case_data = material_data_definition()
     for k in [0]:
         methods = method_definition(k)
