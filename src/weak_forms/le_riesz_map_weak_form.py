@@ -110,13 +110,9 @@ class LERieszMapWeakForm(WeakForm):
                         np.vstack((sx_h.val, sy_h.val)), np.vstack((sx_h.der, sy_h.der))
                     )
 
-                    # Stress decomposition
-                    Symm_sh = 0.5 * (sh + sh.T)
-                    Skew_sh = 0.5 * (sh - sh.T)
-
                     tr_s_h = VecValDer(sh.val.trace(), sh.der.trace())
                     A_sh = (1.0 / 2.0 * f_mu(xv[0], xv[1], xv[2])) * (
-                        Symm_sh
+                        sh
                         - (
                             f_lambda(xv[0], xv[1], xv[2])
                             / (
@@ -126,7 +122,7 @@ class LERieszMapWeakForm(WeakForm):
                         )
                         * tr_s_h
                         * Imat
-                    ) + (1.0 / 2.0) * Skew_sh
+                    )
 
                     grad_s_phi = s_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
                     div_tau = np.array(
@@ -225,13 +221,9 @@ class LERieszMapWeakForm(WeakForm):
                         np.vstack((sx_h.der, sy_h.der, sz_h.der)),
                     )
 
-                    # Stress decomposition
-                    Symm_sh = 0.5 * (sh + sh.T)
-                    Skew_sh = 0.5 * (sh - sh.T)
-
                     tr_s_h = VecValDer(sh.val.trace(), sh.der.trace())
                     A_sh = (1.0 / 2.0 * f_mu(xv[0], xv[1], xv[2])) * (
-                        Symm_sh
+                        sh
                         - (
                             f_lambda(xv[0], xv[1], xv[2])
                             / (
@@ -241,7 +233,7 @@ class LERieszMapWeakForm(WeakForm):
                         )
                         * tr_s_h
                         * Imat
-                    ) + (1.0 / 2.0) * Skew_sh
+                    )
 
                     grad_s_phi = s_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
                     div_tau = np.array(
@@ -344,9 +336,7 @@ class LERieszMapWeakForm(WeakForm):
         for c in range(s_components):
             b = c
             e = b + n_s_dof
-            j_el[b:e:s_components, b:e:s_components] += (1 / (2.0 * mu_v)) * s_j_el + (
-                1 / (2.0)
-            ) * s_j_el
+            j_el[b:e:s_components, b:e:s_components] += s_j_el
 
         vol_factor = (1.0 / (2.0 * mu_v)) * (lambda_v / (2.0 * mu_v + dim * lambda_v))
         vol_s_j_el = (
