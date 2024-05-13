@@ -164,10 +164,11 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
         gamma = 2.0
 
         def f_porosity(x, y, z):
-            return np.where(np.logical_or(x < -3/4, y < -3/4),
-                np.zeros_like(x),
-                ((0.75 + x)**gamma)*((0.75 + y)**(2*gamma)),
-            )
+            return ((0.75 + x)**gamma)*((0.75 + y)**(2*gamma))
+            # return np.where(np.logical_or(x < -3/4, y < -3/4),
+            #     np.zeros_like(x),
+            #     ((0.75 + x)**gamma)*((0.75 + y)**(2*gamma)),
+            # )
 
         def f_grad_porosity(x, y, z):
             return np.where(np.logical_or(x < -3 / 4, y < -3 / 4),
@@ -405,7 +406,7 @@ def create_domain(dimension):
         domain = build_box_1D(box_points)
         return domain
     elif dimension == 2:
-        box_points = np.array([[-0.75, -0.75, 0], [1, -0.75, 0], [1, 1, 0], [-0.75, 1, 0]])
+        box_points = np.array([[-1.0, -1.0, 0], [1, -1.0, 0], [1, 1, 0], [-1.0, 1, 0]])
         # box_points = [
         #     point + 0.25 * np.array([-1.0, -1.0, 0.0]) for point in box_points
         # ]
