@@ -685,8 +685,8 @@ def material_data_definition():
 def main():
     dimension = 2
     approximation_q = True
-    postprocessing_q = False
-    refinements = {0: 2, 1: 2}
+    postprocessing_q = True
+    refinements = {0: 5, 1: 5}
     case_data = material_data_definition()
     for k in [0]:
         methods = method_definition(k)
