@@ -1,22 +1,5 @@
 import numpy as np
 
-def chi_(x, y, z, dim: int = 2):
-    if dim == 2:
-        return np.min(
-            [
-                np.ones_like(x),
-                np.min(
-                    [
-                        np.zeros_like(x),
-                        np.max([3 * x, 3 * y], axis=0) - np.ones_like(x),
-                    ],
-                    axis=0,
-                ),
-            ],
-            axis=0,
-        )
-    else:
-        raise ValueError("Dimension not implemented")
 
 def displacement(m_lambda, m_mu, dim: int = 2):
     if dim == 2:
