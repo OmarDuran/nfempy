@@ -672,13 +672,12 @@ def method_definition(k_order):
 
 
 def material_data_definition():
-    # Material data for example 2
+    # Material data for example 1
     case_0 = {"lambda": 1.0, "mu": 1.0}
     case_1 = {"lambda": 1.0e2, "mu": 1.0}
     case_2 = {"lambda": 1.0e4, "mu": 1.0}
     case_3 = {"lambda": 1.0e8, "mu": 1.0}
-    # cases = [case_0, case_1, case_2, case_3]
-    cases = [case_0]
+    cases = [case_0, case_1, case_2, case_3]
     return cases
 
 
