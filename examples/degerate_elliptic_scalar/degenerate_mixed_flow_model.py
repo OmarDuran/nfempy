@@ -108,6 +108,8 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
     # retrieve material functions
     beta = 0.5
     m_par = beta
+
+    assert exact_funcs.test_degeneracy(m_par, m_mu, dim)
     f_porosity = partial(exact_funcs.f_porosity, m_par=m_par, dim=dim)
     f_d_phi = partial(exact_funcs.f_d_phi, m_par=m_par, m_mu=m_mu, dim=dim)
     f_grad_d_phi = partial(exact_funcs.f_grad_d_phi, m_par=m_par, m_mu=m_mu, dim=dim)
@@ -378,9 +380,9 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 def main():
     k_order = 0
-    h = 2.0
+    h = 1.0
     n_ref = 5
-    dimension = 2
+    dimension = 1
     ref_l = 0
 
     domain = create_domain(dimension)
