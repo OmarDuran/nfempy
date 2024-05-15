@@ -61,6 +61,7 @@ class ArbogastDualWeakForm(WeakForm):
         # Partial local vectorization
 
         phi_star = f_porosity(x[:, 0], x[:, 1], x[:, 2])
+        phi_E = np.sum(det_jac * weights * phi_star)/np.sum(det_jac * weights)
         # nick name for d_phi
         delta_star = f_d_phi(x[:, 0], x[:, 1], x[:, 2])
         grad_delta_star = f_grad_d_phi(x[:, 0], x[:, 1], x[:, 2])
@@ -106,7 +107,7 @@ class ArbogastDualWeakForm(WeakForm):
                         ]
                     ]
                 )
-                if not np.isclose(phi, 0.0) or phi > 0.0:
+                if phi > 0.0:
                     div_phi_h_s = (delta * div_psi_h + grad_delta_dot_psi_h) / np.sqrt(
                         phi
                     )
@@ -189,7 +190,7 @@ class ArbogastDualWeakFormBCDirichlet(WeakForm):
                 q_D_v = q_D(x[i, 0], x[i, 1], x[i, 2])
                 d_phi = f_d_phi(x[i, 0], x[i, 1], x[i, 2])
                 phi = f_porosity(x[i, 0], x[i, 1], x[i, 2])
-                if not np.isclose(phi, 0.0) or phi > 0.0:
+                if not np.isclose(phi, 0.0) and phi > 0.0:
                     q_D_v *= d_phi / np.sqrt(phi)
                 phi = mp_tr_phi_tab[0, i, mp_dof_n_index, 0:dim] @ n[0:dim]
                 res_block_mp += det_jac[i] * omega * q_D_v[c] * phi

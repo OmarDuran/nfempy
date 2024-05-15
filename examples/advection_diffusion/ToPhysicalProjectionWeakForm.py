@@ -85,7 +85,7 @@ class ToPhysicalProjectionWeakForm(WeakForm):
                 p_h = alpha[:, idx_dof["q"]] @ w_h
                 q_h = alpha_scaled[idx_dof["q"]] @ w_h
 
-                if not np.isclose(phi, 0.0) or phi > 0.0:
+                if phi > 0.0:
                     v_h *= delta
                     q_h *= 1.0 / np.sqrt(phi)
 
