@@ -570,6 +570,9 @@ def main():
     print("rounded error data: ", error_data)
     print("rounded error rates data: ", rates_data)
 
+    np.savetxt("error_data.txt", error_data, delimiter=',', fmt="%1.4f",)
+    np.savetxt("rates_data.txt", rates_data, delimiter=',', fmt="%1.4f",)
+
     x = error_data[:, 0]
     y = error_data[:, 1:n_data]
     lineObjects = plt.loglog(x, y)
