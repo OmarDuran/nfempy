@@ -187,7 +187,7 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
 
     elif dim == 2:
 
-        gamma = 1.0
+        gamma = 2.0
 
         def f_porosity(x, y, z):
             return np.where(np.logical_or(x <= -3/4, y <= -3/4),
@@ -556,7 +556,7 @@ def main():
     k_order = 0
     h = 2.0
     n_ref = 5
-    dimension = 2
+    dimension = 1
     ref_l = 0
 
     domain = create_domain(dimension)
@@ -579,17 +579,25 @@ def main():
         partial = (chunk_e - chunk_b) / h_step
         rates_data = np.append(rates_data, np.array([list(partial[1:n_data])]), axis=0)
 
-    print("error data: ", error_data)
-    print("error rates data: ", rates_data)
+    rates_data = np.vstack((np.array([np.nan] * rates_data.shape[1]), rates_data))
+
+    assert error_data.shape[0] == rates_data.shape[0]
+    raw_data = np.zeros((error_data.shape[0], error_data.shape[1] + rates_data.shape[1]), dtype=error_data.dtype)
+    raw_data[:,0] = error_data[:, 0]
+    raw_data[:,1::2] = error_data[:,1:error_data.shape[1]]
+    raw_data[:,2::2] = rates_data
+
+    normal_conv_data = raw_data[:, 0:raw_data.shape[1] - 4]
+    enhanced_conv_data = raw_data[:, np.insert(np.arange(raw_data.shape[1] - 4,raw_data.shape[1]),0,0)]
 
     np.set_printoptions(precision=4)
-    print("rounded error data: ", error_data)
-    print("rounded error rates data: ", rates_data)
+    print("normal convergence data: ", normal_conv_data)
+    print("enhanced convergence data: ", enhanced_conv_data)
 
-    rates_header = "q,  v,  p,  u,  proj q, proj p "
-    error_header = "h,  " + rates_header
-    np.savetxt("error_data.txt", error_data, delimiter=',', fmt="%1.4f", header=error_header)
-    np.savetxt("rates_data.txt", rates_data, delimiter=',', fmt="%1.4f", header=rates_header)
+    normal_header = "h, q,  rate,   v,  rate,   p,  rate,   u,  rate"
+    enhanced_header = "h,   proj q, rate,   proj p, rate, "
+    np.savetxt("normal_conv_data.txt", normal_conv_data, delimiter=',', fmt="%1.4f", header=normal_header)
+    np.savetxt("enhanced_conv_data.txt", enhanced_conv_data, delimiter=',', fmt="%1.4f", header=enhanced_header)
 
     x = error_data[:, 0]
     y = error_data[:, 1:n_data]
