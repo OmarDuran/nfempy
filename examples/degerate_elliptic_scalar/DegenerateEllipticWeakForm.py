@@ -11,7 +11,7 @@ from topology.topological_queries import find_higher_dimension_neighs
 from weak_forms.weak_from import WeakForm
 
 
-class ArbogastDualWeakForm(WeakForm):
+class DegenerateEllipticWeakForm(WeakForm):
     def evaluate_form(self, element_index, alpha):
         iel = element_index
         if self.space is None or self.functions is None:
@@ -61,7 +61,7 @@ class ArbogastDualWeakForm(WeakForm):
         # Partial local vectorization
 
         phi_star = f_porosity(x[:, 0], x[:, 1], x[:, 2])
-        phi_E = np.sum(det_jac * weights * phi_star)/np.sum(det_jac * weights)
+
         # nick name for d_phi
         delta_star = f_d_phi(x[:, 0], x[:, 1], x[:, 2])
         grad_delta_star = f_grad_d_phi(x[:, 0], x[:, 1], x[:, 2])
@@ -129,7 +129,7 @@ class ArbogastDualWeakForm(WeakForm):
         return r_el, j_el
 
 
-class ArbogastDualWeakFormBCDirichlet(WeakForm):
+class DegenerateEllipticWeakFormBCDirichlet(WeakForm):
     def evaluate_form(self, element_index, alpha):
         iel = element_index
         q_D = self.functions["q"]

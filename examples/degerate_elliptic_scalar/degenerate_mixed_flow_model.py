@@ -13,11 +13,13 @@ from postprocess.l2_error_post_processor import l2_error, l2_error_projected
 from postprocess.projectors import l2_projector
 from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
 from spaces.product_space import ProductSpace
-from ArbogastWeakForm import (
-    ArbogastDualWeakForm,
-    ArbogastDualWeakFormBCDirichlet,
+from DegenerateEllipticWeakForm import (
+    DegenerateEllipticWeakForm,
+    DegenerateEllipticWeakFormBCDirichlet,
 )
 from ToPhysicalProjectionWeakForm import ToPhysicalProjectionWeakForm
+import strong_solutions_TArbogast as exact_funcs
+from functools import partial
 import matplotlib.pyplot as plt
 
 
@@ -90,7 +92,7 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
     print("Creation of product space:", elapsed_time, "seconds")
 
     # Nonlinear solver data
-    n_iterations = 20
+    n_iterations = 2
     eps_tol = 1.0e-10
 
     n_dof_g = fe_space.n_dof
@@ -101,193 +103,22 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
     m_eta = 1.0
     m_mu = 1.0
 
-
     st = time.time()
 
-    # exact solution
-    if dim == 1:
+    # retrieve material functions
+    beta = 0.5
+    m_par = beta
+    f_porosity = partial(exact_funcs.f_porosity, m_par=m_par, dim=dim)
+    f_d_phi = partial(exact_funcs.f_d_phi, m_par=m_par, m_mu=m_mu, dim=dim)
+    f_grad_d_phi = partial(exact_funcs.f_grad_d_phi, m_par=m_par, m_mu=m_mu, dim=dim)
+    f_kappa = partial(exact_funcs.f_kappa, m_par=m_par, dim=dim)
 
-        r1 = (-3 + np.sqrt(13)) / 2
-        r2 = (-3 - np.sqrt(13)) / 2
-
-        beta = 0.5
-
-        def f_porosity(x, y, z):
-            return np.array(x ** 2)
-
-        def f_grad_porosity(x, y, z):
-            return np.array([2 * x, y * 0.0, z * 0.0])
-
-        # physical variables
-        def p_exact(x, y, z):
-            return np.where(
-                x < 0.0,
-                np.array([x * 0.0]),
-                np.array(
-                    [
-                        (
-                                -(np.abs(x) ** beta)
-                                + 0.5
-                                * (3 + np.sqrt(13))
-                                * np.abs(x) ** (0.5 * (-3 + np.sqrt(13)))
-                                * beta
-                        )
-                        / (-1 + beta * (3 + beta)),
-                    ]
-                ),
-            )
-
-
-        def u_exact(x, y, z):
-            return np.where(
-                x < 0.0,
-                np.array([x * 0.0]),
-                np.array(
-                    [
-                        (
-                            (
-                                -np.abs(x) ** (0.5 * (3 + np.sqrt(13)))
-                                + np.abs(x) ** (3 + beta)
-                            )
-                            * beta
-                        )
-                        / (-1 + beta * (3 + beta)),
-                    ]
-                ),
-            )
-
-        # unphysical variables
-        def q_exact(x, y, z):
-            return np.where(
-                x < 0.0,
-                np.zeros_like(x),
-                np.sqrt(f_porosity(x, y, z)) * p_exact(x, y, z),
-            )
-
-        def v_exact(x, y, z):
-            return np.where(
-                x < 0.0, np.array([x * 0.0]), u_exact(x, y, z) / f_d_phi(x, y, z)
-            )
-
-        def f_rhs(x, y, z):
-            return np.where(
-                x < 0.0,
-                np.array([[x * 0.0]]),
-                np.array([[(np.abs(x) ** beta) * np.sqrt(f_porosity(x, y, z))]]),
-            )
-
-        def f_kappa(x, y, z):
-            return f_porosity(x, y, z) ** 2
-
-        def f_mu(x, y, z):
-            return m_mu
-
-        def f_d_phi(x, y, z):
-            return np.sqrt(f_kappa(x, y, z) / f_mu(x, y, z))
-
-        def f_grad_d_phi(x, y, z):
-            scalar_part = f_porosity(x, y, z) / (f_mu(x, y, z) * f_d_phi(x, y, z))
-            vector_part = f_grad_porosity(x, y, z)
-            return scalar_part * vector_part
-
-    elif dim == 2:
-
-        gamma = 2.0
-
-        def f_porosity(x, y, z):
-            return np.where(np.logical_or(x <= -3/4, y <= -3/4),
-                np.zeros_like(x),
-                ((0.75 + x)**gamma)*((0.75 + y)**(2*gamma)),
-            )
-
-        def f_grad_porosity(x, y, z):
-            return np.where(np.logical_or(x <= -3 / 4, y <= -3 / 4),
-                np.array([x * 0.0, y * 0.0]),
-                np.array(
-                    [
-                        ((0.75 + x)**(-1 + gamma))*((0.75 + y)**(2*gamma))*gamma
-                        ,
-                        2*((0.75 + x)**gamma)*((0.75 + y)**(-1 + 2*gamma))*gamma
-                    ]
-                ),
-            )
-
-        # physical variables
-        def p_exact(x, y, z):
-            return np.where(np.logical_or(x <= -3/4, y <= -3/4),
-                np.array([np.zeros_like(x)]),
-                np.array([np.cos(6 * x * (y ** 2))]),
-            )
-
-        def u_exact(x, y, z):
-            return np.where(np.logical_or(x <= -3/4, y <= -3/4),
-                np.array([[x * 0.0,y * 0.0]]),
-                np.array(
-                    [
-                    [
-                        6 * ((0.75 + x) ** (2 * gamma)) * (y ** 2) * (
-                                    (0.75 + y) ** (4 * gamma)) * np.sin(6 * x * (y ** 2))
-                        ,
-                        12 * x * ((0.75 + x) ** (2 * gamma)) * y * (
-                                    (0.75 + y) ** (4 * gamma)) * np.sin(6 * x * (y ** 2))
-                    ]
-                    ]
-                ),
-            )
-
-        # unphysical variables
-        def q_exact(x, y, z):
-            return np.where(np.logical_or(x <= -3/4, y <= -3/4),
-                np.array([np.zeros_like(x)]),
-                np.array([np.sqrt(((0.75 + x)**gamma)*((0.75 + y)**(2*gamma)))*np.cos(6*x*(y**2))]),
-            )
-
-        def v_exact(x, y, z):
-            return np.where(np.logical_or(x <= -3/4, y <= -3/4),
-                np.array([[x * 0.0,y * 0.0]]),
-                np.array(
-                    [
-                    [
-                        6*(y**2)*np.sqrt(((0.75 + x)**(2*gamma))*((0.75 + y)**(4*gamma)))*np.sin(6*x*(y**2))
-                        ,
-                        12*x*y*np.sqrt(((0.75 + x)**(2*gamma))*((0.75 + y)**(4*gamma)))*np.sin(6*x*(y**2))
-                    ]
-                    ]
-                ),
-            )
-
-        def f_rhs(x, y, z):
-            return np.where(np.logical_or(x <= -3/4, y <= -3/4),
-                np.array([[x * 0.0]]),
-                np.array([[np.sqrt(f_porosity(x, y, z)) *
-                            ((1 + 36 * ((0.75 + x) ** gamma) * (y ** 2) * ((0.75 + y) ** (2 * gamma)) * (
-                            4 * (x** 2) + (y ** 2))) *
-                np.cos(6 * x * (y ** 2)) + (
-                            12 * ((0.75 + x) ** gamma) * ((0.75 + y) ** (2 * gamma)) *
-                            (x * (3 + 4 * x) * (3 + 4 * y) + 4 * y * (
-                                        4 * x * (3 + 4 * x) + y * (
-                                            3 + 4 * y)) * gamma) * np.sin(
-                        6 * x * (y ** 2)))
-                / ((3 + 4 * x) * (3 + 4 * y)))]]),
-            )
-
-        def f_kappa(x, y, z):
-            return f_porosity(x, y, z) ** 2
-
-        def f_mu(x, y, z):
-            return m_mu
-
-        def f_d_phi(x, y, z):
-            return np.sqrt(f_kappa(x, y, z) / f_mu(x, y, z))
-
-        def f_grad_d_phi(x, y, z):
-            scalar_part = np.where(np.logical_or(x <= -3 / 4, y <= -3 / 4), np.zeros_like(x) ,f_porosity(x, y, z) / (f_mu(x, y, z) * f_d_phi(x, y, z)))
-            vector_part = f_grad_porosity(x, y, z)
-            return scalar_part * vector_part
-
-    else:
-        raise ValueError("Invalid dimension.")
-
+    # retrieve exact functions
+    u_exact = partial(exact_funcs.u_exact, m_par=m_par, dim=dim)
+    p_exact = partial(exact_funcs.p_exact, m_par=m_par, dim=dim)
+    v_exact = partial(exact_funcs.v_exact, m_par=m_par, m_mu=m_mu, dim=dim)
+    q_exact = partial(exact_funcs.q_exact, m_par=m_par, dim=dim)
+    f_rhs = partial(exact_funcs.f_rhs, m_par=m_par, dim=dim)
 
     m_functions = {
         "rhs_f": f_rhs,
@@ -310,9 +141,9 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
     }
 
 
-    weak_form = ArbogastDualWeakForm(fe_space)
+    weak_form = DegenerateEllipticWeakForm(fe_space)
     weak_form.functions = m_functions
-    bc_weak_form = ArbogastDualWeakFormBCDirichlet(fe_space)
+    bc_weak_form = DegenerateEllipticWeakFormBCDirichlet(fe_space)
     bc_weak_form.functions = bc_functions
 
     to_physical_weak_form = ToPhysicalProjectionWeakForm(fe_space)
@@ -322,7 +153,7 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
-        # print("i: ", i)
+
         r_el, j_el = weak_form.evaluate_form(i, alpha_l)
 
         # contribute rhs
@@ -542,7 +373,7 @@ def main():
     k_order = 0
     h = 2.0
     n_ref = 5
-    dimension = 1
+    dimension = 2
     ref_l = 0
 
     domain = create_domain(dimension)
