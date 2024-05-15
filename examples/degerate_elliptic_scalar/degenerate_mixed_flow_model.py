@@ -9,6 +9,7 @@ from geometry.domain import Domain
 from domain_builder import build_line_1D, build_surface_2D
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
+from mesh.mesh_metrics import mesh_size
 from postprocess.l2_error_post_processor import l2_error, l2_error_projected
 from postprocess.projectors import l2_projector
 from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
@@ -425,9 +426,10 @@ def main():
                 h_val = h * (2**-l)
                 mesher = create_conformal_mesher(domain, h_val, 0)
                 gmesh = create_mesh(dimension, mesher, True)
+                h_min, h_mean, h_max = mesh_size(gmesh)
                 error_val = two_fields_formulation(method, material, gmesh, True)
                 error_data = np.append(
-                    error_data, np.array([[h_val] + error_val]), axis=0
+                    error_data, np.array([[h_max] + error_val]), axis=0
                 )
 
             rates_data = np.empty((0, n_data - 1), float)
