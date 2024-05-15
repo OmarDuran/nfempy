@@ -70,8 +70,13 @@ def method_definition(k_order):
         "q": ("Lagrange", k_order),
     }
 
+    method_2 = {
+        "v": ("BDM", k_order + 1),
+        "q": ("Lagrange", k_order),
+    }
+
     methods = [method_1]
-    method_names = ["mixed_rt"]
+    method_names = ["mixed_rt", "mixed_bdm"]
     return zip(method_names, methods)
 
 
@@ -510,29 +515,10 @@ def create_domain(dimension):
         return domain
     elif dimension == 2:
         box_points = np.array([[-1.0, -1.0, 0], [1, -1.0, 0], [1, 1, 0], [-1.0, 1, 0]])
-        # box_points = [
-        #     point + 0.25 * np.array([-1.0, -1.0, 0.0]) for point in box_points
-        # ]
         domain = build_box_2D(box_points)
         return domain
     else:
-        box_points = np.array(
-            [
-                [0.0, 0.0, 0.0],
-                [1.0, 0.0, 0.0],
-                [1.0, 1.0, 0.0],
-                [0.0, 1.0, 0.0],
-                [0.0, 0.0, 1.0],
-                [1.0, 0.0, 1.0],
-                [1.0, 1.0, 1.0],
-                [0.0, 1.0, 1.0],
-            ]
-        )
-        # box_points = [
-        #     point + 0.25 * np.array([-1.0, -1.0, -1.0]) for point in box_points
-        # ]
-        domain = build_box_3D(box_points)
-        return domain
+        raise ValueError("Only 1D and 2D settings are supported by this script.")
 
 
 def create_conformal_mesher(domain: Domain, h, ref_l=0):
