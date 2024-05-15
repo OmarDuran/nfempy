@@ -101,5 +101,3 @@ class ToPhysicalProjectionWeakForm(WeakForm):
         r_el, j_el = el_form.val, el_form.der.reshape((n_dof, n_dof))
 
         return r_el, j_el
-
-

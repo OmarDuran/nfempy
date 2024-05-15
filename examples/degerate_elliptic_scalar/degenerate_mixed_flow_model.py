@@ -140,7 +140,6 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
         "q": q_exact,
     }
 
-
     weak_form = DegenerateEllipticWeakForm(fe_space)
     weak_form.functions = m_functions
     bc_weak_form = DegenerateEllipticWeakFormBCDirichlet(fe_space)
@@ -267,9 +266,7 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
 
     alpha_proj = l2_projector(fe_space, exact_functions)
     alpha_e = alpha - alpha_proj
-    q_proj_l2_error = l2_error_projected(
-        dim, fe_space, alpha_e, ["v"]
-    )[0]
+    q_proj_l2_error = l2_error_projected(dim, fe_space, alpha_e, ["v"])[0]
 
     # mapping variables to physical domain
     alpha_unscaled = np.zeros(n_dof_g)
@@ -277,7 +274,12 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
     operator_lhs_g.createAIJ([n_dof_g, n_dof_g])
     operator_rhs_g = np.zeros(n_dof_g)
     n_els = len(fe_space.discrete_spaces["v"].elements)
-    [scatter_form_data_mapping(operator_lhs_g, operator_rhs_g, i, to_physical_weak_form) for i in range(n_els)]
+    [
+        scatter_form_data_mapping(
+            operator_lhs_g, operator_rhs_g, i, to_physical_weak_form
+        )
+        for i in range(n_els)
+    ]
     operator_lhs_g.assemble()
 
     # solving ls
@@ -307,9 +309,7 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
 
     alpha_unscaled_proj = l2_projector(fe_space, physical_exact_functions)
     alpha_unscaled_e = alpha_unscaled - alpha_unscaled_proj
-    p_proj_l2_error = l2_error_projected(
-        dim, fe_space, alpha_unscaled_e, ["v"]
-    )[0]
+    p_proj_l2_error = l2_error_projected(dim, fe_space, alpha_unscaled_e, ["v"])[0]
 
     et = time.time()
     elapsed_time = et - st
@@ -336,7 +336,14 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
 
-    return [q_l2_error, v_l2_error, p_l2_error, u_l2_error, q_proj_l2_error, p_proj_l2_error]
+    return [
+        q_l2_error,
+        v_l2_error,
+        p_l2_error,
+        u_l2_error,
+        q_proj_l2_error,
+        p_proj_l2_error,
+    ]
 
 
 def create_domain(dimension):
@@ -399,13 +406,18 @@ def main():
     rates_data = np.vstack((np.array([np.nan] * rates_data.shape[1]), rates_data))
 
     assert error_data.shape[0] == rates_data.shape[0]
-    raw_data = np.zeros((error_data.shape[0], error_data.shape[1] + rates_data.shape[1]), dtype=error_data.dtype)
-    raw_data[:,0] = error_data[:, 0]
-    raw_data[:,1::2] = error_data[:,1:error_data.shape[1]]
-    raw_data[:,2::2] = rates_data
+    raw_data = np.zeros(
+        (error_data.shape[0], error_data.shape[1] + rates_data.shape[1]),
+        dtype=error_data.dtype,
+    )
+    raw_data[:, 0] = error_data[:, 0]
+    raw_data[:, 1::2] = error_data[:, 1 : error_data.shape[1]]
+    raw_data[:, 2::2] = rates_data
 
-    normal_conv_data = raw_data[:, 0:raw_data.shape[1] - 4]
-    enhanced_conv_data = raw_data[:, np.insert(np.arange(raw_data.shape[1] - 4,raw_data.shape[1]),0,0)]
+    normal_conv_data = raw_data[:, 0 : raw_data.shape[1] - 4]
+    enhanced_conv_data = raw_data[
+        :, np.insert(np.arange(raw_data.shape[1] - 4, raw_data.shape[1]), 0, 0)
+    ]
 
     np.set_printoptions(precision=4)
     print("normal convergence data: ", normal_conv_data)
@@ -413,8 +425,20 @@ def main():
 
     normal_header = "h, q,  rate,   v,  rate,   p,  rate,   u,  rate"
     enhanced_header = "h,   proj q, rate,   proj p, rate, "
-    np.savetxt("normal_conv_data.txt", normal_conv_data, delimiter=',', fmt="%1.4f", header=normal_header)
-    np.savetxt("enhanced_conv_data.txt", enhanced_conv_data, delimiter=',', fmt="%1.4f", header=enhanced_header)
+    np.savetxt(
+        "normal_conv_data.txt",
+        normal_conv_data,
+        delimiter=",",
+        fmt="%1.4f",
+        header=normal_header,
+    )
+    np.savetxt(
+        "enhanced_conv_data.txt",
+        enhanced_conv_data,
+        delimiter=",",
+        fmt="%1.4f",
+        header=enhanced_header,
+    )
 
     x = error_data[:, 0]
     y = error_data[:, 1:n_data]
