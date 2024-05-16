@@ -81,7 +81,7 @@ def method_definition(k_order):
     return zip(method_names, methods)
 
 
-def two_fields_formulation(method, material, gmesh, write_vtk_q=True):
+def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True):
     dim = gmesh.dimension
 
     st = time.time()
@@ -390,7 +390,7 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 def material_data_definition(dim):
     # Material data for example 1 and 2
     if dim == 1:
-        case_0 = {"m_par": 0.5}
+        case_0 = {"m_par": +0.5}
         case_1 = {"m_par": -0.5}
         case_2 = {"m_par": -1.0}
         case_3 = {"m_par": -1.5}
@@ -402,95 +402,125 @@ def material_data_definition(dim):
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")
     cases = [case_0, case_1, case_2, case_3]
-    cases = [case_0]
     return cases
 
 
+def compose_case_name(method, dimension, domain, material):
+    case_name = (
+        method[0]
+        + "_"
+        + str(dimension)
+        + "d_"
+        + domain[0]
+        + "_"
+        + "material_parameter_"
+        + str(material["m_par"])
+        + "_"
+    )
+    return case_name
+
+
 def main():
-    make_fitted_q = False
+    # fixed directives
     k_order = 0
     h = 0.5
     n_ref = 5
-    dimension = 2
-    ref_l = 0
+    dimensions = [1]
 
-    domain = create_domain(dimension, make_fitted_q)
-    materials = material_data_definition(dimension)
+    # method variants
     methods = method_definition(k_order)
+    for method in methods:
+        for dimension in dimensions:
+            # dimension dependent variants
+            fitted_domain = create_domain(dimension, make_fitted_q=True)
+            unfitted_domain = create_domain(dimension, make_fitted_q=False)
+            domains = {"fitted": fitted_domain, "unfitted": unfitted_domain}
+            materials = material_data_definition(dimension)
+            for domain in domains.items():
+                for material in materials:
+                    # composing name prefix
+                    case_name = compose_case_name(method, dimension, domain, material)
 
-    for material in materials:
-        n_data = 7
-        for method in methods:
-            error_data = np.empty((0, n_data), float)
-            for l in range(n_ref):
-                h_val = h * (2**-l)
-                mesher = create_conformal_mesher(domain, h_val, 0)
-                gmesh = create_mesh(dimension, mesher, True)
-                h_min, h_mean, h_max = mesh_size(gmesh)
-                error_val = two_fields_formulation(method, material, gmesh, True)
-                error_data = np.append(
-                    error_data, np.array([[h_max] + error_val]), axis=0
-                )
+                    n_data = 7
+                    error_data = np.empty((0, n_data), float)
+                    for l in range(n_ref):
+                        h_val = h * (2**-l)
+                        mesher = create_conformal_mesher(domain, h_val, 0)
+                        gmesh = create_mesh(dimension, mesher, True)
+                        h_min, h_mean, h_max = mesh_size(gmesh)
+                        error_val = two_fields_formulation(
+                            method, material, gmesh, case_name, True
+                        )
+                        error_data = np.append(
+                            error_data, np.array([[h_max] + error_val]), axis=0
+                        )
 
-            rates_data = np.empty((0, n_data - 1), float)
-            for i in range(error_data.shape[0] - 1):
-                chunk_b = np.log(error_data[i])
-                chunk_e = np.log(error_data[i + 1])
-                h_step = chunk_e[0] - chunk_b[0]
-                partial = (chunk_e - chunk_b) / h_step
-                rates_data = np.append(
-                    rates_data, np.array([list(partial[1:n_data])]), axis=0
-                )
+                    rates_data = np.empty((0, n_data - 1), float)
+                    for i in range(error_data.shape[0] - 1):
+                        chunk_b = np.log(error_data[i])
+                        chunk_e = np.log(error_data[i + 1])
+                        h_step = chunk_e[0] - chunk_b[0]
+                        partial = (chunk_e - chunk_b) / h_step
+                        rates_data = np.append(
+                            rates_data, np.array([list(partial[1:n_data])]), axis=0
+                        )
 
-            rates_data = np.vstack(
-                (np.array([np.nan] * rates_data.shape[1]), rates_data)
-            )
+                    rates_data = np.vstack(
+                        (np.array([np.nan] * rates_data.shape[1]), rates_data)
+                    )
 
-            assert error_data.shape[0] == rates_data.shape[0]
-            raw_data = np.zeros(
-                (error_data.shape[0], error_data.shape[1] + rates_data.shape[1]),
-                dtype=error_data.dtype,
-            )
-            raw_data[:, 0] = error_data[:, 0]
-            raw_data[:, 1::2] = error_data[:, 1 : error_data.shape[1]]
-            raw_data[:, 2::2] = rates_data
+                    assert error_data.shape[0] == rates_data.shape[0]
+                    raw_data = np.zeros(
+                        (
+                            error_data.shape[0],
+                            error_data.shape[1] + rates_data.shape[1],
+                        ),
+                        dtype=error_data.dtype,
+                    )
+                    raw_data[:, 0] = error_data[:, 0]
+                    raw_data[:, 1::2] = error_data[:, 1 : error_data.shape[1]]
+                    raw_data[:, 2::2] = rates_data
 
-            normal_conv_data = raw_data[:, 0 : raw_data.shape[1] - 4]
-            enhanced_conv_data = raw_data[
-                :, np.insert(np.arange(raw_data.shape[1] - 4, raw_data.shape[1]), 0, 0)
-            ]
+                    normal_conv_data = raw_data[:, 0 : raw_data.shape[1] - 4]
+                    enhanced_conv_data = raw_data[
+                        :,
+                        np.insert(
+                            np.arange(raw_data.shape[1] - 4, raw_data.shape[1]), 0, 0
+                        ),
+                    ]
 
-            np.set_printoptions(precision=4)
-            print("normal convergence data: ", normal_conv_data)
-            print("enhanced convergence data: ", enhanced_conv_data)
+                    np.set_printoptions(precision=4)
+                    print("normal convergence data: ", normal_conv_data)
+                    print("enhanced convergence data: ", enhanced_conv_data)
 
-            normal_header = "h, q,  rate,   v,  rate,   p,  rate,   u,  rate"
-            enhanced_header = "h,   proj q, rate,   proj p, rate, "
-            np.savetxt(
-                "normal_conv_data.txt",
-                normal_conv_data,
-                delimiter=",",
-                fmt="%1.4f",
-                header=normal_header,
-            )
-            np.savetxt(
-                "enhanced_conv_data.txt",
-                enhanced_conv_data,
-                delimiter=",",
-                fmt="%1.4f",
-                header=enhanced_header,
-            )
+                    normal_header = "h, q,  rate,   v,  rate,   p,  rate,   u,  rate"
+                    enhanced_header = "h,   proj q, rate,   proj p, rate, "
+                    np.savetxt(
+                        "normal_conv_data.txt",
+                        normal_conv_data,
+                        delimiter=",",
+                        fmt="%1.4f",
+                        header=normal_header,
+                    )
+                    np.savetxt(
+                        "enhanced_conv_data.txt",
+                        enhanced_conv_data,
+                        delimiter=",",
+                        fmt="%1.4f",
+                        header=enhanced_header,
+                    )
 
-            x = error_data[:, 0]
-            y = error_data[:, 1:n_data]
-            lineObjects = plt.loglog(x, y)
-            plt.legend(
-                iter(lineObjects), ("q", "v", "p", "u", "projected q", "projected p")
-            )
-            plt.title("")
-            plt.xlabel("Element size")
-            plt.ylabel("L2-error")
-            plt.show()
+                    x = error_data[:, 0]
+                    y = error_data[:, 1:n_data]
+                    lineObjects = plt.loglog(x, y)
+                    plt.legend(
+                        iter(lineObjects),
+                        ("q", "v", "p", "u", "projected q", "projected p"),
+                    )
+                    plt.title("")
+                    plt.xlabel("Element size")
+                    plt.ylabel("L2-error")
+                    plt.show()
 
 
 if __name__ == "__main__":

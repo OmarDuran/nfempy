@@ -26,6 +26,7 @@ from weak_forms.laplace_primal_weak_form import (
 from oden_primal_weak_form import OdenPrimalWeakForm, OdenPrimalWeakFormBCDirichlet
 from oden_dual_weak_form import OdenDualWeakForm
 
+
 def h1_model_problem(k_order, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
 
@@ -73,16 +74,38 @@ def h1_model_problem(k_order, gmesh, write_vtk_q=False):
 
     # exact solution
     if dim == 1:
-        u_exact = lambda x, y, z: np.array([-((-np.e + (np.e**(1 + 2*x)) + (np.e**x)*x - (np.e**(2 + x))*x)/
-     ((np.e**x)*(-1 + (np.e**2))))])
+        u_exact = lambda x, y, z: np.array(
+            [
+                -(
+                    (
+                        -np.e
+                        + (np.e ** (1 + 2 * x))
+                        + (np.e**x) * x
+                        - (np.e ** (2 + x)) * x
+                    )
+                    / ((np.e**x) * (-1 + (np.e**2)))
+                )
+            ]
+        )
         q_exact = lambda x, y, z: np.array(
             [
-                -((-np.e + (np.e ** (1 + 2 * x)) + (np.e ** x) * x - (
-                            np.e ** (2 + x)) * x) /
-                  ((np.e ** x) * (-1 + (np.e ** 2)))) +
-                ((np.e ** x) - (np.e ** (2 + x)) + 2 * (np.e ** (1 + 2 * x)) + (
-                            np.e ** x) * x - (np.e ** (2 + x)) * x) /
-                ((np.e ** x) * (-1 + (np.e ** 2))),
+                -(
+                    (
+                        -np.e
+                        + (np.e ** (1 + 2 * x))
+                        + (np.e**x) * x
+                        - (np.e ** (2 + x)) * x
+                    )
+                    / ((np.e**x) * (-1 + (np.e**2)))
+                )
+                + (
+                    (np.e**x)
+                    - (np.e ** (2 + x))
+                    + 2 * (np.e ** (1 + 2 * x))
+                    + (np.e**x) * x
+                    - (np.e ** (2 + x)) * x
+                )
+                / ((np.e**x) * (-1 + (np.e**2))),
             ]
         )
         f_rhs = lambda x, y, z: np.array([[x]])
@@ -255,19 +278,40 @@ def hdiv_model_problem(k_order, gmesh, write_vtk_q=False):
     # exact solution
     if dim == 1:
         u_exact = lambda x, y, z: np.array(
-            [-((-np.e + (np.e ** (1 + 2 * x)) + (np.e ** x) * x - (np.e ** (2 + x)) * x) /
-               ((np.e ** x) * (-1 + (np.e ** 2))))])
-        q_exact = lambda x, y, z: np.array(
             [
-                -((-np.e + (np.e ** (1 + 2 * x)) + (np.e ** x) * x - (
-                        np.e ** (2 + x)) * x) /
-                  ((np.e ** x) * (-1 + (np.e ** 2)))) +
-                ((np.e ** x) - (np.e ** (2 + x)) + 2 * (np.e ** (1 + 2 * x)) + (
-                        np.e ** x) * x - (np.e ** (2 + x)) * x) /
-                ((np.e ** x) * (-1 + (np.e ** 2))),
+                -(
+                    (
+                        -np.e
+                        + (np.e ** (1 + 2 * x))
+                        + (np.e**x) * x
+                        - (np.e ** (2 + x)) * x
+                    )
+                    / ((np.e**x) * (-1 + (np.e**2)))
+                )
             ]
         )
-        div_q_exact = lambda x, y, z: np.array([[x]]) - u_exact(x,y,z)
+        q_exact = lambda x, y, z: np.array(
+            [
+                -(
+                    (
+                        -np.e
+                        + (np.e ** (1 + 2 * x))
+                        + (np.e**x) * x
+                        - (np.e ** (2 + x)) * x
+                    )
+                    / ((np.e**x) * (-1 + (np.e**2)))
+                )
+                + (
+                    (np.e**x)
+                    - (np.e ** (2 + x))
+                    + 2 * (np.e ** (1 + 2 * x))
+                    + (np.e**x) * x
+                    - (np.e ** (2 + x)) * x
+                )
+                / ((np.e**x) * (-1 + (np.e**2))),
+            ]
+        )
+        div_q_exact = lambda x, y, z: np.array([[x]]) - u_exact(x, y, z)
         f_rhs = lambda x, y, z: np.array([[x]])
     else:
         raise ValueError("Case not implemented.")
@@ -285,8 +329,8 @@ def hdiv_model_problem(k_order, gmesh, write_vtk_q=False):
 
     weak_form = OdenDualWeakForm(fe_space)
     weak_form.functions = m_functions
-    #bc_weak_form = LaplaceDualWeakFormBCDirichlet(fe_space)
-    #bc_weak_form.functions = exact_functions
+    # bc_weak_form = LaplaceDualWeakFormBCDirichlet(fe_space)
+    # bc_weak_form.functions = exact_functions
 
     def scatter_form_data(A, i, weak_form):
         # destination indexes
@@ -324,8 +368,8 @@ def hdiv_model_problem(k_order, gmesh, write_vtk_q=False):
     n_els = len(fe_space.discrete_spaces["q"].elements)
     [scatter_form_data(A, i, weak_form) for i in range(n_els)]
 
-    #n_bc_els = len(fe_space.discrete_spaces["q"].bc_elements)
-    #[scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
+    # n_bc_els = len(fe_space.discrete_spaces["q"].bc_elements)
+    # [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
 
     A.assemble()
 
@@ -427,7 +471,7 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 def main():
     k_order = 0
     h = 0.25
-    n_ref = 6# no. of refinement
+    n_ref = 6  # no. of refinement
     dimension = 1
     ref_l = 0
 
@@ -438,11 +482,11 @@ def main():
         h_val = h * (2**-l)
         mesher = create_conformal_mesher(domain, h_val, 0)
         gmesh = create_mesh(dimension, mesher, True)
-        #error_val = h1_model_problem(k_order, gmesh, True)
+        # error_val = h1_model_problem(k_order, gmesh, True)
         error_val = hdiv_model_problem(k_order, gmesh, True)
         error_data = np.append(error_data, np.array([[h_val] + error_val]), axis=0)
 
-    rates_data = np.empty((0, n_data-1), float)
+    rates_data = np.empty((0, n_data - 1), float)
     for i in range(error_data.shape[0] - 1):
         chunk_b = np.log(error_data[i])
         chunk_e = np.log(error_data[i + 1])
@@ -457,11 +501,10 @@ def main():
     print("rounded error data: ", error_data)
     print("rounded error rates data: ", rates_data)
 
-
-    x = error_data[:,0]
-    y = error_data[:,1:n_data]
+    x = error_data[:, 0]
+    y = error_data[:, 1:n_data]
     lineObjects = plt.loglog(x, y)
-    plt.legend(iter(lineObjects), ('u', 'q'))
+    plt.legend(iter(lineObjects), ("u", "q"))
     plt.title("")
     plt.xlabel("Element size")
     plt.ylabel("L2-error")
