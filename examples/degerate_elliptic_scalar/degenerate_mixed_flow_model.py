@@ -319,11 +319,11 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
     if write_vtk_q:
         # post-process solution
         st = time.time()
-        file_name = "rates_arbogast_two_fields.vtk"
+        file_name = case_name + "two_fields.vtk"
         write_vtk_file_with_exact_solution(
             file_name, gmesh, fe_space, exact_functions, alpha
         )
-        file_name = "rates_arbogast_physical_two_fields.vtk"
+        file_name = case_name + "physical_two_fields.vtk"
         write_vtk_file_with_exact_solution(
             file_name, gmesh, fe_space, physical_exact_functions, alpha_unscaled
         )
@@ -421,6 +421,7 @@ def compose_case_name(method, dimension, domain, material):
 
 
 def main():
+
     # fixed directives
     k_order = 0
     h = 0.5
@@ -445,11 +446,12 @@ def main():
                     error_data = np.empty((0, n_data), float)
                     for l in range(n_ref):
                         h_val = h * (2**-l)
-                        mesher = create_conformal_mesher(domain, h_val, 0)
+                        case_name_with_level = case_name + "l_" + str(l) +  "_"
+                        mesher = create_conformal_mesher(domain[1], h_val, 0)
                         gmesh = create_mesh(dimension, mesher, True)
                         h_min, h_mean, h_max = mesh_size(gmesh)
                         error_val = two_fields_formulation(
-                            method, material, gmesh, case_name, True
+                            method, material, gmesh, case_name_with_level, True
                         )
                         error_data = np.append(
                             error_data, np.array([[h_max] + error_val]), axis=0
@@ -496,31 +498,31 @@ def main():
                     normal_header = "h, q,  rate,   v,  rate,   p,  rate,   u,  rate"
                     enhanced_header = "h,   proj q, rate,   proj p, rate, "
                     np.savetxt(
-                        "normal_conv_data.txt",
+                        case_name + "normal_conv_data.txt",
                         normal_conv_data,
                         delimiter=",",
                         fmt="%1.4f",
                         header=normal_header,
                     )
                     np.savetxt(
-                        "enhanced_conv_data.txt",
+                        case_name + "enhanced_conv_data.txt",
                         enhanced_conv_data,
                         delimiter=",",
                         fmt="%1.4f",
                         header=enhanced_header,
                     )
 
-                    x = error_data[:, 0]
-                    y = error_data[:, 1:n_data]
-                    lineObjects = plt.loglog(x, y)
-                    plt.legend(
-                        iter(lineObjects),
-                        ("q", "v", "p", "u", "projected q", "projected p"),
-                    )
-                    plt.title("")
-                    plt.xlabel("Element size")
-                    plt.ylabel("L2-error")
-                    plt.show()
+                    # x = error_data[:, 0]
+                    # y = error_data[:, 1:n_data]
+                    # lineObjects = plt.loglog(x, y)
+                    # plt.legend(
+                    #     iter(lineObjects),
+                    #     ("q", "v", "p", "u", "projected q", "projected p"),
+                    # )
+                    # plt.title("")
+                    # plt.xlabel("Element size")
+                    # plt.ylabel("L2-error")
+                    # plt.show()
 
 
 if __name__ == "__main__":
