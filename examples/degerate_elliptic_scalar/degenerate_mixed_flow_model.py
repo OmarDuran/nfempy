@@ -343,7 +343,7 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
 
 def create_domain(dimension, make_fitted_q):
     if dimension == 1:
-        offset = 2 / 3
+        offset = 1 / 3
         if make_fitted_q:
             offset = 0.0
         points = np.array([[-1, 0, 0], [-offset, 0, 0], [1, 0, 0]])
@@ -402,6 +402,7 @@ def material_data_definition(dim):
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")
     cases = [case_0, case_1, case_2, case_3]
+    cases = [case_0]
     return cases
 
 
@@ -442,9 +443,9 @@ def compose_case_name(method, dimension, domain, material, folder_name=None):
 def main():
     # fixed directives
     k_order = 0
-    h = 0.5
-    n_ref = 5
-    dimensions = [1, 2]
+    h = 1.0
+    n_ref = 6
+    dimensions = [1]
     folder_name = "output"
 
     # method variants
@@ -452,9 +453,14 @@ def main():
     for method in methods:
         for dimension in dimensions:
             # dimension dependent variants
+
+            if dimension == 1 and method[0] == 'mixed_bdm':
+                continue
+
             fitted_domain = create_domain(dimension, make_fitted_q=True)
             unfitted_domain = create_domain(dimension, make_fitted_q=False)
             domains = {"fitted": fitted_domain, "unfitted": unfitted_domain}
+            domains = {"unfitted": unfitted_domain}
             materials = material_data_definition(dimension)
             for domain in domains.items():
                 for material in materials:
