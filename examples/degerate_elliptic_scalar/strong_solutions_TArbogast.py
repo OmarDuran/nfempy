@@ -48,7 +48,12 @@ def f_d_phi(x, y, z, m_par, m_mu, dim):
 
 
 def f_grad_d_phi(x, y, z, m_par, m_mu, dim):
-    mask = np.logical_or(x <= -3 / 4, y <= -3 / 4)
+    if dim == 1:
+        mask = x < 0.0
+    elif dim == 2:
+        mask = np.logical_or(x <= -3 / 4, y <= -3 / 4)
+    else:
+        raise ValueError("Only 1D and 2D settings are supported by this script.")
     scalar_part = np.empty_like(x)
     scalar_part[mask] = np.zeros_like(x[mask])
     scalar_part[~mask] = f_porosity(x[~mask], y[~mask], z[~mask], m_par, dim) / (
