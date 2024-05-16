@@ -346,14 +346,14 @@ def create_domain(dimension, make_fitted_q):
         offset = 2 / 3
         if make_fitted_q:
             offset = 0.0
-        box_points = np.array([[-1, 0, 0], [-offset, 0, 0], [1, 0, 0]])
-        domain = build_line_1D(box_points)
+        points = np.array([[-1, 0, 0], [-offset, 0, 0], [1, 0, 0]])
+        domain = build_line_1D(points)
         return domain
     elif dimension == 2:
-        offset = 0.0
+        offset = 0.5
         if make_fitted_q:
             offset = 0.75
-        box_points = np.array(
+        points = np.array(
             [
                 [-1.0, -1.0, 0],
                 [1, -1.0, 0],
@@ -364,7 +364,7 @@ def create_domain(dimension, make_fitted_q):
                 [-offset, -offset, 0],
             ]
         )
-        domain = build_surface_2D(box_points)
+        domain = build_surface_2D(points)
         return domain
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")
@@ -407,9 +407,9 @@ def material_data_definition(dim):
 
 
 def main():
-    make_fitted_q = True
+    make_fitted_q = False
     k_order = 0
-    h = 1.0
+    h = 0.5
     n_ref = 5
     dimension = 2
     ref_l = 0
