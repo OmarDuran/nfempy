@@ -447,7 +447,7 @@ def main():
     k_order = 0
     h = 0.5
     n_ref = 5
-    dimensions = [1]
+    dimensions = [1, 2]
     folder_name = "output"
 
     # method variants
