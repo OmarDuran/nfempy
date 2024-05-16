@@ -405,28 +405,47 @@ def material_data_definition(dim):
     return cases
 
 
-def compose_case_name(method, dimension, domain, material):
-    case_name = (
-        method[0]
-        + "_"
-        + str(dimension)
-        + "d_"
-        + domain[0]
-        + "_"
-        + "material_parameter_"
-        + str(material["m_par"])
-        + "_"
-    )
+def compose_case_name(method, dimension, domain, material, folder_name=None):
+    if folder_name is None:
+        case_name = (
+            method[0]
+            + "_"
+            + str(dimension)
+            + "d_"
+            + domain[0]
+            + "_"
+            + "material_parameter_"
+            + str(material["m_par"])
+            + "_"
+        )
+    else:
+        import os
+
+        if not os.path.exists(folder_name):
+            os.makedirs(folder_name)
+        case_name = (
+            folder_name
+            + "/"
+            + method[0]
+            + "_"
+            + str(dimension)
+            + "d_"
+            + domain[0]
+            + "_"
+            + "material_parameter_"
+            + str(material["m_par"])
+            + "_"
+        )
     return case_name
 
 
 def main():
-
     # fixed directives
     k_order = 0
     h = 0.5
     n_ref = 5
     dimensions = [1]
+    folder_name = "output"
 
     # method variants
     methods = method_definition(k_order)
@@ -440,13 +459,15 @@ def main():
             for domain in domains.items():
                 for material in materials:
                     # composing name prefix
-                    case_name = compose_case_name(method, dimension, domain, material)
+                    case_name = compose_case_name(
+                        method, dimension, domain, material, folder_name
+                    )
 
                     n_data = 7
                     error_data = np.empty((0, n_data), float)
                     for l in range(n_ref):
                         h_val = h * (2**-l)
-                        case_name_with_level = case_name + "l_" + str(l) +  "_"
+                        case_name_with_level = case_name + "l_" + str(l) + "_"
                         mesher = create_conformal_mesher(domain[1], h_val, 0)
                         gmesh = create_mesh(dimension, mesher, True)
                         h_min, h_mean, h_max = mesh_size(gmesh)
