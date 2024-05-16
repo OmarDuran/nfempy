@@ -253,6 +253,8 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
         res_g *= 0.0
         jac_g.scale(0.0)
 
+    # alpha = l2_projector(fe_space, exact_functions)
+
     st = time.time()
     (
         v_l2_error,
@@ -343,7 +345,7 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
 
 def create_domain(dimension, make_fitted_q):
     if dimension == 1:
-        offset = 1 / 3
+        offset = 1.0/3.0
         if make_fitted_q:
             offset = 0.0
         points = np.array([[-1, 0, 0], [-offset, 0, 0], [1, 0, 0]])
@@ -443,8 +445,8 @@ def compose_case_name(method, dimension, domain, material, folder_name=None):
 def main():
     # fixed directives
     k_order = 0
-    h = 1.0
-    n_ref = 6
+    h = 0.5
+    n_ref = 5
     dimensions = [1]
     folder_name = "output"
 
@@ -460,7 +462,6 @@ def main():
             fitted_domain = create_domain(dimension, make_fitted_q=True)
             unfitted_domain = create_domain(dimension, make_fitted_q=False)
             domains = {"fitted": fitted_domain, "unfitted": unfitted_domain}
-            domains = {"unfitted": unfitted_domain}
             materials = material_data_definition(dimension)
             for domain in domains.items():
                 for material in materials:
@@ -474,11 +475,11 @@ def main():
                     for l in range(n_ref):
                         h_val = h * (2**-l)
                         case_name_with_level = case_name + "l_" + str(l) + "_"
-                        mesher = create_conformal_mesher(domain[1], h_val, 0)
+                        mesher = create_conformal_mesher(domain[1], h, l)
                         gmesh = create_mesh(dimension, mesher, True)
                         h_min, h_mean, h_max = mesh_size(gmesh)
                         error_val = two_fields_formulation(
-                            method, material, gmesh, case_name_with_level, True
+                            method, material, gmesh, case_name_with_level, False
                         )
                         error_data = np.append(
                             error_data, np.array([[h_max] + error_val]), axis=0
@@ -528,14 +529,14 @@ def main():
                         case_name + "normal_conv_data.txt",
                         normal_conv_data,
                         delimiter=",",
-                        fmt="%1.4f",
+                        fmt="%1.5f",
                         header=normal_header,
                     )
                     np.savetxt(
                         case_name + "enhanced_conv_data.txt",
                         enhanced_conv_data,
                         delimiter=",",
-                        fmt="%1.4f",
+                        fmt="%1.5f",
                         header=enhanced_header,
                     )
 
