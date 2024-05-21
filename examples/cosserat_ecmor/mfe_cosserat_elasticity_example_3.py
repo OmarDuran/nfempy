@@ -643,22 +643,16 @@ def perform_convergence_postprocessing(configuration: dict):
 
 
 def method_definition(k_order):
+
     method_1 = {
         "s": ("BDM", k_order + 1),
         "m": ("RT", k_order + 1),
         "u": ("Lagrange", k_order),
         "t": ("Lagrange", k_order),
     }
+    methods = [method_1]
+    method_names = ["four_field_MFEM"]
 
-    method_2 = {
-        "s": ("BDM", k_order + 1),
-        "m": ("BDM", k_order + 1),
-        "u": ("Lagrange", k_order),
-        "t": ("Lagrange", k_order),
-    }
-
-    methods = [method_1, method_2]
-    method_names = ["wc_rt", "wc_bdm"]
     return zip(method_names, methods)
 
 

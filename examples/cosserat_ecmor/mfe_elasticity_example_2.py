@@ -676,7 +676,7 @@ def method_definition(k_order):
     }
 
     methods = [method_1]
-    method_names = ["wc_afw"]
+    method_names = ["three_field_MFEM"]
     return zip(method_names, methods)
 
 
