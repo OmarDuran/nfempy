@@ -446,7 +446,7 @@ def main():
     # fixed directives
     k_order = 0
     h = 0.5
-    n_ref = 5
+    n_ref = 6
     dimensions = [1, 2]
     folder_name = "output"
 
@@ -519,7 +519,7 @@ def main():
                         ),
                     ]
 
-                    np.set_printoptions(precision=4)
+                    np.set_printoptions(precision=5)
                     print("normal convergence data: ", normal_conv_data)
                     print("enhanced convergence data: ", enhanced_conv_data)
 
@@ -529,14 +529,14 @@ def main():
                         case_name + "normal_conv_data.txt",
                         normal_conv_data,
                         delimiter=",",
-                        fmt="%1.5f",
+                        fmt="%1.6f",
                         header=normal_header,
                     )
                     np.savetxt(
                         case_name + "enhanced_conv_data.txt",
                         enhanced_conv_data,
                         delimiter=",",
-                        fmt="%1.5f",
+                        fmt="%1.6f",
                         header=enhanced_header,
                     )
 
