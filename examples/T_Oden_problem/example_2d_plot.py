@@ -3,6 +3,7 @@ from sys import platform
 
 import numpy as np
 import pyvista
+import matplotlib.pyplot as plt
 
 if platform == "linux" or platform == "linux2":
     pyvista.start_xvfb()
@@ -10,7 +11,6 @@ pyvista.global_theme.colorbar_orientation = "horizontal"
 
 
 def paint_on_canvas():
-    view_dir = [1.0, 1.0, 0.0]
 
     file_name_geo = "geometric_mesh_2d.vtk"
     file_name = "rates_hdiv_model_problem.vtk"
@@ -58,8 +58,41 @@ def paint_on_canvas():
     )
 
     plotter.view_xy()
-
+    plotter.show()
     return plotter
+
+def plot_over_line(figure_file_name):
+    # Make two points to construct the line between
+    a = [0.25, 0.25, 0.0]
+    b = [0.75, 0.75, 0.0]
+
+    file_name = "rates_hdiv_model_problem.vtk"
+    # load data
+    hdiv_solution = pyvista.read(file_name)
+
+    sampled = hdiv_solution.sample_over_line(a, b, resolution= 1000)
+
+    q_h_norm = np.array([np.linalg.norm(q_h) for q_h in sampled.point_data["q_h"]])
+    q_e_norm = np.array([np.linalg.norm(q_e) for q_e in sampled.point_data["q_e"]])
+
+    x = sampled["Distance"]
+    q_e = q_e_norm
+    q_data = np.vstack((q_e_norm,q_h_norm)).T
+    lineObjects = plt.plot(x, q_data)
+    styles = ['solid','--']
+    linewidths = [2.0, 2.0]
+    for i ,line in enumerate(lineObjects):
+        line.set_linestyle(styles[i])
+        line.set_linewidth(linewidths[i])
+    plt.legend(iter(lineObjects), (r'$|| \mathbf{q}_e ||$', r'$|| \mathbf{q}_h ||$'))
+    plt.title("")
+    plt.xlabel("Length")
+    plt.ylabel("Flux")
+    # plt.show()
+
+    plt.savefig(figure_file_name)
+
+    return
 
 
 folder_name = "oden_figures"
@@ -67,6 +100,8 @@ import os
 if not os.path.exists(folder_name):
     os.makedirs(folder_name)
 
-canvas = paint_on_canvas()
-canvas.save_graphic("oden_figures/qh_magnitude.eps")
-canvas.save_graphic("oden_figures/qh_magnitude.pdf")
+# canvas = paint_on_canvas()
+# canvas.save_graphic("oden_figures/qh_magnitude.eps")
+# canvas.save_graphic("oden_figures/qh_magnitude.pdf")
+
+# plot_over_line('oden_figures/plot_over_line_q.ps')

@@ -550,7 +550,7 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 def main():
     k_order = 1
     h = 0.25
-    n_ref = 5  # no. of refinement
+    n_ref = 4  # no. of refinement
     dimension = 2
     ref_l = 0
 
