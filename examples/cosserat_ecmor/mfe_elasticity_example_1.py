@@ -25,7 +25,7 @@ def compose_file_name(method, k_order, ref_l, dim, material_data, suffix):
         + method[0]
         + "_lambda_"
         + str(material_data["lambda"])
-        + "_l"
+        + "_l_"
         + str(ref_l)
     )
     file_name = prefix + suffix
@@ -341,9 +341,8 @@ def three_field_postprocessing(
         lambda_value = material_data["lambda"]
         mu_value = material_data["mu"]
 
-        prefix = method[0] + "_k" + str(k_order) + "_d" + str(dim)
-        prefix += "_lambda_" + str(lambda_value) + "_mu_" + str(mu_value)
-        file_name = prefix + "_four_fields_ex_1.vtk"
+        prefix = "ex_1_" + method[0] + "_lambda_" + str(lambda_value)
+        file_name = prefix + ".vtk"
 
         write_vtk_file_with_exact_solution(
             file_name, gmesh, fe_space, exact_functions, alpha
@@ -679,8 +678,8 @@ def material_data_definition():
 def main():
     dimension = 2
     approximation_q = True
-    postprocessing_q = False
-    refinements = {0: 3, 1: 3}
+    postprocessing_q = True
+    refinements = {0: 6, 1: 6}
     case_data = material_data_definition()
     for k in [0]:
         methods = method_definition(k)
