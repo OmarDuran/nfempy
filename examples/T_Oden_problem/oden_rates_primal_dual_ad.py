@@ -113,38 +113,33 @@ def h1_model_problem(k_order, gmesh, write_vtk_q=False):
     elif dim == 2:
         u_exact = lambda x, y, z: np.array(
             [
-                (
-                 x - 2 * np.e * np.sinh(x) / (-1 + np.e**2)
-                ) *
-                (
-                    y - 2 * np.e * np.sinh(y) / (-1 + np.e**2)
-                )
+                (x - 2 * np.e * np.sinh(x) / (-1 + np.e**2))
+                * (y - 2 * np.e * np.sinh(y) / (-1 + np.e**2))
             ]
         )
         q_exact = lambda x, y, z: np.array(
             [
-                -((
-                        1 - 2 * np.e * np.cosh(x) / (-1 + np.e**2)
-
-                ) *
-                (
-                    y - 2 * np.e * np.sinh(y) / (-1 + np.e**2)
-                )),
-                -( (
-                        1 - 2 * np.e * np.cosh(y) / (-1 + np.e**2)
-
-                ) *
-                  (
-                    x - 2 * np.e * np.sinh(x) / (-1 + np.e**2)
-                   )),
-
-
-
+                -(
+                    (1 - 2 * np.e * np.cosh(x) / (-1 + np.e**2))
+                    * (y - 2 * np.e * np.sinh(y) / (-1 + np.e**2))
+                ),
+                -(
+                    (1 - 2 * np.e * np.cosh(y) / (-1 + np.e**2))
+                    * (x - 2 * np.e * np.sinh(x) / (-1 + np.e**2))
+                ),
             ]
         )
-        f_rhs = lambda x, y, z: np.array([[(((-1 + np.e**2)**2 * x * y) -
-                                            (4 * np.e**2 * np.sinh(x)*np.sinh(y)))
-                                           /((-1 + np.e**2)**2)]])
+        f_rhs = lambda x, y, z: np.array(
+            [
+                [
+                    (
+                        ((-1 + np.e**2) ** 2 * x * y)
+                        - (4 * np.e**2 * np.sinh(x) * np.sinh(y))
+                    )
+                    / ((-1 + np.e**2) ** 2)
+                ]
+            ]
+        )
     else:
         raise ValueError("Case not implemented.")
 
@@ -350,50 +345,43 @@ def hdiv_model_problem(k_order, gmesh, write_vtk_q=False):
         div_q_exact = lambda x, y, z: np.array([[x]]) - u_exact(x, y, z)
         f_rhs = lambda x, y, z: np.array([[x]])
 
-
     elif dim == 2:
         u_exact = lambda x, y, z: np.array(
             [
-                (
-                 x - 2 * np.e * np.sinh(x) / (-1 + np.e**2)
-                ) *
-                (
-                    y - 2 * np.e * np.sinh(y) / (-1 + np.e**2)
-                )
+                (x - 2 * np.e * np.sinh(x) / (-1 + np.e**2))
+                * (y - 2 * np.e * np.sinh(y) / (-1 + np.e**2))
             ]
         )
-        q_exact = lambda x, y, z: np.array([
+        q_exact = lambda x, y, z: np.array(
             [
-                -((
-                        1 - 2 * np.e * np.cosh(x) / (-1 + np.e**2)
-
-                ) *
-                (
-                    y - 2 * np.e * np.sinh(y) / (-1 + np.e**2)
-                )),
-                -( (
-                        1 - 2 * np.e * np.cosh(y) / (-1 + np.e**2)
-
-                ) *
-                  (
-                    x - 2 * np.e * np.sinh(x) / (-1 + np.e**2)
-                   )),
-
-
-
-            ]]
+                [
+                    -(
+                        (1 - 2 * np.e * np.cosh(x) / (-1 + np.e**2))
+                        * (y - 2 * np.e * np.sinh(y) / (-1 + np.e**2))
+                    ),
+                    -(
+                        (1 - 2 * np.e * np.cosh(y) / (-1 + np.e**2))
+                        * (x - 2 * np.e * np.sinh(x) / (-1 + np.e**2))
+                    ),
+                ]
+            ]
         )
 
-        f_rhs = lambda x, y, z: np.array([[(((-1 + np.e**2)**2 * x * y) -
+        f_rhs = lambda x, y, z: np.array(
+            [
+                [
+                    (
+                        ((-1 + np.e**2) ** 2 * x * y)
+                        - (4 * np.e**2 * np.sinh(x) * np.sinh(y))
+                    )
+                    / ((-1 + np.e**2) ** 2)
+                ]
+            ]
+        )
 
-                                            (4 * np.e**2 * np.sinh(x)*np.sinh(y)))
-
-                                           /((-1 + np.e**2)**2)]])
-
-        div_q_exact = lambda x, y, z: np.array([[f_rhs(x,y,z)]]) - u_exact(x, y, z)
+        div_q_exact = lambda x, y, z: np.array([[f_rhs(x, y, z)]]) - u_exact(x, y, z)
     else:
         raise ValueError("Case not implemented.")
-
 
     m_functions = {
         "rhs": f_rhs,
@@ -576,26 +564,25 @@ def main():
     print("error data: ", error_data)
     print("error rates data: ", rates_data)
 
-
-
-
     np.set_printoptions(precision=4)
     print("rounded error data: ", error_data)
     print("rounded error rates data: ", rates_data)
 
-    np.savetxt("rates_data_oden.txt",
-               rates_data,
-               delimiter=",",
-               fmt="%1.5f",
-               #header=rates_data_oden,
-               )
+    np.savetxt(
+        "rates_data_oden.txt",
+        rates_data,
+        delimiter=",",
+        fmt="%1.5f",
+        # header=rates_data_oden,
+    )
 
-    np.savetxt("error_data_oden.txt",
-               error_data,
-               delimiter=",",
-               fmt="%1.5f",
-               #header=rates_data_oden,
-                )
+    np.savetxt(
+        "error_data_oden.txt",
+        error_data,
+        delimiter=",",
+        fmt="%1.5f",
+        # header=rates_data_oden,
+    )
 
     x = error_data[:, 0]
     y = error_data[:, 1:n_data]
