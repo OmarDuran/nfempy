@@ -438,12 +438,6 @@ def perform_convergence_approximations(configuration: dict):
     material_data = configuration.get("material_data", {})
     write_geometry_vtk = configuration.get("write_geometry_Q", True)
 
-    # The initial element size
-    h = 1.0
-
-    # Create a unit squared or a unit cube
-    domain = create_domain(dimension)
-
     for lh in range(n_ref):
         mesh_file = "gmsh_files/ex_1/partition_ex_1_l_" + str(lh) + ".msh"
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
@@ -476,12 +470,6 @@ def perform_convergence_postprocessing(configuration: dict):
     write_geometry_vtk = configuration.get("write_geometry_Q", True)
     write_vtk = configuration.get("write_vtk_Q", True)
     report_full_precision_data = configuration.get("report_full_precision_data_Q", True)
-
-    # The initial element size
-    h = 1.0
-
-    # Create a unit squared or a unit cube
-    domain = create_domain(dimension)
 
     n_data = 10
     error_data = np.empty((0, n_data), float)
