@@ -515,8 +515,11 @@ def perform_convergence_approximations(configuration: dict):
     domain = create_domain(dimension)
 
     for lh in range(n_ref):
-        mesher = create_conformal_mesher(domain, h, lh)
-        gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
+        mesh_file = (
+                "gmsh_files/ex_2/partition_ex_2_l_" + str(
+            lh) + ".msh"
+        )
+        gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
         alpha, res_history = three_field_approximation(material_data, method, gmesh)
         file_name = compose_file_name(
             method, k_order, lh, gmesh.dimension, material_data, "_alpha_ex_2.npy"
@@ -556,8 +559,11 @@ def perform_convergence_postprocessing(configuration: dict):
     n_data = 10
     error_data = np.empty((0, n_data), float)
     for lh in range(n_ref):
-        mesher = create_conformal_mesher(domain, h, lh)
-        gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
+        mesh_file = (
+                "gmsh_files/ex_2/partition_ex_2_l_" + str(
+            lh) + ".msh"
+        )
+        gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
         h_min, h_mean, h_max = mesh_size(gmesh)
 
         file_name = compose_file_name(
@@ -679,7 +685,7 @@ def material_data_definition():
     case_0 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0e-4}
     case_1 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0}
     case_2 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0e+4}
-    cases = [case_0, case_1, case_2]
+    cases = [case_1]
     return cases
 
 
@@ -687,7 +693,7 @@ def main():
     dimension = 2
     approximation_q = True
     postprocessing_q = True
-    refinements = {0: 4, 1: 5}
+    refinements = {0: 3, 1: 5}
     case_data = material_data_definition()
     for k in [0]:
         methods = method_definition(k)

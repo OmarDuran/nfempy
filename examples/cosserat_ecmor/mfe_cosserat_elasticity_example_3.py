@@ -510,7 +510,8 @@ def perform_convergence_approximations(configuration: dict):
 
     for lh in range(n_ref):
         mesh_file = (
-            "gmsh_files/ex_3/example_3_" + str(dimension) + "d_l_" + str(lh) + ".msh"
+                "gmsh_files/ex_3/partition_ex_3_l_" + str(
+            lh) + ".msh"
         )
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
         alpha, res_history = four_field_scaled_approximation(method, gmesh)
@@ -546,7 +547,8 @@ def perform_convergence_postprocessing(configuration: dict):
     error_data = np.empty((0, n_data), float)
     for lh in range(n_ref):
         mesh_file = (
-            "gmsh_files/ex_3/example_3_" + str(dimension) + "d_l_" + str(lh) + ".msh"
+                "gmsh_files/ex_3/partition_ex_3_l_" + str(
+            lh) + ".msh"
         )
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
         h_min, h_mean, h_max = mesh_size(gmesh)
@@ -662,10 +664,10 @@ def method_definition(k_order):
 
 def main():
     dimension = 2
-    approximation_q = False
+    approximation_q = True
     postprocessing_q = True
     refinements = {0: 4, 1: 4}
-    for k in [0, 1]:
+    for k in [0]:
         for method in method_definition(k):
             configuration = {
                 "k_order": k,
