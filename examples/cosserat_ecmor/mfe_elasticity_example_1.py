@@ -522,44 +522,43 @@ def perform_convergence_postprocessing(configuration: dict):
     e_str_header = "n_dof, n_iter, h, " + base_str_header
 
     lambda_value = material_data["lambda"]
-    mu_value = material_data["mu"]
 
     file_name_prefix = "ex_1_" + method[0] + "_lambda_" + str(lambda_value)
     if report_full_precision_data:
         np.savetxt(
-            file_name_prefix + "d_error.txt",
+            file_name_prefix + "_error.txt",
             error_data,
             delimiter=",",
             header=e_str_header,
         )
         np.savetxt(
-            file_name_prefix + "d_rates.txt",
+            file_name_prefix + "_rates.txt",
             rates_data,
             delimiter=",",
             header=base_str_header,
         )
         np.savetxt(
-            file_name_prefix + "d_solution_norms.txt",
+            file_name_prefix + "_solution_norms.txt",
             sol_norms,
             delimiter=",",
             header=base_str_header,
         )
     np.savetxt(
-        file_name_prefix + "d_error_rounded.txt",
+        file_name_prefix + "_error_rounded.txt",
         error_data,
         fmt="%1.3e",
         delimiter=",",
         header=e_str_header,
     )
     np.savetxt(
-        file_name_prefix + "d_rates_rounded.txt",
+        file_name_prefix + "_rates_rounded.txt",
         rates_data,
         fmt="%1.3f",
         delimiter=",",
         header=base_str_header,
     )
     np.savetxt(
-        file_name_prefix + "d_solution_norms_rounded.txt",
+        file_name_prefix + "_solution_norms_rounded.txt",
         sol_norms,
         fmt="%1.10f",
         delimiter=",",

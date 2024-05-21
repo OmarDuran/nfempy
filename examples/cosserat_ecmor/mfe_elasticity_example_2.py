@@ -19,25 +19,6 @@ from weak_forms.le_dual_weak_form import LEDualWeakForm, LEDualWeakFormBCDirichl
 from weak_forms.le_riesz_map_weak_form import LERieszMapWeakForm
 
 
-def compose_file_name(method, k_order, ref_l, dim, material_data, suffix):
-    prefix = (
-        method[0]
-        + "_lambda_"
-        + str(material_data["lambda"])
-        + "_mu_"
-        + str(material_data["mu"])
-        + "_k"
-        + str(k_order)
-        + "_l"
-        + str(ref_l)
-        + "_"
-        + str(dim)
-        + "d"
-    )
-    file_name = prefix + suffix
-    return file_name
-
-
 def create_product_space(method, gmesh):
     # FESpace: data
     s_k_order = method[1]["s"][1]
@@ -346,12 +327,10 @@ def three_field_postprocessing(
     if write_vtk_q:
         st = time.time()
 
-        lambda_value = material_data["lambda"]
-        mu_value = material_data["mu"]
+        kappa_value = material_data["kappa"]
 
-        prefix = method[0] + "_k" + str(k_order) + "_d" + str(dim)
-        prefix += "_lambda_" + str(lambda_value) + "_mu_" + str(mu_value)
-        file_name = prefix + "_four_fields_ex_2.vtk"
+        prefix = "ex_2_" + method[0] + "_kappa_" + str(kappa_value)
+        file_name = prefix + ".vtk"
 
         write_vtk_file_with_exact_solution(
             file_name, gmesh, fe_space, exact_functions, alpha
@@ -515,12 +494,12 @@ def perform_convergence_approximations(configuration: dict):
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
         alpha, res_history = three_field_approximation(material_data, method, gmesh)
         file_name = compose_file_name(
-            method, k_order, lh, gmesh.dimension, material_data, "_alpha_ex_2.npy"
+            method, k_order, lh, gmesh.dimension, material_data, "_alpha.npy"
         )
         with open(file_name, "wb") as f:
             np.save(f, alpha)
         file_name_res = compose_file_name(
-            method, k_order, lh, gmesh.dimension, material_data, "_res_history_ex_2.txt"
+            method, k_order, lh, gmesh.dimension, material_data, "_res_history.txt"
         )
         # First position includes n_dof
         np.savetxt(
@@ -557,7 +536,7 @@ def perform_convergence_postprocessing(configuration: dict):
         h_min, h_mean, h_max = mesh_size(gmesh)
 
         file_name = compose_file_name(
-            method, k_order, lh, gmesh.dimension, material_data, "_alpha_ex_2.npy"
+            method, k_order, lh, gmesh.dimension, material_data, "_alpha.npy"
         )
         with open(file_name, "rb") as f:
             alpha = np.load(f)
@@ -566,7 +545,7 @@ def perform_convergence_postprocessing(configuration: dict):
         )
 
         file_name_res = compose_file_name(
-            method, k_order, lh, gmesh.dimension, material_data, "_res_history_ex_2.txt"
+            method, k_order, lh, gmesh.dimension, material_data, "_res_history.txt"
         )
         res_data = np.genfromtxt(file_name_res, dtype=None, delimiter=",")
         n_iterations = res_data.shape[0] - 1  # First position includes n_dof
@@ -599,61 +578,49 @@ def perform_convergence_postprocessing(configuration: dict):
     base_str_header = dual_header
     e_str_header = "n_dof, n_iter, h, " + base_str_header
 
-    lambda_value = material_data["lambda"]
-    mu_value = material_data["mu"]
+    kappa_value = material_data["kappa"]
 
-    file_name_prefix = (
-        method[0]
-        + "_lambda_"
-        + str(lambda_value)
-        + "_mu_"
-        + str(mu_value)
-        + "_k"
-        + str(k_order)
-        + "_"
-        + str(dimension)
-    )
+    file_name_prefix = "ex_2_" + method[0] + "_kappa_" + str(kappa_value)
     if report_full_precision_data:
         np.savetxt(
-            file_name_prefix + "d_error_ex_2.txt",
+            file_name_prefix + "_error.txt",
             error_data,
             delimiter=",",
             header=e_str_header,
         )
         np.savetxt(
-            file_name_prefix + "d_rates_ex_2.txt",
+            file_name_prefix + "_rates.txt",
             rates_data,
             delimiter=",",
             header=base_str_header,
         )
         np.savetxt(
-            file_name_prefix + "d_solution_norms_ex_2.txt",
+            file_name_prefix + "_solution_norms.txt",
             sol_norms,
             delimiter=",",
             header=base_str_header,
         )
     np.savetxt(
-        file_name_prefix + "d_error_ex_2_rounded.txt",
+        file_name_prefix + "_error_rounded.txt",
         error_data,
         fmt="%1.3e",
         delimiter=",",
         header=e_str_header,
     )
     np.savetxt(
-        file_name_prefix + "d_rates_ex_2_rounded.txt",
+        file_name_prefix + "_rates_rounded.txt",
         rates_data,
         fmt="%1.3f",
         delimiter=",",
         header=base_str_header,
     )
     np.savetxt(
-        file_name_prefix + "d_solution_norms_ex_2_rounded.txt",
+        file_name_prefix + "_solution_norms_rounded.txt",
         sol_norms,
         fmt="%1.10f",
         delimiter=",",
         header=base_str_header,
     )
-
     return
 
 
@@ -678,11 +645,24 @@ def material_data_definition():
     return cases
 
 
+def compose_file_name(method, k_order, ref_l, dim, material_data, suffix):
+    prefix = (
+        "ex_2_"
+        + method[0]
+        + "_kappa_"
+        + str(material_data["kappa"])
+        + "_l_"
+        + str(ref_l)
+    )
+    file_name = prefix + suffix
+    return file_name
+
+
 def main():
     dimension = 2
     approximation_q = True
     postprocessing_q = True
-    refinements = {0: 3, 1: 5}
+    refinements = {0: 3, 1: 3}
     case_data = material_data_definition()
     for k in [0]:
         methods = method_definition(k)
