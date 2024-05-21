@@ -509,10 +509,7 @@ def perform_convergence_approximations(configuration: dict):
     write_geometry_vtk = configuration.get("write_geometry_Q", True)
 
     for lh in range(n_ref):
-        mesh_file = (
-                "gmsh_files/ex_3/partition_ex_3_l_" + str(
-            lh) + ".msh"
-        )
+        mesh_file = "gmsh_files/ex_3/partition_ex_3_l_" + str(lh) + ".msh"
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
         alpha, res_history = four_field_scaled_approximation(method, gmesh)
         file_name = compose_file_name(
@@ -546,10 +543,7 @@ def perform_convergence_postprocessing(configuration: dict):
     n_data = 13
     error_data = np.empty((0, n_data), float)
     for lh in range(n_ref):
-        mesh_file = (
-                "gmsh_files/ex_3/partition_ex_3_l_" + str(
-            lh) + ".msh"
-        )
+        mesh_file = "gmsh_files/ex_3/partition_ex_3_l_" + str(lh) + ".msh"
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
         h_min, h_mean, h_max = mesh_size(gmesh)
 
@@ -643,7 +637,6 @@ def perform_convergence_postprocessing(configuration: dict):
 
 
 def method_definition(k_order):
-
     method_1 = {
         "s": ("BDM", k_order + 1),
         "m": ("RT", k_order + 1),

@@ -361,18 +361,14 @@ def three_field_postprocessing(
         print("VTK post-processing time:", elapsed_time, "seconds")
 
     st = time.time()
-    s_l2_error, u_l2_error, t_l2_error = l2_error(
-        dim, fe_space, exact_functions, alpha
-    )
+    s_l2_error, u_l2_error, t_l2_error = l2_error(dim, fe_space, exact_functions, alpha)
     div_s_l2_error = div_error(dim, fe_space, exact_functions, alpha)[0]
 
     s_h_div_error = np.sqrt((s_l2_error**2) + (div_s_l2_error**2))
 
     alpha_proj = l2_projector(fe_space, exact_functions)
     alpha_e = alpha - alpha_proj
-    u_proj_l2_error, t_proj_l2_error = l2_error_projected(
-        dim, fe_space, alpha_e, ["s"]
-    )
+    u_proj_l2_error, t_proj_l2_error = l2_error_projected(dim, fe_space, alpha_e, ["s"])
 
     et = time.time()
     elapsed_time = et - st
@@ -515,10 +511,7 @@ def perform_convergence_approximations(configuration: dict):
     domain = create_domain(dimension)
 
     for lh in range(n_ref):
-        mesh_file = (
-                "gmsh_files/ex_2/partition_ex_2_l_" + str(
-            lh) + ".msh"
-        )
+        mesh_file = "gmsh_files/ex_2/partition_ex_2_l_" + str(lh) + ".msh"
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
         alpha, res_history = three_field_approximation(material_data, method, gmesh)
         file_name = compose_file_name(
@@ -559,10 +552,7 @@ def perform_convergence_postprocessing(configuration: dict):
     n_data = 10
     error_data = np.empty((0, n_data), float)
     for lh in range(n_ref):
-        mesh_file = (
-                "gmsh_files/ex_2/partition_ex_2_l_" + str(
-            lh) + ".msh"
-        )
+        mesh_file = "gmsh_files/ex_2/partition_ex_2_l_" + str(lh) + ".msh"
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
         h_min, h_mean, h_max = mesh_size(gmesh)
 
@@ -668,7 +658,6 @@ def perform_convergence_postprocessing(configuration: dict):
 
 
 def method_definition(k_order):
-
     method_1 = {
         "s": ("BDM", k_order + 1),
         "u": ("Lagrange", k_order),
@@ -684,7 +673,7 @@ def material_data_definition():
     # Material data for example 1
     case_0 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0e-4}
     case_1 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0}
-    case_2 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0e+4}
+    case_2 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0e4}
     cases = [case_1]
     return cases
 
@@ -710,7 +699,6 @@ def main():
                     perform_convergence_approximations(configuration)
                 if postprocessing_q:
                     perform_convergence_postprocessing(configuration)
-
 
 
 if __name__ == "__main__":

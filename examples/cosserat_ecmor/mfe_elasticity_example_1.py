@@ -19,19 +19,6 @@ from weak_forms.le_dual_weak_form import LEDualWeakForm, LEDualWeakFormBCDirichl
 from weak_forms.le_riesz_map_weak_form import LERieszMapWeakForm
 
 
-def compose_file_name(method, k_order, ref_l, dim, material_data, suffix):
-    prefix = (
-        "ex_1_"
-        + method[0]
-        + "_lambda_"
-        + str(material_data["lambda"])
-        + "_l_"
-        + str(ref_l)
-    )
-    file_name = prefix + suffix
-    return file_name
-
-
 def create_product_space(method, gmesh):
     # FESpace: data
     s_k_order = method[1]["s"][1]
@@ -352,18 +339,14 @@ def three_field_postprocessing(
         print("VTK post-processing time:", elapsed_time, "seconds")
 
     st = time.time()
-    s_l2_error, u_l2_error, t_l2_error = l2_error(
-        dim, fe_space, exact_functions, alpha
-    )
+    s_l2_error, u_l2_error, t_l2_error = l2_error(dim, fe_space, exact_functions, alpha)
     div_s_l2_error = div_error(dim, fe_space, exact_functions, alpha)[0]
 
     s_h_div_error = np.sqrt((s_l2_error**2) + (div_s_l2_error**2))
 
     alpha_proj = l2_projector(fe_space, exact_functions)
     alpha_e = alpha - alpha_proj
-    u_proj_l2_error, t_proj_l2_error = l2_error_projected(
-        dim, fe_space, alpha_e, ["s"]
-    )
+    u_proj_l2_error, t_proj_l2_error = l2_error_projected(dim, fe_space, alpha_e, ["s"])
 
     et = time.time()
     elapsed_time = et - st
@@ -438,49 +421,6 @@ def three_field_solution_norms(material_data, method, gmesh):
     )
 
 
-def create_domain(dimension):
-    if dimension == 1:
-        box_points = np.array([[0, 0, 0], [1, 0, 0]])
-        domain = build_box_1D(box_points)
-        return domain
-    elif dimension == 2:
-        box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
-        domain = build_box_2D(box_points)
-        return domain
-    else:
-        box_points = np.array(
-            [
-                [0.0, 0.0, 0.0],
-                [1.0, 0.0, 0.0],
-                [1.0, 1.0, 0.0],
-                [0.0, 1.0, 0.0],
-                [0.0, 0.0, 1.0],
-                [1.0, 0.0, 1.0],
-                [1.0, 1.0, 1.0],
-                [0.0, 1.0, 1.0],
-            ]
-        )
-        domain = build_box_3D(box_points)
-        return domain
-
-
-def create_conformal_mesher(domain: Domain, h, ref_l=0):
-    mesher = ConformalMesher(dimension=domain.dimension)
-    mesher.domain = domain
-    mesher.generate_from_domain(h, ref_l)
-    mesher.write_mesh("gmesh.msh")
-    return mesher
-
-
-def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
-    gmesh = Mesh(dimension=dimension, file_name="gmesh.msh")
-    gmesh.set_conformal_mesher(mesher)
-    gmesh.build_conformal_mesh()
-    if write_vtk_q:
-        gmesh.write_vtk()
-    return gmesh
-
-
 def create_mesh_from_file(file_name, dim, write_vtk_q=False):
     gmesh = Mesh(dimension=dim, file_name=file_name)
     gmesh.build_conformal_mesh()
@@ -505,10 +445,7 @@ def perform_convergence_approximations(configuration: dict):
     domain = create_domain(dimension)
 
     for lh in range(n_ref):
-        mesh_file = (
-                "gmsh_files/ex_1/partition_ex_1_l_" + str(
-            lh) + ".msh"
-        )
+        mesh_file = "gmsh_files/ex_1/partition_ex_1_l_" + str(lh) + ".msh"
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
         alpha, res_history = three_field_approximation(material_data, method, gmesh)
         file_name = compose_file_name(
@@ -549,10 +486,7 @@ def perform_convergence_postprocessing(configuration: dict):
     n_data = 10
     error_data = np.empty((0, n_data), float)
     for lh in range(n_ref):
-        mesh_file = (
-                "gmsh_files/ex_1/partition_ex_1_l_" + str(
-            lh) + ".msh"
-        )
+        mesh_file = "gmsh_files/ex_1/partition_ex_1_l_" + str(lh) + ".msh"
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
         h_min, h_mean, h_max = mesh_size(gmesh)
 
@@ -602,12 +536,7 @@ def perform_convergence_postprocessing(configuration: dict):
     lambda_value = material_data["lambda"]
     mu_value = material_data["mu"]
 
-    file_name_prefix = (
-        "ex_1_"
-        + method[0]
-        + "_lambda_"
-        + str(lambda_value)
-    )
+    file_name_prefix = "ex_1_" + method[0] + "_lambda_" + str(lambda_value)
     if report_full_precision_data:
         np.savetxt(
             file_name_prefix + "d_error.txt",
@@ -653,7 +582,6 @@ def perform_convergence_postprocessing(configuration: dict):
 
 
 def method_definition(k_order):
-
     method_1 = {
         "s": ("BDM", k_order + 1),
         "u": ("Lagrange", k_order),
@@ -673,6 +601,19 @@ def material_data_definition():
     case_3 = {"lambda": 1.0e8, "mu": 1.0}
     cases = [case_0, case_1, case_2, case_3]
     return cases
+
+
+def compose_file_name(method, k_order, ref_l, dim, material_data, suffix):
+    prefix = (
+        "ex_1_"
+        + method[0]
+        + "_lambda_"
+        + str(material_data["lambda"])
+        + "_l_"
+        + str(ref_l)
+    )
+    file_name = prefix + suffix
+    return file_name
 
 
 def main():
@@ -696,7 +637,6 @@ def main():
                     perform_convergence_approximations(configuration)
                 if postprocessing_q:
                     perform_convergence_postprocessing(configuration)
-
 
 
 if __name__ == "__main__":
