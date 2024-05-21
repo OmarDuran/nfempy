@@ -17,7 +17,7 @@ from postprocess.solution_post_processor import write_vtk_file_with_exact_soluti
 from spaces.product_space import ProductSpace
 from weak_forms.le_dual_weak_form import LEDualWeakForm, LEDualWeakFormBCDirichlet
 from weak_forms.le_riesz_map_weak_form import LERieszMapWeakForm
-
+from functools import partial
 
 def create_product_space(method, gmesh):
     # FESpace: data
@@ -102,12 +102,14 @@ def three_field_approximation(material_data, method, gmesh, symmetric_solver_q=T
     t_exact = le.rotation(m_lambda, m_mu, m_kappa, dim)
     s_exact = le.stress(m_lambda, m_mu, m_kappa, dim)
     f_rhs = le.rhs(m_lambda, m_mu, m_kappa, dim)
+    f_xi = partial(le.xi, m_kappa=m_kappa, dim=dim)
+
 
     def f_lambda(x, y, z):
-        return m_lambda
+        return f_xi(x,y,z)
 
     def f_mu(x, y, z):
-        return m_mu
+        return f_xi(x,y,z)
 
     m_functions = {
         "rhs": f_rhs,
@@ -639,7 +641,7 @@ def method_definition(k_order):
 def material_data_definition():
     # Material data for example 1
     case_0 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0e-4}
-    case_1 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0}
+    case_1 = {"lambda": 1.0, "mu": 1.0, "kappa": 0.5}
     case_2 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0e4}
     cases = [case_1]
     return cases
@@ -662,7 +664,7 @@ def main():
     dimension = 2
     approximation_q = True
     postprocessing_q = True
-    refinements = {0: 3, 1: 3}
+    refinements = {0: 4, 1: 4}
     case_data = material_data_definition()
     for k in [0]:
         methods = method_definition(k)
