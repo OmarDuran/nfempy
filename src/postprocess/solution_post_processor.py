@@ -7,6 +7,63 @@ from geometry.mapping import evaluate_linear_shapes, evaluate_mapping
 from spaces.product_space import ProductSpace
 
 
+def node_average_quatity(node_idx, cell_idxs, fe_space, name, alpha):
+    space = fe_space.discrete_spaces[name]
+    n_comp = space.n_comp
+
+    gmesh = space.mesh_topology.mesh
+    dim = gmesh.dimension
+
+    cells = [gmesh.cells[id] for id in cell_idxs if gmesh.cells[id].dimension == dim]
+
+    f_h_values = []
+    for cell in cells:
+        element_idx = space.id_to_element[cell.id]
+        element = space.elements[element_idx]
+
+        dest = fe_space.discrete_spaces_destination_indexes(element_idx)[name]
+        alpha_l = alpha[dest]
+
+        par_points = basix.geometry(space.element_type)
+
+        par_point_id = np.array(
+            [i for i, node_id in enumerate(cell.node_tags) if node_id == node_idx]
+        )
+        assert len(par_point_id) == 1
+
+        points = gmesh.points[node_idx]
+        if space.dimension != 0:
+            points = par_points[par_point_id]
+
+        # evaluate mapping
+        phi_shapes = evaluate_linear_shapes(points, element.data)
+        (x, jac, det_jac, inv_jac) = evaluate_mapping(
+            cell.dimension, phi_shapes, gmesh.points[cell.node_tags]
+        )
+        phi_tab = element.evaluate_basis(points, jac, det_jac, inv_jac)
+        n_phi = phi_tab.shape[2]
+
+        alpha_star = np.array(np.split(alpha_l, n_phi))
+
+        # Generalized displacement
+        if space.family is family_by_name("Lagrange"):
+            f_h = (phi_tab[0, :, :, 0] @ alpha_star[:, 0:dim]).T
+        else:
+            f_h = np.vstack(
+                tuple(
+                    [
+                        phi_tab[0, 0, :, 0:dim].T @ alpha_star[:, c]
+                        for c in range(n_comp)
+                    ]
+                )
+            )
+        f_h_values.append(f_h)
+
+    # compute average
+    f_h = np.mean(np.array(f_h_values), axis=0)
+    return f_h
+
+
 def write_vtk_file(file_name, gmesh, fe_space, alpha):
     dim = gmesh.dimension
     vec_families = [
@@ -29,60 +86,13 @@ def write_vtk_file(file_name, gmesh, fe_space, alpha):
 
         vertices = space.mesh_topology.entities_by_dimension(0)
         cell_vertex_map = space.mesh_topology.entity_map_by_dimension(0)
-        for id in vertices:
-            if not cell_vertex_map.has_node(id):
+        for node_idx in vertices:
+            if not cell_vertex_map.has_node(node_idx):
                 continue
 
-            pr_ids = list(cell_vertex_map.predecessors(id))
-            cell = gmesh.cells[pr_ids[0]]
-            if cell.dimension != space.dimension:
-                continue
-
-            element = cellid_to_element[pr_ids[0]]
-
-            # scattering dof
-            index = fe_space.discrete_spaces[name].id_to_element[cell.id]
-            dest = fe_space.discrete_spaces_destination_indexes(index)[name]
-            alpha_l = alpha[dest]
-
-            par_points = basix.geometry(space.element_type)
-
-            target_node_id = gmesh.cells[id].node_tags[0]
-            par_point_id = np.array(
-                [
-                    i
-                    for i, node_id in enumerate(cell.node_tags)
-                    if node_id == target_node_id
-                ]
-            )
-
-            points = gmesh.points[target_node_id]
-            if space.dimension != 0:
-                points = par_points[par_point_id]
-
-            # evaluate mapping
-            phi_shapes = evaluate_linear_shapes(points, element.data)
-            (x, jac, det_jac, inv_jac) = evaluate_mapping(
-                cell.dimension, phi_shapes, gmesh.points[cell.node_tags]
-            )
-            phi_tab = element.evaluate_basis(points)
-            n_phi = phi_tab.shape[2]
-
-            alpha_star = np.array(np.split(alpha_l, n_phi))
-
-            # Generalized displacement
-            if space.family is family_by_name("Lagrange"):
-                f_h = (phi_tab[0, :, :, 0] @ alpha_star[:, 0:dim]).T
-            else:
-                f_h = np.vstack(
-                    tuple(
-                        [
-                            phi_tab[0, 0, :, 0:dim].T @ alpha_star[:, c]
-                            for c in range(n_comp)
-                        ]
-                    )
-                )
-            fh_data[target_node_id] = f_h.ravel()
+            cell_idxs = list(cell_vertex_map.predecessors(node_idx))
+            f_h = node_average_quatity(node_idx, cell_idxs, fe_space, name, alpha)
+            fh_data[node_idx] = f_h.ravel()
 
         p_data_dict.__setitem__(name + "_h", fh_data)
 
@@ -122,67 +132,20 @@ def write_vtk_file_with_exact_solution(file_name, gmesh, fe_space, functions, al
 
         fh_data = np.zeros((len(gmesh.points), n_data))
         fe_data = np.zeros((len(gmesh.points), n_data))
-        cellid_to_element = dict(zip(space.element_ids, space.elements))
 
         vertices = space.mesh_topology.entities_by_dimension(0)
         cell_vertex_map = space.mesh_topology.entity_map_by_dimension(0)
-        for id in vertices:
-            if not cell_vertex_map.has_node(id):
+        for node_idx in vertices:
+            if not cell_vertex_map.has_node(node_idx):
                 continue
 
-            pr_ids = list(cell_vertex_map.predecessors(id))
-            cell = gmesh.cells[pr_ids[0]]
-            if cell.dimension != space.dimension:
-                continue
+            cell_idxs = list(cell_vertex_map.predecessors(node_idx))
 
-            element = cellid_to_element[pr_ids[0]]
-
-            # scattering dof
-            index = fe_space.discrete_spaces[name].id_to_element[cell.id]
-            dest = fe_space.discrete_spaces_destination_indexes(index)[name]
-            alpha_l = alpha[dest]
-
-            par_points = basix.geometry(space.element_type)
-
-            target_node_id = gmesh.cells[id].node_tags[0]
-            par_point_id = np.array(
-                [
-                    i
-                    for i, node_id in enumerate(cell.node_tags)
-                    if node_id == target_node_id
-                ]
-            )
-
-            points = gmesh.points[target_node_id]
-            if space.dimension != 0:
-                points = par_points[par_point_id]
-
-            # evaluate mapping
-            phi_shapes = evaluate_linear_shapes(points, element.data)
-            (x, jac, det_jac, inv_jac) = evaluate_mapping(
-                cell.dimension, phi_shapes, gmesh.points[cell.node_tags]
-            )
-            phi_tab = element.evaluate_basis(points, jac, det_jac, inv_jac)
-            n_phi = phi_tab.shape[2]
-
-            alpha_star = np.array(np.split(alpha_l, n_phi))
-
-            # Generalized displacement
-            if space.family is family_by_name("Lagrange"):
-                f_e = f_exact(x[:, 0], x[:, 1], x[:, 2])
-                f_h = (phi_tab[0, :, :, 0] @ alpha_star[:, 0:dim]).T
-            else:
-                f_e = f_exact(x[0, 0], x[0, 1], x[0, 2])
-                f_h = np.vstack(
-                    tuple(
-                        [
-                            phi_tab[0, 0, :, 0:dim].T @ alpha_star[:, c]
-                            for c in range(n_comp)
-                        ]
-                    )
-                )
-            fh_data[target_node_id] = f_h.ravel()
-            fe_data[target_node_id] = f_e.ravel()
+            x = gmesh.points[node_idx]
+            f_e = f_exact(x[0], x[1], x[2])
+            f_h = node_average_quatity(node_idx, cell_idxs, fe_space, name, alpha)
+            fh_data[node_idx] = f_h.ravel()
+            fe_data[node_idx] = f_e.ravel()
 
         p_data_dict.__setitem__(name + "_h", fh_data)
         p_data_dict.__setitem__(name + "_e", fe_data)

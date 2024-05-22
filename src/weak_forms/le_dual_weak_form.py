@@ -88,10 +88,7 @@ class LEDualWeakForm(WeakForm):
                     a_sx = alpha[:, c : n_s_dof + c : s_components]
                     a_ux = alpha[
                         :,
-                        n_s_dof
-                        + c : n_s_dof
-                        + n_u_dof
-                        + c : u_components,
+                        n_s_dof + c : n_s_dof + n_u_dof + c : u_components,
                     ]
 
                     a_t = alpha[
@@ -108,10 +105,7 @@ class LEDualWeakForm(WeakForm):
                     a_sy = alpha[:, c : n_s_dof + c : s_components]
                     a_uy = alpha[
                         :,
-                        n_s_dof
-                        + c : n_s_dof
-                        + n_u_dof
-                        + c : u_components,
+                        n_s_dof + c : n_s_dof + n_u_dof + c : u_components,
                     ]
 
                     sx_h = a_sx @ s_phi_tab[0, i, :, 0:dim]
@@ -133,10 +127,7 @@ class LEDualWeakForm(WeakForm):
                         sh
                         - (
                             f_lambda_star[i]
-                            / (
-                                2.0 * f_mu_star[i]
-                                + dim * f_lambda_star[i]
-                            )
+                            / (2.0 * f_mu_star[i] + dim * f_lambda_star[i])
                         )
                         * tr_s_h
                         * Imat
@@ -346,7 +337,7 @@ class LEDualWeakForm(WeakForm):
                 multiphysic_integrand[:, 0:n_s_dof:1] = (equ_1_integrand).reshape(
                     (n_s_dof,)
                 )
-                multiphysic_integrand[:, n_s_dof : n_s_dof + n_u_dof: 1] = (
+                multiphysic_integrand[:, n_s_dof : n_s_dof + n_u_dof : 1] = (
                     equ_2_integrand
                 ).reshape((n_u_dof,))
                 multiphysic_integrand[
