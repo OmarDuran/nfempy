@@ -3,6 +3,12 @@ import functools
 import numpy as np
 
 
+def cell_centroid(mesh_cell, mesh):
+    points = mesh.points[mesh_cell.node_tags]
+    xc = np.mean(points, axis=0)
+    return xc
+
+
 def cell_diam(mesh_cell, mesh):
     points = mesh.points[mesh_cell.node_tags]
     dxs = [
