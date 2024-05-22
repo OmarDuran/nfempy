@@ -24,35 +24,35 @@ def create_product_space(method, gmesh):
     # FESpace: data
     mp_k_order = method[1]["mp"][1]
     mc_k_order = method[1]["mc"][1]
-    p_k_order  = method[1]["p"][1]
-    c_k_order  = method[1]["c"][1]
+    p_k_order = method[1]["p"][1]
+    c_k_order = method[1]["c"][1]
 
     mp_components = 1
     mc_components = 1
-    p_components  = 1
-    c_components  = 1
+    p_components = 1
+    c_components = 1
 
     mp_family = method[1]["mp"][0]
     mc_family = method[1]["mc"][0]
-    p_family  = method[1]["p"][0]
-    c_family  = method[1]["c"][0]
+    p_family = method[1]["p"][0]
+    c_family = method[1]["c"][0]
 
     discrete_spaces_data = {
         "mp": (gmesh.dimension, mp_components, mp_family, mp_k_order, gmesh),
         "mc": (gmesh.dimension, mc_components, mc_family, mc_k_order, gmesh),
-        "p" : (gmesh.dimension, p_components, p_family, p_k_order, gmesh),
-        "c" : (gmesh.dimension, c_components, c_family, c_k_order, gmesh),
+        "p": (gmesh.dimension, p_components, p_family, p_k_order, gmesh),
+        "c": (gmesh.dimension, c_components, c_family, c_k_order, gmesh),
     }
 
     mp_disc_Q = False
     mc_disc_Q = False
-    p_disc_Q  = True
-    c_disc_Q  = True
+    p_disc_Q = True
+    c_disc_Q = True
     discrete_spaces_disc = {
         "mp": mp_disc_Q,
         "mc": mc_disc_Q,
-        "p" : p_disc_Q,
-        "c" : c_disc_Q,
+        "p": p_disc_Q,
+        "c": c_disc_Q,
     }
 
     if gmesh.dimension == 1:
@@ -83,13 +83,14 @@ def method_definition(k_order):
     method_1 = {
         "mp": ("RT", k_order + 1),
         "mc": ("RT", k_order + 1),
-        "p" : ("Lagrange", k_order),
-        "c" : ("Lagrange", k_order),
+        "p": ("Lagrange", k_order),
+        "c": ("Lagrange", k_order),
     }
 
     methods = [method_1]
     method_names = ["mixed_rt"]
     return zip(method_names, methods)
+
 
 def four_fields_formulation(method, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
@@ -109,8 +110,6 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
     m_delta = 1.0
     m_eta = 1.0
 
-
-
     def f_kappa(x, y, z):
         return m_kappa
 
@@ -120,38 +119,38 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
     def f_eta(x, y, z):
         return m_eta
 
-
     st = time.time()
 
     # exact solution
     if dim == 1:
-        p_exact = lambda  x, y, z, t: np.array([t*(1.0 - x) * x])
+        p_exact = lambda x, y, z, t: np.array([t * (1.0 - x) * x])
         mp_exact = lambda x, y, z, t: np.array(
             [
-               t*(-1.0 + 2.0 * x),
+                t * (-1.0 + 2.0 * x),
             ]
         )
-        c_exact = lambda x, y, z, t: np.array([t*(1.0 - x) * x])
+        c_exact = lambda x, y, z, t: np.array([t * (1.0 - x) * x])
         mc_exact = lambda x, y, z, t: np.array(
             [
-                t*(-1.0 + 2.0 * x),
+                t * (-1.0 + 2.0 * x),
             ]
         )
-        f_rhs = lambda x, y, z, t: np.array([[t*(2.0 + 0.0 * x) + (x*(1-x))]])
+        f_rhs = lambda x, y, z, t: np.array([[t * (2.0 + 0.0 * x) + (x * (1 - x))]])
 
-        r_rhs = lambda x, y, z, t: np.array([[t*(2.0 + 0.0 * x) + x*(1-x)]] ) + (
-                    1.0 + m_eta * c_exact(x, y, z, t) ** 2)
+        r_rhs = lambda x, y, z, t: np.array([[t * (2.0 + 0.0 * x) + x * (1 - x)]]) + (
+            1.0 + m_eta * c_exact(x, y, z, t) ** 2
+        )
     elif dim == 2:
-        p_exact = lambda x, y, z, t: np.array([t*((1.0 - x) * x * (1.0 - y) * y)])
+        p_exact = lambda x, y, z, t: np.array([t * ((1.0 - x) * x * (1.0 - y) * y)])
         mp_exact = lambda x, y, z, t: np.array(
             [
                 [
-                     t*(-((1 - 2*x) * (1 - y) * y)) ,
-                    -t*((1 - x) * x * (1 - 2*y)) ,
+                    t * (-((1 - 2 * x) * (1 - y) * y)),
+                    -t * ((1 - x) * x * (1 - 2 * y)),
                 ]
             ]
         )
-        c_exact = lambda x, y, z, t: np.array([t*((1.0 - x) * x * (1.0 - y) * y)])
+        c_exact = lambda x, y, z, t: np.array([t * ((1.0 - x) * x * (1.0 - y) * y)])
         mc_exact = lambda x, y, z, t: np.array(
             [
                 [
@@ -160,10 +159,12 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
                 ]
             ]
         )
-        f_rhs = lambda x, y, z, t: np.array([[t * (2 * (1 - x) * x + 2 * (1 - y) * y) +
-                                              (1-x) * x * (1-y) * y ]])
-        r_rhs = lambda x, y, z, t: np.array([[t * (2 * (1 - x) * x + 2 * (1 - y) * y) + (1-x) * x * (1-y) * y]]) + (
-                    1.0 + m_eta * c_exact(t, x, y, z) ** 2)
+        f_rhs = lambda x, y, z, t: np.array(
+            [[t * (2 * (1 - x) * x + 2 * (1 - y) * y) + (1 - x) * x * (1 - y) * y]]
+        )
+        r_rhs = lambda x, y, z, t: np.array(
+            [[t * (2 * (1 - x) * x + 2 * (1 - y) * y) + (1 - x) * x * (1 - y) * y]]
+        ) + (1.0 + m_eta * c_exact(t, x, y, z) ** 2)
     elif dim == 3:
         p_exact = lambda x, y, z, t: np.array(
             [t * ((1.0 - x) * x * (1.0 - y) * y * (1.0 - z) * z)]
@@ -172,9 +173,8 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
             [
                 [
                     t * (-((1 - 2 * x) * (1 - y) * y * (1 - z) * z)),
-                         -t * ((1 - x) * x * (1 - 2 * y) * (1 - z) * z),
-                         -t * ((1 - x) * x * (1 - y) * y * (1 - 2 * z))
-
+                    -t * ((1 - x) * x * (1 - 2 * y) * (1 - z) * z),
+                    -t * ((1 - x) * x * (1 - y) * y * (1 - 2 * z)),
                 ]
             ]
         )
@@ -186,26 +186,34 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
                 [
                     t * (-((1 - 2 * x) * (1 - y) * y * (1 - z) * z)),
                     -t * ((1 - x) * x * (1 - 2 * y) * (1 - z) * z),
-                    -t * ((1 - x) * x * (1 - y) * y * (1 - 2 * z))
+                    -t * ((1 - x) * x * (1 - y) * y * (1 - 2 * z)),
                 ]
             ]
         )
         f_rhs = lambda x, y, z, t: np.array(
             [
-                t * (2 * (1 - x) * x * (1 - y) * y
-                + 2 * (1 - x) * x * (1 - z) * z
-                + 2 * (1 - y) * y * (1 - z) * z) + (1-x) * x * (1-y) * y * (1-z) * z
+                t
+                * (
+                    2 * (1 - x) * x * (1 - y) * y
+                    + 2 * (1 - x) * x * (1 - z) * z
+                    + 2 * (1 - y) * y * (1 - z) * z
+                )
+                + (1 - x) * x * (1 - y) * y * (1 - z) * z
             ]
         )
         r_rhs = lambda x, y, z, t: np.array(
             [
-                t * (2 * (1 - x) * x * (1 - y) * y
-                + 2 * (1 - x) * x * (1 - z) * z
-                + 2 * (1 - y) * y * (1 - z) * z)  + (1-x) * x * (1-y) * y * (1-z) * z
+                t
+                * (
+                    2 * (1 - x) * x * (1 - y) * y
+                    + 2 * (1 - x) * x * (1 - z) * z
+                    + 2 * (1 - y) * y * (1 - z) * z
+                )
+                + (1 - x) * x * (1 - y) * y * (1 - z) * z
             ]
         ) + (1.0 + m_eta * c_exact(x, y, z, t) ** 2)
-        aka =0
-        #raise ValueError("exact sol are nor created for 3D.")
+        aka = 0
+        # raise ValueError("exact sol are nor created for 3D.")
     else:
         raise ValueError("Invalid dimension.")
 
@@ -215,7 +223,7 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
         "kappa": f_kappa,
         "delta": f_delta,
         "eta": f_eta,
-        "delta_t": delta_t
+        "delta_t": delta_t,
     }
 
     exact_functions = {
@@ -229,8 +237,6 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
     weak_form.functions = m_functions
     bc_weak_form = SundusDualWeakFormBCDirichlet(fe_space)
     bc_weak_form.functions = exact_functions
-
-
 
     # Initial Guess
 
@@ -258,7 +264,7 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
             for k in range(nnz):
                 jac_g.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
-        def scatter_bc_form(jac_g, i, bc_weak_form, t ):
+        def scatter_bc_form(jac_g, i, bc_weak_form, t):
             dest = fe_space.bc_destination_indexes(i)
             alpha_l = alpha_n_p_1[dest]
             r_el, j_el = bc_weak_form.evaluate_form(i, alpha_l, t)
@@ -284,7 +290,6 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
         alpha_n_p_1 = alpha_n.copy()
 
         for iter in range(n_iterations):
-
             # Assembler
             st = time.time()
             n_els = len(fe_space.discrete_spaces["mp"].elements)
@@ -335,9 +340,9 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
 
         alpha_n = alpha_n_p_1
 
-    p_exact_t_end = lambda x, y, z: p_exact(x,y,z, t_end)
-    mp_exact_t_end = lambda x, y, z: mp_exact(x,y,z, t_end)
-    c_exact_t_end = lambda x, y, z: c_exact(x, y, z,  t_end)
+    p_exact_t_end = lambda x, y, z: p_exact(x, y, z, t_end)
+    mp_exact_t_end = lambda x, y, z: mp_exact(x, y, z, t_end)
+    c_exact_t_end = lambda x, y, z: c_exact(x, y, z, t_end)
     mc_exact_t_end = lambda x, y, z: mc_exact(x, y, z, t_end)
 
     exact_functions_at_t_end = {
@@ -429,8 +434,6 @@ def main():
     n_ref = 4
     dimension = 1
 
-
-
     domain = create_domain(dimension)
     error_data = np.empty((0, 2), float)
 
@@ -459,8 +462,8 @@ def main():
 
     return
 
-    a = error_data[:,0]
-    b = error_data[:,1]
+    a = error_data[:, 0]
+    b = error_data[:, 1]
     plt.loglog(a, b)
     plt.show()
     return

@@ -339,7 +339,7 @@ def three_field_postprocessing(
         file_name = prefix + ".vtk"
 
         write_vtk_file_with_exact_solution(
-            file_name, gmesh, fe_space, exact_functions, alpha
+            file_name, gmesh, fe_space, exact_functions, alpha, ["u", "t"]
         )
         et = time.time()
         elapsed_time = et - st

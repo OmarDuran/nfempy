@@ -18,6 +18,7 @@ from postprocess.solution_norms_post_processor import div_norm, l2_norm
 from postprocess.solution_post_processor import (
     write_vtk_file_exact_solution,
     write_vtk_file_with_exact_solution,
+    write_vtk_file,
 )
 from spaces.product_space import ProductSpace
 from weak_forms.lce_scaled_dual_weak_form import (
@@ -366,7 +367,7 @@ def four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk_q=
         file_name = prefix + "_scaled_formulation.vtk"
 
         write_vtk_file_with_exact_solution(
-            file_name, gmesh, fe_space, exact_functions, alpha
+            file_name, gmesh, fe_space, exact_functions, alpha, ["u", "t"]
         )
 
         prefix = "ex_3_" + method[0]
@@ -652,7 +653,7 @@ def compose_file_name(method, k_order, ref_l, dim, suffix):
 
 def main():
     dimension = 2
-    approximation_q = True
+    approximation_q = False
     postprocessing_q = True
     refinements = {0: 3}
     for k in [0]:

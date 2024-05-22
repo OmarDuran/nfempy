@@ -24,35 +24,35 @@ def create_product_space(method, gmesh):
     # FESpace: data
     mp_k_order = method[1]["mp"][1]
     mc_k_order = method[1]["mc"][1]
-    p_k_order  = method[1]["p"][1]
-    c_k_order  = method[1]["c"][1]
+    p_k_order = method[1]["p"][1]
+    c_k_order = method[1]["c"][1]
 
     mp_components = 1
     mc_components = 1
-    p_components  = 1
-    c_components  = 1
+    p_components = 1
+    c_components = 1
 
     mp_family = method[1]["mp"][0]
     mc_family = method[1]["mc"][0]
-    p_family  = method[1]["p"][0]
-    c_family  = method[1]["c"][0]
+    p_family = method[1]["p"][0]
+    c_family = method[1]["c"][0]
 
     discrete_spaces_data = {
         "mp": (gmesh.dimension, mp_components, mp_family, mp_k_order, gmesh),
         "mc": (gmesh.dimension, mc_components, mc_family, mc_k_order, gmesh),
-        "p" : (gmesh.dimension, p_components, p_family, p_k_order, gmesh),
-        "c" : (gmesh.dimension, c_components, c_family, c_k_order, gmesh),
+        "p": (gmesh.dimension, p_components, p_family, p_k_order, gmesh),
+        "c": (gmesh.dimension, c_components, c_family, c_k_order, gmesh),
     }
 
     mp_disc_Q = False
     mc_disc_Q = False
-    p_disc_Q  = True
-    c_disc_Q  = True
+    p_disc_Q = True
+    c_disc_Q = True
     discrete_spaces_disc = {
         "mp": mp_disc_Q,
         "mc": mc_disc_Q,
-        "p" : p_disc_Q,
-        "c" : c_disc_Q,
+        "p": p_disc_Q,
+        "c": c_disc_Q,
     }
 
     if gmesh.dimension == 1:
@@ -83,8 +83,8 @@ def method_definition(k_order):
     method_1 = {
         "mp": ("RT", k_order + 1),
         "mc": ("RT", k_order + 1),
-        "p" : ("Lagrange", k_order),
-        "c" : ("Lagrange", k_order),
+        "p": ("Lagrange", k_order),
+        "c": ("Lagrange", k_order),
     }
 
     methods = [method_1]
@@ -213,9 +213,9 @@ def four_fields_formulation(method, gmesh, write_vtk_q=False):
 
     exact_functions = {
         "mp": mp_exact,
-        "p" : p_exact,
+        "p": p_exact,
         "mc": mc_exact,
-        "c" : c_exact,
+        "c": c_exact,
     }
 
     weak_form = SundusDualWeakForm(fe_space)
@@ -406,8 +406,8 @@ def main():
 
     return
 
-    a = error_data[:,0]
-    b = error_data[:,1]
+    a = error_data[:, 0]
+    b = error_data[:, 1]
     plt.loglog(a, b)
     plt.show()
     return
