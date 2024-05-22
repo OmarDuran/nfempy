@@ -19,6 +19,7 @@ from weak_forms.le_dual_weak_form import LEDualWeakForm, LEDualWeakFormBCDirichl
 from weak_forms.le_riesz_map_weak_form import LERieszMapWeakForm
 from functools import partial
 
+
 def create_product_space(method, gmesh):
     # FESpace: data
     s_k_order = method[1]["s"][1]
@@ -104,12 +105,11 @@ def three_field_approximation(material_data, method, gmesh, symmetric_solver_q=T
     f_rhs = le.rhs(m_lambda, m_mu, m_kappa, dim)
     f_xi = partial(le.xi, m_kappa=m_kappa, dim=dim)
 
-
     def f_lambda(x, y, z):
-        return f_xi(x,y,z)
+        return f_xi(x, y, z)
 
     def f_mu(x, y, z):
-        return f_xi(x,y,z)
+        return f_xi(x, y, z)
 
     m_functions = {
         "rhs": f_rhs,
@@ -123,6 +123,8 @@ def three_field_approximation(material_data, method, gmesh, symmetric_solver_q=T
         "t": t_exact,
     }
 
+    # alpha = l2_projector(fe_space, exact_functions)
+
     weak_form = LEDualWeakForm(fe_space)
     weak_form.functions = m_functions
     bc_weak_form = LEDualWeakFormBCDirichlet(fe_space)
@@ -135,6 +137,7 @@ def three_field_approximation(material_data, method, gmesh, symmetric_solver_q=T
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
+        # r_el_e, j_el_e = weak_form.evaluate_form(i, alpha_l)
         r_el, j_el = weak_form.evaluate_form_vectorized(i, alpha_l)
 
         # contribute rhs
@@ -278,7 +281,8 @@ def three_field_approximation(material_data, method, gmesh, symmetric_solver_q=T
     ksp.setFromOptions()
 
     ksp.solve(b, x)
-    alpha = x.array
+    alpha += x.array
+    # alpha = l2_projector(fe_space, exact_functions)
     residuals_history = ksp.getConvergenceHistory()
     print(
         "Linear solver: After PETSc ksp.solve: Memory used [Byte] :",
@@ -640,10 +644,8 @@ def method_definition(k_order):
 
 def material_data_definition():
     # Material data for example 1
-    case_0 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0e-4}
-    case_1 = {"lambda": 1.0, "mu": 1.0, "kappa": 0.5}
-    case_2 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0e4}
-    cases = [case_1]
+    case_0 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0}
+    cases = [case_0]
     return cases
 
 
@@ -664,7 +666,7 @@ def main():
     dimension = 2
     approximation_q = True
     postprocessing_q = True
-    refinements = {0: 4, 1: 4}
+    refinements = {0: 3, 1: 4}
     case_data = material_data_definition()
     for k in [0]:
         methods = method_definition(k)

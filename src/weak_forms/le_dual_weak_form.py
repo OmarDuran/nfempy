@@ -58,6 +58,8 @@ class LEDualWeakForm(WeakForm):
         f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
         u_phi_s_star = det_jac * weights * u_phi_tab[0, :, :, 0].T
         t_phi_s_star = det_jac * weights * t_phi_tab[0, :, :, 0].T
+        f_lambda_star = f_lambda(x[:, 0], x[:, 1], x[:, 2])
+        f_mu_star = f_mu(x[:, 0], x[:, 1], x[:, 2])
 
         # constant directors
         e1 = np.array([1, 0, 0])
@@ -127,13 +129,13 @@ class LEDualWeakForm(WeakForm):
                         np.vstack((sx_h.val, sy_h.val)), np.vstack((sx_h.der, sy_h.der))
                     )
                     tr_s_h = VecValDer(sh.val.trace(), sh.der.trace())
-                    A_sh = (1.0 / 2.0 * f_mu(xv[0], xv[1], xv[2])) * (
+                    A_sh = (1.0 / 2.0 * f_mu_star[i]) * (
                         sh
                         - (
-                            f_lambda(xv[0], xv[1], xv[2])
+                            f_lambda_star[i]
                             / (
-                                2.0 * f_mu(xv[0], xv[1], xv[2])
-                                + dim * f_lambda(xv[0], xv[1], xv[2])
+                                2.0 * f_mu_star[i]
+                                + dim * f_lambda_star[i]
                             )
                         )
                         * tr_s_h
