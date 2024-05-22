@@ -58,6 +58,8 @@ class LEDualWeakForm(WeakForm):
         f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
         u_phi_s_star = det_jac * weights * u_phi_tab[0, :, :, 0].T
         t_phi_s_star = det_jac * weights * t_phi_tab[0, :, :, 0].T
+        f_lambda_star = f_lambda(x[:, 0], x[:, 1], x[:, 2])
+        f_mu_star = f_mu(x[:, 0], x[:, 1], x[:, 2])
 
         # constant directors
         e1 = np.array([1, 0, 0])
@@ -86,10 +88,7 @@ class LEDualWeakForm(WeakForm):
                     a_sx = alpha[:, c : n_s_dof + c : s_components]
                     a_ux = alpha[
                         :,
-                        n_s_dof
-                        + c : n_s_dof
-                        + n_u_dof
-                        + c : u_components,
+                        n_s_dof + c : n_s_dof + n_u_dof + c : u_components,
                     ]
 
                     a_t = alpha[
@@ -106,10 +105,7 @@ class LEDualWeakForm(WeakForm):
                     a_sy = alpha[:, c : n_s_dof + c : s_components]
                     a_uy = alpha[
                         :,
-                        n_s_dof
-                        + c : n_s_dof
-                        + n_u_dof
-                        + c : u_components,
+                        n_s_dof + c : n_s_dof + n_u_dof + c : u_components,
                     ]
 
                     sx_h = a_sx @ s_phi_tab[0, i, :, 0:dim]
@@ -127,14 +123,11 @@ class LEDualWeakForm(WeakForm):
                         np.vstack((sx_h.val, sy_h.val)), np.vstack((sx_h.der, sy_h.der))
                     )
                     tr_s_h = VecValDer(sh.val.trace(), sh.der.trace())
-                    A_sh = (1.0 / 2.0 * f_mu(xv[0], xv[1], xv[2])) * (
+                    A_sh = (1.0 / 2.0 * f_mu_star[i]) * (
                         sh
                         - (
-                            f_lambda(xv[0], xv[1], xv[2])
-                            / (
-                                2.0 * f_mu(xv[0], xv[1], xv[2])
-                                + dim * f_lambda(xv[0], xv[1], xv[2])
-                            )
+                            f_lambda_star[i]
+                            / (2.0 * f_mu_star[i] + dim * f_lambda_star[i])
                         )
                         * tr_s_h
                         * Imat
@@ -344,7 +337,7 @@ class LEDualWeakForm(WeakForm):
                 multiphysic_integrand[:, 0:n_s_dof:1] = (equ_1_integrand).reshape(
                     (n_s_dof,)
                 )
-                multiphysic_integrand[:, n_s_dof : n_s_dof + n_u_dof: 1] = (
+                multiphysic_integrand[:, n_s_dof : n_s_dof + n_u_dof : 1] = (
                     equ_2_integrand
                 ).reshape((n_u_dof,))
                 multiphysic_integrand[

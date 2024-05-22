@@ -70,10 +70,7 @@ class LERieszMapWeakForm(WeakForm):
                     a_sx = alpha[:, c : n_s_dof + c : s_components]
                     a_ux = alpha[
                         :,
-                        n_s_dof
-                        + c : n_s_dof
-                        + n_u_dof
-                        + c : u_components,
+                        n_s_dof + c : n_s_dof + n_u_dof + c : u_components,
                     ]
                     a_t = alpha[
                         :,
@@ -89,10 +86,7 @@ class LERieszMapWeakForm(WeakForm):
                     a_sy = alpha[:, c : n_s_dof + c : s_components]
                     a_uy = alpha[
                         :,
-                        n_s_dof
-                        + c : n_s_dof
-                        + n_u_dof
-                        + c : u_components,
+                        n_s_dof + c : n_s_dof + n_u_dof + c : u_components,
                     ]
 
                     sx_h = a_sx @ s_phi_tab[0, i, :, 0:dim]
@@ -141,10 +135,7 @@ class LERieszMapWeakForm(WeakForm):
                     a_sx = alpha[:, c : n_s_dof + c : s_components]
                     a_ux = alpha[
                         :,
-                        n_s_dof
-                        + c : n_s_dof
-                        + n_u_dof
-                        + c : u_components,
+                        n_s_dof + c : n_s_dof + n_u_dof + c : u_components,
                     ]
                     a_tx = alpha[
                         :,
@@ -160,10 +151,7 @@ class LERieszMapWeakForm(WeakForm):
                     a_sy = alpha[:, c : n_s_dof + c : s_components]
                     a_uy = alpha[
                         :,
-                        n_s_dof
-                        + c : n_s_dof
-                        + n_u_dof
-                        + c : u_components,
+                        n_s_dof + c : n_s_dof + n_u_dof + c : u_components,
                     ]
                     a_ty = alpha[
                         :,
@@ -179,10 +167,7 @@ class LERieszMapWeakForm(WeakForm):
                     a_sz = alpha[:, c : n_s_dof + c : s_components]
                     a_uz = alpha[
                         :,
-                        n_s_dof
-                        + c : n_s_dof
-                        + n_u_dof
-                        + c : u_components,
+                        n_s_dof + c : n_s_dof + n_u_dof + c : u_components,
                     ]
                     a_tz = alpha[
                         :,
@@ -259,11 +244,11 @@ class LERieszMapWeakForm(WeakForm):
                 multiphysic_integrand[:, 0:n_s_dof:1] = (equ_1_integrand).reshape(
                     (n_s_dof,)
                 )
-                multiphysic_integrand[:, n_s_dof : n_s_dof + n_u_dof: 1] = (
+                multiphysic_integrand[:, n_s_dof : n_s_dof + n_u_dof : 1] = (
                     equ_2_integrand
                 ).reshape((n_u_dof,))
                 multiphysic_integrand[
-                    :, n_s_dof + n_u_dof : n_s_dof + n_u_dof + n_t_dof: 1
+                    :, n_s_dof + n_u_dof : n_s_dof + n_u_dof + n_t_dof : 1
                 ] = (equ_3_integrand).reshape((n_t_dof,))
 
                 discrete_integrand = (multiphysic_integrand).reshape((n_dof,))
@@ -345,7 +330,6 @@ class LERieszMapWeakForm(WeakForm):
             @ (vol_factor * det_jac * weights)
         )
         j_el[0:n_s_dof, 0:n_s_dof] += vol_s_j_el
-
 
         # (div s, div tau) block
         grad_s_phi_star = s_phi_tab[1 : s_phi_tab.shape[0] + 1, :, :, 0:dim]
