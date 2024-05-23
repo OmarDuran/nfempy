@@ -12,7 +12,10 @@ from mesh.mesh import Mesh
 from mesh.mesh_metrics import mesh_size
 from postprocess.l2_error_post_processor import l2_error, l2_error_projected
 from postprocess.projectors import l2_projector
-from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
+from postprocess.solution_post_processor import (
+    write_vtk_file_with_exact_solution,
+    write_vtk_file_pointwise_l2_error,
+)
 from spaces.product_space import ProductSpace
 from DegenerateEllipticWeakForm import (
     DegenerateEllipticWeakForm,
@@ -325,6 +328,10 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
         write_vtk_file_with_exact_solution(
             file_name, gmesh, fe_space, exact_functions, alpha
         )
+        file_name = case_name + "two_fields_l2_error.vtk"
+        write_vtk_file_pointwise_l2_error(
+            file_name, gmesh, fe_space, exact_functions, alpha
+        )
         file_name = case_name + "physical_two_fields.vtk"
         write_vtk_file_with_exact_solution(
             file_name, gmesh, fe_space, physical_exact_functions, alpha_unscaled
@@ -447,7 +454,7 @@ def main():
     k_order = 0
     h = 0.5
     n_ref = 6
-    dimensions = [1, 2]
+    dimensions = [1]
     folder_name = "output"
 
     # method variants
@@ -479,7 +486,7 @@ def main():
                         gmesh = create_mesh(dimension, mesher, True)
                         h_min, h_mean, h_max = mesh_size(gmesh)
                         error_val = two_fields_formulation(
-                            method, material, gmesh, case_name_with_level, False
+                            method, material, gmesh, case_name_with_level, True
                         )
                         error_data = np.append(
                             error_data, np.array([[h_max] + error_val]), axis=0
