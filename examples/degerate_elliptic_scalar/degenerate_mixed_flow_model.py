@@ -27,27 +27,27 @@ from functools import partial
 import matplotlib.pyplot as plt
 
 
-def create_product_space(method, gmesh):
+def create_product_space(method, gmesh, flux_name, potential_name):
     # FESpace: data
-    mp_k_order = method[1]["v"][1]
-    p_k_order = method[1]["q"][1]
+    mp_k_order = method[1][flux_name][1]
+    p_k_order = method[1][potential_name][1]
 
     mp_components = 1
     p_components = 1
 
-    mp_family = method[1]["v"][0]
-    p_family = method[1]["q"][0]
+    mp_family = method[1][flux_name][0]
+    p_family = method[1][potential_name][0]
 
     discrete_spaces_data = {
-        "v": (gmesh.dimension, mp_components, mp_family, mp_k_order, gmesh),
-        "q": (gmesh.dimension, p_components, p_family, p_k_order, gmesh),
+        flux_name: (gmesh.dimension, mp_components, mp_family, mp_k_order, gmesh),
+        potential_name: (gmesh.dimension, p_components, p_family, p_k_order, gmesh),
     }
 
     mp_disc_Q = False
     p_disc_Q = True
     discrete_spaces_disc = {
-        "v": mp_disc_Q,
-        "q": p_disc_Q,
+        flux_name: mp_disc_Q,
+        potential_name: p_disc_Q,
     }
 
     if gmesh.dimension == 1:
@@ -58,7 +58,7 @@ def create_product_space(method, gmesh):
         raise ValueError("Case not available.")
 
     discrete_spaces_bc_physical_tags = {
-        "v": mp_field_bc_physical_tags,
+        flux_name: mp_field_bc_physical_tags,
     }
 
     space = ProductSpace(discrete_spaces_data)
@@ -87,8 +87,12 @@ def method_definition(k_order):
 def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True):
     dim = gmesh.dimension
 
+    method_physical = (method[0], {"u": method[1]["v"], "p": method[1]["q"]})
     st = time.time()
-    fe_space = create_product_space(method, gmesh)
+    print("Creating scaled variable fe space.")
+    fe_space = create_product_space(method, gmesh, "v", "q")
+    print("Creating physical variable fe space.")
+    fe_space_physical = create_product_space(method_physical, gmesh, "u", "p")
     et = time.time()
     elapsed_time = et - st
     print("Creation of product space:", elapsed_time, "seconds")
@@ -295,21 +299,21 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
     ksp.getPC().setFactorSolverType("mumps")
     ksp.setConvergenceHistory()
     ksp.solve(b, x)
-    alpha_unscaled = x.array
+    alpha_physical = x.array
 
     physical_exact_functions = {
-        "v": u_exact,
-        "q": p_exact,
+        "u": u_exact,
+        "p": p_exact,
     }
 
     (
         u_l2_error,
         p_l2_error,
-    ) = l2_error(dim, fe_space, physical_exact_functions, alpha_unscaled)
+    ) = l2_error(dim, fe_space_physical, physical_exact_functions, alpha_unscaled)
 
-    alpha_unscaled_proj = l2_projector(fe_space, physical_exact_functions)
-    alpha_unscaled_e = alpha_unscaled - alpha_unscaled_proj
-    p_proj_l2_error = l2_error_projected(dim, fe_space, alpha_unscaled_e, ["v"])[0]
+    alpha_physical_proj = l2_projector(fe_space_physical, physical_exact_functions)
+    alpha_physcial_e = alpha_physical - alpha_physical_proj
+    p_proj_l2_error = l2_error_projected(dim, fe_space, alpha_physcial_e, ["u"])[0]
 
     et = time.time()
     elapsed_time = et - st
@@ -334,7 +338,19 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
         )
         file_name = case_name + "physical_two_fields.vtk"
         write_vtk_file_with_exact_solution(
-            file_name, gmesh, fe_space, physical_exact_functions, alpha_unscaled
+            file_name,
+            gmesh,
+            fe_space_physical,
+            physical_exact_functions,
+            alpha_physical,
+        )
+        file_name = case_name + "physical_two_fields_l2_error.vtk"
+        write_vtk_file_pointwise_l2_error(
+            file_name,
+            gmesh,
+            fe_space_physical,
+            physical_exact_functions,
+            alpha_physical,
         )
         et = time.time()
         elapsed_time = et - st
@@ -453,8 +469,8 @@ def main():
     # fixed directives
     k_order = 0
     h = 0.5
-    n_ref = 6
-    dimensions = [1]
+    n_ref = 3
+    dimensions = [2]
     folder_name = "output"
 
     # method variants
