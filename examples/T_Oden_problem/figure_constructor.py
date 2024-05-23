@@ -19,21 +19,21 @@ def paint_on_canvas_plane():
     # load data
     bc_data = pyvista.read(file_name_geo)
 
-    plotter = pyvista.Plotter(shape=(1, 1))
+    plotter = pyvista.Plotter(shape=(1, 2))
 
     # qh sub canvas
     plotter.subplot(0, 0)
-    mh_sargs = dict(
+    qh_sargs = dict(
         title_font_size=20,
         label_font_size=20,
         shadow=False,
-        n_labels=5,
+        n_labels=4,
         italic=True,
-        fmt="%.2e",
+        fmt="%.1e",
         font_family="courier",
         position_x=0.2,
         position_y=0.91,
-        title="Flux norm",
+        title="Numeric flux norm",
     )
     q_h_data = hdiv_solution.point_data["q_h"]
     q_h_norm = np.array([np.linalg.norm(q_h) for q_h in q_h_data])
@@ -43,18 +43,38 @@ def paint_on_canvas_plane():
         scalars=q_h_norm,
         cmap="gist_earth",
         show_edges=False,
-        scalar_bar_args=mh_sargs,
+        scalar_bar_args=qh_sargs,
         copy_mesh=True,
     )
-    plotter.add_mesh(
-        bc_data,
-        color="white",
-        style="wireframe",
-        line_width=2.0,
-        show_edges=False,
-    )
-
     plotter.view_xy()
+
+    # qh sub canvas
+    plotter.subplot(0, 1)
+    qh_sargs = dict(
+        title_font_size=20,
+        label_font_size=20,
+        shadow=False,
+        n_labels=4,
+        italic=True,
+        fmt="%.1e",
+        font_family="courier",
+        position_x=0.2,
+        position_y=0.91,
+        title="Exact flux norm",
+    )
+    q_h_data = hdiv_solution.point_data["q_e"]
+    q_h_norm = np.array([np.linalg.norm(q_h) for q_h in q_h_data])
+
+    plotter.add_mesh(
+        hdiv_solution,
+        scalars=q_h_norm,
+        cmap="gist_earth",
+        show_edges=False,
+        scalar_bar_args=qh_sargs,
+        copy_mesh=True,
+    )
+    plotter.view_xy()
+    #plotter.show()
     return plotter
 
 
@@ -66,7 +86,7 @@ def paint_on_canvas_warp_scalar():
     hdiv_solution = pyvista.read(file_name)
 
     # add norm of approximated flux
-    q_h_data = hdiv_solution.point_data["q_h"]
+    q_h_data = hdiv_solution.point_data["q_e"]
     q_h_norm = np.array([np.linalg.norm(q_h) for q_h in q_h_data])
     hdiv_solution.point_data.set_scalars(q_h_norm, "q_norm")
 
