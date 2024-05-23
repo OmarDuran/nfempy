@@ -345,7 +345,7 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
 
 def create_domain(dimension, make_fitted_q):
     if dimension == 1:
-        offset = 1.0/3.0
+        offset = 1.0 / 3.0
         if make_fitted_q:
             offset = 0.0
         points = np.array([[-1, 0, 0], [-offset, 0, 0], [1, 0, 0]])
@@ -456,7 +456,7 @@ def main():
         for dimension in dimensions:
             # dimension dependent variants
 
-            if dimension == 1 and method[0] == 'mixed_bdm':
+            if dimension == 1 and method[0] == "mixed_bdm":
                 continue
 
             fitted_domain = create_domain(dimension, make_fitted_q=True)

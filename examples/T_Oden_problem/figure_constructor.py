@@ -74,7 +74,7 @@ def paint_on_canvas_plane():
         copy_mesh=True,
     )
     plotter.view_xy()
-    #plotter.show()
+    # plotter.show()
     return plotter
 
 

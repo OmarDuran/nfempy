@@ -12,7 +12,10 @@ from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
 from postprocess.l2_error_post_processor import l2_error
 from postprocess.projectors import l2_projector
-from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
+from postprocess.solution_post_processor import (
+    write_vtk_file_with_exact_solution,
+    write_vtk_file_pointwise_l2_error,
+)
 from spaces.product_space import ProductSpace
 from weak_forms.laplace_dual_weak_form import (
     LaplaceDualWeakForm,
@@ -479,6 +482,11 @@ def hdiv_model_problem(k_order, gmesh, write_vtk_q=False):
         write_vtk_file_with_exact_solution(
             file_name, gmesh, fe_space, exact_functions, alpha
         )
+
+        file_name = "rates_hdiv_model_problem_l2_error.vtk"
+        write_vtk_file_pointwise_l2_error(
+            file_name, gmesh, fe_space, exact_functions, alpha
+        )
         et = time.time()
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
@@ -539,7 +547,7 @@ def main():
     k_order = 1
     h = 0.25
     n_ref = 4  # no. of refinement
-    dimension = 2
+    dimension = 1
     ref_l = 0
 
     n_data = 3

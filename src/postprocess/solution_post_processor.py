@@ -231,6 +231,71 @@ def write_vtk_file_with_exact_solution(
     mesh.write(file_name)
 
 
+def write_vtk_file_pointwise_l2_error(
+    file_name, gmesh, fe_space, functions, alpha, cell_centered=[]
+):
+    dim = gmesh.dimension
+    vec_families = [
+        family_by_name("RT"),
+        family_by_name("BDM"),
+        family_by_name("N1E"),
+        family_by_name("N2E"),
+    ]
+    p_data_dict = {}
+    c_data_dict = {}
+
+    for item in fe_space.discrete_spaces.items():
+        name, space = item
+        n_comp = space.n_comp
+        f_exact = functions[name]
+
+        if name in cell_centered:
+            cells = [cell for cell in gmesh.cells if cell.dimension == dim]
+            eh_data = np.zeros((len(cells), 1))
+
+            for cell_idx, cell in enumerate(cells):
+                x = cell_centroid(cell, gmesh)
+                f_e = f_exact(x[0], x[1], x[2])
+                f_h = cell_centered_quatity(cell, fe_space, name, alpha)
+                e_f = np.linalg.norm(f_e - f_h)
+                eh_data[cell_idx] = e_f.ravel()
+
+            c_data_dict[name + "_error"] = [eh_data]
+        else:
+            eh_data = np.zeros((len(gmesh.points), 1))
+
+            vertices = space.mesh_topology.entities_by_dimension(0)
+            cell_vertex_map = space.mesh_topology.entity_map_by_dimension(0)
+            for node_idx in vertices:
+                if not cell_vertex_map.has_node(node_idx):
+                    continue
+
+                cell_idxs = list(cell_vertex_map.predecessors(node_idx))
+
+                x = gmesh.points[node_idx]
+                f_e = f_exact(x[0], x[1], x[2])
+                f_h = node_average_quatity(node_idx, cell_idxs, fe_space, name, alpha)
+                e_f = np.linalg.norm(f_e - f_h)
+                eh_data[node_idx] = e_f.ravel()
+
+            p_data_dict[name + "_error"] = eh_data
+
+    mesh_points = gmesh.points
+    cells = [cell for cell in gmesh.cells if cell.dimension == gmesh.dimension]
+    con_d = np.array([cell.node_tags for cell in cells])
+    meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
+    cells_dict = {meshio_cell_types[gmesh.dimension]: con_d}
+
+    mesh = meshio.Mesh(
+        points=mesh_points,
+        cells=cells_dict,
+        # Optionally provide extra data on points, cells, etc.
+        point_data=p_data_dict,
+        cell_data=c_data_dict,
+    )
+    mesh.write(file_name)
+
+
 def write_vtk_file_exact_solution(file_name, gmesh, name_to_fields, functions):
     dim = gmesh.dimension
     p_data_dict = {}
