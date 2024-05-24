@@ -27,4 +27,4 @@ mv ex_2* output_example_3/
 mv geometric_* output_example_3/
 echo "Example 3:: completed"
 
-tar -zcvf output_mfe.tar.gz output_example_1/ output_example_2/ output_example_3
+tar -zcvf output_ecmor_mfe.tar.gz output_example_1/ output_example_2/ output_example_3
