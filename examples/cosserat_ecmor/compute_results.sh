@@ -23,7 +23,7 @@ echo " "
 echo "Example 3:: started"
 python -OO mfe_cosserat_elasticity_example_3.py
 mkdir output_example_3
-mv ex_2* output_example_3/
+mv ex_3* output_example_3/
 mv geometric_* output_example_3/
 echo "Example 3:: completed"
 
