@@ -13,13 +13,17 @@ from mesh.mesh_metrics import mesh_size
 from postprocess.l2_error_post_processor import div_error, l2_error, l2_error_projected
 from postprocess.projectors import l2_projector
 from postprocess.solution_norms_post_processor import div_norm, l2_norm
-from postprocess.solution_post_processor import write_vtk_file_with_exact_solution, write_vtk_file_exact_solution
+from postprocess.solution_post_processor import (
+    write_vtk_file_with_exact_solution,
+    write_vtk_file_exact_solution,
+)
 from spaces.product_space import ProductSpace
 from weak_forms.le_dual_weak_form import LEDualWeakForm, LEDualWeakFormBCDirichlet
 from weak_forms.le_riesz_map_weak_form import LERieszMapWeakForm
 from functools import partial
 
 import scipy.sparse as sps
+
 
 def create_product_space(method, gmesh):
     # FESpace: data
@@ -70,7 +74,7 @@ def create_product_space(method, gmesh):
     return space
 
 
-def three_field_approximation(material_data, method, gmesh, symmetric_solver_q=False):
+def three_field_approximation(material_data, method, gmesh, symmetric_solver_q=True):
     dim = gmesh.dimension
 
     fe_space = create_product_space(method, gmesh)
@@ -97,7 +101,7 @@ def three_field_approximation(material_data, method, gmesh, symmetric_solver_q=F
     # Material data
     m_lambda = material_data["lambda"]
     m_mu = material_data["mu"]
-    m_kappa = 1.0 / material_data["kappa"]
+    m_kappa = material_data["kappa"]
 
     # exact solution
     u_exact = le.displacement(m_lambda, m_mu, m_kappa, dim)
@@ -136,10 +140,7 @@ def three_field_approximation(material_data, method, gmesh, symmetric_solver_q=F
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
-        r_el, j_el = weak_form.evaluate_form(i, alpha_l)
-        # r_el, j_el = weak_form.evaluate_form_vectorized(i, alpha_l)
-
-        # print("element idx: ", i, ", r_el norm: ", np.linalg.norm(r_el))
+        r_el, j_el = weak_form.evaluate_form_vectorized(i, alpha_l)
 
         # contribute rhs
         rg[dest] += r_el
@@ -178,8 +179,7 @@ def three_field_approximation(material_data, method, gmesh, symmetric_solver_q=F
         # destination indexes
         dest = riesz_map_weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
-
-        r_el, j_el = riesz_map_weak_form.evaluate_form(i, alpha_l)
+        r_el, j_el = riesz_map_weak_form.evaluate_form_vectorized(i, alpha_l)
 
         # contribute lhs
         data = j_el.ravel()
@@ -250,51 +250,39 @@ def three_field_approximation(material_data, method, gmesh, symmetric_solver_q=F
     b = A.createVecLeft()
     b.array[:] = -rg
     x = A.createVecRight()
-    #
-    # ksp.setType("minres")
-    # ksp.getPC().setType("fieldsplit")
-    # is_general_sigma = PETSc.IS()
-    # is_general_u = PETSc.IS()
-    # fields_idx = np.add.accumulate([0] + list(fe_space.discrete_spaces_dofs.values()))
-    # general_sigma_idx = np.array(range(fields_idx[0], fields_idx[1]), dtype=np.int32)
-    # general_u_idx = np.array(range(fields_idx[1], fields_idx[3]), dtype=np.int32)
-    # is_general_sigma.createGeneral(general_sigma_idx)
-    # is_general_u.createGeneral(general_u_idx)
-    #
-    # ksp.getPC().setFieldSplitIS(
-    #     ("gen_sigma", is_general_sigma), ("gen_u", is_general_u)
-    # )
-    # ksp.getPC().setFieldSplitType(PETSc.PC.CompositeType.ADDITIVE)
-    # ksp_s, ksp_u = ksp.getPC().getFieldSplitSubKSP()
-    # ksp_s.setType("preonly")
-    # if symmetric_solver_q:
-    #     ksp_s.getPC().setType("cholesky")
-    # else:
-    #     ksp_s.getPC().setType("lu")
-    # ksp_s.getPC().setFactorSolverType("mumps")
-    # ksp_u.setType("preonly")
-    # if symmetric_solver_q:
-    #     ksp_u.getPC().setType("icc")
-    # else:
-    #     ksp_u.getPC().setType("ilu")
-    # ksp.setTolerances(rtol=0.0, atol=1e-9, divtol=5000, max_it=20000)
-    # ksp.setConvergenceHistory()
-    # ksp.setFromOptions()
 
-    # ksp.setType("preonly")
-    # ksp.getPC().setType("lu")
-    # ksp.getPC().setFactorSolverType("mumps")
-    # ksp.setConvergenceHistory()
-    #
-    # # ksp.solve(b, x)
-    # # alpha = x.array
-    #
-    ai, aj, av = A.getValuesCSR()
-    Asp = sps.csr_matrix((av, aj, ai))
+    ksp.setType("minres")
+    ksp.getPC().setType("fieldsplit")
+    is_general_sigma = PETSc.IS()
+    is_general_u = PETSc.IS()
+    fields_idx = np.add.accumulate([0] + list(fe_space.discrete_spaces_dofs.values()))
+    general_sigma_idx = np.array(range(fields_idx[0], fields_idx[1]), dtype=np.int32)
+    general_u_idx = np.array(range(fields_idx[1], fields_idx[3]), dtype=np.int32)
+    is_general_sigma.createGeneral(general_sigma_idx)
+    is_general_u.createGeneral(general_u_idx)
 
-    alpha = sps.linalg.spsolve(Asp, -rg)
+    ksp.getPC().setFieldSplitIS(
+        ("gen_sigma", is_general_sigma), ("gen_u", is_general_u)
+    )
+    ksp.getPC().setFieldSplitType(PETSc.PC.CompositeType.ADDITIVE)
+    ksp_s, ksp_u = ksp.getPC().getFieldSplitSubKSP()
+    ksp_s.setType("preonly")
+    if symmetric_solver_q:
+        ksp_s.getPC().setType("cholesky")
+    else:
+        ksp_s.getPC().setType("lu")
+    ksp_s.getPC().setFactorSolverType("mumps")
+    ksp_u.setType("preonly")
+    if symmetric_solver_q:
+        ksp_u.getPC().setType("icc")
+    else:
+        ksp_u.getPC().setType("ilu")
+    ksp.setTolerances(rtol=0.0, atol=1e-9, divtol=5000, max_it=20000)
+    ksp.setConvergenceHistory()
+    ksp.setFromOptions()
 
-    # alpha = l2_projector(fe_space, exact_functions)
+    ksp.solve(b, x)
+    alpha = x.array
     residuals_history = ksp.getConvergenceHistory()
     print(
         "Linear solver: After PETSc ksp.solve: Memory used [Byte] :",
@@ -356,9 +344,7 @@ def three_field_postprocessing(
     if write_vtk_q:
         st = time.time()
 
-        kappa_value = material_data["kappa"]
-
-        prefix = "ex_2_" + method[0] + "_kappa_" + str(kappa_value)
+        prefix = "ex_2_" + method[0] + "_kappa_" + str(m_kappa)
         file_name = prefix + ".vtk"
 
         write_vtk_file_with_exact_solution(
@@ -367,7 +353,7 @@ def three_field_postprocessing(
 
         prefix = "ex_2_material_functions"
         file_name = prefix + ".vtk"
-        name_to_fields = {"lambda": 1, "mu": 1, "xi": 1, "div_s": dim}
+        name_to_fields = {"lambda": 1, "mu": 1, "div_s": dim}
         write_vtk_file_exact_solution(file_name, gmesh, name_to_fields, exact_functions)
 
         et = time.time()
@@ -583,7 +569,7 @@ def perform_convergence_postprocessing(configuration: dict):
             method, k_order, lh, gmesh.dimension, material_data, "_res_history.txt"
         )
         res_data = np.genfromtxt(file_name_res, dtype=None, delimiter=",")
-        n_iterations = 0 # res_data.shape[0] - 1  # First position includes n_dof
+        n_iterations = res_data.shape[0] - 1  # First position includes n_dof
         chunk = np.concatenate([[n_dof, n_iterations, h_max], error_vals])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
 
@@ -693,9 +679,9 @@ def compose_file_name(method, k_order, ref_l, dim, material_data, suffix):
 
 def main():
     dimension = 2
-    approximation_q = True
+    approximation_q = False
     postprocessing_q = True
-    refinements = {0: 4, 1: 4}
+    refinements = {0: 6}
     case_data = material_data_definition()
     for k in [0]:
         methods = method_definition(k)
