@@ -148,7 +148,7 @@ class LCEDualWeakForm(WeakForm):
                     Skew_sh = 0.5 * (sh - sh.T)
 
                     tr_s_h = VecValDer(sh.val.trace(), sh.der.trace())
-                    A_sh = (1.0 / 2.0 * f_mu(xv[0], xv[1], xv[2])) * (
+                    A_sh = (1.0 / (2.0 * f_mu(xv[0], xv[1], xv[2])) ) * (
                         Symm_sh
                         - (
                             f_lambda(xv[0], xv[1], xv[2])
@@ -159,7 +159,7 @@ class LCEDualWeakForm(WeakForm):
                         )
                         * tr_s_h
                         * Imat
-                    ) + (1.0 / 2.0 * f_kappa(xv[0], xv[1], xv[2])) * Skew_sh
+                    ) + (1.0 / (2.0 * f_kappa(xv[0], xv[1], xv[2]))) * Skew_sh
 
                     A_mh = (1.0 / f_gamma(xv[0], xv[1], xv[2])) * mh
 

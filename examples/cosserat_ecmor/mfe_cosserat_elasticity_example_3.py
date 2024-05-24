@@ -653,9 +653,9 @@ def compose_file_name(method, k_order, ref_l, dim, suffix):
 
 def main():
     dimension = 2
-    approximation_q = False
+    approximation_q = True
     postprocessing_q = True
-    refinements = {0: 3}
+    refinements = {0: 6, 1: 6}
     for k in [0]:
         for method in method_definition(k):
             configuration = {

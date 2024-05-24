@@ -659,8 +659,10 @@ def method_definition(k_order):
 
 def material_data_definition():
     # Material data for example 1
-    case_0 = {"lambda": 1.0, "mu": 1.0, "kappa": 10.0}
-    cases = [case_0]
+    case_0 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0e-4}
+    case_1 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0}
+    case_2 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0e4}
+    cases = [case_0, case_1, case_2]
     return cases
 
 
@@ -679,9 +681,9 @@ def compose_file_name(method, k_order, ref_l, dim, material_data, suffix):
 
 def main():
     dimension = 2
-    approximation_q = False
+    approximation_q = True
     postprocessing_q = True
-    refinements = {0: 6}
+    refinements = {0: 6, 1: 6}
     case_data = material_data_definition()
     for k in [0]:
         methods = method_definition(k)
