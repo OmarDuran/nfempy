@@ -351,9 +351,9 @@ def three_field_postprocessing(
             file_name, gmesh, fe_space, exact_functions, alpha, ["u", "t"]
         )
 
-        prefix = "ex_2_material_functions"
-        file_name = prefix + ".vtk"
-        name_to_fields = {"lambda": 1, "mu": 1, "div_s": dim}
+        prefix = "ex_2_" + method[0] + "_kappa_" + str(m_kappa)
+        file_name = prefix + "_material_functions.vtk"
+        name_to_fields = {"lambda": 1, "mu": 1}
         write_vtk_file_exact_solution(file_name, gmesh, name_to_fields, exact_functions)
 
         et = time.time()

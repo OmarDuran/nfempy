@@ -587,7 +587,7 @@ def perform_convergence_postprocessing(configuration: dict):
     base_str_header = dual_header
     e_str_header = "n_dof, n_iter, h, " + base_str_header
 
-    file_name_prefix = "ex_2_" + method[0]
+    file_name_prefix = "ex_3_" + method[0]
     if report_full_precision_data:
         np.savetxt(
             file_name_prefix + "_error.txt",
