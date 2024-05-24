@@ -53,6 +53,9 @@ class LERieszMapWeakForm(WeakForm):
         j_el = np.zeros(js)
         r_el = np.zeros(rs)
 
+        f_lambda_star = f_lambda(x[:, 0], x[:, 1], x[:, 2])
+        f_mu_star = f_mu(x[:, 0], x[:, 1], x[:, 2])
+
         # constant directors
         e1 = np.array([1, 0, 0])
         e2 = np.array([0, 1, 0])
@@ -105,14 +108,11 @@ class LERieszMapWeakForm(WeakForm):
                     )
 
                     tr_s_h = VecValDer(sh.val.trace(), sh.der.trace())
-                    A_sh = (1.0 / 2.0 * f_mu(xv[0], xv[1], xv[2])) * (
+                    A_sh = (1.0 / 2.0 * f_mu_star[i]) * (
                         sh
                         - (
-                            f_lambda(xv[0], xv[1], xv[2])
-                            / (
-                                2.0 * f_mu(xv[0], xv[1], xv[2])
-                                + dim * f_lambda(xv[0], xv[1], xv[2])
-                            )
+                            f_lambda_star[i]
+                            / (2.0 * f_mu_star[i] + dim * f_lambda_star[i])
                         )
                         * tr_s_h
                         * Imat
