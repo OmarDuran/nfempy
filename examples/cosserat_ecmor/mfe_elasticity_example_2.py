@@ -442,6 +442,7 @@ def three_field_solution_norms(material_data, method, gmesh):
         ]
     )
 
+
 def ecmor_fv_postprocessing(
     material_data, method, gmesh, alpha, geometry_data, write_vtk_q=False
 ):
@@ -570,6 +571,7 @@ def ecmor_fv_postprocessing(
             t_proj_l2_error,
         ]
     )
+
 
 def create_mesh_from_file(file_name, dim, write_vtk_q=False):
     gmesh = Mesh(dimension=dim, file_name=file_name)
@@ -727,6 +729,7 @@ def perform_convergence_postprocessing(configuration: dict):
         header=base_str_header,
     )
     return
+
 
 def perform_ecmor_postprocessing(configuration: dict):
     # retrieve parameters from given configuration
@@ -890,6 +893,7 @@ def perform_ecmor_postprocessing(configuration: dict):
 
     return
 
+
 def fv_method_definition(method_name):
     k_order = 0
     method_1 = {
@@ -900,6 +904,7 @@ def fv_method_definition(method_name):
     methods = [method_1]
     method_names = [method_name]
     return zip(method_names, methods)
+
 
 def method_definition(k_order):
     method_1 = {
@@ -934,6 +939,7 @@ def compose_file_name(method, k_order, ref_l, dim, material_data, suffix):
     file_name = prefix + suffix
     return file_name
 
+
 def compose_file_name_fv(method, material_data, suffix):
     formatted_number = "{:.1e}".format(material_data["kappa"])
     _, exponent = formatted_number.split("e")
@@ -941,6 +947,7 @@ def compose_file_name_fv(method, material_data, suffix):
     prefix = "ex_2_" + method[0] + "_kappa_" + "1e" + str(int(exponent))
     file_name = prefix + suffix
     return file_name
+
 
 def main():
     dimension = 2
