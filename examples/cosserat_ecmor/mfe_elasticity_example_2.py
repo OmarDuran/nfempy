@@ -21,8 +21,7 @@ from spaces.product_space import ProductSpace
 from weak_forms.le_dual_weak_form import LEDualWeakForm, LEDualWeakFormBCDirichlet
 from weak_forms.le_riesz_map_weak_form import LERieszMapWeakForm
 from functools import partial
-
-import scipy.sparse as sps
+from mesh.mesh_metrics import cell_centroid
 
 
 def create_product_space(method, gmesh):
@@ -443,49 +442,134 @@ def three_field_solution_norms(material_data, method, gmesh):
         ]
     )
 
+def ecmor_fv_postprocessing(
+    material_data, method, gmesh, alpha, geometry_data, write_vtk_q=False
+):
+    dim = gmesh.dimension
+    fe_space = create_product_space(method, gmesh)
+    dof_per_field = fe_space.discrete_spaces_dofs
+    fields_idx = np.add.accumulate([0] + list(dof_per_field.values()))
+    alpha = np.concatenate((alpha, np.zeros((dof_per_field["t"]))))
 
-def create_domain(dimension):
-    if dimension == 1:
-        box_points = np.array([[0, 0, 0], [1, 0, 0]])
-        domain = build_box_1D(box_points)
-        return domain
-    elif dimension == 2:
-        box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
-        domain = build_box_2D(box_points)
-        return domain
-    else:
-        box_points = np.array(
-            [
-                [0.0, 0.0, 0.0],
-                [1.0, 0.0, 0.0],
-                [1.0, 1.0, 0.0],
-                [0.0, 1.0, 0.0],
-                [0.0, 0.0, 1.0],
-                [1.0, 0.0, 1.0],
-                [1.0, 1.0, 1.0],
-                [0.0, 1.0, 1.0],
-            ]
-        )
-        domain = build_box_3D(box_points)
-        return domain
+    def compute_permutation(origin_xc, target_xc):
+        "Compute permutation indices for reorder origin_xc to match target_xc"
 
+        hashr = lambda x: hash(str(x[0]) + str(x[1]))
+        origin = np.around(origin_xc.copy(), 10)
+        target = np.around(target_xc.copy(), 10)
+        origin = np.fromiter(map(hashr, origin), dtype=np.int64)
+        target = np.fromiter(map(hashr, target), dtype=np.int64)
+        perm = np.argsort(origin)[np.argsort(np.argsort(target))]
+        return perm
 
-def create_conformal_mesher(domain: Domain, h, ref_l=0):
-    mesher = ConformalMesher(dimension=domain.dimension)
-    mesher.domain = domain
-    mesher.generate_from_domain(h, ref_l)
-    mesher.write_mesh("gmesh.msh")
-    return mesher
+    def compute_normal(points):
+        v = (points[1] - points[0]) / np.linalg.norm((points[1] - points[0]))
+        n = np.array([-v[1], v[0]])
+        return n
 
+    xc_c0 = np.array(
+        [cell_centroid(cell, gmesh) for cell in gmesh.cells if cell.dimension == dim]
+    )
+    cells_c1 = [cell for cell in gmesh.cells if cell.dimension == dim - 1]
+    n_c1 = np.array(
+        [compute_normal(gmesh.points[np.sort(cell.node_tags)]) for cell in cells_c1]
+    )
+    xc_c1 = np.array([cell_centroid(cell, gmesh) for cell in cells_c1])
 
-def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
-    gmesh = Mesh(dimension=dimension, file_name="gmesh.msh")
-    gmesh.set_conformal_mesher(mesher)
-    gmesh.build_conformal_mesh()
+    dxc_c0 = np.linalg.norm(xc_c0, axis=1)
+    dxc_c1 = np.linalg.norm(xc_c1, axis=1)
+    edxc_c0 = np.linalg.norm(geometry_data["xc_c0"], axis=1)
+    edxc_c1 = np.linalg.norm(geometry_data["xc_c1"], axis=1)
+    # compute dof permutations
+    cell_perm = compute_permutation(geometry_data["xc_c0"], xc_c0)
+    face_perm = compute_permutation(geometry_data["xc_c1"], xc_c1)
+
+    assert np.all(np.isclose(geometry_data["xc_c0"][cell_perm], xc_c0))
+    assert np.all(np.isclose(geometry_data["xc_c1"][face_perm], xc_c1))
+    n_sign = np.sign(np.sum(geometry_data["n_c1"][face_perm, 0:2] * n_c1, axis=1))
+    measure_c1 = geometry_data["measure_c1"][face_perm]
+
+    # # Material data
+    # m_lambda = material_data["lambda"]
+    # m_mu = material_data["mu"]
+    #
+    # # exact solution
+    # u_exact = le.displacement(m_lambda, m_mu, dim)
+    # t_exact = le.rotation(m_lambda, m_mu, dim)
+    # s_exact = le.stress(m_lambda, m_mu, dim)
+    #
+    # exact_functions = {
+    #     "s": s_exact,
+    #     "u": u_exact,
+    #     "t": t_exact,
+    # }
+    # alpha_proj = l2_projector(fe_space, exact_functions)
+
+    alpha_s = np.array(np.split(alpha[fields_idx[0] : fields_idx[1]], xc_c1.shape[0]))
+    alpha_u = np.array(np.split(alpha[fields_idx[1] : fields_idx[2]], xc_c0.shape[0]))
+
+    alpha[fields_idx[0] : fields_idx[1]] = alpha_s[face_perm].flatten()
+    alpha[fields_idx[1] : fields_idx[2]] = alpha_u[cell_perm].flatten()
+
+    n_dof_g = fe_space.n_dof
+
+    # Material data
+    m_lambda = material_data["lambda"]
+    m_mu = material_data["mu"]
+    m_kappa = material_data["kappa"]
+
+    # exact solution
+    u_exact = le.displacement(m_lambda, m_mu, m_kappa, dim)
+    t_exact = le.rotation(m_lambda, m_mu, m_kappa, dim)
+    s_exact = le.stress(m_lambda, m_mu, m_kappa, dim)
+
+    exact_functions = {
+        "s": s_exact,
+        "u": u_exact,
+        "t": t_exact,
+    }
+
     if write_vtk_q:
-        gmesh.write_vtk()
-    return gmesh
+        st = time.time()
 
+        kappa_value = material_data["kappa"]
+
+        prefix = "ex_2_" + method[0] + "_kappa_" + str(kappa_value)
+        file_name = prefix + "_ecmor.vtk"
+
+        write_vtk_file_with_exact_solution(
+            file_name, gmesh, fe_space, exact_functions, alpha, ["u", "t"]
+        )
+        et = time.time()
+        elapsed_time = et - st
+        print("VTK post-processing time:", elapsed_time, "seconds")
+
+    st = time.time()
+    s_l2_error, u_l2_error, t_l2_error = l2_error(dim, fe_space, exact_functions, alpha)
+
+    alpha_proj = l2_projector(fe_space, exact_functions)
+    alpha_e = alpha - alpha_proj
+    u_proj_l2_error, t_proj_l2_error = l2_error_projected(dim, fe_space, alpha_e, ["s"])
+
+    et = time.time()
+    elapsed_time = et - st
+    print("Error time:", elapsed_time, "seconds")
+    print("L2-error displacement: ", u_l2_error)
+    print("L2-error rotation: ", t_l2_error)
+    print("L2-error stress: ", s_l2_error)
+    print("L2-error projected displacement: ", u_proj_l2_error)
+    print("L2-error projected rotation: ", t_proj_l2_error)
+    print("")
+
+    return n_dof_g, np.array(
+        [
+            u_l2_error,
+            t_l2_error,
+            s_l2_error,
+            u_proj_l2_error,
+            t_proj_l2_error,
+        ]
+    )
 
 def create_mesh_from_file(file_name, dim, write_vtk_q=False):
     gmesh = Mesh(dimension=dim, file_name=file_name)
@@ -644,6 +728,178 @@ def perform_convergence_postprocessing(configuration: dict):
     )
     return
 
+def perform_ecmor_postprocessing(configuration: dict):
+    # retrieve parameters from given configuration
+    k_order = configuration.get("k_order", 0)
+    method = configuration.get("method")
+    n_ref = configuration.get("n_refinements")
+    dimension = configuration.get("dimension")
+    material_data = configuration.get("material_data", {})
+    write_geometry_vtk = configuration.get("write_geometry_Q", True)
+    write_vtk = configuration.get("write_vtk_Q", True)
+    report_full_precision_data = configuration.get("report_full_precision_data_Q", True)
+    fv_tpsa_folder = configuration.get("tpsa_data", None)
+
+    if fv_tpsa_folder is None:
+        raise ValueError("TPSA folder is not provided.")
+
+    l_map = {0: 0.25, 1: 0.125, 2: 0.0625, 3: 0.03125, 4: 0.015625, 5: 0.0078125}
+
+    n_data = 7
+    error_data = np.empty((0, n_data), float)
+    for lh in range(n_ref):
+        mesh_file = "gmsh_files/ex_2/partition_ex_2_l_" + str(lh) + ".msh"
+        gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
+        h_min, h_mean, h_max = mesh_size(gmesh)
+
+        # loading displacements
+        u_suffix = "_displacement_" + str(lh) + "_" + str(l_map[lh]) + ".npy"
+        file_name = compose_file_name_fv(method, material_data, u_suffix)
+        file_name_u = fv_tpsa_folder + "/" + file_name
+        with open(file_name_u, "rb") as f:
+            alpha_u = np.load(f)
+
+        # loading stress
+        s_suffix = "_stress_" + str(lh) + "_" + str(l_map[lh]) + ".npy"
+        file_name = compose_file_name_fv(method, material_data, s_suffix)
+        file_name_s = fv_tpsa_folder + "/" + file_name
+        with open(file_name_s, "rb") as f:
+            alpha_s = np.load(f)
+
+        # loading geometrical information
+        file_cell_centroid = (
+            fv_tpsa_folder
+            + "/"
+            + "ex_2_cell_centroid"
+            + "_"
+            + str(lh)
+            + "_"
+            + str(l_map[lh])
+            + ".npy"
+        )
+        with open(file_cell_centroid, "rb") as f:
+            cell_centroid = np.load(file_cell_centroid).T
+
+        file_face_centroid = (
+            fv_tpsa_folder
+            + "/"
+            + "ex_2_face_centroid"
+            + "_"
+            + str(lh)
+            + "_"
+            + str(l_map[lh])
+            + ".npy"
+        )
+        with open(file_face_centroid, "rb") as f:
+            face_centroid = np.load(file_face_centroid).T
+
+        file_face_normal = (
+            fv_tpsa_folder
+            + "/"
+            + "ex_2_face_normal"
+            + "_"
+            + str(lh)
+            + "_"
+            + str(l_map[lh])
+            + ".npy"
+        )
+        with open(file_face_normal, "rb") as f:
+            face_normnal = np.load(file_face_normal).T
+
+        file_face_length = (
+            fv_tpsa_folder
+            + "/"
+            + "ex_2_face_length"
+            + "_"
+            + str(lh)
+            + "_"
+            + str(l_map[lh])
+            + ".npy"
+        )
+        with open(file_face_length, "rb") as f:
+            face_length = np.load(file_face_length).T
+
+        geometry_data = {
+            "xc_c0": cell_centroid,
+            "xc_c1": face_centroid,
+            "n_c1": face_normnal,
+            "measure_c1": face_length,
+        }
+
+        alpha = np.concatenate((alpha_s, alpha_u))
+        n_dof, error_vals = ecmor_fv_postprocessing(
+            material_data, method, gmesh, alpha, geometry_data, write_vtk
+        )
+        n_dof = np.concatenate((alpha_s, alpha_u)).shape[0]
+
+        chunk = np.concatenate([[n_dof, h_max], error_vals])
+        error_data = np.append(error_data, np.array([chunk]), axis=0)
+
+    rates_data = np.empty((0, n_data - 2), float)
+    for i in range(error_data.shape[0] - 1):
+        chunk_b = np.log(error_data[i])
+        chunk_e = np.log(error_data[i + 1])
+        h_step = chunk_e[2] - chunk_b[2]
+        partial = (chunk_e - chunk_b) / h_step
+        rates_data = np.append(rates_data, np.array([list(partial[2:n_data])]), axis=0)
+
+    # minimal report
+    np.set_printoptions(precision=3)
+    print("Dual problem: ", method[0])
+    print("Polynomial order: ", k_order)
+    print("Dimension: ", dimension)
+    print("rounded error data: ", error_data)
+    print("rounded error rates data: ", rates_data)
+    print(" ")
+
+    str_fields = "u, r, s,"
+    dual_header = str_fields + " Pu, Pr"
+    base_str_header = dual_header
+    e_str_header = "n_dof, h, " + base_str_header
+
+    lambda_value = material_data["lambda"]
+
+    file_name_prefix = "ex_2_" + method[0] + "_lambda_" + str(lambda_value)
+    if report_full_precision_data:
+        np.savetxt(
+            file_name_prefix + "_error.txt",
+            error_data,
+            delimiter=",",
+            header=e_str_header,
+        )
+        np.savetxt(
+            file_name_prefix + "_rates.txt",
+            rates_data,
+            delimiter=",",
+            header=base_str_header,
+        )
+    np.savetxt(
+        file_name_prefix + "_error_rounded.txt",
+        error_data,
+        fmt="%1.3e",
+        delimiter=",",
+        header=e_str_header,
+    )
+    np.savetxt(
+        file_name_prefix + "_rates_rounded.txt",
+        rates_data,
+        fmt="%1.3f",
+        delimiter=",",
+        header=base_str_header,
+    )
+
+    return
+
+def fv_method_definition(method_name):
+    k_order = 0
+    method_1 = {
+        "s": ("RT", 1),
+        "u": ("Lagrange", 0),
+        "t": ("Lagrange", 0),
+    }
+    methods = [method_1]
+    method_names = [method_name]
+    return zip(method_names, methods)
 
 def method_definition(k_order):
     method_1 = {
@@ -678,12 +934,19 @@ def compose_file_name(method, k_order, ref_l, dim, material_data, suffix):
     file_name = prefix + suffix
     return file_name
 
+def compose_file_name_fv(method, material_data, suffix):
+    formatted_number = "{:.1e}".format(material_data["kappa"])
+    _, exponent = formatted_number.split("e")
+
+    prefix = "ex_2_" + method[0] + "_kappa_" + "1e" + str(int(exponent))
+    file_name = prefix + suffix
+    return file_name
 
 def main():
     dimension = 2
-    approximation_q = True
-    postprocessing_q = True
-    refinements = {0: 6, 1: 6}
+    approximation_q = False
+    postprocessing_q = False
+    refinements = {0: 4, 1: 6}
     case_data = material_data_definition()
     for k in [0]:
         methods = method_definition(k)
@@ -700,6 +963,24 @@ def main():
                     perform_convergence_approximations(configuration)
                 if postprocessing_q:
                     perform_convergence_postprocessing(configuration)
+
+    # Postprocessing FV results
+    postprocessing_ecmor_q = True
+    fv_tpsa_folder = "output_ecmor_fv/tpsa_results_v0"
+    for method_name in ["TPSA"]:
+        methods = fv_method_definition(method_name)
+        for i, method in enumerate(methods):
+            for material_data in case_data:
+                configuration = {
+                    "method_name": method_name,
+                    "dimension": dimension,
+                    "n_refinements": refinements[0],
+                    "method": method,
+                    "material_data": material_data,
+                    "tpsa_data": fv_tpsa_folder,
+                }
+                if postprocessing_ecmor_q:
+                    perform_ecmor_postprocessing(configuration)
 
 
 if __name__ == "__main__":
