@@ -386,11 +386,11 @@ class painter_ex_2(painter):
     def convergence_type_map(self):
         map = {
             "three_field_MFEM_u": np.array([8]),
-            "TPSA_u": np.array([8]),
-            "MPSA_u": np.array([8]),
+            "TPSA_u": np.array([5]),
+            "MPSA_u": np.array([5]),
             "three_field_MFEM_sigma": np.array([5]),
-            "TPSA_sigma": np.array([5]),
-            "MPSA_sigma": np.array([5]),
+            "TPSA_sigma": np.array([4]),
+            "MPSA_sigma": np.array([4]),
         }
         return map
 
@@ -515,6 +515,24 @@ class painter_ex_3(painter):
         filter = filter_0
         return filter
 
+    @property
+    def convergence_type_map(self):
+        map = {
+            "four_field_MFEM_u": np.array([11]),
+            "TPSA_u": np.array([6]),
+            "four_field_MFEM_sigma": np.array([5]),
+            "TPSA_sigma": np.array([4]),
+        }
+        return map
+
+    @property
+    def h_size_map(self):
+        map = {
+            "four_field_MFEM": np.array([2]),
+            "TPSA": np.array([1]),
+        }
+        return map
+
     def color_canvas(self, methods, conv_type):
         self.create_directory()
 
@@ -539,7 +557,7 @@ class painter_ex_3(painter):
             file_name = str(file_names[result[0][0]])
             rdata = np.genfromtxt(file_name, dtype=None, delimiter=",", skip_header=1)
 
-            h = rdata[:, np.array([2])]
+            h = rdata[:, self.h_size_map[method]]
             plt.xlim(np.min(h) / 1.1, np.max(h) * 1.1)
 
             error = np.sum(rdata[:, idxs], axis=1)
@@ -587,7 +605,7 @@ class painter_ex_3(painter):
         rdata = np.genfromtxt(file_name, dtype=None, delimiter=",", skip_header=1)
         conv_type_key = painter_ex_3.convergence_type_key(method, conv_type)
         idxs = self.convergence_type_map[conv_type_key]
-        ldata = np.vstack((rdata[:, 2], np.sum(rdata[:, idxs], axis=1))).T
+        ldata = np.vstack((rdata[:, self.h_size_map[method][0]], np.sum(rdata[:, idxs], axis=1))).T
         conv_triangle = ConvergenceTriangle(ldata, rate, h_shift, e_shift, mirror_q)
         conv_triangle.inset_me()
 
@@ -657,7 +675,7 @@ def render_figures_example_2():
 
 
 def render_figures_example_3():
-    methods = ["four_field_MFEM"]
+    methods = ["four_field_MFEM", "TPSA"]
     file_pattern = "output_example_3/*_error.txt"
     painter = painter_ex_3()
     painter.file_pattern = file_pattern
@@ -674,7 +692,7 @@ def render_figures_example_3():
     k = 0
     rate = k + 2
     conv_type = "sigma"
-    painter.ordinate_range = (0.0002, 1)
+    painter.ordinate_range = (0.0002, 10)
     painter.file_name = "convergence_sigma_example_3.pdf"
     painter.color_canvas(methods, conv_type)
     painter.build_inset(methods[0], conv_type, rate, 0.0, -0.2)
@@ -682,5 +700,5 @@ def render_figures_example_3():
 
 
 # render_figures_example_1()
-render_figures_example_2()
-# render_figures_example_3()
+# render_figures_example_2()
+render_figures_example_3()

@@ -946,7 +946,7 @@ def perform_ecmor_postprocessing(configuration: dict):
     print("rounded error rates data: ", rates_data)
     print(" ")
 
-    str_fields = "u, r, s,"
+    str_fields = "u, r, s, m,"
     dual_header = str_fields + " Pu, Pr"
     base_str_header = dual_header
     e_str_header = "n_dof, h, " + base_str_header
