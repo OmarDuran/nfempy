@@ -266,7 +266,7 @@ def three_field_approximation(material_data, method, gmesh, symmetric_solver_q=T
         ksp_u.getPC().setType("icc")
     else:
         ksp_u.getPC().setType("ilu")
-    ksp.setTolerances(rtol=0.0, atol=1e-9, divtol=5000, max_it=20000)
+    ksp.setTolerances(rtol=0.0, atol=1e-12, divtol=5000, max_it=20000)
     ksp.setConvergenceHistory()
     ksp.setFromOptions()
 
@@ -477,7 +477,10 @@ def ecmor_fv_postprocessing(
     assert np.all(np.isclose(exc_c1[face_perm], xc_c1))
     n_sign = np.sign(np.sum(geometry_data["n_c1"][face_perm, 0:2] * n_c1, axis=1))
 
-    alpha_s = np.array(np.split(alpha[fields_idx[0] : fields_idx[1]], xc_c1.shape[0])) * np.vstack((n_sign,n_sign)).T
+    alpha_s = (
+        np.array(np.split(alpha[fields_idx[0] : fields_idx[1]], xc_c1.shape[0]))
+        * np.vstack((n_sign, n_sign)).T
+    )
     alpha_u = np.array(np.split(alpha[fields_idx[1] : fields_idx[2]], xc_c0.shape[0]))
 
     alpha[fields_idx[0] : fields_idx[1]] = alpha_s[face_perm].flatten()
@@ -756,40 +759,40 @@ def perform_ecmor_postprocessing(configuration: dict):
             face_centroid = np.load(file_face_centroid).T
 
         file_mesh_points = (
-                fv_tpsa_folder
-                + "/"
-                + "ex_1_node"
-                + "_"
-                + str(lh)
-                + "_"
-                + str(l_map[lh])
-                + ".npy"
+            fv_tpsa_folder
+            + "/"
+            + "ex_1_node"
+            + "_"
+            + str(lh)
+            + "_"
+            + str(l_map[lh])
+            + ".npy"
         )
         with open(file_mesh_points, "rb") as f:
             mesh_points = np.load(file_mesh_points).T
 
         file_cell_node = (
-                fv_tpsa_folder
-                + "/"
-                + "ex_1_cell_node"
-                + "_"
-                + str(lh)
-                + "_"
-                + str(l_map[lh])
-                + ".npy"
+            fv_tpsa_folder
+            + "/"
+            + "ex_1_cell_node"
+            + "_"
+            + str(lh)
+            + "_"
+            + str(l_map[lh])
+            + ".npy"
         )
         with open(file_cell_node, "rb") as f:
             cell_node = np.load(file_cell_node).T
 
         file_face_node = (
-                fv_tpsa_folder
-                + "/"
-                + "ex_1_face_node"
-                + "_"
-                + str(lh)
-                + "_"
-                + str(l_map[lh])
-                + ".npy"
+            fv_tpsa_folder
+            + "/"
+            + "ex_1_face_node"
+            + "_"
+            + str(lh)
+            + "_"
+            + str(l_map[lh])
+            + ".npy"
         )
         with open(file_face_node, "rb") as f:
             face_node = np.load(file_face_node).T
@@ -954,8 +957,8 @@ def compose_file_name_fv(method, material_data, suffix):
 
 def main():
     dimension = 2
-    approximation_q = False
-    postprocessing_q = False
+    approximation_q = True
+    postprocessing_q = True
     refinements = {0: 6, 1: 6}
     case_data = material_data_definition()
     for k in [0]:

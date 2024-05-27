@@ -26,6 +26,7 @@ from weak_forms.lce_scaled_dual_weak_form import (
     LCEScaledDualWeakFormBCDirichlet,
 )
 from weak_forms.lce_scaled_riesz_map_weak_form import LCEScaledRieszMapWeakForm
+from mesh.mesh_metrics import cell_centroid
 
 
 def create_product_space(method, gmesh):
@@ -68,11 +69,8 @@ def create_product_space(method, gmesh):
         "t": t_disc_Q,
     }
 
-    s_field_bc_physical_tags = [2, 3, 4, 5]
-    m_field_bc_physical_tags = [2, 3, 4, 5]
-    if gmesh.dimension == 3:
-        s_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
-        m_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
+    s_field_bc_physical_tags = [9, 10, 11, 12]
+    m_field_bc_physical_tags = [9, 10, 11, 12]
     discrete_spaces_bc_physical_tags = {
         "s": s_field_bc_physical_tags,
         "m": m_field_bc_physical_tags,
@@ -302,7 +300,7 @@ def four_field_scaled_approximation(method, gmesh, symmetric_solver_q=True):
         ksp_u.getPC().setType("icc")
     else:
         ksp_u.getPC().setType("ilu")
-    ksp.setTolerances(rtol=0.0, atol=1e-9, divtol=5000, max_it=20000)
+    ksp.setTolerances(rtol=0.0, atol=1e-12, divtol=5000, max_it=20000)
     ksp.setConvergenceHistory()
     ksp.setFromOptions()
 
@@ -488,6 +486,157 @@ def four_field_scaled_solution_norms(method, gmesh):
     )
 
 
+def ecmor_fv_postprocessing(
+    material_data, method, gmesh, alpha, geometry_data, write_vtk_q=False
+):
+    dim = gmesh.dimension
+    fe_space = create_product_space(method, gmesh)
+    dof_per_field = fe_space.discrete_spaces_dofs
+    fields_idx = np.add.accumulate([0] + list(dof_per_field.values()))
+    alpha = np.concatenate(
+        (
+            alpha[0 : dof_per_field["s"]],
+            np.zeros((dof_per_field["m"])),
+            alpha[dof_per_field["s"] : dof_per_field["u"] + dof_per_field["s"]],
+            np.zeros((dof_per_field["t"])),
+        )
+    )
+
+    def compute_permutation(origin_xc, target_xc):
+        "Compute permutation indices for reorder origin_xc to match target_xc"
+
+        hashr = lambda x: hash(str(x[0]) + str(x[1]) + str(x[0]))
+        origin = np.around(origin_xc, 12)
+        target = np.around(target_xc, 12)
+        ho = np.fromiter(map(hashr, origin), dtype=np.int64)
+        ht = np.fromiter(map(hashr, target), dtype=np.int64)
+        perm = np.argsort(ho)[np.argsort(np.argsort(ht))]
+        return perm
+
+    def compute_normal(points):
+        v = (points[1] - points[0]) / np.linalg.norm((points[1] - points[0]))
+        n = np.array([-v[1], v[0]])
+        return n
+
+    def compute_centroid(points):
+        v = (points[1] - points[0]) / np.linalg.norm((points[1] - points[0]))
+        n = np.array([-v[1], v[0]])
+        return n
+
+    xc_c0 = np.array(
+        [cell_centroid(cell, gmesh) for cell in gmesh.cells if cell.dimension == dim]
+    )
+    cells_c1 = [cell for cell in gmesh.cells if cell.dimension == dim - 1]
+    n_c1 = np.array(
+        [compute_normal(gmesh.points[np.sort(cell.node_tags)]) for cell in cells_c1]
+    )
+    xc_c1 = np.array([cell_centroid(cell, gmesh) for cell in cells_c1])
+
+    # check if the mesh points are the same
+    node_perm = compute_permutation(geometry_data["points"], gmesh.points)
+    assert np.all(np.isclose(geometry_data["points"][node_perm], gmesh.points))
+
+    def entity_centroid(points):
+        xc = np.mean(points, axis=0)
+        return xc
+
+    points_c0 = geometry_data["points"][geometry_data["node_tags_c0"]]
+    points_c1 = geometry_data["points"][geometry_data["node_tags_c1"]]
+    exc_c0 = np.array(list(map(entity_centroid, points_c0)))
+    exc_c1 = np.array(list(map(entity_centroid, points_c1)))
+
+    # compute dof permutations
+    cell_perm = compute_permutation(exc_c0, xc_c0)
+    face_perm = compute_permutation(exc_c1, xc_c1)
+
+    assert np.all(np.isclose(exc_c0[cell_perm], xc_c0))
+    assert np.all(np.isclose(exc_c1[face_perm], xc_c1))
+    n_sign = np.sign(np.sum(geometry_data["n_c1"][face_perm, 0:2] * n_c1, axis=1))
+
+    alpha_s = (
+        np.array(np.split(alpha[fields_idx[0] : fields_idx[1]], xc_c1.shape[0]))
+        * np.vstack((n_sign, n_sign)).T
+    )
+    alpha_u = np.array(np.split(alpha[fields_idx[2] : fields_idx[3]], xc_c0.shape[0]))
+
+    alpha[fields_idx[0] : fields_idx[1]] = alpha_s[face_perm].flatten()
+    alpha[fields_idx[2] : fields_idx[3]] = alpha_u[cell_perm].flatten()
+
+    n_dof_g = fe_space.n_dof
+
+    # Material data
+    m_lambda = 1.0
+    m_mu = 1.0
+    m_kappa = m_mu
+
+    # exact solution
+    u_exact = lce.displacement(m_lambda, m_mu, m_kappa, dim)
+    t_exact = lce.rotation(m_lambda, m_mu, m_kappa, dim)
+    s_exact = lce.stress(m_lambda, m_mu, m_kappa, dim)
+    m_exact = lce.couple_stress_scaled(m_lambda, m_mu, m_kappa, dim)
+    div_s_exact = lce.stress_divergence(m_lambda, m_mu, m_kappa, dim)
+    div_m_exact = lce.couple_stress_divergence_scaled(m_lambda, m_mu, m_kappa, dim)
+    f_gamma = lce.gamma_s(dim)
+    f_grad_gamma = lce.grad_gamma_s(dim)
+
+    exact_functions = {
+        "s": s_exact,
+        "m": m_exact,
+        "u": u_exact,
+        "t": t_exact,
+        "div_s": div_s_exact,
+        "div_m": div_m_exact,
+        "gamma": f_gamma,
+        "grad_gamma": f_grad_gamma,
+    }
+
+    if write_vtk_q:
+        st = time.time()
+
+        prefix = "ex_3_" + method[0]
+        file_name = prefix + "_ecmor.vtk"
+
+        write_vtk_file_with_exact_solution(
+            file_name, gmesh, fe_space, exact_functions, alpha, ["u", "t"]
+        )
+        et = time.time()
+        elapsed_time = et - st
+        print("VTK post-processing time:", elapsed_time, "seconds")
+
+    st = time.time()
+    s_l2_error, m_l2_error, u_l2_error, t_l2_error = l2_error(
+        dim, fe_space, exact_functions, alpha
+    )
+
+    alpha_proj = l2_projector(fe_space, exact_functions)
+    alpha_e = alpha - alpha_proj
+    u_proj_l2_error, t_proj_l2_error = l2_error_projected(
+        dim, fe_space, alpha_e, ["s", "m"]
+    )
+
+    et = time.time()
+    elapsed_time = et - st
+    print("Error time:", elapsed_time, "seconds")
+    print("L2-error displacement: ", u_l2_error)
+    print("L2-error rotation: ", t_l2_error)
+    print("L2-error stress: ", s_l2_error)
+    print("L2-error couple stress: ", m_l2_error)
+    print("L2-error projected displacement: ", u_proj_l2_error)
+    print("L2-error projected rotation: ", t_proj_l2_error)
+    print("")
+
+    return n_dof_g, np.array(
+        [
+            u_l2_error,
+            t_l2_error,
+            s_l2_error,
+            m_l2_error,
+            u_proj_l2_error,
+            t_proj_l2_error,
+        ]
+    )
+
+
 def create_mesh_from_file(file_name, dim, write_vtk_q=False):
     gmesh = Mesh(dimension=dim, file_name=file_name)
     gmesh.build_conformal_mesh()
@@ -632,6 +781,221 @@ def perform_convergence_postprocessing(configuration: dict):
     return
 
 
+def perform_ecmor_postprocessing(configuration: dict):
+    # retrieve parameters from given configuration
+    k_order = configuration.get("k_order", 0)
+    method = configuration.get("method")
+    n_ref = configuration.get("n_refinements")
+    dimension = configuration.get("dimension")
+    material_data = configuration.get("material_data", {})
+    write_geometry_vtk = configuration.get("write_geometry_Q", True)
+    write_vtk = configuration.get("write_vtk_Q", True)
+    report_full_precision_data = configuration.get("report_full_precision_data_Q", True)
+    fv_tpsa_folder = configuration.get("tpsa_data", None)
+
+    if fv_tpsa_folder is None:
+        raise ValueError("TPSA folder is not provided.")
+
+    l_map = {0: 0.25, 1: 0.125, 2: 0.0625, 3: 0.03125, 4: 0.015625, 5: 0.0078125}
+
+    n_data = 8
+    error_data = np.empty((0, n_data), float)
+    for lh in range(n_ref):
+        mesh_file = "gmsh_files/ex_3/partition_ex_3_l_" + str(lh) + ".msh"
+        gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
+        h_min, h_mean, h_max = mesh_size(gmesh)
+
+        # loading displacements
+        u_suffix = "__displacement_" + str(lh) + "_" + str(l_map[lh]) + ".npy"
+        file_name = compose_file_name_fv(method, u_suffix)
+        file_name_u = fv_tpsa_folder + "/" + file_name
+        with open(file_name_u, "rb") as f:
+            alpha_u = np.load(f)
+
+        # loading stress
+        s_suffix = "__stress_" + str(lh) + "_" + str(l_map[lh]) + ".npy"
+        file_name = compose_file_name_fv(method, s_suffix)
+        file_name_s = fv_tpsa_folder + "/" + file_name
+        with open(file_name_s, "rb") as f:
+            alpha_s = np.load(f)
+
+        file_cell_centroid = (
+            fv_tpsa_folder
+            + "/"
+            + "ex_3_cell_centroid"
+            + "_"
+            + str(lh)
+            + "_"
+            + str(l_map[lh])
+            + ".npy"
+        )
+        with open(file_cell_centroid, "rb") as f:
+            cell_centroid = np.load(file_cell_centroid).T
+
+        file_face_centroid = (
+            fv_tpsa_folder
+            + "/"
+            + "ex_3_face_centroid"
+            + "_"
+            + str(lh)
+            + "_"
+            + str(l_map[lh])
+            + ".npy"
+        )
+        with open(file_face_centroid, "rb") as f:
+            face_centroid = np.load(file_face_centroid).T
+
+        file_mesh_points = (
+            fv_tpsa_folder
+            + "/"
+            + "ex_3_node"
+            + "_"
+            + str(lh)
+            + "_"
+            + str(l_map[lh])
+            + ".npy"
+        )
+        with open(file_mesh_points, "rb") as f:
+            mesh_points = np.load(file_mesh_points).T
+
+        file_cell_node = (
+            fv_tpsa_folder
+            + "/"
+            + "ex_3_cell_node"
+            + "_"
+            + str(lh)
+            + "_"
+            + str(l_map[lh])
+            + ".npy"
+        )
+        with open(file_cell_node, "rb") as f:
+            cell_node = np.load(file_cell_node).T
+
+        file_face_node = (
+            fv_tpsa_folder
+            + "/"
+            + "ex_3_face_node"
+            + "_"
+            + str(lh)
+            + "_"
+            + str(l_map[lh])
+            + ".npy"
+        )
+        with open(file_face_node, "rb") as f:
+            face_node = np.load(file_face_node).T
+
+        file_face_normal = (
+            fv_tpsa_folder
+            + "/"
+            + "ex_3_face_normal"
+            + "_"
+            + str(lh)
+            + "_"
+            + str(l_map[lh])
+            + ".npy"
+        )
+        with open(file_face_normal, "rb") as f:
+            face_normnal = np.load(file_face_normal).T
+
+        file_face_length = (
+            fv_tpsa_folder
+            + "/"
+            + "ex_3_face_length"
+            + "_"
+            + str(lh)
+            + "_"
+            + str(l_map[lh])
+            + ".npy"
+        )
+        with open(file_face_length, "rb") as f:
+            face_length = np.load(file_face_length).T
+
+        geometry_data = {
+            "xc_c0": cell_centroid,
+            "xc_c1": face_centroid,
+            "node_tags_c0": cell_node,
+            "node_tags_c1": face_node,
+            "points": mesh_points,
+            "n_c1": face_normnal,
+            "measure_c1": face_length,
+        }
+
+        alpha = np.concatenate((alpha_s, alpha_u))
+        n_dof, error_vals = ecmor_fv_postprocessing(
+            material_data, method, gmesh, alpha, geometry_data, write_vtk
+        )
+        n_dof = np.concatenate((alpha_s, alpha_u)).shape[0]
+
+        chunk = np.concatenate([[n_dof, h_max], error_vals])
+        error_data = np.append(error_data, np.array([chunk]), axis=0)
+
+    rates_data = np.empty((0, n_data - 2), float)
+    for i in range(error_data.shape[0] - 1):
+        chunk_b = np.log(error_data[i])
+        chunk_e = np.log(error_data[i + 1])
+        h_step = chunk_e[2] - chunk_b[2]
+        partial = (chunk_e - chunk_b) / h_step
+        rates_data = np.append(rates_data, np.array([list(partial[2:n_data])]), axis=0)
+
+    # minimal report
+    np.set_printoptions(precision=3)
+    print("Dual problem: ", method[0])
+    print("Polynomial order: ", k_order)
+    print("Dimension: ", dimension)
+    print("rounded error data: ", error_data)
+    print("rounded error rates data: ", rates_data)
+    print(" ")
+
+    str_fields = "u, r, s,"
+    dual_header = str_fields + " Pu, Pr"
+    base_str_header = dual_header
+    e_str_header = "n_dof, h, " + base_str_header
+
+    file_name_prefix = "ex_3_" + method[0]
+    if report_full_precision_data:
+        np.savetxt(
+            file_name_prefix + "_error.txt",
+            error_data,
+            delimiter=",",
+            header=e_str_header,
+        )
+        np.savetxt(
+            file_name_prefix + "_rates.txt",
+            rates_data,
+            delimiter=",",
+            header=base_str_header,
+        )
+    np.savetxt(
+        file_name_prefix + "_error_rounded.txt",
+        error_data,
+        fmt="%1.3e",
+        delimiter=",",
+        header=e_str_header,
+    )
+    np.savetxt(
+        file_name_prefix + "_rates_rounded.txt",
+        rates_data,
+        fmt="%1.3f",
+        delimiter=",",
+        header=base_str_header,
+    )
+
+    return
+
+
+def fv_method_definition(method_name):
+    k_order = 0
+    method_1 = {
+        "s": ("RT", 1),
+        "m": ("RT", 1),
+        "u": ("Lagrange", 0),
+        "t": ("Lagrange", 0),
+    }
+    methods = [method_1]
+    method_names = [method_name]
+    return zip(method_names, methods)
+
+
 def method_definition(k_order):
     method_1 = {
         "s": ("BDM", k_order + 1),
@@ -647,6 +1011,12 @@ def method_definition(k_order):
 
 def compose_file_name(method, k_order, ref_l, dim, suffix):
     prefix = "ex_3_" + method[0] + "_l" + str(ref_l)
+    file_name = prefix + suffix
+    return file_name
+
+
+def compose_file_name_fv(method, suffix):
+    prefix = "ex_3_" + method[0]
     file_name = prefix + suffix
     return file_name
 
@@ -668,6 +1038,21 @@ def main():
                 perform_convergence_approximations(configuration)
             if postprocessing_q:
                 perform_convergence_postprocessing(configuration)
+
+    # Postprocessing FV results
+    postprocessing_ecmor_q = True
+    fv_tpsa_folder = "output_ecmor_fv/tpsa_mpsa_results_v4"
+    for method_name in ["TPSA"]:
+        methods = fv_method_definition(method_name)
+        for i, method in enumerate(methods):
+            configuration = {
+                "dimension": dimension,
+                "n_refinements": refinements[k],
+                "method": method,
+                "tpsa_data": fv_tpsa_folder,
+            }
+            if postprocessing_ecmor_q:
+                perform_ecmor_postprocessing(configuration)
 
 
 if __name__ == "__main__":
