@@ -431,12 +431,12 @@ def ecmor_fv_postprocessing(
     def compute_permutation(origin_xc, target_xc):
         "Compute permutation indices for reorder origin_xc to match target_xc"
 
-        hashr = lambda x: hash(str(x[0]) + str(x[1]))
-        origin = np.around(origin_xc, 10)
-        target = np.around(target_xc, 10)
-        origin = np.fromiter(map(hashr, origin), dtype=np.int64)
-        target = np.fromiter(map(hashr, target), dtype=np.int64)
-        perm = np.argsort(origin)[np.argsort(np.argsort(target))]
+        hashr = lambda x: hash(str(x[0]) + str(x[1]) + str(x[0]))
+        origin = np.around(origin_xc, 12)
+        target = np.around(target_xc, 12)
+        ho = np.fromiter(map(hashr, origin), dtype=np.int64)
+        ht = np.fromiter(map(hashr, target), dtype=np.int64)
+        perm = np.argsort(ho)[np.argsort(np.argsort(ht))]
         return perm
 
     def compute_normal(points):
@@ -457,32 +457,22 @@ def ecmor_fv_postprocessing(
     dxc_c1 = np.linalg.norm(xc_c1, axis=1)
     edxc_c0 = np.linalg.norm(geometry_data["xc_c0"], axis=1)
     edxc_c1 = np.linalg.norm(geometry_data["xc_c1"], axis=1)
+    node_perm = compute_permutation(geometry_data["points"], gmesh.points)
+    assert np.all(np.isclose(geometry_data["points"][node_perm], gmesh.points))
+
     # compute dof permutations
     cell_perm = compute_permutation(geometry_data["xc_c0"], xc_c0)
+    if np.all(np.isclose(np.arange(0, xc_c0.shape[0]), cell_perm)):
+        print("Meshes does not need cell permutation.")
+    else:
+        aka = 0
     face_perm = compute_permutation(geometry_data["xc_c1"], xc_c1)
 
     assert np.all(np.isclose(geometry_data["xc_c0"][cell_perm], xc_c0))
     assert np.all(np.isclose(geometry_data["xc_c1"][face_perm], xc_c1))
     n_sign = np.sign(np.sum(geometry_data["n_c1"][face_perm, 0:2] * n_c1, axis=1))
-    measure_c1 = geometry_data["measure_c1"][face_perm]
 
-    # # Material data
-    # m_lambda = material_data["lambda"]
-    # m_mu = material_data["mu"]
-    #
-    # # exact solution
-    # u_exact = le.displacement(m_lambda, m_mu, dim)
-    # t_exact = le.rotation(m_lambda, m_mu, dim)
-    # s_exact = le.stress(m_lambda, m_mu, dim)
-    #
-    # exact_functions = {
-    #     "s": s_exact,
-    #     "u": u_exact,
-    #     "t": t_exact,
-    # }
-    # alpha_proj = l2_projector(fe_space, exact_functions)
-
-    alpha_s = np.array(np.split(alpha[fields_idx[0] : fields_idx[1]], xc_c1.shape[0]))
+    alpha_s = np.array(np.split(alpha[fields_idx[0] : fields_idx[1]], xc_c1.shape[0])) * np.vstack((n_sign,n_sign)).T
     alpha_u = np.array(np.split(alpha[fields_idx[1] : fields_idx[2]], xc_c0.shape[0]))
 
     alpha[fields_idx[0] : fields_idx[1]] = alpha_s[face_perm].flatten()
@@ -509,7 +499,6 @@ def ecmor_fv_postprocessing(
         st = time.time()
 
         lambda_value = material_data["lambda"]
-        mu_value = material_data["mu"]
 
         prefix = "ex_1_" + method[0] + "_lambda_" + str(lambda_value)
         file_name = prefix + "_ecmor.vtk"
@@ -761,6 +750,45 @@ def perform_ecmor_postprocessing(configuration: dict):
         with open(file_face_centroid, "rb") as f:
             face_centroid = np.load(file_face_centroid).T
 
+        file_mesh_points = (
+                fv_tpsa_folder
+                + "/"
+                + "ex_1_node"
+                + "_"
+                + str(lh)
+                + "_"
+                + str(l_map[lh])
+                + ".npy"
+        )
+        with open(file_mesh_points, "rb") as f:
+            mesh_points = np.load(file_mesh_points).T
+
+        file_cell_node = (
+                fv_tpsa_folder
+                + "/"
+                + "ex_1_cell_node"
+                + "_"
+                + str(lh)
+                + "_"
+                + str(l_map[lh])
+                + ".npy"
+        )
+        with open(file_cell_node, "rb") as f:
+            cell_node = np.load(file_cell_node).T
+
+        file_face_node = (
+                fv_tpsa_folder
+                + "/"
+                + "ex_1_face_node"
+                + "_"
+                + str(lh)
+                + "_"
+                + str(l_map[lh])
+                + ".npy"
+        )
+        with open(file_face_node, "rb") as f:
+            face_node = np.load(file_face_node).T
+
         file_face_normal = (
             fv_tpsa_folder
             + "/"
@@ -790,6 +818,9 @@ def perform_ecmor_postprocessing(configuration: dict):
         geometry_data = {
             "xc_c0": cell_centroid,
             "xc_c1": face_centroid,
+            "xs_c0": cell_node,
+            "xs_c1": face_node,
+            "points": mesh_points,
             "n_c1": face_normnal,
             "measure_c1": face_length,
         }
@@ -890,6 +921,7 @@ def material_data_definition():
     case_2 = {"lambda": 1.0e4, "mu": 1.0}
     case_3 = {"lambda": 1.0e8, "mu": 1.0}
     cases = [case_0, case_1, case_2, case_3]
+    cases = [case_0]
     return cases
 
 
@@ -939,7 +971,7 @@ def main():
 
     # Postprocessing FV results
     postprocessing_ecmor_q = True
-    fv_tpsa_folder = "output_ecmor_fv/tpsa_results_v0"
+    fv_tpsa_folder = "output_ecmor_fv/tpsa_mpsa_results_v4"
     for method_name in ["TPSA"]:
         methods = fv_method_definition(method_name)
         for i, method in enumerate(methods):
