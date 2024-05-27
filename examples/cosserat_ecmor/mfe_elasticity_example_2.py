@@ -884,9 +884,9 @@ def perform_ecmor_postprocessing(configuration: dict):
     base_str_header = dual_header
     e_str_header = "n_dof, h, " + base_str_header
 
-    lambda_value = material_data["lambda"]
+    kappa_value = material_data["kappa"]
 
-    file_name_prefix = "ex_2_" + method[0] + "_lambda_" + str(lambda_value)
+    file_name_prefix = "ex_2_" + method[0] + "_kappa_" + str(kappa_value)
     if report_full_precision_data:
         np.savetxt(
             file_name_prefix + "_error.txt",
