@@ -653,7 +653,7 @@ def render_figures_example_2():
 
     k = 0
     conv_type = "u"
-    painter.ordinate_range = (0.000001, 50.0)
+    painter.ordinate_range = (0.000001, 60.0)
     painter.file_name = "convergence_u_example_2.pdf"
     painter.color_canvas_with_variable_kappa(methods, material_values, conv_type)
     rate = k + 2
@@ -699,6 +699,6 @@ def render_figures_example_3():
     painter.save_figure()
 
 
-# render_figures_example_1()
-# render_figures_example_2()
+render_figures_example_1()
+render_figures_example_2()
 render_figures_example_3()
