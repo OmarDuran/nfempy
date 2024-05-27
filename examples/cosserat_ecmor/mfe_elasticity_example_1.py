@@ -53,9 +53,7 @@ def create_product_space(method, gmesh):
         "t": t_disc_Q,
     }
 
-    s_field_bc_physical_tags = [2, 3, 4, 5]
-    if gmesh.dimension == 3:
-        s_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
+    s_field_bc_physical_tags = [5, 6, 7, 8]
     discrete_spaces_bc_physical_tags = {
         "s": s_field_bc_physical_tags,
     }
@@ -444,6 +442,11 @@ def ecmor_fv_postprocessing(
         n = np.array([-v[1], v[0]])
         return n
 
+    def compute_centroid(points):
+        v = (points[1] - points[0]) / np.linalg.norm((points[1] - points[0]))
+        n = np.array([-v[1], v[0]])
+        return n
+
     xc_c0 = np.array(
         [cell_centroid(cell, gmesh) for cell in gmesh.cells if cell.dimension == dim]
     )
@@ -453,23 +456,25 @@ def ecmor_fv_postprocessing(
     )
     xc_c1 = np.array([cell_centroid(cell, gmesh) for cell in cells_c1])
 
-    dxc_c0 = np.linalg.norm(xc_c0, axis=1)
-    dxc_c1 = np.linalg.norm(xc_c1, axis=1)
-    edxc_c0 = np.linalg.norm(geometry_data["xc_c0"], axis=1)
-    edxc_c1 = np.linalg.norm(geometry_data["xc_c1"], axis=1)
+    # check if the mesh points are the same
     node_perm = compute_permutation(geometry_data["points"], gmesh.points)
     assert np.all(np.isclose(geometry_data["points"][node_perm], gmesh.points))
 
-    # compute dof permutations
-    cell_perm = compute_permutation(geometry_data["xc_c0"], xc_c0)
-    if np.all(np.isclose(np.arange(0, xc_c0.shape[0]), cell_perm)):
-        print("Meshes does not need cell permutation.")
-    else:
-        aka = 0
-    face_perm = compute_permutation(geometry_data["xc_c1"], xc_c1)
+    def entity_centroid(points):
+        xc = np.mean(points, axis=0)
+        return xc
 
-    assert np.all(np.isclose(geometry_data["xc_c0"][cell_perm], xc_c0))
-    assert np.all(np.isclose(geometry_data["xc_c1"][face_perm], xc_c1))
+    points_c0 = geometry_data["points"][geometry_data["node_tags_c0"]]
+    points_c1 = geometry_data["points"][geometry_data["node_tags_c1"]]
+    exc_c0 = np.array(list(map(entity_centroid, points_c0)))
+    exc_c1 = np.array(list(map(entity_centroid, points_c1)))
+
+    # compute dof permutations
+    cell_perm = compute_permutation(exc_c0, xc_c0)
+    face_perm = compute_permutation(exc_c1, xc_c1)
+
+    assert np.all(np.isclose(exc_c0[cell_perm], xc_c0))
+    assert np.all(np.isclose(exc_c1[face_perm], xc_c1))
     n_sign = np.sign(np.sum(geometry_data["n_c1"][face_perm, 0:2] * n_c1, axis=1))
 
     alpha_s = np.array(np.split(alpha[fields_idx[0] : fields_idx[1]], xc_c1.shape[0])) * np.vstack((n_sign,n_sign)).T
@@ -818,8 +823,8 @@ def perform_ecmor_postprocessing(configuration: dict):
         geometry_data = {
             "xc_c0": cell_centroid,
             "xc_c1": face_centroid,
-            "xs_c0": cell_node,
-            "xs_c1": face_node,
+            "node_tags_c0": cell_node,
+            "node_tags_c1": face_node,
             "points": mesh_points,
             "n_c1": face_normnal,
             "measure_c1": face_length,
@@ -951,7 +956,7 @@ def main():
     dimension = 2
     approximation_q = False
     postprocessing_q = False
-    refinements = {0: 5, 1: 6}
+    refinements = {0: 6, 1: 6}
     case_data = material_data_definition()
     for k in [0]:
         methods = method_definition(k)
@@ -972,7 +977,7 @@ def main():
     # Postprocessing FV results
     postprocessing_ecmor_q = True
     fv_tpsa_folder = "output_ecmor_fv/tpsa_mpsa_results_v4"
-    for method_name in ["TPSA"]:
+    for method_name in ["TPSA", "MPSA"]:
         methods = fv_method_definition(method_name)
         for i, method in enumerate(methods):
             for material_data in case_data:
