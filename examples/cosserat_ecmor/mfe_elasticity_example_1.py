@@ -929,7 +929,6 @@ def material_data_definition():
     case_2 = {"lambda": 1.0e4, "mu": 1.0}
     case_3 = {"lambda": 1.0e8, "mu": 1.0}
     cases = [case_0, case_1, case_2, case_3]
-    cases = [case_0]
     return cases
 
 
