@@ -605,7 +605,6 @@ def perform_convergence_approximations(configuration: dict):
 
 def perform_convergence_postprocessing(configuration: dict):
     # retrieve parameters from given configuration
-    k_order = configuration.get("k_order")
     method = configuration.get("method")
     n_ref = configuration.get("n_refinements")
     dimension = configuration.get("dimension")
@@ -653,7 +652,6 @@ def perform_convergence_postprocessing(configuration: dict):
     # minimal report
     np.set_printoptions(precision=3)
     print("Dual problem: ", method[0])
-    print("Polynomial order: ", k_order)
     print("Dimension: ", dimension)
     print("rounded error data: ", error_data)
     print("rounded error rates data: ", rates_data)
@@ -972,7 +970,7 @@ def main():
     dimension = 2
     approximation_q = True
     postprocessing_q = True
-    refinements = {0: 2, 1: 6}
+    refinements = {0: 6}
     case_data = material_data_definition()
     for k in [0]:
         methods = method_definition(k)
@@ -991,7 +989,7 @@ def main():
                     perform_convergence_postprocessing(configuration)
 
     # Postprocessing FV results
-    postprocessing_ecmor_q = False
+    postprocessing_ecmor_q = True
     fv_tpsa_folder = "output_ecmor_fv/tpsa_mpsa_results_v4"
     for method_name in ["TPSA", "MPSA"]:
         methods = fv_method_definition(method_name)

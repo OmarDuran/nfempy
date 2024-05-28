@@ -293,7 +293,7 @@ def three_field_approximation(material_data, method, gmesh, symmetric_solver_q=T
 
 
 def three_field_postprocessing(
-    k_order, material_data, method, gmesh, alpha, write_vtk_q=False
+    material_data, method, gmesh, alpha, write_vtk_q=False
 ):
     dim = gmesh.dimension
 
@@ -585,7 +585,6 @@ def perform_convergence_approximations(configuration: dict):
 
 def perform_convergence_postprocessing(configuration: dict):
     # retrieve parameters from given configuration
-    k_order = configuration.get("k_order")
     method = configuration.get("method")
     n_ref = configuration.get("n_refinements")
     dimension = configuration.get("dimension")
@@ -607,7 +606,7 @@ def perform_convergence_postprocessing(configuration: dict):
         with open(file_name, "rb") as f:
             alpha = np.load(f)
         n_dof, error_vals = three_field_postprocessing(
-            k_order, material_data, method, gmesh, alpha, write_vtk
+            material_data, method, gmesh, alpha, write_vtk
         )
 
         file_name_res = compose_file_name(
@@ -633,7 +632,6 @@ def perform_convergence_postprocessing(configuration: dict):
     # minimal report
     np.set_printoptions(precision=3)
     print("Dual problem: ", method[0])
-    print("Polynomial order: ", k_order)
     print("Dimension: ", dimension)
     print("rounded error data: ", error_data)
     print("rounded error rates data: ", rates_data)
@@ -955,7 +953,7 @@ def main():
     dimension = 2
     approximation_q = True
     postprocessing_q = True
-    refinements = {0: 6, 1: 6}
+    refinements = {0: 6}
     case_data = material_data_definition()
     for k in [0]:
         methods = method_definition(k)

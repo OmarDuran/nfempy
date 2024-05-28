@@ -10,7 +10,7 @@ from postprocess.l2_error_post_processor import (div_error, div_scaled_error,
 from postprocess.projectors import l2_projector
 from postprocess.solution_norms_post_processor import div_norm, l2_norm
 from postprocess.solution_post_processor import (
-    write_vtk_file, write_vtk_file_exact_solution,
+    write_vtk_file_exact_solution,
     write_vtk_file_with_exact_solution)
 from spaces.product_space import ProductSpace
 from weak_forms.lce_scaled_dual_weak_form import (
@@ -318,7 +318,7 @@ def four_field_scaled_approximation(method, gmesh, symmetric_solver_q=True):
     return alpha, residuals_history
 
 
-def four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk_q=False):
+def four_field_scaled_postprocessing(method, gmesh, alpha, write_vtk_q=False):
     dim = gmesh.dimension
     fe_space = create_product_space(method, gmesh)
     n_dof_g = fe_space.n_dof
@@ -486,17 +486,18 @@ def ecmor_fv_postprocessing(
     fields_idx = np.add.accumulate([0] + list(dof_per_field.values()))
     alpha = np.concatenate(
         (
-            alpha[0 : dof_per_field["s"]],
+            alpha[0: dof_per_field["s"]],
             np.zeros((dof_per_field["m"])),
-            alpha[dof_per_field["s"] : dof_per_field["u"] + dof_per_field["s"]],
+            alpha[dof_per_field["s"]: dof_per_field["u"] + dof_per_field["s"]],
             np.zeros((dof_per_field["t"])),
         )
     )
 
     def compute_permutation(origin_xc, target_xc):
         "Compute permutation indices for reorder origin_xc to match target_xc"
+        def hashr(x):
+            return hash(str(x[0]) + str(x[1]) + str(x[0]))
 
-        hashr = lambda x: hash(str(x[0]) + str(x[1]) + str(x[0]))
         origin = np.around(origin_xc, 12)
         target = np.around(target_xc, 12)
         ho = np.fromiter(map(hashr, origin), dtype=np.int64)
@@ -545,13 +546,13 @@ def ecmor_fv_postprocessing(
     n_sign = np.sign(np.sum(geometry_data["n_c1"][face_perm, 0:2] * n_c1, axis=1))
 
     alpha_s = (
-        np.array(np.split(alpha[fields_idx[0] : fields_idx[1]], xc_c1.shape[0]))
+        np.array(np.split(alpha[fields_idx[0]: fields_idx[1]], xc_c1.shape[0]))
         * np.vstack((n_sign, n_sign)).T
     )
-    alpha_u = np.array(np.split(alpha[fields_idx[2] : fields_idx[3]], xc_c0.shape[0]))
+    alpha_u = np.array(np.split(alpha[fields_idx[2]: fields_idx[3]], xc_c0.shape[0]))
 
-    alpha[fields_idx[0] : fields_idx[1]] = alpha_s[face_perm].flatten()
-    alpha[fields_idx[2] : fields_idx[3]] = alpha_u[cell_perm].flatten()
+    alpha[fields_idx[0]: fields_idx[1]] = alpha_s[face_perm].flatten()
+    alpha[fields_idx[2]: fields_idx[3]] = alpha_u[cell_perm].flatten()
 
     n_dof_g = fe_space.n_dof
 
@@ -638,7 +639,6 @@ def create_mesh_from_file(file_name, dim, write_vtk_q=False):
 
 def perform_convergence_approximations(configuration: dict):
     # retrieve parameters from dictionary
-    k_order = configuration.get("k_order")
     method = configuration.get("method")
     n_ref = configuration.get("n_refinements")
     dimension = configuration.get("dimension")
@@ -649,12 +649,12 @@ def perform_convergence_approximations(configuration: dict):
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
         alpha, res_history = four_field_scaled_approximation(method, gmesh)
         file_name = compose_file_name(
-            method, k_order, lh, gmesh.dimension, "_alpha.npy"
+            method, lh, "_alpha.npy"
         )
         with open(file_name, "wb") as f:
             np.save(f, alpha)
         file_name_res = compose_file_name(
-            method, k_order, lh, gmesh.dimension, "_res_history.txt"
+            method, lh, "_res_history.txt"
         )
         # First position includes n_dof
         np.savetxt(
@@ -668,7 +668,6 @@ def perform_convergence_approximations(configuration: dict):
 
 def perform_convergence_postprocessing(configuration: dict):
     # retrieve parameters from dictionary
-    k_order = configuration.get("k_order")
     method = configuration.get("method")
     n_ref = configuration.get("n_refinements")
     dimension = configuration.get("dimension")
@@ -684,16 +683,16 @@ def perform_convergence_postprocessing(configuration: dict):
         h_min, h_mean, h_max = mesh_size(gmesh)
 
         file_name = compose_file_name(
-            method, k_order, lh, gmesh.dimension, "_alpha.npy"
+            method, lh, "_alpha.npy"
         )
         with open(file_name, "rb") as f:
             alpha = np.load(f)
         n_dof, error_vals = four_field_scaled_postprocessing(
-            k_order, method, gmesh, alpha, write_vtk
+            method, gmesh, alpha, write_vtk
         )
 
         file_name_res = compose_file_name(
-            method, k_order, lh, gmesh.dimension, "_res_history.txt"
+            method, lh, "_res_history.txt"
         )
         res_data = np.genfromtxt(file_name_res, dtype=None, delimiter=",")
         n_iterations = res_data.shape[0] - 1  # First position includes n_dof
@@ -715,8 +714,6 @@ def perform_convergence_postprocessing(configuration: dict):
     # minimal report
     np.set_printoptions(precision=3)
     print("Dual problem: ", method[0])
-
-    print("Polynomial order: ", k_order)
     print("Dimension: ", dimension)
     print("rounded error data: ", error_data)
     print("rounded error rates data: ", rates_data)
@@ -975,7 +972,6 @@ def perform_ecmor_postprocessing(configuration: dict):
 
 
 def fv_method_definition(method_name):
-    k_order = 0
     method_1 = {
         "s": ("RT", 1),
         "m": ("RT", 1),
@@ -1000,7 +996,7 @@ def method_definition(k_order):
     return zip(method_names, methods)
 
 
-def compose_file_name(method, k_order, ref_l, dim, suffix):
+def compose_file_name(method, ref_l, suffix):
     prefix = "ex_3_" + method[0] + "_l" + str(ref_l)
     file_name = prefix + suffix
     return file_name
@@ -1016,7 +1012,7 @@ def main():
     dimension = 2
     approximation_q = True
     postprocessing_q = True
-    refinements = {0: 6, 1: 6}
+    refinements = {0: 6}
     for k in [0]:
         for method in method_definition(k):
             configuration = {
