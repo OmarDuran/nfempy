@@ -11,7 +11,8 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from matplotlib.ticker import MultipleLocator
 
-plt.rcParams["text.usetex"] = True
+plt.rc("text", usetex=True)
+plt.rc("legend", frameon=False)
 
 
 class ConvergenceTriangle:
@@ -214,7 +215,7 @@ class painter(ABC):
         Path("figures").mkdir(parents=True, exist_ok=True)
 
     def save_figure(self):
-        plt.savefig(Path("figures") / Path(self._name), format="pdf")
+        plt.savefig(Path("figures") / Path(self._name))
 
     @staticmethod
     def filter_composer(method, material_context, m_value):
@@ -354,7 +355,9 @@ class painter_ex_1(painter):
         rdata = np.genfromtxt(file_name, dtype=None, delimiter=",", skip_header=1)
         conv_type_key = painter_ex_1.convergence_type_key(method, conv_type)
         idxs = self.convergence_type_map[conv_type_key]
-        ldata = np.vstack((rdata[:, self.h_size_map[method][0]], np.sum(rdata[:, idxs], axis=1))).T
+        ldata = np.vstack(
+            (rdata[:, self.h_size_map[method][0]], np.sum(rdata[:, idxs], axis=1))
+        ).T
         conv_triangle = ConvergenceTriangle(ldata, rate, h_shift, e_shift, mirror_q)
         conv_triangle.inset_me()
 
@@ -490,7 +493,9 @@ class painter_ex_2(painter):
         rdata = np.genfromtxt(file_name, dtype=None, delimiter=",", skip_header=1)
         conv_type_key = painter_ex_2.convergence_type_key(method, conv_type)
         idxs = self.convergence_type_map[conv_type_key]
-        ldata = np.vstack((rdata[:, self.h_size_map[method][0]], np.sum(rdata[:, idxs], axis=1))).T
+        ldata = np.vstack(
+            (rdata[:, self.h_size_map[method][0]], np.sum(rdata[:, idxs], axis=1))
+        ).T
         conv_triangle = ConvergenceTriangle(ldata, rate, h_shift, e_shift, mirror_q)
         conv_triangle.inset_me()
 
@@ -605,14 +610,16 @@ class painter_ex_3(painter):
         rdata = np.genfromtxt(file_name, dtype=None, delimiter=",", skip_header=1)
         conv_type_key = painter_ex_3.convergence_type_key(method, conv_type)
         idxs = self.convergence_type_map[conv_type_key]
-        ldata = np.vstack((rdata[:, self.h_size_map[method][0]], np.sum(rdata[:, idxs], axis=1))).T
+        ldata = np.vstack(
+            (rdata[:, self.h_size_map[method][0]], np.sum(rdata[:, idxs], axis=1))
+        ).T
         conv_triangle = ConvergenceTriangle(ldata, rate, h_shift, e_shift, mirror_q)
         conv_triangle.inset_me()
 
 
-def render_figures_example_1():
+def render_figures_example_1(folder_name, fig_type):
     methods = ["three_field_MFEM", "TPSA", "MPSA"]
-    file_pattern = "output_example_1/*_error.txt"
+    file_pattern = folder_name + "output_example_1/*_error.txt"
 
     painter = painter_ex_1()
     painter.file_pattern = file_pattern
@@ -623,7 +630,7 @@ def render_figures_example_1():
     rate = k + 2
     conv_type = "u"
     painter.ordinate_range = (0.0005, 100)
-    painter.file_name = "convergence_u_example_1.pdf"
+    painter.file_name = "convergence_u_example_1." + fig_type
     painter.color_canvas_with_variable_lambda(methods, material_values, conv_type)
     painter.build_inset_var_lambda(
         methods[2], material_values[2], conv_type, rate, 0.0, -0.2
@@ -634,7 +641,7 @@ def render_figures_example_1():
     rate = k + 1
     conv_type = "sigma"
     painter.ordinate_range = (0.05, 250)
-    painter.file_name = "convergence_sigma_example_1.pdf"
+    painter.file_name = "convergence_sigma_example_1." + fig_type
     painter.color_canvas_with_variable_lambda(methods, material_values, conv_type)
     painter.build_inset_var_lambda(
         methods[0], material_values[2], conv_type, rate, 0.0, -0.2
@@ -642,9 +649,9 @@ def render_figures_example_1():
     painter.save_figure()
 
 
-def render_figures_example_2():
+def render_figures_example_2(folder_name, fig_type):
     methods = ["three_field_MFEM", "TPSA", "MPSA"]
-    file_pattern = "output_example_2/*_error.txt"
+    file_pattern = folder_name + "output_example_2/*_error.txt"
 
     painter = painter_ex_2()
     painter.file_pattern = file_pattern
@@ -653,8 +660,8 @@ def render_figures_example_2():
 
     k = 0
     conv_type = "u"
-    painter.ordinate_range = (0.000001, 60.0)
-    painter.file_name = "convergence_u_example_2.pdf"
+    painter.ordinate_range = (0.0000001, 60.0)
+    painter.file_name = "convergence_u_example_2." + fig_type
     painter.color_canvas_with_variable_kappa(methods, material_values, conv_type)
     rate = k + 2
     painter.build_inset_var_kappa(
@@ -664,8 +671,8 @@ def render_figures_example_2():
 
     k = 0
     conv_type = "sigma"
-    painter.ordinate_range = (0.001, 1.0)
-    painter.file_name = "convergence_sigma_example_2.pdf"
+    painter.ordinate_range = (0.00025, 1.0)
+    painter.file_name = "convergence_sigma_example_2." + fig_type
     painter.color_canvas_with_variable_kappa(methods, material_values, conv_type)
     rate = k + 1
     painter.build_inset_var_kappa(
@@ -674,9 +681,9 @@ def render_figures_example_2():
     painter.save_figure()
 
 
-def render_figures_example_3():
+def render_figures_example_3(folder_name, fig_type):
     methods = ["four_field_MFEM", "TPSA"]
-    file_pattern = "output_example_3/*_error.txt"
+    file_pattern = folder_name + "output_example_3/*_error.txt"
     painter = painter_ex_3()
     painter.file_pattern = file_pattern
 
@@ -684,7 +691,7 @@ def render_figures_example_3():
     rate = k + 2
     conv_type = "u"
     painter.ordinate_range = (0.00001, 0.05)
-    painter.file_name = "convergence_u_example_3.pdf"
+    painter.file_name = "convergence_u_example_3." + fig_type
     painter.color_canvas(methods, conv_type)
     painter.build_inset(methods[0], conv_type, rate, 0.0, -0.2)
     painter.save_figure()
@@ -693,12 +700,14 @@ def render_figures_example_3():
     rate = k + 2
     conv_type = "sigma"
     painter.ordinate_range = (0.0002, 10)
-    painter.file_name = "convergence_sigma_example_3.pdf"
+    painter.file_name = "convergence_sigma_example_3." + fig_type
     painter.color_canvas(methods, conv_type)
     painter.build_inset(methods[0], conv_type, rate, 0.0, -0.2)
     painter.save_figure()
 
 
-render_figures_example_1()
-render_figures_example_2()
-render_figures_example_3()
+folder_name = "output_ecmor_mfe_fv/"
+fig_type = "pdf"
+render_figures_example_1(folder_name, fig_type)
+render_figures_example_2(folder_name, fig_type)
+render_figures_example_3(folder_name, fig_type)
