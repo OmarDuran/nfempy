@@ -2,9 +2,6 @@ import resource
 import time
 
 import numpy as np
-from geometry.domain import Domain
-from geometry.domain_market import build_box_1D, build_box_2D, build_box_3D
-from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
 from mesh.mesh_metrics import cell_centroid, mesh_size
 from petsc4py import PETSc
@@ -324,7 +321,6 @@ def three_field_postprocessing(
         st = time.time()
 
         lambda_value = material_data["lambda"]
-        mu_value = material_data["mu"]
 
         prefix = "ex_1_" + method[0] + "_lambda_" + str(lambda_value)
         file_name = prefix + ".vtk"
@@ -430,8 +426,9 @@ def ecmor_fv_postprocessing(
 
     def compute_permutation(origin_xc, target_xc):
         "Compute permutation indices for reorder origin_xc to match target_xc"
+        def hashr(x):
+            return hash(str(x[0]) + str(x[1]) + str(x[0]))
 
-        hashr = lambda x: hash(str(x[0]) + str(x[1]) + str(x[0]))
         origin = np.around(origin_xc, 12)
         target = np.around(target_xc, 12)
         ho = np.fromiter(map(hashr, origin), dtype=np.int64)
@@ -480,13 +477,13 @@ def ecmor_fv_postprocessing(
     n_sign = np.sign(np.sum(geometry_data["n_c1"][face_perm, 0:2] * n_c1, axis=1))
 
     alpha_s = (
-        np.array(np.split(alpha[fields_idx[0] : fields_idx[1]], xc_c1.shape[0]))
+        np.array(np.split(alpha[fields_idx[0]: fields_idx[1]], xc_c1.shape[0]))
         * np.vstack((n_sign, n_sign)).T
     )
-    alpha_u = np.array(np.split(alpha[fields_idx[1] : fields_idx[2]], xc_c0.shape[0]))
+    alpha_u = np.array(np.split(alpha[fields_idx[1]: fields_idx[2]], xc_c0.shape[0]))
 
-    alpha[fields_idx[0] : fields_idx[1]] = alpha_s[face_perm].flatten()
-    alpha[fields_idx[1] : fields_idx[2]] = alpha_u[cell_perm].flatten()
+    alpha[fields_idx[0]: fields_idx[1]] = alpha_s[face_perm].flatten()
+    alpha[fields_idx[1]: fields_idx[2]] = alpha_u[cell_perm].flatten()
 
     n_dof_g = fe_space.n_dof
 
@@ -558,7 +555,6 @@ def create_mesh_from_file(file_name, dim, write_vtk_q=False):
 
 def perform_convergence_approximations(configuration: dict):
     # retrieve parameters from given configuration
-    k_order = configuration.get("k_order")
     method = configuration.get("method")
     n_ref = configuration.get("n_refinements")
     dimension = configuration.get("dimension")
@@ -570,12 +566,12 @@ def perform_convergence_approximations(configuration: dict):
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
         alpha, res_history = three_field_approximation(material_data, method, gmesh)
         file_name = compose_file_name(
-            method, k_order, lh, gmesh.dimension, material_data, "_alpha.npy"
+            method, lh, material_data, "_alpha.npy"
         )
         with open(file_name, "wb") as f:
             np.save(f, alpha)
         file_name_res = compose_file_name(
-            method, k_order, lh, gmesh.dimension, material_data, "_res_history.txt"
+            method, lh, material_data, "_res_history.txt"
         )
         # First position includes n_dof
         np.savetxt(
@@ -606,7 +602,7 @@ def perform_convergence_postprocessing(configuration: dict):
         h_min, h_mean, h_max = mesh_size(gmesh)
 
         file_name = compose_file_name(
-            method, k_order, lh, gmesh.dimension, material_data, "_alpha.npy"
+            method, lh, material_data, "_alpha.npy"
         )
         with open(file_name, "rb") as f:
             alpha = np.load(f)
@@ -615,7 +611,7 @@ def perform_convergence_postprocessing(configuration: dict):
         )
 
         file_name_res = compose_file_name(
-            method, k_order, lh, gmesh.dimension, material_data, "_res_history.txt"
+            method, lh, material_data, "_res_history.txt"
         )
         res_data = np.genfromtxt(file_name_res, dtype=None, delimiter=",")
         n_iterations = res_data.shape[0] - 1  # First position includes n_dof
@@ -901,7 +897,6 @@ def perform_ecmor_postprocessing(configuration: dict):
 
 
 def fv_method_definition(method_name):
-    k_order = 0
     method_1 = {
         "s": ("RT", 1),
         "u": ("Lagrange", 0),
@@ -934,7 +929,7 @@ def material_data_definition():
     return cases
 
 
-def compose_file_name(method, k_order, ref_l, dim, material_data, suffix):
+def compose_file_name(method, ref_l, material_data, suffix):
     prefix = (
         "ex_1_"
         + method[0]
