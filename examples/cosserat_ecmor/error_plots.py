@@ -707,7 +707,7 @@ def render_figures_example_3(folder_name, fig_type):
 
 
 folder_name = "output_ecmor_mfe_fv/"
-fig_type = "pdf"
-render_figures_example_1(folder_name, fig_type)
-render_figures_example_2(folder_name, fig_type)
-render_figures_example_3(folder_name, fig_type)
+for fig_type in ["pdf", "png", "svg"]:
+    render_figures_example_1(folder_name, fig_type)
+    render_figures_example_2(folder_name, fig_type)
+    render_figures_example_3(folder_name, fig_type)

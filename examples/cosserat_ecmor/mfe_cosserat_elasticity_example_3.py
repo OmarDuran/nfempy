@@ -532,8 +532,19 @@ def ecmor_fv_postprocessing(
         xc = np.mean(points, axis=0)
         return xc
 
+    def obtuse_entity_Q(points):
+        d0 = np.linalg.norm(points[0] - points[1])
+        d1 = np.linalg.norm(points[1] - points[2])
+        d2 = np.linalg.norm(points[2] - points[0])
+        l = np.sort([d0, d1, d2])
+        lhs = l[0]**2 + l[1]**2
+        rhs = l[2]**2
+        is_accute_q =  lhs < rhs and not np.isclose(lhs,rhs)
+        return is_accute_q
+
     points_c0 = geometry_data["points"][geometry_data["node_tags_c0"]]
     points_c1 = geometry_data["points"][geometry_data["node_tags_c1"]]
+
     exc_c0 = np.array(list(map(entity_centroid, points_c0)))
     exc_c1 = np.array(list(map(entity_centroid, points_c1)))
 
@@ -544,6 +555,12 @@ def ecmor_fv_postprocessing(
     assert np.all(np.isclose(exc_c0[cell_perm], xc_c0))
     assert np.all(np.isclose(exc_c1[face_perm], xc_c1))
     n_sign = np.sign(np.sum(geometry_data["n_c1"][face_perm, 0:2] * n_c1, axis=1))
+
+    obtuse_entity_q_c0 = np.array(list(map(obtuse_entity_Q, points_c0)))
+    obtuse_triangles_detected = np.any(obtuse_entity_q_c0)
+    if obtuse_triangles_detected:
+        print("Obtuse triangles detected:")
+        print("idx: ", np.where(obtuse_entity_q_c0))
 
     alpha_s = (
         np.array(np.split(alpha[fields_idx[0]: fields_idx[1]], xc_c1.shape[0]))
@@ -1010,8 +1027,8 @@ def compose_file_name_fv(method, suffix):
 
 def main():
     dimension = 2
-    approximation_q = True
-    postprocessing_q = True
+    approximation_q = False
+    postprocessing_q = False
     refinements = {0: 6}
     for k in [0]:
         for method in method_definition(k):
@@ -1028,7 +1045,7 @@ def main():
 
     # Postprocessing FV results
     postprocessing_ecmor_q = True
-    fv_tpsa_folder = "output_ecmor_fv/tpsa_mpsa_results_v4"
+    fv_tpsa_folder = "output_ecmor_fv/tpsa_mpsa_results_v5"
     for method_name in ["TPSA"]:
         methods = fv_method_definition(method_name)
         for i, method in enumerate(methods):
