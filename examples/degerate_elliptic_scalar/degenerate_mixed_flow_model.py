@@ -171,9 +171,9 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
     def scatter_form_data_mapping(jac_g, res_g, i, weak_form):
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
-        alpha_unscaled_l = alpha_unscaled[dest]
+        alpha_physcial_l = alpha_physical[dest]
         alpha_l = alpha[dest]
-        r_el, j_el = weak_form.evaluate_form(i, alpha_unscaled_l, alpha_l)
+        r_el, j_el = weak_form.evaluate_form(i, alpha_physcial_l, alpha_l)
 
         # contribute rhs
         res_g[dest] += r_el
@@ -273,7 +273,7 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
     q_proj_l2_error = l2_error_projected(dim, fe_space, alpha_e, ["v"])[0]
 
     # mapping variables to physical domain
-    alpha_unscaled = np.zeros(n_dof_g)
+    alpha_physical = np.zeros(n_dof_g)
     operator_lhs_g = PETSc.Mat()
     operator_lhs_g.createAIJ([n_dof_g, n_dof_g])
     operator_rhs_g = np.zeros(n_dof_g)
@@ -309,7 +309,7 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
     (
         u_l2_error,
         p_l2_error,
-    ) = l2_error(dim, fe_space_physical, physical_exact_functions, alpha_unscaled)
+    ) = l2_error(dim, fe_space_physical, physical_exact_functions, alpha_physical)
 
     alpha_physical_proj = l2_projector(fe_space_physical, physical_exact_functions)
     alpha_physcial_e = alpha_physical - alpha_physical_proj
@@ -427,7 +427,7 @@ def material_data_definition(dim):
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")
     cases = [case_0, case_1, case_2, case_3]
-    cases = [case_0]
+    # cases = [case_0]
     return cases
 
 
@@ -469,9 +469,10 @@ def main():
     # fixed directives
     k_order = 0
     h = 0.5
-    n_ref = 3
-    dimensions = [2]
+    n_ref = 6
+    dimensions = [1]
     folder_name = "output"
+    plot_rates_q = False
 
     # method variants
     methods = method_definition(k_order)
@@ -563,17 +564,18 @@ def main():
                         header=enhanced_header,
                     )
 
-                    # x = error_data[:, 0]
-                    # y = error_data[:, 1:n_data]
-                    # lineObjects = plt.loglog(x, y)
-                    # plt.legend(
-                    #     iter(lineObjects),
-                    #     ("q", "v", "p", "u", "projected q", "projected p"),
-                    # )
-                    # plt.title("")
-                    # plt.xlabel("Element size")
-                    # plt.ylabel("L2-error")
-                    # plt.show()
+                    if plot_rates_q:
+                        x = error_data[:, 0]
+                        y = error_data[:, 1:n_data]
+                        lineObjects = plt.loglog(x, y)
+                        plt.legend(
+                            iter(lineObjects),
+                            ("q", "v", "p", "u", "projected q", "projected p"),
+                        )
+                        plt.title("")
+                        plt.xlabel("Element size")
+                        plt.ylabel("L2-error")
+                        plt.show()
 
 
 if __name__ == "__main__":
