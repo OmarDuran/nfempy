@@ -52,13 +52,14 @@ def paint_scalar_on_canvas_plane(vtk_file_name, scalar_name, title_string):
 k_order = 0
 source_folder_name = "output"
 figure_folder_name = "Arbogast_figures"
+figure_format = 'eps'
 dimensions = [2]
 methods = method_definition(k_order)
-titles_map = {'p_h': 'Physical pressure'}
+titles_map = {'p_h': 'Physical pressure', 'q_h': 'Unphysical pressure', 'u_h': 'Physical velocity norm', 'p_error': 'l2-error in pressure'}
 
 # to filter
-filters = {'method': ['mixed_rt'], 'l': 3, 'suffix': '_physical_two_fields.vtk', 'domain_type': ['fitted', 'unfitted'], 'parameter': [2.0],
-           'scalar_name': 'p_h'}
+filters = {'method': ['mixed_rt'], 'l': 3, 'suffix': '_physical_two_fields_l2_error.vtk', 'domain_type': ['fitted', 'unfitted'], 'parameter': [2.0],
+           'scalar_name': 'p_error'}
 
 
 for method in methods:
@@ -91,7 +92,7 @@ for method in methods:
                 figure_case_name = compose_case_name(
                     method, dimension, domain, material, figure_folder_name
                 )
-                figure_suffix = filters['scalar_name'] + '_magnitude.eps'
+                figure_suffix = filters['scalar_name'] + '_magnitude.' + figure_format
                 figure_name = figure_case_name + figure_suffix
                 canvas.save_graphic(figure_name)
 
