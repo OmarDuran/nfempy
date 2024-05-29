@@ -706,7 +706,7 @@ def render_figures_example_3(folder_name, fig_type):
     painter.save_figure()
 
 
-folder_name = "output_ecmor_mfe_fv/"
+folder_name = "output_ecmor_mfem_fvm/"
 for fig_type in ["pdf", "png", "svg"]:
     render_figures_example_1(folder_name, fig_type)
     render_figures_example_2(folder_name, fig_type)
