@@ -294,9 +294,7 @@ def three_field_approximation(material_data, method, gmesh, symmetric_solver_q=T
     return alpha, residuals_history
 
 
-def three_field_postprocessing(
-    material_data, method, gmesh, alpha, write_vtk_q=False
-):
+def three_field_postprocessing(material_data, method, gmesh, alpha, write_vtk_q=False):
     dim = gmesh.dimension
 
     fe_space = create_product_space(method, gmesh)
@@ -445,6 +443,7 @@ def ecmor_fv_postprocessing(
 
     def compute_permutation(origin_xc, target_xc):
         "Compute permutation indices for reorder origin_xc to match target_xc"
+
         def hashr(x):
             return hash(str(x[0]) + str(x[1]) + str(x[0]))
 
@@ -496,13 +495,13 @@ def ecmor_fv_postprocessing(
     n_sign = np.sign(np.sum(geometry_data["n_c1"][face_perm, 0:2] * n_c1, axis=1))
 
     alpha_s = (
-        np.array(np.split(alpha[fields_idx[0]: fields_idx[1]], xc_c1.shape[0]))
+        np.array(np.split(alpha[fields_idx[0] : fields_idx[1]], xc_c1.shape[0]))
         * np.vstack((n_sign, n_sign)).T
     )
-    alpha_u = np.array(np.split(alpha[fields_idx[1]: fields_idx[2]], xc_c0.shape[0]))
+    alpha_u = np.array(np.split(alpha[fields_idx[1] : fields_idx[2]], xc_c0.shape[0]))
 
-    alpha[fields_idx[0]: fields_idx[1]] = alpha_s[face_perm].flatten()
-    alpha[fields_idx[1]: fields_idx[2]] = alpha_u[cell_perm].flatten()
+    alpha[fields_idx[0] : fields_idx[1]] = alpha_s[face_perm].flatten()
+    alpha[fields_idx[1] : fields_idx[2]] = alpha_u[cell_perm].flatten()
 
     n_dof_g = fe_space.n_dof
 
@@ -585,14 +584,10 @@ def perform_convergence_approximations(configuration: dict):
         mesh_file = "gmsh_files/ex_2/partition_ex_2_l_" + str(lh) + ".msh"
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
         alpha, res_history = three_field_approximation(material_data, method, gmesh)
-        file_name = compose_file_name(
-            method, lh, material_data, "_alpha.npy"
-        )
+        file_name = compose_file_name(method, lh, material_data, "_alpha.npy")
         with open(file_name, "wb") as f:
             np.save(f, alpha)
-        file_name_res = compose_file_name(
-            method, lh, material_data, "_res_history.txt"
-        )
+        file_name_res = compose_file_name(method, lh, material_data, "_res_history.txt")
         # First position includes n_dof
         np.savetxt(
             file_name_res,
@@ -620,18 +615,14 @@ def perform_convergence_postprocessing(configuration: dict):
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
         h_min, h_mean, h_max = mesh_size(gmesh)
 
-        file_name = compose_file_name(
-            method, lh, material_data, "_alpha.npy"
-        )
+        file_name = compose_file_name(method, lh, material_data, "_alpha.npy")
         with open(file_name, "rb") as f:
             alpha = np.load(f)
         n_dof, error_vals = three_field_postprocessing(
             material_data, method, gmesh, alpha, write_vtk
         )
 
-        file_name_res = compose_file_name(
-            method, lh, material_data, "_res_history.txt"
-        )
+        file_name_res = compose_file_name(method, lh, material_data, "_res_history.txt")
         res_data = np.genfromtxt(file_name_res, dtype=None, delimiter=",")
         n_iterations = res_data.shape[0] - 1  # First position includes n_dof
         chunk = np.concatenate([[n_dof, n_iterations, h_max], error_vals])
@@ -727,6 +718,7 @@ def perform_ecmor_postprocessing(configuration: dict):
 
     n_data = 7
     error_data = np.empty((0, n_data), float)
+    geometric_entities_data = np.empty((0, 4), object)
     for lh in range(n_ref):
         mesh_file = "gmsh_files/ex_2/partition_ex_2_l_" + str(lh) + ".msh"
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
@@ -856,6 +848,18 @@ def perform_ecmor_postprocessing(configuration: dict):
         chunk = np.concatenate([[n_dof, h_max], error_vals])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
 
+        chunk = np.array(
+            [
+                h_max,
+                cell_centroid.shape[0],
+                face_centroid.shape[0],
+                mesh_points.shape[0],
+            ]
+        )
+        geometric_entities_data = np.append(
+            geometric_entities_data, np.array([chunk]), axis=0
+        )
+
     rates_data = np.empty((0, n_data - 2), float)
     for i in range(error_data.shape[0] - 1):
         chunk_b = np.log(error_data[i])
@@ -877,6 +881,7 @@ def perform_ecmor_postprocessing(configuration: dict):
     dual_header = str_fields + " Pu, Pr"
     base_str_header = dual_header
     e_str_header = "n_dof, h, " + base_str_header
+    geo_entities_header = "h, c0-entities, c1-entities, c2-entities"
 
     kappa_value = material_data["kappa"]
 
@@ -907,6 +912,13 @@ def perform_ecmor_postprocessing(configuration: dict):
         fmt="%1.3f",
         delimiter=",",
         header=base_str_header,
+    )
+    np.savetxt(
+        "ex_2_geometric_entities_data.txt",
+        geometric_entities_data,
+        fmt="%1.3f  %i  %i  %i",
+        delimiter=",",
+        header=geo_entities_header,
     )
 
     return
@@ -968,9 +980,9 @@ def compose_file_name_fv(method, material_data, suffix):
 
 def main():
     dimension = 2
-    approximation_q = True
-    postprocessing_q = True
-    refinements = {0: 6}
+    approximation_q = False
+    postprocessing_q = False
+    refinements = {0: 3}
     case_data = material_data_definition()
     for k in [0]:
         methods = method_definition(k)
@@ -990,7 +1002,7 @@ def main():
 
     # Postprocessing FV results
     postprocessing_ecmor_q = True
-    fv_tpsa_folder = "output_ecmor_fv/tpsa_mpsa_results_v4"
+    fv_tpsa_folder = "output_ecmor_fv/tpsa_mpsa_results_v5"
     for method_name in ["TPSA", "MPSA"]:
         methods = fv_method_definition(method_name)
         for i, method in enumerate(methods):

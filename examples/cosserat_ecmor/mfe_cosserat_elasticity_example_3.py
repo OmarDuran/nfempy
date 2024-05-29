@@ -10,8 +10,7 @@ from postprocess.l2_error_post_processor import (div_error, div_scaled_error,
 from postprocess.projectors import l2_projector
 from postprocess.solution_norms_post_processor import div_norm, l2_norm
 from postprocess.solution_post_processor import (
-    write_vtk_file_exact_solution,
-    write_vtk_file_with_exact_solution)
+    write_vtk_file_exact_solution, write_vtk_file_with_exact_solution)
 from spaces.product_space import ProductSpace
 from weak_forms.lce_scaled_dual_weak_form import (
     LCEScaledDualWeakForm, LCEScaledDualWeakFormBCDirichlet)
@@ -486,15 +485,16 @@ def ecmor_fv_postprocessing(
     fields_idx = np.add.accumulate([0] + list(dof_per_field.values()))
     alpha = np.concatenate(
         (
-            alpha[0: dof_per_field["s"]],
+            alpha[0 : dof_per_field["s"]],
             np.zeros((dof_per_field["m"])),
-            alpha[dof_per_field["s"]: dof_per_field["u"] + dof_per_field["s"]],
+            alpha[dof_per_field["s"] : dof_per_field["u"] + dof_per_field["s"]],
             np.zeros((dof_per_field["t"])),
         )
     )
 
     def compute_permutation(origin_xc, target_xc):
         "Compute permutation indices for reorder origin_xc to match target_xc"
+
         def hashr(x):
             return hash(str(x[0]) + str(x[1]) + str(x[0]))
 
@@ -537,9 +537,9 @@ def ecmor_fv_postprocessing(
         d1 = np.linalg.norm(points[1] - points[2])
         d2 = np.linalg.norm(points[2] - points[0])
         l = np.sort([d0, d1, d2])
-        lhs = l[0]**2 + l[1]**2
-        rhs = l[2]**2
-        is_accute_q =  lhs < rhs and not np.isclose(lhs,rhs)
+        lhs = l[0] ** 2 + l[1] ** 2
+        rhs = l[2] ** 2
+        is_accute_q = lhs < rhs and not np.isclose(lhs, rhs)
         return is_accute_q
 
     points_c0 = geometry_data["points"][geometry_data["node_tags_c0"]]
@@ -563,13 +563,13 @@ def ecmor_fv_postprocessing(
         print("idx: ", np.where(obtuse_entity_q_c0))
 
     alpha_s = (
-        np.array(np.split(alpha[fields_idx[0]: fields_idx[1]], xc_c1.shape[0]))
+        np.array(np.split(alpha[fields_idx[0] : fields_idx[1]], xc_c1.shape[0]))
         * np.vstack((n_sign, n_sign)).T
     )
-    alpha_u = np.array(np.split(alpha[fields_idx[2]: fields_idx[3]], xc_c0.shape[0]))
+    alpha_u = np.array(np.split(alpha[fields_idx[2] : fields_idx[3]], xc_c0.shape[0]))
 
-    alpha[fields_idx[0]: fields_idx[1]] = alpha_s[face_perm].flatten()
-    alpha[fields_idx[2]: fields_idx[3]] = alpha_u[cell_perm].flatten()
+    alpha[fields_idx[0] : fields_idx[1]] = alpha_s[face_perm].flatten()
+    alpha[fields_idx[2] : fields_idx[3]] = alpha_u[cell_perm].flatten()
 
     n_dof_g = fe_space.n_dof
 
@@ -665,14 +665,10 @@ def perform_convergence_approximations(configuration: dict):
         mesh_file = "gmsh_files/ex_3/partition_ex_3_l_" + str(lh) + ".msh"
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
         alpha, res_history = four_field_scaled_approximation(method, gmesh)
-        file_name = compose_file_name(
-            method, lh, "_alpha.npy"
-        )
+        file_name = compose_file_name(method, lh, "_alpha.npy")
         with open(file_name, "wb") as f:
             np.save(f, alpha)
-        file_name_res = compose_file_name(
-            method, lh, "_res_history.txt"
-        )
+        file_name_res = compose_file_name(method, lh, "_res_history.txt")
         # First position includes n_dof
         np.savetxt(
             file_name_res,
@@ -699,18 +695,14 @@ def perform_convergence_postprocessing(configuration: dict):
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
         h_min, h_mean, h_max = mesh_size(gmesh)
 
-        file_name = compose_file_name(
-            method, lh, "_alpha.npy"
-        )
+        file_name = compose_file_name(method, lh, "_alpha.npy")
         with open(file_name, "rb") as f:
             alpha = np.load(f)
         n_dof, error_vals = four_field_scaled_postprocessing(
             method, gmesh, alpha, write_vtk
         )
 
-        file_name_res = compose_file_name(
-            method, lh, "_res_history.txt"
-        )
+        file_name_res = compose_file_name(method, lh, "_res_history.txt")
         res_data = np.genfromtxt(file_name_res, dtype=None, delimiter=",")
         n_iterations = res_data.shape[0] - 1  # First position includes n_dof
         chunk = np.concatenate([[n_dof, n_iterations, h_max], error_vals])
@@ -805,6 +797,7 @@ def perform_ecmor_postprocessing(configuration: dict):
 
     n_data = 8
     error_data = np.empty((0, n_data), float)
+    geometric_entities_data = np.empty((0, 4), object)
     for lh in range(n_ref):
         mesh_file = "gmsh_files/ex_3/partition_ex_3_l_" + str(lh) + ".msh"
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
@@ -934,6 +927,18 @@ def perform_ecmor_postprocessing(configuration: dict):
         chunk = np.concatenate([[n_dof, h_max], error_vals])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
 
+        chunk = np.array(
+            [
+                h_max,
+                cell_centroid.shape[0],
+                face_centroid.shape[0],
+                mesh_points.shape[0],
+            ]
+        )
+        geometric_entities_data = np.append(
+            geometric_entities_data, np.array([chunk]), axis=0
+        )
+
     rates_data = np.empty((0, n_data - 2), float)
     for i in range(error_data.shape[0] - 1):
         chunk_b = np.log(error_data[i])
@@ -955,6 +960,7 @@ def perform_ecmor_postprocessing(configuration: dict):
     dual_header = str_fields + " Pu, Pr"
     base_str_header = dual_header
     e_str_header = "n_dof, h, " + base_str_header
+    geo_entities_header = "h, c0-entities, c1-entities, c2-entities"
 
     file_name_prefix = "ex_3_" + method[0]
     if report_full_precision_data:
@@ -983,6 +989,13 @@ def perform_ecmor_postprocessing(configuration: dict):
         fmt="%1.3f",
         delimiter=",",
         header=base_str_header,
+    )
+    np.savetxt(
+        "ex_3_geometric_entities_data.txt",
+        geometric_entities_data,
+        fmt="%1.3f  %i  %i  %i",
+        delimiter=",",
+        header=geo_entities_header,
     )
 
     return
@@ -1029,7 +1042,7 @@ def main():
     dimension = 2
     approximation_q = False
     postprocessing_q = False
-    refinements = {0: 6}
+    refinements = {0: 3}
     for k in [0]:
         for method in method_definition(k):
             configuration = {
