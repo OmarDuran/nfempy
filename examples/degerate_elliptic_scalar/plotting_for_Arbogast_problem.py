@@ -1,6 +1,6 @@
 from pathlib import Path
 from sys import platform
-
+import os
 import numpy as np
 import pyvista
 from degenerate_mixed_flow_model import compose_case_name, method_definition, material_data_definition, create_domain
@@ -13,20 +13,16 @@ pyvista.global_theme.colorbar_orientation = "horizontal"
 
 
 
-def paint_on_canvas_plane():
-    file_name_geo = "geometric_mesh_2d.vtk"
-    file_name_physical_two_field = "rates_arbogast_physical_two_fields.vtk"
-    file_name_two_field = "rates_arbogast_two_fields.vtk"
+def paint_scalar_on_canvas_plane(vtk_file_name, scalar_name, title_string):
 
     # Load data from the two VTK files
-    physical_two_field_solution = pyvista.read(file_name_physical_two_field)
-    two_field_solution = pyvista.read(file_name_two_field)
+    pyvista_unstructure_mesh = pyvista.read(vtk_file_name)
 
-    plotter = pyvista.Plotter(shape=(1, 2))
+    plotter = pyvista.Plotter(shape=(1, 1))
 
     # First subplot for physical_solution
     plotter.subplot(0, 0)
-    qh_sargs = dict(
+    args = dict(
         title_font_size=20,
         label_font_size=20,
         shadow=False,
@@ -36,85 +32,70 @@ def paint_on_canvas_plane():
         font_family="courier",
         position_x=0.2,
         position_y=0.91,
-        title="Model Field",
+        title=title_string,
     )
-    q_h_data = two_field_solution.point_data["q_h"]  # Assuming 'm_h' is the relevant data key
-    q_h_norm = np.array([np.linalg.norm(q_h) for q_h in q_h_data])
+    quantity_data = pyvista_unstructure_mesh.point_data[scalar_name]
+    quantity_norm = np.array([np.linalg.norm(value) for value in quantity_data])
 
     plotter.add_mesh(
-        two_field_solution,
-        scalars=q_h_norm,
-        cmap="gist_earth",
+        pyvista_unstructure_mesh,
+        scalars=quantity_norm,
+        cmap="terrain",
         show_edges=False,
-        scalar_bar_args=qh_sargs,
+        scalar_bar_args=args,
         copy_mesh=True,
     )
     plotter.view_xy()
-
-    # Second subplot for model_solution
-    plotter.subplot(0, 1)
-    ph_sargs = dict(
-        title_font_size=20,
-        label_font_size=20,
-        shadow=False,
-        n_labels=4,
-        italic=True,
-        fmt="%.1e",
-        font_family="courier",
-        position_x=0.2,
-        position_y=0.91,
-        title="Physical Field",
-    )
-    p_h_data = physical_two_field_solution.point_data["p_h"]
-    p_h_norm = np.array([np.linalg.norm(p_h) for p_h in p_h_data])
-
-    plotter.add_mesh(
-        physical_two_field_solution,
-        scalars=p_h_norm,
-        cmap="gist_earth",
-        show_edges=False,
-        scalar_bar_args=ph_sargs,
-        copy_mesh=True,
-    )
-    plotter.view_xy()
-
-    # Return the plotter to allow further manipulation or displaying elsewhere
     return plotter
 
 
 k_order = 0
 source_folder_name = "output"
+figure_folder_name = "Arbogast_figures"
 dimensions = [2]
 methods = method_definition(k_order)
-for method in methods:
-    for dimension in dimensions:
-        # dimension dependent variants
+titles_map = {'p_h': 'Physical pressure'}
 
+# to filter
+filters = {'method': ['mixed_rt'], 'l': 3, 'suffix': '_physical_two_fields.vtk', 'domain_type': ['fitted', 'unfitted'], 'parameter': [2.0],
+           'scalar_name': 'p_h'}
+
+
+for method in methods:
+    if method[0] not in filters['method']:
+        continue
+    for dimension in dimensions:
         if dimension == 1 and method[0] == "mixed_bdm":
             continue
-
         fitted_domain = create_domain(dimension, make_fitted_q=True)
         unfitted_domain = create_domain(dimension, make_fitted_q=False)
         domains = {"fitted": fitted_domain, "unfitted": unfitted_domain}
         materials = material_data_definition(dimension)
         for domain in domains.items():
+            if domain[0] not in filters['domain_type']:
+                continue
             for material in materials:
+                if material['m_par'] not in filters['parameter']:
+                    continue
                 case_name = compose_case_name(
                     method, dimension, domain, material, source_folder_name
                 )
-                aka=0
+                vtk_suffix = 'l_' + str(filters['l']) + filters['suffix']
+                vtk_file_name = case_name + vtk_suffix
 
-folder_name = "Arbogast_figures"
-import os
+                if not os.path.exists(figure_folder_name):
+                    os.makedirs(figure_folder_name)
 
-if not os.path.exists(folder_name):
-    os.makedirs(folder_name)
+                title_string = titles_map[filters['scalar_name']]
+                canvas = paint_scalar_on_canvas_plane(vtk_file_name, filters['scalar_name'], title_string)
+                figure_case_name = compose_case_name(
+                    method, dimension, domain, material, figure_folder_name
+                )
+                figure_suffix = filters['scalar_name'] + '_magnitude.eps'
+                figure_name = figure_case_name + figure_suffix
+                canvas.save_graphic(figure_name)
 
-canvas = paint_on_canvas_plane()
-canvas.save_graphic("Arbogast_figures/ph_magnitude.eps")
-canvas.save_graphic("Arbogast_figures/ph_magnitude.pdf")
-canvas.save_graphic("Arbogast_figures/qh_magnitude.eps")
-canvas.save_graphic("Arbogast_figures/qh_magnitude.pdf")
+
 
 # def plot_over_line(figure_file_name):
 #     # Make two points to construct the line between
