@@ -6,15 +6,15 @@ import numpy as np
 from mesh.mesh import Mesh
 from mesh.mesh_metrics import cell_centroid, mesh_size
 from petsc4py import PETSc
-from postprocess.l2_error_post_processor import (div_error, l2_error,
-                                                 l2_error_projected)
+from postprocess.l2_error_post_processor import div_error, l2_error, l2_error_projected
 from postprocess.projectors import l2_projector
 from postprocess.solution_norms_post_processor import div_norm, l2_norm
 from postprocess.solution_post_processor import (
-    write_vtk_file_exact_solution, write_vtk_file_with_exact_solution)
+    write_vtk_file_exact_solution,
+    write_vtk_file_with_exact_solution,
+)
 from spaces.product_space import ProductSpace
-from weak_forms.le_dual_weak_form import (LEDualWeakForm,
-                                          LEDualWeakFormBCDirichlet)
+from weak_forms.le_dual_weak_form import LEDualWeakForm, LEDualWeakFormBCDirichlet
 from weak_forms.le_riesz_map_weak_form import LERieszMapWeakForm
 
 import strong_solution_elasticity_example_2 as le
@@ -709,10 +709,10 @@ def perform_ecmor_postprocessing(configuration: dict):
     write_geometry_vtk = configuration.get("write_geometry_Q", True)
     write_vtk = configuration.get("write_vtk_Q", True)
     report_full_precision_data = configuration.get("report_full_precision_data_Q", True)
-    fv_tpsa_folder = configuration.get("tpsa_data", None)
+    fvm_folder = configuration.get("fvm_data", None)
 
-    if fv_tpsa_folder is None:
-        raise ValueError("TPSA folder is not provided.")
+    if fvm_folder is None:
+        raise ValueError("Finite Volume folder is not provided.")
 
     l_map = {0: 0.25, 1: 0.125, 2: 0.0625, 3: 0.03125, 4: 0.015625, 5: 0.0078125}
 
@@ -727,19 +727,19 @@ def perform_ecmor_postprocessing(configuration: dict):
         # loading displacements
         u_suffix = "_displacement_" + str(lh) + "_" + str(l_map[lh]) + ".npy"
         file_name = compose_file_name_fv(method, material_data, u_suffix)
-        file_name_u = fv_tpsa_folder + "/" + file_name
+        file_name_u = fvm_folder + "/" + file_name
         with open(file_name_u, "rb") as f:
             alpha_u = np.load(f)
 
         # loading stress
         s_suffix = "_stress_" + str(lh) + "_" + str(l_map[lh]) + ".npy"
         file_name = compose_file_name_fv(method, material_data, s_suffix)
-        file_name_s = fv_tpsa_folder + "/" + file_name
+        file_name_s = fvm_folder + "/" + file_name
         with open(file_name_s, "rb") as f:
             alpha_s = np.load(f)
 
         file_cell_centroid = (
-            fv_tpsa_folder
+            fvm_folder
             + "/"
             + "ex_2_cell_centroid"
             + "_"
@@ -752,7 +752,7 @@ def perform_ecmor_postprocessing(configuration: dict):
             cell_centroid = np.load(file_cell_centroid).T
 
         file_face_centroid = (
-            fv_tpsa_folder
+            fvm_folder
             + "/"
             + "ex_2_face_centroid"
             + "_"
@@ -765,7 +765,7 @@ def perform_ecmor_postprocessing(configuration: dict):
             face_centroid = np.load(file_face_centroid).T
 
         file_mesh_points = (
-            fv_tpsa_folder
+            fvm_folder
             + "/"
             + "ex_2_node"
             + "_"
@@ -778,7 +778,7 @@ def perform_ecmor_postprocessing(configuration: dict):
             mesh_points = np.load(file_mesh_points).T
 
         file_cell_node = (
-            fv_tpsa_folder
+            fvm_folder
             + "/"
             + "ex_2_cell_node"
             + "_"
@@ -791,7 +791,7 @@ def perform_ecmor_postprocessing(configuration: dict):
             cell_node = np.load(file_cell_node).T
 
         file_face_node = (
-            fv_tpsa_folder
+            fvm_folder
             + "/"
             + "ex_2_face_node"
             + "_"
@@ -804,7 +804,7 @@ def perform_ecmor_postprocessing(configuration: dict):
             face_node = np.load(file_face_node).T
 
         file_face_normal = (
-            fv_tpsa_folder
+            fvm_folder
             + "/"
             + "ex_2_face_normal"
             + "_"
@@ -817,7 +817,7 @@ def perform_ecmor_postprocessing(configuration: dict):
             face_normnal = np.load(file_face_normal).T
 
         file_face_length = (
-            fv_tpsa_folder
+            fvm_folder
             + "/"
             + "ex_2_face_length"
             + "_"
@@ -982,7 +982,7 @@ def main():
     dimension = 2
     approximation_q = False
     postprocessing_q = False
-    refinements = {0: 3}
+    refinements = {0: 6}
     case_data = material_data_definition()
     for k in [0]:
         methods = method_definition(k)
@@ -1002,7 +1002,7 @@ def main():
 
     # Postprocessing FV results
     postprocessing_ecmor_q = True
-    fv_tpsa_folder = "output_ecmor_fv/tpsa_mpsa_results_v5"
+    fvm_folder = "output_ecmor_fv/tpsa_mpsa_results_v5"
     for method_name in ["TPSA", "MPSA"]:
         methods = fv_method_definition(method_name)
         for i, method in enumerate(methods):
@@ -1013,7 +1013,7 @@ def main():
                     "n_refinements": refinements[0],
                     "method": method,
                     "material_data": material_data,
-                    "tpsa_data": fv_tpsa_folder,
+                    "fvm_data": fvm_folder,
                 }
                 if postprocessing_ecmor_q:
                     perform_ecmor_postprocessing(configuration)
