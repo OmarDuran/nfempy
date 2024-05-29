@@ -1048,8 +1048,8 @@ def compose_file_name_fv(method, suffix):
 
 def main():
     dimension = 2
-    approximation_q = False
-    postprocessing_q = False
+    approximation_q = True
+    postprocessing_q = True
     refinements = {0: 6}
     for k in [0]:
         for method in method_definition(k):

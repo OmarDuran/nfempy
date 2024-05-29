@@ -960,8 +960,8 @@ def compose_file_name_fv(method, material_data, suffix):
 
 def main():
     dimension = 2
-    approximation_q = False
-    postprocessing_q = False
+    approximation_q = True
+    postprocessing_q = True
     refinements = {0: 6}
     case_data = material_data_definition()
     for k in [0]:
