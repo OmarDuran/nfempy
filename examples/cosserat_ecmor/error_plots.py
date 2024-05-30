@@ -154,8 +154,8 @@ class painter(ABC):
     @property
     def method_map(self):
         map = {
-            "three_field_MFEM": "three_field_MFEM",
-            "four_field_MFEM": "four_field_MFEM",
+            "three_field_MFEM": "MFEM",
+            "four_field_MFEM": "MFEM",
             "TPSA": "TPSA",
             "MPSA": "MPSA",
         }
