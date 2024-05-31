@@ -101,11 +101,11 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
     # constant permeability
     m_kappa = np.pi
     # constant velocity
-    m_velocity = 1.0e-12#2.0
+    m_velocity = 1.0e-10#2.0
 
     # beta
-    m_beta_l = 100.0
-    m_beta_r = 1.0
+    m_beta_l = 1.0e12
+    m_beta_r = 1.0e12
 
     # gamma
     m_gamma_l = 0.0
