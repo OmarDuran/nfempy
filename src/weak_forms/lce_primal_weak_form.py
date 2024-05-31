@@ -28,7 +28,7 @@ class LCEPrimalWeakForm(WeakForm):
         t_data: ElementData = t_space.elements[iel].data
 
         cell = u_data.cell
-        dim = u_data.dimension
+        dim = cell.dimension
         points = u_data.quadrature.points
         weights = u_data.quadrature.weights
         x = u_data.mapping.x

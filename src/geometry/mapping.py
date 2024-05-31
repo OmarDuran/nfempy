@@ -7,7 +7,7 @@ from basis.element_type import type_by_dimension
 
 
 def evaluate_linear_shapes(points, data: ElementData):
-    cell_type = type_by_dimension(data.dimension)
+    cell_type = type_by_dimension(data.cell.dimension)
     family = family_by_name("Lagrange")
     variant = basis_variant()
     linear_element = basix.create_element(
@@ -57,7 +57,7 @@ def evaluate_mapping(dimension, phi, cell_points):
 
 def store_mapping(data: ElementData):
     (x, jac, det_jac, inv_jac) = evaluate_mapping(
-        data.dimension, data.mapping.phi, data.mapping.cell_points
+        data.cell.dimension, data.mapping.phi, data.mapping.cell_points
     )
     data.mapping.x = x
     data.mapping.jac = jac

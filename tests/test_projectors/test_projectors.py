@@ -3,17 +3,9 @@ from functools import partial
 
 import numpy as np
 import pytest
-import scipy.sparse as sp
-from scipy.sparse import coo_matrix
-
-from basis.element_family import basis_variant, family_by_name
-from basis.element_type import type_by_dimension
-from basis.finite_element import FiniteElement
 from geometry.geometry_builder import GeometryBuilder
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
-from basis.element_data import ElementData
-from spaces.discrete_space import DiscreteSpace
 from spaces.product_space import ProductSpace
 from postprocess.l2_error_post_processor import l2_error
 from postprocess.projectors import l2_projector
@@ -30,10 +22,18 @@ s_functions = [
 
 v_functions = [
     lambda x, y, z: np.array([[y, -x, -z]]),
-    lambda x, y, z: np.array([[(1 - y) * y**1, -(1 - x) * x**1, -(1 - z) * z**1]]),
-    lambda x, y, z: np.array([[(1 - y) * y**2, -(1 - x) * x**2, -(1 - z) * z**2]]),
-    lambda x, y, z: np.array([[(1 - y) * y**3, -(1 - x) * x**3, -(1 - z) * z**3]]),
-    lambda x, y, z: np.array([[(1 - y) * y**4, -(1 - x) * x**4, -(1 - z) * z**4]]),
+    lambda x, y, z: np.array(
+        [[(1 - y) * y**1, -(1 - x) * x**1, -(1 - z) * z**1]]
+    ),
+    lambda x, y, z: np.array(
+        [[(1 - y) * y**2, -(1 - x) * x**2, -(1 - z) * z**2]]
+    ),
+    lambda x, y, z: np.array(
+        [[(1 - y) * y**3, -(1 - x) * x**3, -(1 - z) * z**3]]
+    ),
+    lambda x, y, z: np.array(
+        [[(1 - y) * y**4, -(1 - x) * x**4, -(1 - z) * z**4]]
+    ),
 ]
 
 
@@ -93,7 +93,6 @@ def generate_mesh(h_cell, dim):
 
 @pytest.mark.parametrize("k_order", k_orders)
 def test_scalar_h1_projector(k_order):
-
     h_cell = 1.0
     # scalar functions
     s_fun = s_functions[k_order - 1]
@@ -131,9 +130,9 @@ def test_scalar_h1_projector(k_order):
             l2_error_q = np.any(np.isclose(np.array(error_val), 0.0, atol=1.0e-13))
             assert l2_error_q
 
+
 @pytest.mark.parametrize("k_order", k_orders)
 def test_vector_hdiv_projector(k_order):
-
     h_cell = 1.0
     # vector functions
     v_fun = v_functions[k_order - 1]
@@ -173,9 +172,9 @@ def test_vector_hdiv_projector(k_order):
                 l2_error_q = np.any(np.isclose(np.array(error_val), 0.0, atol=1.0e-13))
                 assert l2_error_q
 
+
 @pytest.mark.parametrize("k_order", k_orders)
 def test_vector_hcurl_projector(k_order):
-
     h_cell = 1.0
     # vector functions
     v_fun = v_functions[k_order - 1]

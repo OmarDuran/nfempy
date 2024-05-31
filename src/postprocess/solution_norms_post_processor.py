@@ -15,7 +15,7 @@ def l2_norm(dim, fe_space, functions, skip_fields=[]):
         indexes = [
             i
             for i, element in enumerate(space.elements)
-            if element.data.dimension == dim
+            if element.data.cell.dimension == dim
         ]
         for i in indexes:
             n_components = space.n_comp
@@ -67,7 +67,7 @@ def div_norm(dim, fe_space, functions, skip_fields=[]):
         indexes = [
             i
             for i, element in enumerate(space.elements)
-            if element.data.dimension == dim
+            if element.data.cell.dimension == dim
         ]
 
         div_name = "div_" + name
@@ -99,7 +99,7 @@ def devia_l2_norm(dim, fe_space, functions, skip_fields=[]):
         indexes = [
             i
             for i, element in enumerate(space.elements)
-            if element.data.dimension == dim
+            if element.data.cell.dimension == dim
         ]
         for idx in indexes:
             n_components = space.n_comp
@@ -126,7 +126,7 @@ def devia_l2_norm(dim, fe_space, functions, skip_fields=[]):
         indexes = [
             i
             for i, element in enumerate(space.elements)
-            if element.data.dimension == dim
+            if element.data.cell.dimension == dim
         ]
         tr_T_e_avg = tr_T_avgs[name]
         for idx in indexes:

@@ -5,6 +5,7 @@ from basis.element_data import ElementData
 from basis.parametric_transformation import transform_lower_to_higher
 from geometry.compute_normal import normal
 from topology.topological_queries import find_higher_dimension_neighs
+from topology.topological_queries import sub_entity_by_co_dimension
 from weak_forms.weak_from import WeakForm
 
 
@@ -28,7 +29,7 @@ class TwoFieldsAdvectionDiffusionWeakForm(WeakForm):
         u_data: ElementData = u_space.elements[iel].data
 
         cell = q_data.cell
-        dim = q_data.dimension
+        dim = cell.dimension
         points, weights = self.space.quadrature
         x, jac, det_jac, inv_jac = q_space.elements[iel].evaluate_mapping(points)
 
@@ -61,12 +62,62 @@ class TwoFieldsAdvectionDiffusionWeakForm(WeakForm):
         e1 = np.array([1, 0, 0])
         e2 = np.array([0, 1, 0])
         e3 = np.array([0, 0, 1])
+
+        # # trace of qh
+        # codimension = 1
+        # sub_entities = sub_entity_by_co_dimension(cell, codimension)
+        # sub_entities_q = len(sub_entities) > 0
+        # assert sub_entities_q
+        #
+        # ElementData
+
         with ad.AutoDiff(alpha_n_p_1) as alpha_n_p_1:
             el_form = np.zeros(n_dof)
             for c in range(u_components):
                 b = c + n_q_dof
                 e = b + n_u_dof
                 el_form[b:e:u_components] -= du_h_star @ f_val_star[c].T
+
+            for i, omega in enumerate(weights):
+                xv = x[i]
+
+                # Functions and derivatives at integration point i
+                dq_h = dq_h_tab[0, i, :, 0:dim]
+                du_h = du_h_tab[0, i, :, 0:dim]
+                grad_dq_h = dq_h_tab[1 : dq_h.shape[0] + 1, i, :, 0:dim]
+                div_dq_h = np.array(
+                    [
+                        [
+                            np.trace(grad_dq_h[:, j, :]) / det_jac[i]
+                            for j in range(n_q_dof)
+                        ]
+                    ]
+                )
+
+                # Dof per field
+                alpha_q_n_p_1 = alpha_n_p_1[:, idx_dof["q"]]
+                alpha_u_n_p_1 = alpha_n_p_1[:, idx_dof["u"]]
+                alpha_u_n = alpha_n[idx_dof["u"]]
+
+                # FEM approximation
+                q_h_n_p_1 = alpha_q_n_p_1 @ dq_h
+                u_h_n_p_1 = alpha_u_n_p_1 @ du_h
+                u_h_n = alpha_u_n @ du_h
+
+                div_q_h = alpha_q_n_p_1 @ div_dq_h.T
+                q_h_n_p_1 *= 1.0 / f_kappa(xv[0], xv[1], xv[2])
+
+                # Example of reaction term
+                # duh_dt = (u_h_n_p_1 - u_h_n) / delta_t
+
+                equ_1_integrand = (q_h_n_p_1 @ dq_h.T) - (u_h_n_p_1 @ div_dq_h)
+                equ_2_integrand = div_q_h @ du_h.T
+
+                multiphysic_integrand = np.zeros((1, n_dof))
+                multiphysic_integrand[:, idx_dof["q"]] = equ_1_integrand
+                multiphysic_integrand[:, idx_dof["u"]] = equ_2_integrand
+                discrete_integrand = (multiphysic_integrand).reshape((n_dof,))
+                el_form += det_jac[i] * omega * discrete_integrand
 
             for i, omega in enumerate(weights):
                 xv = x[i]
@@ -129,7 +180,7 @@ class TwoFieldsAdvectionDiffusionWeakFormBCRobin(WeakForm):
 
         cell = q_data.cell
         points, weights = self.space.bc_quadrature
-        dim = q_data.dimension
+        dim = cell.dimension
         x, jac, det_jac, inv_jac = q_space.bc_elements[iel].evaluate_mapping(points)
 
         # find high-dimension neigh q space
@@ -163,7 +214,6 @@ class TwoFieldsAdvectionDiffusionWeakFormBCRobin(WeakForm):
             "q": slice(0, n_q_dof),
         }
 
-
         n_dof = n_q_dof
         js = (n_dof, n_dof)
         rs = n_dof
@@ -179,7 +229,7 @@ class TwoFieldsAdvectionDiffusionWeakFormBCRobin(WeakForm):
             e = b + n_q_dof
 
             res_block_q = np.zeros(n_dq_phi)
-            jac_block_q = np.zeros((n_dq_phi,n_dq_phi))
+            jac_block_q = np.zeros((n_dq_phi, n_dq_phi))
             dim = neigh_cell.dimension
             for i, omega in enumerate(weights):
                 beta_v = f_beta(x[i, 0], x[i, 1], x[i, 2])
@@ -188,14 +238,18 @@ class TwoFieldsAdvectionDiffusionWeakFormBCRobin(WeakForm):
 
                 dq_h = dq_tr_phi_tab[0, i, dq_dof_n_index, 0:dim] @ n[0:dim]
                 # This sign may be needed in 1d computations because BC orientation
+                # However in pure Hdiv functions in 2d and 3d it is not needed
                 bc_sign = np.sign(dq_h)[0]
                 q_h_n = alpha_q @ dq_h
-                bc_residual_equ = (1.0 / beta_v) * (bc_sign * q_h_n + beta_v * c_v - gamma_v * c_v)
+                bc_residual_equ = (1.0 / beta_v) * (
+                    bc_sign * q_h_n + beta_v * c_v - gamma_v * c_v
+                )
                 res_block_q += det_jac[i] * omega * bc_residual_equ * dq_h
-                jac_block_q += det_jac[i] * omega * (1.0 / beta_v) * np.outer(bc_sign * dq_h,dq_h)
+                jac_block_q += (
+                    det_jac[i] * omega * (1.0 / beta_v) * np.outer(bc_sign * dq_h, dq_h)
+                )
 
             r_el[b:e:q_components] += res_block_q
-            j_el[b:e:q_components,b:e:q_components] += jac_block_q
-
+            j_el[b:e:q_components, b:e:q_components] += jac_block_q
 
         return r_el, j_el

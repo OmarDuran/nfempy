@@ -101,7 +101,7 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
     # constant permeability
     m_kappa = np.pi
     # constant velocity
-    m_velocity = 1.0e-10#2.0
+    m_velocity = 1.0e-10  # 2.0
 
     # beta
     m_beta_l = 1.0
@@ -362,9 +362,7 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
     # }
     # alpha_n_p_1 = l2_projector(fe_space, exact_functions)
     st = time.time()
-    q_l2_error, u_l2_error = l2_error(
-        dim, fe_space, exact_functions, alpha_n_p_1
-    )
+    q_l2_error, u_l2_error = l2_error(dim, fe_space, exact_functions, alpha_n_p_1)
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
@@ -376,7 +374,7 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
         st = time.time()
         file_name = "rates_two_fields.vtk"
         write_vtk_file_with_exact_solution(
-            file_name, gmesh, fe_space, exact_functions, alpha_n_p_1, ['u']
+            file_name, gmesh, fe_space, exact_functions, alpha_n_p_1, ["u"]
         )
         et = time.time()
         elapsed_time = et - st

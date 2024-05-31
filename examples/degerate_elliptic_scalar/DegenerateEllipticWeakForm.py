@@ -33,7 +33,7 @@ class DegenerateEllipticWeakForm(WeakForm):
         q_data: ElementData = q_space.elements[iel].data
 
         cell = v_data.cell
-        dim = v_data.dimension
+        dim = cell.dimension
         points, weights = self.space.quadrature
         x, jac, det_jac, inv_jac = v_space.elements[iel].evaluate_mapping(points)
 
@@ -142,7 +142,7 @@ class DegenerateEllipticWeakFormBCDirichlet(WeakForm):
 
         cell = mp_data.cell
         points, weights = self.space.bc_quadrature
-        dim = mp_data.dimension
+        dim = cell.dimension
         x, jac, det_jac, inv_jac = mp_space.bc_elements[iel].evaluate_mapping(points)
 
         # find high-dimension neigh q space

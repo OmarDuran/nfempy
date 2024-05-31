@@ -25,7 +25,7 @@ class OdenPrimalWeakForm(WeakForm):
         u_data: ElementData = u_space.elements[iel].data
 
         cell = u_data.cell
-        dim = u_data.dimension
+        dim = u_cell.dimension
         points, weights = self.space.quadrature
         x, jac, det_jac, inv_jac = u_space.elements[iel].evaluate_mapping(points)
 
@@ -92,7 +92,7 @@ class OdenPrimalWeakFormBCDirichlet(WeakForm):
 
         cell = u_data.cell
         points, weights = self.space.bc_quadrature
-        dim = u_data.dimension
+        dim = u_cell.dimension
         x, jac, det_jac, inv_jac = u_space.bc_elements[iel].evaluate_mapping(points)
 
         # basis

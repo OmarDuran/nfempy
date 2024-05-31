@@ -31,10 +31,18 @@ s_functions = [
 
 v_functions = [
     lambda x, y, z: np.array([[y, -x, -z]]),
-    lambda x, y, z: np.array([[(1 - y) * y**1, -(1 - x) * x**1, -(1 - z) * z**1]]),
-    lambda x, y, z: np.array([[(1 - y) * y**2, -(1 - x) * x**2, -(1 - z) * z**2]]),
-    lambda x, y, z: np.array([[(1 - y) * y**3, -(1 - x) * x**3, -(1 - z) * z**3]]),
-    lambda x, y, z: np.array([[(1 - y) * y**4, -(1 - x) * x**4, -(1 - z) * z**4]]),
+    lambda x, y, z: np.array(
+        [[(1 - y) * y**1, -(1 - x) * x**1, -(1 - z) * z**1]]
+    ),
+    lambda x, y, z: np.array(
+        [[(1 - y) * y**2, -(1 - x) * x**2, -(1 - z) * z**2]]
+    ),
+    lambda x, y, z: np.array(
+        [[(1 - y) * y**3, -(1 - x) * x**3, -(1 - z) * z**3]]
+    ),
+    lambda x, y, z: np.array(
+        [[(1 - y) * y**4, -(1 - x) * x**4, -(1 - z) * z**4]]
+    ),
 ]
 
 
@@ -94,7 +102,6 @@ def generate_mesh(h_cell, dim):
 
 @pytest.mark.parametrize("k_order", k_orders)
 def test_scalar_h1_projector(k_order):
-
     h_cell = 1.0
     # scalar functions
     s_fun = s_functions[k_order - 1]
@@ -132,9 +139,9 @@ def test_scalar_h1_projector(k_order):
             l2_error_q = np.any(np.isclose(np.array(error_val), 0.0, atol=1.0e-14))
             assert l2_error_q
 
+
 @pytest.mark.parametrize("k_order", k_orders)
 def test_vector_hdiv_projector(k_order):
-
     h_cell = 1.0
     # vector functions
     v_fun = v_functions[k_order - 1]
@@ -174,9 +181,9 @@ def test_vector_hdiv_projector(k_order):
                 l2_error_q = np.any(np.isclose(np.array(error_val), 0.0, atol=1.0e-14))
                 assert l2_error_q
 
+
 @pytest.mark.parametrize("k_order", k_orders)
 def test_vector_hcurl_projector(k_order):
-
     h_cell = 1.0
     # vector functions
     v_fun = v_functions[k_order - 1]

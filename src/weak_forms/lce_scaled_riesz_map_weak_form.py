@@ -38,7 +38,7 @@ class LCEScaledRieszMapWeakForm(WeakForm):
         t_data: ElementData = t_space.elements[iel].data
 
         points, weights = self.space.quadrature
-        dim = s_data.dimension
+        dim = s_data.cell.dimension
         x, jac, det_jac, inv_jac = s_space.elements[iel].evaluate_mapping(points)
 
         # basis
@@ -439,7 +439,7 @@ class LCEScaledRieszMapWeakForm(WeakForm):
         t_data: ElementData = t_space.elements[iel].data
 
         points, weights = self.space.quadrature
-        dim = s_data.dimension
+        dim = s_data.cell.dimension
         x, jac, det_jac, inv_jac = s_space.elements[iel].evaluate_mapping(points)
 
         # basis
