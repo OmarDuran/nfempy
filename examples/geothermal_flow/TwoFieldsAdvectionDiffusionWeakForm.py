@@ -117,7 +117,11 @@ class TwoFieldsAdvectionDiffusionWeakForm(WeakForm):
 class TwoFieldsAdvectionDiffusionWeakFormBCRobin(WeakForm):
     def evaluate_form(self, element_index, alpha, t):
         iel = element_index
-        u_D = self.functions["u"]
+
+        f_beta = self.functions["beta"]
+        f_gamma = self.functions["gamma"]
+        f_c = self.functions["c"]
+        f_velocity = self.functions["velocity"]
 
         q_space = self.space.discrete_spaces["q"]
         q_components = q_space.n_comp
@@ -155,11 +159,18 @@ class TwoFieldsAdvectionDiffusionWeakFormBCRobin(WeakForm):
         n_dq_phi = dq_tr_phi_tab[0, :, dq_dof_n_index, 0:dim].shape[0]
         n_q_dof = n_dq_phi * q_components
 
+        idx_dof = {
+            "q": slice(0, n_q_dof),
+        }
+
+
         n_dof = n_q_dof
         js = (n_dof, n_dof)
         rs = n_dof
         j_el = np.zeros(js)
         r_el = np.zeros(rs)
+
+        alpha_q = alpha
 
         # compute normal
         n = normal(q_data.mesh, neigh_cell, cell)
@@ -171,9 +182,17 @@ class TwoFieldsAdvectionDiffusionWeakFormBCRobin(WeakForm):
             jac_block_q = np.zeros((n_dq_phi,n_dq_phi))
             dim = neigh_cell.dimension
             for i, omega in enumerate(weights):
-                u_D_v = u_D(x[i, 0], x[i, 1], x[i, 2])
-                phi = dq_tr_phi_tab[0, i, dq_dof_n_index, 0:dim] @ n[0:dim]
-                res_block_q += det_jac[i] * omega * u_D_v[c] * phi
+                beta_v = f_beta(x[i, 0], x[i, 1], x[i, 2])
+                gamma_v = f_gamma(x[i, 0], x[i, 1], x[i, 2])
+                c_v = f_c(x[i, 0], x[i, 1], x[i, 2])
+
+                dq_h = dq_tr_phi_tab[0, i, dq_dof_n_index, 0:dim] @ n[0:dim]
+                # This sign may be needed in 1d computations because BC orientation
+                bc_sign = np.sign(dq_h)[0]
+                q_h_n = alpha_q @ dq_h
+                bc_residual_equ = (1.0 / beta_v) * (bc_sign * q_h_n + beta_v * c_v - gamma_v * c_v)
+                res_block_q += det_jac[i] * omega * bc_residual_equ * dq_h
+                jac_block_q += det_jac[i] * omega * (1.0 / beta_v) * np.outer(bc_sign * dq_h,dq_h)
 
             r_el[b:e:q_components] += res_block_q
             j_el[b:e:q_components,b:e:q_components] += jac_block_q

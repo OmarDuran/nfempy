@@ -104,8 +104,8 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
     m_velocity = 1.0e-12#2.0
 
     # beta
-    m_beta_l = 1000.0
-    m_beta_r = 1000.0
+    m_beta_l = 100.0
+    m_beta_r = 1.0
 
     # gamma
     m_gamma_l = 0.0
@@ -235,10 +235,17 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
         "q": q_exact,
     }
 
+    m_bc_functions = {
+        "beta": f_beta,
+        "gamma": f_gamma,
+        "c": f_c,
+        "velocity": f_velocity,
+    }
+
     weak_form = TwoFieldsAdvectionDiffusionWeakForm(fe_space)
     weak_form.functions = m_functions
     bc_weak_form = TwoFieldsAdvectionDiffusionWeakFormBCRobin(fe_space)
-    bc_weak_form.functions = exact_functions
+    bc_weak_form.functions = m_bc_functions
 
     # Initial Guess
     alpha_n = np.zeros(n_dof_g)
@@ -289,6 +296,7 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
 
         # initial guess
         alpha_n_p_1 = alpha_n.copy()
+        # alpha_n_p_1 = l2_projector(fe_space, exact_functions)
 
         for iter in range(n_iterations):
             # Assembler
@@ -336,7 +344,7 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
             alpha_n_p_1 += delta_alpha
 
             # Set up to zero lhr and rhs
-            res_g *= 0.0
+            res_g = np.zeros_like(res_g)
             jac_g.scale(0.0)
 
         alpha_n = alpha_n_p_1
@@ -352,7 +360,7 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
     #     "mc": mc_exact_t_end,
     #     "c": c_exact_t_end,
     # }
-
+    # alpha_n_p_1 = l2_projector(fe_space, exact_functions)
     st = time.time()
     q_l2_error, u_l2_error = l2_error(
         dim, fe_space, exact_functions, alpha_n_p_1
