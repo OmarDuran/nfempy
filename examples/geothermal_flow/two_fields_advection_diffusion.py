@@ -90,7 +90,7 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
 
     # Nonlinear solver data
     n_iterations = 20
-    eps_tol = 1.0e-10
+    eps_tol = 1.0e-8
     delta_t = 1.0
     t_end = 1.0
 
@@ -104,11 +104,11 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
     m_velocity = 1.0e-10#2.0
 
     # beta
-    m_beta_l = 1.0e12
+    m_beta_l = 1.0e-6
     m_beta_r = 1.0e12
 
     # gamma
-    m_gamma_l = 0.0
+    m_gamma_l = 1.0
     m_gamma_r = 0.0
 
     # c
