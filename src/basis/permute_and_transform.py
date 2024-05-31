@@ -141,9 +141,9 @@ def _permute_and_transform_3d(phi, data: ElementData):
 
 
 def permute_and_transform(phi, data: ElementData):
-    if data.dimension == 2:
+    if data.cell.dimension == 2:
         return _permute_and_transform_2d(phi, data)
-    elif data.dimension == 3:
+    elif data.cell.dimension == 3:
         return _permute_and_transform_3d(phi, data)
     else:
         return phi

@@ -106,8 +106,7 @@ class BasisData:
 
 
 class ElementData:
-    def __init__(self, dimension: int = -1, cell: MeshCell = None, mesh: Mesh = None):
-        self.dimension: int = dimension
+    def __init__(self, cell: MeshCell = None, mesh: Mesh = None):
         self.cell: MeshCell = cell
         self.mesh: Mesh = mesh
         self.quadrature: QuadratureData = QuadratureData()
@@ -118,11 +117,10 @@ class ElementData:
 
     @classmethod
     def copy(self):
-        dimension = self.dimension
         cell = None
         mesh = None
         quadrature = self.quadrature.copy()
         mapping = self.mapping.copy()
         dof = self.dof.copy()
         basis = self.basis.copy()
-        return ElementData(dimension, cell, mesh, quadrature, mapping, dof, basis)
+        return ElementData(cell, mesh, quadrature, mapping, dof, basis)

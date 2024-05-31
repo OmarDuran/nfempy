@@ -14,4 +14,9 @@ def find_lower_dimension_neighs(cell: MeshCell, mesh_topology: MeshTopology):
     return neigh_list
 
 
+def sub_entity_by_co_dimension(cell: MeshCell, codimension):
+    sub_entities = cell.sub_cells_ids[cell.dimension - codimension]
+    return sub_entities
+
+
 # def coloring_mesh_by_codimension(cell: MeshCell, mesh_topology: MeshTopology):

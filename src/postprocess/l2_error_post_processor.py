@@ -15,7 +15,7 @@ def l2_error(dim, fe_space, functions, alpha, skip_fields=[]):
         indexes = [
             i
             for i, element in enumerate(space.elements)
-            if element.data.dimension == dim
+            if element.data.cell.dimension == dim
         ]
         for i in indexes:
             n_components = space.n_comp
@@ -74,7 +74,7 @@ def l2_error_projected(dim, fe_space, alpha, skip_fields=[]):
         indexes = [
             i
             for i, element in enumerate(space.elements)
-            if element.data.dimension == dim
+            if element.data.cell.dimension == dim
         ]
         for i in indexes:
             n_components = space.n_comp
@@ -130,7 +130,7 @@ def grad_error(dim, fe_space, functions, alpha):
         indexes = [
             i
             for i, element in enumerate(space.elements)
-            if element.data.dimension == dim
+            if element.data.cell.dimension == dim
         ]
         for idx in indexes:
             n_components = space.n_comp
@@ -226,7 +226,7 @@ def div_error(dim, fe_space, functions, alpha, skip_fields=[]):
         indexes = [
             i
             for i, element in enumerate(space.elements)
-            if element.data.dimension == dim
+            if element.data.cell.dimension == dim
         ]
 
         div_name = "div_" + name
@@ -290,7 +290,7 @@ def div_scaled_error(dim, fe_space, functions, alpha, skip_fields=[]):
         indexes = [
             i
             for i, element in enumerate(space.elements)
-            if element.data.dimension == dim
+            if element.data.cell.dimension == dim
         ]
 
         div_name = "div_" + name
@@ -327,7 +327,7 @@ def devia_l2_error(dim, fe_space, functions, alpha, skip_fields=[]):
         indexes = [
             i
             for i, element in enumerate(space.elements)
-            if element.data.dimension == dim
+            if element.data.cell.dimension == dim
         ]
         for idx in indexes:
             n_components = space.n_comp
@@ -377,7 +377,7 @@ def devia_l2_error(dim, fe_space, functions, alpha, skip_fields=[]):
         indexes = [
             i
             for i, element in enumerate(space.elements)
-            if element.data.dimension == dim
+            if element.data.cell.dimension == dim
         ]
         tr_T_e_avg, tr_T_h_avg = tr_T_avgs[name]
         for idx in indexes:

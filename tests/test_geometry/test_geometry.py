@@ -35,7 +35,7 @@ def generate_domain_2d():
 
 
 def generate_domain_2d_with_lines(lines_file):
-    file_name = os.getcwd() + '/tests/test_geometry/' + lines_file
+    file_name = os.getcwd() + "/tests/test_geometry/" + lines_file
     box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
     domain = build_box_2D_with_lines(box_points, file_name)
     domain.build_grahp()
@@ -43,7 +43,6 @@ def generate_domain_2d_with_lines(lines_file):
 
 
 def test_domain_1d():
-
     domain: Domain = generate_domain_1d()
     vertex_0 = domain.shapes[0][0]
     vertex_1 = domain.shapes[0][1]
@@ -59,7 +58,6 @@ def test_domain_1d():
 
 
 def test_domain_1d_vertex_in_edge():
-
     domain: Domain = generate_domain_1d()
     edge_0 = domain.shapes[1][0]
 
@@ -117,7 +115,6 @@ def test_domain_1d_vertex_in_edge():
 
 
 def test_domain_2d():
-
     domain: Domain = generate_domain_2d()
     vertex_0 = domain.shapes[0][0]
     vertex_1 = domain.shapes[0][1]
@@ -142,7 +139,6 @@ def test_domain_2d():
 
 
 def test_domain_2d_line_in_face():
-
     lines_file = "lines/single_shape.csv"
     domain: Domain = generate_domain_2d_with_lines(lines_file)
     vertex_0 = domain.shapes[0][0]
@@ -178,7 +174,6 @@ def test_domain_2d_line_in_face():
 
 
 def test_domain_2d_line_in_face_bc_intersection():
-
     lines_file = "lines/single_shape_bc_intersection.csv"
     domain: Domain = generate_domain_2d_with_lines(lines_file)
     edge_0 = domain.shapes[1][0]
@@ -216,7 +211,6 @@ def test_domain_2d_line_in_face_bc_intersection():
 
 
 def test_domain_2d_cross_shape_in_face():
-
     lines_file = "lines/cross_shape_lines.csv"
     domain: Domain = generate_domain_2d_with_lines(lines_file)
     vertex_0 = domain.shapes[0][0]
@@ -261,7 +255,6 @@ def test_domain_2d_cross_shape_in_face():
 
 
 def test_domain_2d_cross_shape_in_face_bc_intersection():
-
     lines_file = "lines/cross_shape_bc_intersection.csv"
     domain: Domain = generate_domain_2d_with_lines(lines_file)
     edge_0 = domain.shapes[1][0]
@@ -329,7 +322,6 @@ def test_domain_2d_cross_shape_in_face_bc_intersection():
 
 
 def test_domain_2d_t_shape_in_face_bc_intersection():
-
     lines_file = "lines/t_shape_bc_intersection.csv"
     domain: Domain = generate_domain_2d_with_lines(lines_file)
     edge_0 = domain.shapes[1][0]
@@ -387,7 +379,6 @@ def test_domain_2d_t_shape_in_face_bc_intersection():
 
 
 def test_domain_2d_y_shape_in_face_bc_intersection():
-
     lines_file = "lines/y_shape_bc_intersection.csv"
     domain: Domain = generate_domain_2d_with_lines(lines_file)
     edge_0 = domain.shapes[1][0]
@@ -440,7 +431,6 @@ def test_domain_2d_y_shape_in_face_bc_intersection():
 
 
 def test_domain_2d_18_shapes_in_face():
-
     lines_file = "lines/18_shapes_in_unit_square.csv"
     domain: Domain = generate_domain_2d_with_lines(lines_file)
     wire_4 = domain.shapes[1][4]
@@ -452,10 +442,7 @@ def test_domain_2d_18_shapes_in_face():
     assert len(wire_4.immersed_shapes) == 4
     assert len(wire_4.orientation) == 4
 
-
     mesher = ConformalMesher(dimension=domain.dimension)
     mesher.domain = domain
     mesher.generate_from_domain(0.05)
     mesher.write_mesh("gmesh.msh")
-
-

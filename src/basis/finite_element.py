@@ -18,9 +18,7 @@ class FiniteElement:
         self.discontinuous = discontinuous
         self.integration_order = integration_order
         self.basis_generator = None
-        self.data = ElementData(
-            dimension=mesh.cells[cell_id].dimension, cell=mesh.cells[cell_id], mesh=mesh
-        )
+        self.data = ElementData(cell=mesh.cells[cell_id], mesh=mesh)
         self._build_structures()
 
     def _build_structures(self):
@@ -86,7 +84,7 @@ class FiniteElement:
         self.data.dof.transformations = self.basis_generator.entity_transformations()
 
     def _fill_element_bc_entity_data(self):
-        c1_sub_cells_ids = self.data.cell.sub_cells_ids[self.data.dimension - 1]
+        c1_sub_cells_ids = self.data.cell.sub_cells_ids[self.data.cell.dimension - 1]
         self.data.bc_entities = np.array(
             [
                 self.mesh.cells[id].get_material_id() is not None
@@ -102,11 +100,11 @@ class FiniteElement:
         self.evaluate_basis(self.data.quadrature.points, storage=True)
 
     def evaluate_mapping(self, points, storage=False):
-        if self.data.dimension == 0:
+        if self.data.cell.dimension == 0:
             phi_shape = np.ones((1))
             cell_points = self.data.mesh.points[self.data.cell.node_tags]
             (x, jac, det_jac, inv_jac) = evaluate_mapping(
-                self.data.dimension, phi_shape, cell_points
+                self.data.cell.dimension, phi_shape, cell_points
             )
             if storage:
                 self.data.mapping.x = x
@@ -119,7 +117,7 @@ class FiniteElement:
         self.data.mapping.phi = phi_shape
         cell_points = self.data.mesh.points[self.data.cell.node_tags]
         (x, jac, det_jac, inv_jac) = evaluate_mapping(
-            self.data.dimension, phi_shape, cell_points
+            self.data.cell.dimension, phi_shape, cell_points
         )
         if storage:
             self.data.mapping.x = x
@@ -130,7 +128,7 @@ class FiniteElement:
         return (x, jac, det_jac, inv_jac)
 
     def evaluate_basis(self, points, jac, det_jac, inv_jac):
-        if self.data.dimension == 0:
+        if self.data.cell.dimension == 0:
             phi_tab = np.ones((1, 1, 1, 1))
             return phi_tab
 

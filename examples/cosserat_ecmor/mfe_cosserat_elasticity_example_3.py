@@ -5,16 +5,23 @@ import numpy as np
 from mesh.mesh import Mesh
 from mesh.mesh_metrics import cell_centroid, mesh_size
 from petsc4py import PETSc
-from postprocess.l2_error_post_processor import (div_error, div_scaled_error,
-                                                 l2_error, l2_error_projected)
+from postprocess.l2_error_post_processor import (
+    div_error,
+    div_scaled_error,
+    l2_error,
+    l2_error_projected,
+)
 from postprocess.projectors import l2_projector
 from postprocess.solution_norms_post_processor import div_norm, l2_norm
 from postprocess.solution_post_processor import (
     write_vtk_file_exact_solution,
-    write_vtk_file_with_exact_solution)
+    write_vtk_file_with_exact_solution,
+)
 from spaces.product_space import ProductSpace
 from weak_forms.lce_scaled_dual_weak_form import (
-    LCEScaledDualWeakForm, LCEScaledDualWeakFormBCDirichlet)
+    LCEScaledDualWeakForm,
+    LCEScaledDualWeakFormBCDirichlet,
+)
 from weak_forms.lce_scaled_riesz_map_weak_form import LCEScaledRieszMapWeakForm
 
 import strong_solution_cosserat_elasticity_example_3 as lce
@@ -486,15 +493,16 @@ def ecmor_fv_postprocessing(
     fields_idx = np.add.accumulate([0] + list(dof_per_field.values()))
     alpha = np.concatenate(
         (
-            alpha[0: dof_per_field["s"]],
+            alpha[0 : dof_per_field["s"]],
             np.zeros((dof_per_field["m"])),
-            alpha[dof_per_field["s"]: dof_per_field["u"] + dof_per_field["s"]],
+            alpha[dof_per_field["s"] : dof_per_field["u"] + dof_per_field["s"]],
             np.zeros((dof_per_field["t"])),
         )
     )
 
     def compute_permutation(origin_xc, target_xc):
         "Compute permutation indices for reorder origin_xc to match target_xc"
+
         def hashr(x):
             return hash(str(x[0]) + str(x[1]) + str(x[0]))
 
@@ -532,8 +540,19 @@ def ecmor_fv_postprocessing(
         xc = np.mean(points, axis=0)
         return xc
 
+    def obtuse_entity_Q(points):
+        d0 = np.linalg.norm(points[0] - points[1])
+        d1 = np.linalg.norm(points[1] - points[2])
+        d2 = np.linalg.norm(points[2] - points[0])
+        l = np.sort([d0, d1, d2])
+        lhs = l[0] ** 2 + l[1] ** 2
+        rhs = l[2] ** 2
+        is_accute_q = lhs < rhs and not np.isclose(lhs, rhs)
+        return is_accute_q
+
     points_c0 = geometry_data["points"][geometry_data["node_tags_c0"]]
     points_c1 = geometry_data["points"][geometry_data["node_tags_c1"]]
+
     exc_c0 = np.array(list(map(entity_centroid, points_c0)))
     exc_c1 = np.array(list(map(entity_centroid, points_c1)))
 
@@ -545,14 +564,20 @@ def ecmor_fv_postprocessing(
     assert np.all(np.isclose(exc_c1[face_perm], xc_c1))
     n_sign = np.sign(np.sum(geometry_data["n_c1"][face_perm, 0:2] * n_c1, axis=1))
 
+    obtuse_entity_q_c0 = np.array(list(map(obtuse_entity_Q, points_c0)))
+    obtuse_triangles_detected = np.any(obtuse_entity_q_c0)
+    if obtuse_triangles_detected:
+        print("Obtuse triangles detected:")
+        print("idx: ", np.where(obtuse_entity_q_c0))
+
     alpha_s = (
-        np.array(np.split(alpha[fields_idx[0]: fields_idx[1]], xc_c1.shape[0]))
+        np.array(np.split(alpha[fields_idx[0] : fields_idx[1]], xc_c1.shape[0]))
         * np.vstack((n_sign, n_sign)).T
     )
-    alpha_u = np.array(np.split(alpha[fields_idx[2]: fields_idx[3]], xc_c0.shape[0]))
+    alpha_u = np.array(np.split(alpha[fields_idx[2] : fields_idx[3]], xc_c0.shape[0]))
 
-    alpha[fields_idx[0]: fields_idx[1]] = alpha_s[face_perm].flatten()
-    alpha[fields_idx[2]: fields_idx[3]] = alpha_u[cell_perm].flatten()
+    alpha[fields_idx[0] : fields_idx[1]] = alpha_s[face_perm].flatten()
+    alpha[fields_idx[2] : fields_idx[3]] = alpha_u[cell_perm].flatten()
 
     n_dof_g = fe_space.n_dof
 
@@ -648,14 +673,10 @@ def perform_convergence_approximations(configuration: dict):
         mesh_file = "gmsh_files/ex_3/partition_ex_3_l_" + str(lh) + ".msh"
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
         alpha, res_history = four_field_scaled_approximation(method, gmesh)
-        file_name = compose_file_name(
-            method, lh, "_alpha.npy"
-        )
+        file_name = compose_file_name(method, lh, "_alpha.npy")
         with open(file_name, "wb") as f:
             np.save(f, alpha)
-        file_name_res = compose_file_name(
-            method, lh, "_res_history.txt"
-        )
+        file_name_res = compose_file_name(method, lh, "_res_history.txt")
         # First position includes n_dof
         np.savetxt(
             file_name_res,
@@ -682,18 +703,14 @@ def perform_convergence_postprocessing(configuration: dict):
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
         h_min, h_mean, h_max = mesh_size(gmesh)
 
-        file_name = compose_file_name(
-            method, lh, "_alpha.npy"
-        )
+        file_name = compose_file_name(method, lh, "_alpha.npy")
         with open(file_name, "rb") as f:
             alpha = np.load(f)
         n_dof, error_vals = four_field_scaled_postprocessing(
             method, gmesh, alpha, write_vtk
         )
 
-        file_name_res = compose_file_name(
-            method, lh, "_res_history.txt"
-        )
+        file_name_res = compose_file_name(method, lh, "_res_history.txt")
         res_data = np.genfromtxt(file_name_res, dtype=None, delimiter=",")
         n_iterations = res_data.shape[0] - 1  # First position includes n_dof
         chunk = np.concatenate([[n_dof, n_iterations, h_max], error_vals])
@@ -779,15 +796,16 @@ def perform_ecmor_postprocessing(configuration: dict):
     write_geometry_vtk = configuration.get("write_geometry_Q", True)
     write_vtk = configuration.get("write_vtk_Q", True)
     report_full_precision_data = configuration.get("report_full_precision_data_Q", True)
-    fv_tpsa_folder = configuration.get("tpsa_data", None)
+    fvm_folder = configuration.get("fvm_data", None)
 
-    if fv_tpsa_folder is None:
-        raise ValueError("TPSA folder is not provided.")
+    if fvm_folder is None:
+        raise ValueError("Finite Volume folder is not provided.")
 
     l_map = {0: 0.25, 1: 0.125, 2: 0.0625, 3: 0.03125, 4: 0.015625, 5: 0.0078125}
 
     n_data = 8
     error_data = np.empty((0, n_data), float)
+    geometric_entities_data = np.empty((0, 4), object)
     for lh in range(n_ref):
         mesh_file = "gmsh_files/ex_3/partition_ex_3_l_" + str(lh) + ".msh"
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
@@ -796,19 +814,19 @@ def perform_ecmor_postprocessing(configuration: dict):
         # loading displacements
         u_suffix = "__displacement_" + str(lh) + "_" + str(l_map[lh]) + ".npy"
         file_name = compose_file_name_fv(method, u_suffix)
-        file_name_u = fv_tpsa_folder + "/" + file_name
+        file_name_u = fvm_folder + "/" + file_name
         with open(file_name_u, "rb") as f:
             alpha_u = np.load(f)
 
         # loading stress
         s_suffix = "__stress_" + str(lh) + "_" + str(l_map[lh]) + ".npy"
         file_name = compose_file_name_fv(method, s_suffix)
-        file_name_s = fv_tpsa_folder + "/" + file_name
+        file_name_s = fvm_folder + "/" + file_name
         with open(file_name_s, "rb") as f:
             alpha_s = np.load(f)
 
         file_cell_centroid = (
-            fv_tpsa_folder
+            fvm_folder
             + "/"
             + "ex_3_cell_centroid"
             + "_"
@@ -821,7 +839,7 @@ def perform_ecmor_postprocessing(configuration: dict):
             cell_centroid = np.load(file_cell_centroid).T
 
         file_face_centroid = (
-            fv_tpsa_folder
+            fvm_folder
             + "/"
             + "ex_3_face_centroid"
             + "_"
@@ -834,7 +852,7 @@ def perform_ecmor_postprocessing(configuration: dict):
             face_centroid = np.load(file_face_centroid).T
 
         file_mesh_points = (
-            fv_tpsa_folder
+            fvm_folder
             + "/"
             + "ex_3_node"
             + "_"
@@ -847,7 +865,7 @@ def perform_ecmor_postprocessing(configuration: dict):
             mesh_points = np.load(file_mesh_points).T
 
         file_cell_node = (
-            fv_tpsa_folder
+            fvm_folder
             + "/"
             + "ex_3_cell_node"
             + "_"
@@ -860,7 +878,7 @@ def perform_ecmor_postprocessing(configuration: dict):
             cell_node = np.load(file_cell_node).T
 
         file_face_node = (
-            fv_tpsa_folder
+            fvm_folder
             + "/"
             + "ex_3_face_node"
             + "_"
@@ -873,7 +891,7 @@ def perform_ecmor_postprocessing(configuration: dict):
             face_node = np.load(file_face_node).T
 
         file_face_normal = (
-            fv_tpsa_folder
+            fvm_folder
             + "/"
             + "ex_3_face_normal"
             + "_"
@@ -886,7 +904,7 @@ def perform_ecmor_postprocessing(configuration: dict):
             face_normnal = np.load(file_face_normal).T
 
         file_face_length = (
-            fv_tpsa_folder
+            fvm_folder
             + "/"
             + "ex_3_face_length"
             + "_"
@@ -917,6 +935,18 @@ def perform_ecmor_postprocessing(configuration: dict):
         chunk = np.concatenate([[n_dof, h_max], error_vals])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
 
+        chunk = np.array(
+            [
+                h_max,
+                cell_centroid.shape[0],
+                face_centroid.shape[0],
+                mesh_points.shape[0],
+            ]
+        )
+        geometric_entities_data = np.append(
+            geometric_entities_data, np.array([chunk]), axis=0
+        )
+
     rates_data = np.empty((0, n_data - 2), float)
     for i in range(error_data.shape[0] - 1):
         chunk_b = np.log(error_data[i])
@@ -938,6 +968,7 @@ def perform_ecmor_postprocessing(configuration: dict):
     dual_header = str_fields + " Pu, Pr"
     base_str_header = dual_header
     e_str_header = "n_dof, h, " + base_str_header
+    geo_entities_header = "h, c0-entities, c1-entities, c2-entities"
 
     file_name_prefix = "ex_3_" + method[0]
     if report_full_precision_data:
@@ -966,6 +997,13 @@ def perform_ecmor_postprocessing(configuration: dict):
         fmt="%1.3f",
         delimiter=",",
         header=base_str_header,
+    )
+    np.savetxt(
+        "ex_3_geometric_entities_data.txt",
+        geometric_entities_data,
+        fmt="%1.3f  %i  %i  %i",
+        delimiter=",",
+        header=geo_entities_header,
     )
 
     return
@@ -1028,7 +1066,7 @@ def main():
 
     # Postprocessing FV results
     postprocessing_ecmor_q = True
-    fv_tpsa_folder = "output_ecmor_fv/tpsa_mpsa_results_v4"
+    fvm_folder = "output_ecmor_fv/tpsa_mpsa_results_v5"
     for method_name in ["TPSA"]:
         methods = fv_method_definition(method_name)
         for i, method in enumerate(methods):
@@ -1036,7 +1074,7 @@ def main():
                 "dimension": dimension,
                 "n_refinements": refinements[k],
                 "method": method,
-                "tpsa_data": fv_tpsa_folder,
+                "fvm_data": fvm_folder,
             }
             if postprocessing_ecmor_q:
                 perform_ecmor_postprocessing(configuration)

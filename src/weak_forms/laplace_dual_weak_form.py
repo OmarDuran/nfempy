@@ -29,7 +29,7 @@ class LaplaceDualWeakForm(WeakForm):
         p_data: ElementData = p_space.elements[iel].data
 
         cell = q_data.cell
-        dim = q_data.dimension
+        dim = q_cell.dimension
         points, weights = self.space.quadrature
         x, jac, det_jac, inv_jac = q_space.elements[iel].evaluate_mapping(points)
 
@@ -102,7 +102,7 @@ class LaplaceDualWeakFormBCDirichlet(WeakForm):
 
         cell = q_data.cell
         points, weights = self.space.bc_quadrature
-        dim = q_data.dimension
+        dim = q_cell.dimension
         x, jac, det_jac, inv_jac = q_space.bc_elements[iel].evaluate_mapping(points)
 
         q_phi_tab = q_space.bc_elements[iel].evaluate_basis(

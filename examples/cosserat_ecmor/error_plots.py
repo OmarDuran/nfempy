@@ -154,8 +154,8 @@ class painter(ABC):
     @property
     def method_map(self):
         map = {
-            "three_field_MFEM": "three_field_MFEM",
-            "four_field_MFEM": "four_field_MFEM",
+            "three_field_MFEM": "MFEM",
+            "four_field_MFEM": "MFEM",
             "TPSA": "TPSA",
             "MPSA": "MPSA",
         }
@@ -706,8 +706,8 @@ def render_figures_example_3(folder_name, fig_type):
     painter.save_figure()
 
 
-folder_name = "output_ecmor_mfe_fv/"
-fig_type = "pdf"
-render_figures_example_1(folder_name, fig_type)
-render_figures_example_2(folder_name, fig_type)
-render_figures_example_3(folder_name, fig_type)
+folder_name = "output_ecmor_mfem_fvm/"
+for fig_type in ["pdf", "png", "svg"]:
+    render_figures_example_1(folder_name, fig_type)
+    render_figures_example_2(folder_name, fig_type)
+    render_figures_example_3(folder_name, fig_type)
