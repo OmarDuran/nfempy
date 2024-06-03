@@ -42,7 +42,6 @@ class FiniteElement:
                 lagrange_variant=variant,
                 discontinuous=self.discontinuous,
             )
-            # quadrature = (np.array([1.0]), np.array([1.0]))
         else:
             if self.data.cell.dimension == 1 and self.family in ["RT", "BDM"]:
                 self.family = "Lagrange"
@@ -77,11 +76,13 @@ class FiniteElement:
 
     def _fill_element_dof_data(self):
         self.data.dof.entity_dofs = self.basis_generator.entity_dofs
-        # self.data.dof.num_entity_dofs = self.basis_generator.num_entity_dofs
+        self.data.dof.num_entity_dofs = self.basis_generator.num_entity_dofs
         self.data.dof.transformations_are_identity = (
             self.basis_generator.dof_transformations_are_identity
         )
         self.data.dof.transformations = self.basis_generator.entity_transformations()
+        for entity_dofs in self.data.dof.num_entity_dofs:
+            self.data.dof.n_dof += np.sum(entity_dofs)
 
     def _fill_element_bc_entity_data(self):
         c1_sub_cells_ids = self.data.cell.sub_cells_ids[self.data.cell.dimension - 1]

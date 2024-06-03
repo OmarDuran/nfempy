@@ -49,11 +49,15 @@ class MappingData:
 class DoFData:
     def __init__(
         self,
+        n_dof: int = 0,
         entity_dofs: np.ndarray = np.empty(0),
         transformations_are_identity: bool = True,
         transformations: dict = {},
         num_entity_dofs: np.ndarray = np.empty(0),
     ):
+        # n_dof
+        self.n_dof: int = n_dof
+
         # entity dofs
         self.entity_dofs: np.ndarray = entity_dofs
 
@@ -68,12 +72,17 @@ class DoFData:
 
     @classmethod
     def copy(self):
+        n_dof = self.n_dof
         entity_dofs = self.entity_dofs
         transformations_are_identity = self.transformations_are_identity
         transformations = self.transformations
         num_entity_dofs = self.num_entity_dofs
         return DoFData(
-            entity_dofs, transformations_are_identity, transformations, num_entity_dofs
+            n_dof,
+            entity_dofs,
+            transformations_are_identity,
+            transformations,
+            num_entity_dofs,
         )
 
 

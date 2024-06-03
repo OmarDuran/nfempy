@@ -27,8 +27,10 @@ from postprocess.projectors import l2_projector
 from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
 from spaces.product_space import ProductSpace
 from TwoFieldsAdvectionDiffusionWeakForm import (
-    TwoFieldsAdvectionDiffusionWeakForm,
-    TwoFieldsAdvectionDiffusionWeakFormBCRobin,
+    TwoFieldsDiffusionWeakForm,
+    TwoFieldsDiffusionWeakFormBCRobin,
+    TwoFieldsAdvectionWeakForm,
+    TwoFieldsAdvectionWeakFormBC,
 )
 import matplotlib.pyplot as plt
 
@@ -99,9 +101,10 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
     # Material data as scalars
 
     # constant permeability
-    m_kappa = np.pi
+    m_kappa = np.pi * 1.0e-2
     # constant velocity
-    m_velocity = 1.0e-10  # 2.0
+    m_velocity = 0.5  # 1.0e-10
+    m_velocity_v = m_velocity * np.ones(3)  # 2.0
 
     # beta
     m_beta_l = 1.0
@@ -119,7 +122,7 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
         return m_left * (1 - x) + m_right * x
 
     f_kappa = partial(xi_map, m_left=m_kappa, m_right=m_kappa)
-    f_velocity = partial(xi_map, m_left=m_velocity, m_right=m_velocity)
+    f_velocity = partial(xi_map, m_left=m_velocity_v, m_right=m_velocity_v)
     f_beta = partial(xi_map, m_left=m_beta_l, m_right=m_beta_r)
     f_gamma = partial(xi_map, m_left=m_gamma_l, m_right=m_gamma_r)
     f_c = partial(xi_map, m_left=m_c_l, m_right=m_c_r)
@@ -242,10 +245,34 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
         "velocity": f_velocity,
     }
 
-    weak_form = TwoFieldsAdvectionDiffusionWeakForm(fe_space)
+    weak_form = TwoFieldsDiffusionWeakForm(fe_space)
     weak_form.functions = m_functions
-    bc_weak_form = TwoFieldsAdvectionDiffusionWeakFormBCRobin(fe_space)
+    bc_weak_form = TwoFieldsDiffusionWeakFormBCRobin(fe_space)
     bc_weak_form.functions = m_bc_functions
+
+    advection_weak_form = TwoFieldsAdvectionWeakForm(fe_space)
+    advection_weak_form.functions = m_bc_functions
+
+    bc_advection_weak_form = TwoFieldsAdvectionWeakFormBC(fe_space)
+    bc_advection_weak_form.functions = z = {**exact_functions, **m_bc_functions}
+
+    # retrieve external and internal triplets
+    c1_entities = [cell for cell in gmesh.cells if cell.dimension == dim - 1]
+    gc0_c1 = gmesh.build_graph(dim, 1)
+    c1_triplets = [
+        (cell.id, list(gc0_c1.predecessors(cell.id))) for cell in c1_entities
+    ]
+    c1_itriplets = [triplet for triplet in c1_triplets if len(triplet[1]) == 2]
+    c1_epairs = [
+        (triplet[0], triplet[1][0]) for triplet in c1_triplets if len(triplet[1]) == 1
+    ]
+
+    gidx_midx = fe_space.discrete_spaces["q"].id_to_element
+    c1_itriplets = [
+        (triplet[0], [gidx_midx[triplet[1][0]], gidx_midx[triplet[1][1]]])
+        for triplet in c1_itriplets
+    ]
+    c1_epairs = [(pair[0], gidx_midx[pair[1]]) for pair in c1_epairs]
 
     # Initial Guess
     alpha_n = np.zeros(n_dof_g)
@@ -288,6 +315,49 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
             for k in range(nnz):
                 jac_g.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
+        def scatter_c1_form_data(jac_g, triplet, weak_form):
+            # destination indexes
+            cell_id, idx_pair = triplet
+            i_p, i_n = idx_pair
+            dest_p = weak_form.space.destination_indexes(i_p)
+            dest_n = weak_form.space.destination_indexes(i_n)
+            alpha_pair = (alpha_n_p_1[dest_p], alpha_n_p_1[dest_n])
+
+            r_el, j_el = weak_form.evaluate_form(
+                gmesh.cells[cell_id], idx_pair, alpha_pair
+            )
+
+            dest = np.concatenate((dest_p, dest_n))
+            # contribute rhs
+            res_g[dest] += r_el
+
+            # contribute lhs
+            data = j_el.ravel()
+            row = np.repeat(dest, len(dest))
+            col = np.tile(dest, len(dest))
+            nnz = data.shape[0]
+            for k in range(nnz):
+                jac_g.setValue(row=row[k], col=col[k], value=data[k], addv=True)
+
+        def scatter_bc_c1_form(jac_g, pair, weak_form):
+            # destination indexes
+            cell_id, i = pair
+            dest = weak_form.space.destination_indexes(i)
+            alpha_l = alpha_n_p_1[dest]
+
+            r_el, j_el = weak_form.evaluate_form(gmesh.cells[cell_id], i, alpha_l)
+
+            # contribute rhs
+            res_g[dest] += r_el
+
+            # contribute lhs
+            data = j_el.ravel()
+            row = np.repeat(dest, len(dest))
+            col = np.tile(dest, len(dest))
+            nnz = data.shape[0]
+            for k in range(nnz):
+                jac_g.setValue(row=row[k], col=col[k], value=data[k], addv=True)
+
         jac_g = PETSc.Mat()
         jac_g.createAIJ([n_dof_g, n_dof_g])
 
@@ -296,22 +366,37 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
 
         # initial guess
         alpha_n_p_1 = alpha_n.copy()
-        # alpha_n_p_1 = l2_projector(fe_space, exact_functions)
+        alpha_n_p_1 = l2_projector(fe_space, exact_functions)
 
         for iter in range(n_iterations):
             # Assembler
             st = time.time()
+
             n_els = len(fe_space.discrete_spaces["q"].elements)
             [scatter_form_data(jac_g, i, weak_form, t) for i in range(n_els)]
 
             n_bc_els = len(fe_space.discrete_spaces["q"].bc_elements)
             [scatter_bc_form(jac_g, i, bc_weak_form, t) for i in range(n_bc_els)]
 
+            [
+                scatter_c1_form_data(jac_g, triplet, advection_weak_form)
+                for triplet in c1_itriplets
+            ]
+
+            [
+                scatter_bc_c1_form(jac_g, pair, bc_advection_weak_form)
+                for pair in c1_epairs
+            ]
+
             jac_g.assemble()
 
             et = time.time()
             elapsed_time = et - st
             print("Assembly time:", elapsed_time, "seconds")
+
+            # ai, aj, av = jac_g.getValuesCSR()
+            # Asp = scipy.sparse.csr_matrix((av, aj, ai))
+            # plt.matshow(Asp.A)
 
             res_norm = np.linalg.norm(res_g)
             stop_criterion_q = res_norm < eps_tol
@@ -349,6 +434,7 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
 
         alpha_n = alpha_n_p_1
 
+    # alpha_n_p_1 = l2_projector(fe_space, exact_functions)
     # p_exact_t_end = lambda x, y, z: p_exact(x, y, z, t_end)
     # mp_exact_t_end = lambda x, y, z: mp_exact(x, y, z, t_end)
     # c_exact_t_end = lambda x, y, z: c_exact(x, y, z, t_end)
@@ -456,8 +542,6 @@ def main():
     np.set_printoptions(precision=4)
     print("rounded error data: ", error_data)
     print("rounded error rates data: ", rates_data)
-
-    return
 
     a = error_data[:, 0]
     b = error_data[:, 1]
