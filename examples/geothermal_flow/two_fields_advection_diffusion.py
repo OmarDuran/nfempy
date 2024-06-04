@@ -101,9 +101,9 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
     # Material data as scalars
 
     # constant permeability
-    m_kappa = np.pi * 1.0e-2
+    m_kappa = np.pi
     # constant velocity
-    m_velocity = 0.5  # 1.0e-10
+    m_velocity = 10.0  # 1.0e-10
     m_velocity_v = m_velocity * np.ones(3)  # 2.0
 
     # beta
@@ -515,7 +515,7 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 def main():
     k_order = 0
     h = 0.5
-    n_ref = 6
+    n_ref = 8
     dimension = 1
 
     domain = create_domain(dimension)
