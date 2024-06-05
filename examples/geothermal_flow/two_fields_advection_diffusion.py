@@ -38,37 +38,47 @@ import matplotlib.pyplot as plt
 def create_product_space(method, gmesh):
     # FESpace: data
     q_k_order = method[1]["q"][1]
+    m_k_order = method[1]["m"][1]
     u_k_order = method[1]["u"][1]
 
     q_components = 1
+    m_components = 1
     u_components = 1
 
     q_family = method[1]["q"][0]
+    m_family = method[1]["m"][0]
     u_family = method[1]["u"][0]
 
     discrete_spaces_data = {
         "q": (gmesh.dimension, q_components, q_family, q_k_order, gmesh),
+        "m": (gmesh.dimension, m_components, m_family, m_k_order, gmesh),
         "u": (gmesh.dimension, u_components, u_family, u_k_order, gmesh),
     }
 
     q_disc_Q = False
+    m_disc_Q = False
     u_disc_Q = True
     discrete_spaces_disc = {
         "q": q_disc_Q,
+        "m": m_disc_Q,
         "u": u_disc_Q,
     }
 
     if gmesh.dimension == 1:
         q_field_bc_physical_tags = [2, 3]
+        m_field_bc_physical_tags = [2, 3]
     elif gmesh.dimension == 2:
         q_field_bc_physical_tags = [2, 3, 4, 5]
+        m_field_bc_physical_tags = [2, 3, 4, 5]
     elif gmesh.dimension == 3:
         q_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
+        m_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
     else:
         raise ValueError("Case not available.")
 
     discrete_spaces_bc_physical_tags = {
         "q": q_field_bc_physical_tags,
+        "m": m_field_bc_physical_tags,
     }
 
     space = ProductSpace(discrete_spaces_data)
@@ -81,18 +91,19 @@ def method_definition(k_order):
     # lower order convention
     method = {
         "q": ("RT", k_order + 1),
+        "m": ("RT", k_order + 1),
         "u": ("Lagrange", k_order),
     }
     return ("mixed_rt", method)
 
 
-def two_fields_formulation(method, gmesh, write_vtk_q=False):
+def three_fields_formulation(method, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
     fe_space = create_product_space(method, gmesh)
 
     # Nonlinear solver data
     n_iterations = 20
-    eps_tol = 1.0e-8
+    eps_tol = 1.0e-4
     delta_t = 1.0
     t_end = 1.0
 
@@ -103,11 +114,11 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
     # constant permeability
     m_kappa = np.pi
     # constant velocity
-    m_velocity = 10.0  # 1.0e-10
+    m_velocity = 50.0 # 1.0e-10
     m_velocity_v = m_velocity * np.ones(3)  # 2.0
 
     # beta
-    m_beta_l = 1.0
+    m_beta_l = 1.0e12
     m_beta_r = 1.0e12
 
     # gamma
@@ -217,6 +228,52 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
                 ]
             )
 
+        def m_exact(x, y, z):
+            return m_velocity * np.array(
+                [
+                    [
+                        (
+                                m_c_r
+                                * (m_beta_r - m_gamma_r)
+                                * (
+                                        m_kappa * m_velocity
+                                        - (-1 + np.exp((x * m_velocity) / m_kappa))
+                                        * m_kappa
+                                        * (m_beta_l - m_velocity)
+                                )
+                                + m_c_l
+                                * (m_beta_l - m_gamma_l)
+                                * (
+                                        np.exp((x * m_velocity) / m_kappa)
+                                        * m_kappa
+                                        * (m_beta_r - m_velocity)
+                                        - np.exp(m_velocity / m_kappa)
+                                        * (
+                                                m_beta_r * m_kappa
+                                                + m_kappa * m_velocity
+                                                - m_kappa * m_velocity
+                                        )
+                                )
+                        )
+                        / (
+                                (
+                                        m_beta_l * m_kappa
+                                        + m_kappa * m_velocity
+                                        - m_kappa * m_velocity
+                                )
+                                * (m_beta_r - m_velocity)
+                                - np.exp(m_velocity / m_kappa)
+                                * (m_beta_l - m_velocity)
+                                * (
+                                        m_beta_r * m_kappa
+                                        + m_kappa * m_velocity
+                                        - m_kappa * m_velocity
+                                )
+                        )
+                    ]
+                ]
+            )
+
         def f_rhs(x, y, z):
             return np.array([[np.zeros_like(x)]])
 
@@ -236,6 +293,7 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
     exact_functions = {
         "u": u_exact,
         "q": q_exact,
+        "m": m_exact,
     }
 
     m_bc_functions = {
@@ -252,9 +310,8 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
 
     advection_weak_form = TwoFieldsAdvectionWeakForm(fe_space)
     advection_weak_form.functions = m_bc_functions
-
     bc_advection_weak_form = TwoFieldsAdvectionWeakFormBC(fe_space)
-    bc_advection_weak_form.functions = z = {**exact_functions, **m_bc_functions}
+    bc_advection_weak_form.functions = {**exact_functions, **m_bc_functions}
 
     # retrieve external and internal triplets
     c1_entities = [cell for cell in gmesh.cells if cell.dimension == dim - 1]
@@ -329,7 +386,8 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
 
             dest = np.concatenate((dest_p, dest_n))
             # contribute rhs
-            res_g[dest] += r_el
+            for k, sequ in enumerate(dest):
+                res_g[sequ] += r_el[k]
 
             # contribute lhs
             data = j_el.ravel()
@@ -366,9 +424,12 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
 
         # initial guess
         alpha_n_p_1 = alpha_n.copy()
-        alpha_n_p_1 = l2_projector(fe_space, exact_functions)
+        # alpha_n_p_1 = l2_projector(fe_space, exact_functions)
 
         for iter in range(n_iterations):
+
+            # break
+
             # Assembler
             st = time.time()
 
@@ -434,31 +495,19 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
 
         alpha_n = alpha_n_p_1
 
-    # alpha_n_p_1 = l2_projector(fe_space, exact_functions)
-    # p_exact_t_end = lambda x, y, z: p_exact(x, y, z, t_end)
-    # mp_exact_t_end = lambda x, y, z: mp_exact(x, y, z, t_end)
-    # c_exact_t_end = lambda x, y, z: c_exact(x, y, z, t_end)
-    # mc_exact_t_end = lambda x, y, z: mc_exact(x, y, z, t_end)
-    #
-    # exact_functions_at_t_end = {
-    #     "mp": mp_exact_t_end,
-    #     "p": p_exact_t_end,
-    #     "mc": mc_exact_t_end,
-    #     "c": c_exact_t_end,
-    # }
-    # alpha_n_p_1 = l2_projector(fe_space, exact_functions)
     st = time.time()
-    q_l2_error, u_l2_error = l2_error(dim, fe_space, exact_functions, alpha_n_p_1)
+    q_l2_error, m_l2_error, u_l2_error = l2_error(dim, fe_space, exact_functions, alpha_n_p_1)
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
     print("L2-error in q: ", q_l2_error)
+    print("L2-error in m: ", m_l2_error)
     print("L2-error in u: ", u_l2_error)
 
     if write_vtk_q:
         # post-process solution
         st = time.time()
-        file_name = "rates_two_fields.vtk"
+        file_name = "rates_three_fields.vtk"
         write_vtk_file_with_exact_solution(
             file_name, gmesh, fe_space, exact_functions, alpha_n_p_1, ["u"]
         )
@@ -466,7 +515,7 @@ def two_fields_formulation(method, gmesh, write_vtk_q=False):
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
 
-    return u_l2_error + q_l2_error
+    return u_l2_error + q_l2_error + m_l2_error
 
 
 def create_domain(dimension):
@@ -525,7 +574,7 @@ def main():
         h_val = h * (2**-l)
         mesher = create_conformal_mesher(domain, h_val, 0)
         gmesh = create_mesh(dimension, mesher, True)
-        error_val = two_fields_formulation(method, gmesh, True)
+        error_val = three_fields_formulation(method, gmesh, True)
         error_data = np.append(error_data, np.array([[h_val, error_val]]), axis=0)
 
     rates_data = np.empty((0, 1), float)
