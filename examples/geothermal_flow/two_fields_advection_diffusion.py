@@ -114,7 +114,7 @@ def three_fields_formulation(method, gmesh, write_vtk_q=False):
     # constant permeability
     m_kappa = np.pi
     # constant velocity
-    m_velocity = 50.0 # 1.0e-10
+    m_velocity = 100.0 # 1.0e-10
     m_velocity_v = m_velocity * np.ones(3)  # 2.0
 
     # beta
@@ -564,7 +564,7 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 def main():
     k_order = 0
     h = 0.5
-    n_ref = 8
+    n_ref = 9
     dimension = 1
 
     domain = create_domain(dimension)
