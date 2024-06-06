@@ -427,7 +427,6 @@ def material_data_definition(dim):
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")
     cases = [case_0, case_1, case_2, case_3]
-    # cases = [case_0]
     return cases
 
 
@@ -470,7 +469,7 @@ def main():
     k_order = 0
     h = 0.5
     n_ref = 6
-    dimensions = [1]
+    dimensions = [2]
     folder_name = "output"
     plot_rates_q = False
 
