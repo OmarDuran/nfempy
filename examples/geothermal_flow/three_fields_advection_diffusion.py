@@ -1,5 +1,5 @@
 """
-File: two_fields_advection_diffusion.py
+File: three_fields_advection_diffusion.py
 Description: This script provide examples for the approach adopted in the contribution:
 https://doi.org/10.5540/tema.2017.018.02.0253
 
@@ -26,14 +26,15 @@ from postprocess.l2_error_post_processor import l2_error
 from postprocess.projectors import l2_projector
 from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
 from spaces.product_space import ProductSpace
-from TwoFieldsAdvectionDiffusionWeakForm import (
-    TwoFieldsDiffusionWeakForm,
-    TwoFieldsDiffusionWeakFormBCRobin,
-    TwoFieldsAdvectionWeakForm,
-    TwoFieldsAdvectionWeakFormBC,
+from ThreeFieldsAdvectionDiffusionWeakForm import (
+    ThreeFieldsDiffusionWeakForm,
+    ThreeFieldsDiffusionWeakFormBCRobin,
+    ThreeFieldsAdvectionWeakForm,
+    ThreeFieldsAdvectionWeakFormBC,
 )
 import matplotlib.pyplot as plt
 
+from assembly.ScatterFormData import scatter_time_dependent_form_data, scatter_time_dependent_bc_form_data, scatter_interface_form_data, scatter_bc_interface_form_data
 
 def create_product_space(method, gmesh):
     # FESpace: data
@@ -303,14 +304,14 @@ def three_fields_formulation(method, gmesh, write_vtk_q=False):
         "velocity": f_velocity,
     }
 
-    weak_form = TwoFieldsDiffusionWeakForm(fe_space)
+    weak_form = ThreeFieldsDiffusionWeakForm(fe_space)
     weak_form.functions = m_functions
-    bc_weak_form = TwoFieldsDiffusionWeakFormBCRobin(fe_space)
+    bc_weak_form = ThreeFieldsDiffusionWeakFormBCRobin(fe_space)
     bc_weak_form.functions = m_bc_functions
 
-    advection_weak_form = TwoFieldsAdvectionWeakForm(fe_space)
+    advection_weak_form = ThreeFieldsAdvectionWeakForm(fe_space)
     advection_weak_form.functions = m_bc_functions
-    bc_advection_weak_form = TwoFieldsAdvectionWeakFormBC(fe_space)
+    bc_advection_weak_form = ThreeFieldsAdvectionWeakFormBC(fe_space)
     bc_advection_weak_form.functions = {**exact_functions, **m_bc_functions}
 
     # retrieve external and internal triplets
@@ -325,11 +326,22 @@ def three_fields_formulation(method, gmesh, write_vtk_q=False):
     ]
 
     gidx_midx = fe_space.discrete_spaces["q"].id_to_element
-    c1_itriplets = [
+    # c1_itriplets = [
+    #     (triplet[0], [gidx_midx[triplet[1][0]], gidx_midx[triplet[1][1]]])
+    #     for triplet in c1_itriplets
+    # ]
+    # c1_epairs = [(pair[0], gidx_midx[pair[1]]) for pair in c1_epairs]
+
+    # create generators
+    n_els = len(fe_space.discrete_spaces["q"].elements)
+    n_bc_els = len(fe_space.discrete_spaces["q"].bc_elements)
+    sequence_domain = [i for i in range(n_els)]
+    sequence_bc_domain = [i for i in range(n_bc_els)]
+    sequence_c1_itriplets = [
         (triplet[0], [gidx_midx[triplet[1][0]], gidx_midx[triplet[1][1]]])
         for triplet in c1_itriplets
     ]
-    c1_epairs = [(pair[0], gidx_midx[pair[1]]) for pair in c1_epairs]
+    sequence_c1_epairs = [(pair[0], gidx_midx[pair[1]]) for pair in c1_epairs]
 
     # Initial Guess
     alpha_n = np.zeros(n_dof_g)
@@ -381,7 +393,7 @@ def three_fields_formulation(method, gmesh, write_vtk_q=False):
             alpha_pair = (alpha_n_p_1[dest_p], alpha_n_p_1[dest_n])
 
             r_el, j_el = weak_form.evaluate_form(
-                gmesh.cells[cell_id], idx_pair, alpha_pair
+                cell_id, idx_pair, alpha_pair
             )
 
             dest = np.concatenate((dest_p, dest_n))
@@ -403,7 +415,7 @@ def three_fields_formulation(method, gmesh, write_vtk_q=False):
             dest = weak_form.space.destination_indexes(i)
             alpha_l = alpha_n_p_1[dest]
 
-            r_el, j_el = weak_form.evaluate_form(gmesh.cells[cell_id], i, alpha_l)
+            r_el, j_el = weak_form.evaluate_form(cell_id, i, alpha_l)
 
             # contribute rhs
             res_g[dest] += r_el
@@ -433,21 +445,16 @@ def three_fields_formulation(method, gmesh, write_vtk_q=False):
             # Assembler
             st = time.time()
 
-            n_els = len(fe_space.discrete_spaces["q"].elements)
-            [scatter_form_data(jac_g, i, weak_form, t) for i in range(n_els)]
 
-            n_bc_els = len(fe_space.discrete_spaces["q"].bc_elements)
-            [scatter_bc_form(jac_g, i, bc_weak_form, t) for i in range(n_bc_els)]
+            [scatter_time_dependent_form_data(item, weak_form, res_g, jac_g, alpha_n_p_1,
+                                              alpha_n, t) for item in sequence_domain]
+            [scatter_time_dependent_bc_form_data(item, bc_weak_form, res_g, jac_g, alpha_n_p_1,
+                                              alpha_n, t) for item in sequence_bc_domain]
 
-            [
-                scatter_c1_form_data(jac_g, triplet, advection_weak_form)
-                for triplet in c1_itriplets
-            ]
-
-            [
-                scatter_bc_c1_form(jac_g, pair, bc_advection_weak_form)
-                for pair in c1_epairs
-            ]
+            [scatter_interface_form_data(item, advection_weak_form, res_g, jac_g,
+                                         alpha_n_p_1) for item in sequence_c1_itriplets]
+            [scatter_bc_interface_form_data(item, bc_advection_weak_form, res_g, jac_g,
+                                         alpha_n_p_1) for item in sequence_c1_epairs]
 
             jac_g.assemble()
 

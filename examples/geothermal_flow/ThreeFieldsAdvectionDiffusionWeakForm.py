@@ -9,7 +9,7 @@ from topology.topological_queries import sub_entity_by_co_dimension
 from weak_forms.weak_from import WeakForm
 
 
-class TwoFieldsDiffusionWeakForm(WeakForm):
+class ThreeFieldsDiffusionWeakForm(WeakForm):
     def evaluate_form(self, element_index, alpha_n_p_1, alpha_n, t):
         iel = element_index
         if self.space is None or self.functions is None:
@@ -179,7 +179,7 @@ class TwoFieldsDiffusionWeakForm(WeakForm):
         return r_el, j_el
 
 
-class TwoFieldsDiffusionWeakFormBCRobin(WeakForm):
+class ThreeFieldsDiffusionWeakFormBCRobin(WeakForm):
     def evaluate_form(self, element_index, alpha, t):
         iel = element_index
 
@@ -309,8 +309,8 @@ class TwoFieldsDiffusionWeakFormBCRobin(WeakForm):
         return r_el, j_el
 
 
-class TwoFieldsAdvectionWeakForm(WeakForm):
-    def evaluate_form(self, cell_c1, element_pair_index, alpha_pair):
+class ThreeFieldsAdvectionWeakForm(WeakForm):
+    def evaluate_form(self, cell_id, element_pair_index, alpha_pair):
         iel_p, iel_n = element_pair_index
         alpha_p, alpha_n = alpha_pair
         if self.space is None or self.functions is None:
@@ -338,6 +338,7 @@ class TwoFieldsAdvectionWeakForm(WeakForm):
 
         # trace of qh on both sides
         gmesh = q_space.mesh_topology.mesh
+        cell_c1 = gmesh.cells[cell_id]
         element_c1_data = ElementData(cell_c1, m_space.mesh_topology.mesh)
         points, weights = self.space.bc_quadrature
 
@@ -447,8 +448,8 @@ class TwoFieldsAdvectionWeakForm(WeakForm):
         return r_el, j_el
 
 
-class TwoFieldsAdvectionWeakFormBC(WeakForm):
-    def evaluate_form(self, cell_c1, element_index, alpha):
+class ThreeFieldsAdvectionWeakFormBC(WeakForm):
+    def evaluate_form(self, cell_id, element_index, alpha):
         iel = element_index
         if self.space is None or self.functions is None:
             raise ValueError
@@ -472,6 +473,7 @@ class TwoFieldsAdvectionWeakFormBC(WeakForm):
 
         # trace of qh on both sides
         gmesh = q_space.mesh_topology.mesh
+        cell_c1 = gmesh.cells[cell_id]
         element_c1_data = ElementData(cell_c1, m_space.mesh_topology.mesh)
         points, weights = self.space.bc_quadrature
 
