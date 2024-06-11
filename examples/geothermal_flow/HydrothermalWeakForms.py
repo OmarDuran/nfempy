@@ -9,60 +9,110 @@ from topology.topological_queries import sub_entity_by_co_dimension
 from weak_forms.weak_from import WeakForm
 
 
-class ThreeFieldsDiffusionWeakForm(WeakForm):
-    def evaluate_form(self, element_index, alpha_n_p_1, alpha_n, t):
+class DiffusionWeakForm(WeakForm):
+    def evaluate_form(self, element_index, alpha_n, alpha, t):
         iel = element_index
         if self.space is None or self.functions is None:
             raise ValueError
 
-        q_space = self.space.discrete_spaces["q"]
-        m_space = self.space.discrete_spaces["m"]
-        u_space = self.space.discrete_spaces["u"]
+        md_space = self.space.discrete_spaces["md"]
+        ca_space = self.space.discrete_spaces["ca"]
+        qd_space = self.space.discrete_spaces["qd"]
+        qa_space = self.space.discrete_spaces["qa"]
+        p_space = self.space.discrete_spaces["p"]
+        z_space = self.space.discrete_spaces["z"]
+        h_space = self.space.discrete_spaces["h"]
+        t_space = self.space.discrete_spaces["t"]
+        sv_space = self.space.discrete_spaces["sv"]
+        x_H2O_l_space = self.space.discrete_spaces["x_H2O_l"]
+        x_H2O_v_space = self.space.discrete_spaces["x_H2O_v"]
+        x_NaCl_l_space = self.space.discrete_spaces["x_NaCl_l"]
+        x_NaCl_v_space = self.space.discrete_spaces["x_NaCl_v"]
 
-        f_rhs = self.functions["rhs"]
+        md_data: ElementData = md_space.elements[iel].data
+        ca_data: ElementData = ca_space.elements[iel].data
+        qd_data: ElementData = qd_space.elements[iel].data
+        qa_data: ElementData = qa_space.elements[iel].data
+        p_data: ElementData = p_space.elements[iel].data
+        z_data: ElementData = z_space.elements[iel].data
+        h_data: ElementData = h_space.elements[iel].data
+        t_data: ElementData = t_space.elements[iel].data
+        sv_data: ElementData = sv_space.elements[iel].data
+        x_H2O_l_data: ElementData = x_H2O_l_space.elements[iel].data
+        x_H2O_v_data: ElementData = x_H2O_v_space.elements[iel].data
+        x_NaCl_l_data: ElementData = x_NaCl_l_space.elements[iel].data
+        x_NaCl_v_data: ElementData = x_NaCl_v_space.elements[iel].data
+
+        n_components = 1
+        f_K_thermal = self.functions["K_thermal"]
         f_kappa = self.functions["kappa"]
-        f_velocity = self.functions["velocity"]
 
-        q_components = q_space.n_comp
-        m_components = m_space.n_comp
-        u_components = u_space.n_comp
-
-        q_data: ElementData = q_space.elements[iel].data
-        m_data: ElementData = m_space.elements[iel].data
-        u_data: ElementData = u_space.elements[iel].data
-
-        cell = q_data.cell
+        cell = md_data.cell
         dim = cell.dimension
         points, weights = self.space.quadrature
-        x, jac, det_jac, inv_jac = q_space.elements[iel].evaluate_mapping(points)
+        x, jac, det_jac, inv_jac = md_space.elements[iel].evaluate_mapping(points)
 
-        # basis
-        dq_h_tab = q_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
-        dm_h_tab = m_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
-        du_h_tab = u_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+        # Hdiv basis
+        dv_h_tab = md_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+        # Constant basis
+        du_h_tab = p_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
 
-        n_dq_h = dq_h_tab.shape[2]
-        n_dm_h = dm_h_tab.shape[2]
-        n_du_h = du_h_tab.shape[2]
+        n_v_dof = md_data.dof.n_dof
+        n_u_dof = p_data.dof.n_dof
 
-        n_q_dof = n_dq_h * q_components
-        n_m_dof = n_dm_h * m_components
-        n_u_dof = n_du_h * u_components
+        md_dof, ca_dof, qd_dof, qa_dof = 4 * [n_v_dof]
+        (
+            p_dof,
+            z_dof,
+            h_dof,
+            t_dof,
+            sv_dof,
+            x_H2O_l_dof,
+            x_H2O_v_dof,
+            x_NaCl_l_dof,
+            x_NaCl_v_dof,
+        ) = 9 * [n_u_dof]
 
+        v_dofs = md_dof + ca_dof + qd_dof + qa_dof
         idx_dof = {
-            "q": slice(0, n_q_dof),
-            "m": slice(n_q_dof, n_q_dof + n_m_dof),
-            "u": slice(n_q_dof + n_m_dof, n_q_dof + n_m_dof + n_u_dof),
+            "md": slice(0, md_dof),
+            "ca": slice(md_dof, md_dof + ca_dof),
+            "qd": slice(md_dof + ca_dof, md_dof + ca_dof + qd_dof),
+            "qa": slice(md_dof + ca_dof + qd_dof, v_dofs),
+            "p": slice(v_dofs, v_dofs + p_dof),
+            "z": slice(v_dofs + p_dof, v_dofs + p_dof + z_dof),
+            "h": slice(v_dofs + p_dof + z_dof, v_dofs + p_dof + z_dof + h_dof),
+            "t": slice(
+                v_dofs + p_dof + z_dof + h_dof, v_dofs + p_dof + z_dof + h_dof + t_dof
+            ),
+            "sv": slice(
+                v_dofs + p_dof + z_dof + h_dof + t_dof, v_dofs + p_dof + z_dof + h_dof + t_dof + sv_dof
+            ),
+            "x_H2O_l": slice(
+                v_dofs + p_dof + z_dof + h_dof + t_dof + sv_dof,
+                v_dofs + p_dof + z_dof + h_dof + t_dof + sv_dof + x_H2O_l_dof
+            ),
+            "x_H2O_v": slice(
+                v_dofs + p_dof + z_dof + h_dof + t_dof + sv_dof + x_H2O_l_dof,
+                v_dofs + p_dof + z_dof + h_dof + t_dof + sv_dof + x_H2O_l_dof + x_H2O_v_dof
+            ),
+            "x_NaCl_l": slice(
+                v_dofs + p_dof + z_dof + h_dof + t_dof + sv_dof + x_H2O_l_dof + x_H2O_v_dof,
+                v_dofs + p_dof + z_dof + h_dof + t_dof + sv_dof + x_H2O_l_dof + x_H2O_v_dof + x_NaCl_l_dof
+            ),
+            "x_NaCl_v": slice(
+                v_dofs + p_dof + z_dof + h_dof + t_dof + sv_dof + x_H2O_l_dof + x_H2O_v_dof + x_NaCl_l_dof,
+                v_dofs + p_dof + z_dof + h_dof + t_dof + sv_dof + x_H2O_l_dof + x_H2O_v_dof + x_NaCl_l_dof + x_NaCl_v_dof
+            ),
         }
 
-        n_dof = n_q_dof + n_m_dof + n_u_dof
+        n_dof = v_dofs + 9 * n_u_dof
         js = (n_dof, n_dof)
         rs = n_dof
         j_el = np.zeros(js)
         r_el = np.zeros(rs)
 
         # Partial local vectorization
-        f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
         du_h_star = det_jac * weights * du_h_tab[0, :, :, 0].T
 
         # constant directors
@@ -70,62 +120,113 @@ class ThreeFieldsDiffusionWeakForm(WeakForm):
         e2 = np.array([0, 1, 0])
         e3 = np.array([0, 0, 1])
 
-        with ad.AutoDiff(alpha_n_p_1) as alpha_n_p_1:
+        with ad.AutoDiff(alpha_n) as alpha_n:
             el_form = np.zeros(n_dof)
-            for c in range(u_components):
-                b = c + n_q_dof + n_m_dof
-                e = b + n_u_dof
-                el_form[b:e:u_components] -= du_h_star @ f_val_star[c].T
 
             for i, omega in enumerate(weights):
                 xv = x[i]
 
                 # Functions and derivatives at integration point i
-                dq_h = dq_h_tab[0, i, :, 0:dim]
-                dm_h = dm_h_tab[0, i, :, 0:dim]
+                dv_h = dv_h_tab[0, i, :, 0:dim]
+                grad_dv_h = dv_h_tab[1 : dv_h_tab.shape[0] + 1, i, :, 0:dim]
+                div_dv_h = np.array(
+                    [
+                        [
+                            np.trace(grad_dv_h[:, j, :]) / det_jac[i]
+                            for j in range(n_v_dof)
+                        ]
+                    ]
+                )
                 du_h = du_h_tab[0, i, :, 0:dim]
-                grad_dq_h = dq_h_tab[1 : dq_h.shape[0] + 1, i, :, 0:dim]
-                div_dq_h = np.array(
-                    [
-                        [
-                            np.trace(grad_dq_h[:, j, :]) / det_jac[i]
-                            for j in range(n_q_dof)
-                        ]
-                    ]
-                )
 
-                grad_dm_h = dm_h_tab[1: dm_h.shape[0] + 1, i, :, 0:dim]
-                div_dm_h = np.array(
-                    [
-                        [
-                            np.trace(grad_dm_h[:, j, :]) / det_jac[i]
-                            for j in range(n_m_dof)
-                        ]
-                    ]
-                )
+                dmd_h = dv_h
+                dca_h = dv_h
+                dqd_h = dv_h
+                dqa_h = dv_h
 
                 # Dof per field
-                alpha_q_n_p_1 = alpha_n_p_1[:, idx_dof["q"]]
-                alpha_m_n_p_1 = alpha_n_p_1[:, idx_dof["m"]]
-                alpha_u_n_p_1 = alpha_n_p_1[:, idx_dof["u"]]
-                alpha_u_n = alpha_n[idx_dof["u"]]
+                a_md_n = alpha_n[:, idx_dof["md"]]
+                a_ca_n = alpha_n[:, idx_dof["ca"]]
+                a_qd_n = alpha_n[:, idx_dof["qd"]]
+                a_qa_n = alpha_n[:, idx_dof["qa"]]
+
+                a_p_n = alpha_n[:,idx_dof["p"]]
+                a_z_n = alpha_n[:,idx_dof["z"]]
+                a_h_n = alpha_n[:,idx_dof["h"]]
+                a_t_n = alpha_n[:,idx_dof["t"]]
+                a_sv_n = alpha_n[:,idx_dof["sv"]]
+                a_x_H2O_l_n = alpha_n[:, idx_dof["x_H2O_l"]]
+                a_x_H2O_v_n = alpha_n[:, idx_dof["x_H2O_v"]]
+                a_x_NaCl_l_n = alpha_n[:, idx_dof["x_NaCl_l"]]
+                a_x_NaCl_v_n = alpha_n[:, idx_dof["x_NaCl_v"]]
+
+
+                a_p = alpha[idx_dof["p"]]
+                a_z = alpha[idx_dof["z"]]
+                a_h = alpha[idx_dof["h"]]
 
                 # FEM approximation
-                q_h_n_p_1 = alpha_q_n_p_1 @ dq_h
-                u_h_n_p_1 = alpha_u_n_p_1 @ du_h
-                u_h_n = alpha_u_n @ du_h
+                md_h_n = a_md_n @ dmd_h
+                ca_h_n = a_ca_n @ dmd_h
+                qd_h_n = a_qd_n @ dqd_h
+                qa_h_n = a_qa_n @ dmd_h
 
-                div_q_h = alpha_q_n_p_1 @ div_dq_h.T
-                q_h_n_p_1 *= 1.0 / f_kappa(xv[0], xv[1], xv[2])
+                p_h_n = a_p_n @ du_h
+                z_h_n = a_z_n @ du_h
+                h_h_n = a_h_n @ du_h
+                t_h_n = a_t_n @ du_h
+                sv_h_n = a_sv_n @ du_h
+                x_H2O_l_h_n = a_x_H2O_l_n @ du_h
+                x_H2O_v_h_n = a_x_H2O_v_n @ du_h
+                x_NaCl_l_h_n = a_x_NaCl_l_n @ du_h
+                x_NaCl_v_h_n = a_x_NaCl_v_n @ du_h
 
-                div_m_h = alpha_m_n_p_1 @ div_dm_h.T
+                p_h = a_p @ du_h
+                z_h = a_z @ du_h
+                h_h = a_h @ du_h
 
-                equ_1_integrand = (q_h_n_p_1 @ dq_h.T) - (u_h_n_p_1 @ div_dq_h)
-                equ_3_integrand = (div_q_h + div_m_h) @ du_h.T
+                md_h_n *= 1.0 / f_kappa(xv[0], xv[1], xv[2])
+                qd_h_n *= 1.0 / f_K_thermal(xv[0], xv[1], xv[2])
+
+                div_md_h = a_md_n @ div_dv_h.T
+                div_ca_h = a_ca_n @ div_dv_h.T
+                div_qd_h = a_qd_n @ div_dv_h.T
+                div_qa_h = a_qa_n @ div_dv_h.T
+
+                equ_1_integrand = (md_h_n @ dv_h.T) - (p_h_n @ div_dv_h)
+
+                # delete 2
+                equ_2_integrand = (ca_h_n @ dv_h.T) - (z_h_n @ div_dv_h)
+
+                equ_3_integrand = (qd_h_n @ dv_h.T) - (t_h_n @ div_dv_h)
+                # delete 4
+                equ_4_integrand = (qa_h_n @ dv_h.T) - (h_h_n @ div_dv_h)
+
+                equ_5_integrand = (div_md_h) @ du_h.T
+                equ_6_integrand = (div_ca_h) @ du_h.T
+                equ_7_integrand = (div_qd_h + div_qa_h) @ du_h.T
+                equ_8_integrand = (t_h_n - h_h_n) @ du_h.T
+                equ_9_integrand = (sv_h_n - 0.0) @ du_h.T
+                equ_10_integrand = (x_H2O_l_h_n - (1.0 - z_h_n)) @ du_h.T
+                equ_11_integrand = (x_H2O_v_h_n - (1.0 - z_h_n)) @ du_h.T
+                equ_12_integrand = (x_NaCl_l_h_n - z_h_n) @ du_h.T
+                equ_13_integrand = (x_NaCl_v_h_n - z_h_n) @ du_h.T
+
 
                 multiphysic_integrand = np.zeros((1, n_dof))
-                multiphysic_integrand[:, idx_dof["q"]] = equ_1_integrand
-                multiphysic_integrand[:, idx_dof["u"]] = equ_3_integrand
+                multiphysic_integrand[:, idx_dof["md"]] = equ_1_integrand
+                multiphysic_integrand[:, idx_dof["ca"]] = equ_2_integrand
+                multiphysic_integrand[:, idx_dof["qd"]] = equ_3_integrand
+                multiphysic_integrand[:, idx_dof["qa"]] = equ_4_integrand
+                multiphysic_integrand[:, idx_dof["p"]] = equ_5_integrand
+                multiphysic_integrand[:, idx_dof["z"]] = equ_6_integrand
+                multiphysic_integrand[:, idx_dof["h"]] = equ_7_integrand
+                multiphysic_integrand[:, idx_dof["t"]] = equ_8_integrand
+                multiphysic_integrand[:, idx_dof["sv"]] = equ_9_integrand
+                multiphysic_integrand[:, idx_dof["x_H2O_l"]] = equ_10_integrand
+                multiphysic_integrand[:, idx_dof["x_H2O_v"]] = equ_11_integrand
+                multiphysic_integrand[:, idx_dof["x_NaCl_l"]] = equ_12_integrand
+                multiphysic_integrand[:, idx_dof["x_NaCl_v"]] = equ_13_integrand
                 discrete_integrand = (multiphysic_integrand).reshape((n_dof,))
                 el_form += det_jac[i] * omega * discrete_integrand
 
@@ -134,7 +235,7 @@ class ThreeFieldsDiffusionWeakForm(WeakForm):
         return r_el, j_el
 
 
-class ThreeFieldsDiffusionWeakFormBCRobin(WeakForm):
+class DiffusionWeakFormBCRobin(WeakForm):
     def evaluate_form(self, element_index, alpha, t):
         iel = element_index
 
@@ -213,7 +314,6 @@ class ThreeFieldsDiffusionWeakFormBCRobin(WeakForm):
         n_dm_phi = dm_tr_phi_tab[0, :, dm_dof_n_index, 0:dim].shape[0]
         n_m_dof = n_dm_phi * m_components
 
-
         idx_dof = {
             "q": slice(0, n_q_dof),
             "m": slice(n_q_dof, n_q_dof + n_m_dof),
@@ -228,20 +328,19 @@ class ThreeFieldsDiffusionWeakFormBCRobin(WeakForm):
         dim = neigh_cell.dimension
         with ad.AutoDiff(alpha) as alpha:
             el_form = np.zeros(n_dof)
-            alpha_q = alpha[:, idx_dof['q']]
-            alpha_m = alpha[:, idx_dof['m']]
+            alpha_q = alpha[:, idx_dof["q"]]
+            alpha_m = alpha[:, idx_dof["m"]]
 
             # compute normal
             n = normal(q_data.mesh, neigh_cell, cell)
-
 
             for i, omega in enumerate(weights):
                 beta_v = f_beta(x[i, 0], x[i, 1], x[i, 2])
                 gamma_v = f_gamma(x[i, 0], x[i, 1], x[i, 2])
                 c_v = f_c(x[i, 0], x[i, 1], x[i, 2])
 
-                dq_h = dq_tr_phi_tab[0, i, dq_dof_n_index, 0:dim]# @ n[0:dim]
-                dm_h = dm_tr_phi_tab[0, i, dm_dof_n_index, 0:dim]# @ n[0:dim]
+                dq_h = dq_tr_phi_tab[0, i, dq_dof_n_index, 0:dim]  # @ n[0:dim]
+                dm_h = dm_tr_phi_tab[0, i, dm_dof_n_index, 0:dim]  # @ n[0:dim]
 
                 # This sign may be needed in 1d computations because BC orientation
                 # However in pure Hdiv functions in 2d and 3d it is not needed
@@ -250,9 +349,12 @@ class ThreeFieldsDiffusionWeakFormBCRobin(WeakForm):
                 q_h_n = bc_sign * alpha_q @ dq_h
                 m_h_n = bc_sign * alpha_m @ dm_h
 
-                equ_1_integrand = (1.0 / beta_v) * (
-                    q_h_n + m_h_n + beta_v * c_v - gamma_v * c_v
-                ) * bc_sign * dq_h.T
+                equ_1_integrand = (
+                    (1.0 / beta_v)
+                    * (q_h_n + m_h_n + beta_v * c_v - gamma_v * c_v)
+                    * bc_sign
+                    * dq_h.T
+                )
 
                 multiphysic_integrand = np.zeros((1, n_dof))
                 multiphysic_integrand[:, idx_dof["q"]] = equ_1_integrand
@@ -264,7 +366,7 @@ class ThreeFieldsDiffusionWeakFormBCRobin(WeakForm):
         return r_el, j_el
 
 
-class ThreeFieldsAdvectionWeakForm(WeakForm):
+class AdvectionWeakForm(WeakForm):
     def evaluate_form(self, cell_id, element_pair_index, alpha_pair):
         iel_p, iel_n = element_pair_index
         alpha_p, alpha_n = alpha_pair
@@ -315,9 +417,7 @@ class ThreeFieldsAdvectionWeakForm(WeakForm):
             dm_facet_index = (
                 c0_data.cell.sub_cells_ids[cell_c1.dimension].tolist().index(cell_c1.id)
             )
-            dm_dof_n_index = c0_data.dof.entity_dofs[cell_c1.dimension][
-                dm_facet_index
-            ]
+            dm_dof_n_index = c0_data.dof.entity_dofs[cell_c1.dimension][dm_facet_index]
             dm_h = dm_tr_phi_tab[0, :, dm_dof_n_index, 0:dim]
 
             du_tr_phi_tab = u_space.elements[iel].evaluate_basis(
@@ -349,9 +449,14 @@ class ThreeFieldsAdvectionWeakForm(WeakForm):
             "q_p": slice(0, n_q_dof),
             "m_p": slice(n_q_dof, n_q_dof + n_m_dof),
             "u_p": slice(n_q_dof + n_m_dof, n_q_dof + n_m_dof + n_u_dof),
-            "q_n": slice(n_q_dof + n_m_dof + n_u_dof, 2*n_q_dof + n_m_dof + n_u_dof),
-            "m_n": slice(2*n_q_dof + n_m_dof + n_u_dof, 2*n_q_dof + 2*n_m_dof + n_u_dof),
-            "u_n": slice(2*n_q_dof + 2*n_m_dof + n_u_dof, 2*n_q_dof + 2*n_m_dof + 2*n_u_dof),
+            "q_n": slice(n_q_dof + n_m_dof + n_u_dof, 2 * n_q_dof + n_m_dof + n_u_dof),
+            "m_n": slice(
+                2 * n_q_dof + n_m_dof + n_u_dof, 2 * n_q_dof + 2 * n_m_dof + n_u_dof
+            ),
+            "u_n": slice(
+                2 * n_q_dof + 2 * n_m_dof + n_u_dof,
+                2 * n_q_dof + 2 * n_m_dof + 2 * n_u_dof,
+            ),
         }
 
         n_dof = 2 * n_q_dof + 2 * n_m_dof + 2 * n_u_dof
@@ -403,7 +508,7 @@ class ThreeFieldsAdvectionWeakForm(WeakForm):
         return r_el, j_el
 
 
-class ThreeFieldsAdvectionWeakFormBC(WeakForm):
+class AdvectionWeakFormBC(WeakForm):
     def evaluate_form(self, cell_id, element_index, alpha):
         iel = element_index
         if self.space is None or self.functions is None:
@@ -450,9 +555,7 @@ class ThreeFieldsAdvectionWeakFormBC(WeakForm):
             dm_facet_index = (
                 c0_data.cell.sub_cells_ids[cell_c1.dimension].tolist().index(cell_c1.id)
             )
-            dm_dof_n_index = c0_data.dof.entity_dofs[cell_c1.dimension][
-                dm_facet_index
-            ]
+            dm_dof_n_index = c0_data.dof.entity_dofs[cell_c1.dimension][dm_facet_index]
             dm_h = dm_tr_phi_tab[0, :, dm_dof_n_index, 0:dim]
             trace_m_space.append(dm_h)
 
