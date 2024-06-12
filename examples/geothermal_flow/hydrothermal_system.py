@@ -94,6 +94,7 @@ def method_definition():
 
 
 def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
+
     dim = gmesh.dimension
     fe_space = create_product_space(method, gmesh)
 
@@ -137,17 +138,30 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
         "cp_r": f_cp_r,
     }
 
-    def xi_map(x, y, z, m_south, m_north):
+    def xi_map(x, y, z, m_west, m_east):
+        return m_west * (1 - x) + m_east * x
+
+    def eta_map(x, y, z, m_south, m_north):
         return m_south * (1 - y) + m_north * y
 
-    f_p = partial(xi_map, m_south=25.0, m_north=3.56)
-    f_t = partial(xi_map, m_south=200.0, m_north=200.0)
-    f_z = partial(xi_map, m_south=0.0, m_north=0.0)
+
+
+    f_p = partial(xi_map, m_west=25.0, m_east=3.56)
+    f_beta_md = partial(xi_map, m_west=1.0e10, m_east=1.0e10)
+    f_gamma_md = partial(xi_map, m_west=0.0, m_east=0.0)
+    f_t = partial(eta_map, m_south=200.0, m_north=200.0)
+    f_beta_qd = partial(eta_map, m_south=1.0e10, m_north=1.0e10)
+    f_gamma_qd = partial(eta_map, m_south=0.0, m_north=0.0)
+    f_z = partial(xi_map, m_west=0.0, m_east=0.0)
 
     m_bc_functions = {
         "p_D": f_p,
         "t_D": f_t,
         "z_inlet": f_z,
+        "beta_md": f_beta_md,
+        "gamma_md": f_gamma_md,
+        "beta_qd": f_beta_qd,
+        "gamma_qd": f_gamma_qd,
     }
 
     weak_form = DiffusionWeakForm(fe_space)
@@ -212,13 +226,13 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
                     (alpha_n, alpha),
                     t,
                 ],
-                # "difussion_bc_form": [
-                #     "time_dependent_bc_form",
-                #     sequence_bc_domain,
-                #     bc_weak_form,
-                #     (alpha_n_p_1, alpha_n),
-                #     t,
-                # ],
+                "difussion_bc_form": [
+                    "time_dependent_bc_form",
+                    sequence_bc_domain,
+                    bc_weak_form,
+                    (alpha_n, alpha),
+                    t,
+                ],
                 # "advection_form": [
                 #     "interface_form",
                 #     sequence_c1_itriplets,
@@ -233,7 +247,7 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
                 # ],
             }
             assembler.form_to_input_list = form_to_input_list
-            assembler.scatter_forms(measure_time_q=True)
+            assembler.scatter_forms(measure_time_q=False)
 
             jac_g.assemble()
 
@@ -337,7 +351,8 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 
 def main():
-    h = 0.05
+
+    h = 0.1
     dimension = 2
 
     domain = create_domain(dimension)

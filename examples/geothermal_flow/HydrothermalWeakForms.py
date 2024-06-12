@@ -1,13 +1,14 @@
 import auto_diff as ad
 import numpy as np
 
+from weak_forms.weak_from import WeakForm
 from basis.element_data import ElementData
-from basis.parametric_transformation import transform_lower_to_higher
 from geometry.compute_normal import normal
+from basis.basis_trace import trace_product_space
+
+from basis.parametric_transformation import transform_lower_to_higher
 from topology.topological_queries import find_higher_dimension_neighs
 from topology.topological_queries import sub_entity_by_co_dimension
-from weak_forms.weak_from import WeakForm
-
 
 class DiffusionWeakForm(WeakForm):
     def evaluate_form(self, element_index, alpha_n, alpha, t):
@@ -200,7 +201,7 @@ class DiffusionWeakForm(WeakForm):
 
                 equ_3_integrand = (qd_h_n @ dv_h.T) - (t_h_n @ div_dv_h)
                 # delete 4
-                equ_4_integrand = (qa_h_n @ dv_h.T) - (h_h_n @ div_dv_h)
+                equ_4_integrand = (qa_h_n @ dv_h.T) - 0.0 * (h_h_n @ div_dv_h)
 
                 equ_5_integrand = (div_md_h) @ du_h.T
                 equ_6_integrand = (div_ca_h) @ du_h.T
@@ -239,125 +240,99 @@ class DiffusionWeakFormBCRobin(WeakForm):
     def evaluate_form(self, element_index, alpha, t):
         iel = element_index
 
-        f_beta = self.functions["beta"]
-        f_gamma = self.functions["gamma"]
-        f_c = self.functions["c"]
-        f_velocity = self.functions["velocity"]
+        f_beta_md = self.functions["beta_md"]
+        f_gamma_md = self.functions["gamma_md"]
+        f_p_D = self.functions["p_D"]
 
-        q_space = self.space.discrete_spaces["q"]
-        m_space = self.space.discrete_spaces["m"]
+        f_beta_qd = self.functions["beta_qd"]
+        f_gamma_qd = self.functions["gamma_qd"]
+        f_t_D = self.functions["t_D"]
 
-        q_components = q_space.n_comp
-        q_data: ElementData = q_space.bc_elements[iel].data
+        md_space = self.space.discrete_spaces["md"]
+        n_components = md_space.n_comp
+        md_data: ElementData = md_space.bc_elements[iel].data
 
-        m_components = m_space.n_comp
-        m_data: ElementData = m_space.bc_elements[iel].data
-
-        cell = q_data.cell
+        cell = md_data.cell
         points, weights = self.space.bc_quadrature
-        dim = cell.dimension
-        x, jac, det_jac, inv_jac = q_space.bc_elements[iel].evaluate_mapping(points)
+        x, jac, det_jac, inv_jac = md_space.bc_elements[iel].evaluate_mapping(points)
 
-        # Diffusive flux
-        # find high-dimension neigh q space
-        neigh_list = find_higher_dimension_neighs(cell, q_space.dof_map.mesh_topology)
-        neigh_check_mp = len(neigh_list) > 0
-        assert neigh_check_mp
-        neigh_cell_id = neigh_list[0]
-        neigh_cell_index = q_space.id_to_element[neigh_cell_id]
-        neigh_element = q_space.elements[neigh_cell_index]
-        neigh_cell = neigh_element.data.cell
+        fields = ['md', 'ca', 'qd', 'qa']
+        traces = trace_product_space(fields, self.space, points, md_data)
 
-        # compute trace q space
-        mapped_points = transform_lower_to_higher(points, q_data, neigh_element.data)
-        _, jac_c0, det_jac_c0, inv_jac_c0 = neigh_element.evaluate_mapping(
-            mapped_points
-        )
-        dq_tr_phi_tab = neigh_element.evaluate_basis(
-            mapped_points, jac_c0, det_jac_c0, inv_jac_c0
-        )
-        dq_facet_index = (
-            neigh_cell.sub_cells_ids[cell.dimension].tolist().index(cell.id)
-        )
-        dq_dof_n_index = neigh_element.data.dof.entity_dofs[cell.dimension][
-            dq_facet_index
-        ]
-
-        n_dq_phi = dq_tr_phi_tab[0, :, dq_dof_n_index, 0:dim].shape[0]
-        n_q_dof = n_dq_phi * q_components
-
-        # Advective flux
-        # find high-dimension neigh q space
-        neigh_list = find_higher_dimension_neighs(cell, m_space.dof_map.mesh_topology)
-        neigh_check_mp = len(neigh_list) > 0
-        assert neigh_check_mp
-        neigh_cell_id = neigh_list[0]
-        neigh_cell_index = m_space.id_to_element[neigh_cell_id]
-        neigh_element = m_space.elements[neigh_cell_index]
-        neigh_cell = neigh_element.data.cell
-
-        # compute trace q space
-        mapped_points = transform_lower_to_higher(points, m_data, neigh_element.data)
-        _, jac_c0, det_jac_c0, inv_jac_c0 = neigh_element.evaluate_mapping(
-            mapped_points
-        )
-        dm_tr_phi_tab = neigh_element.evaluate_basis(
-            mapped_points, jac_c0, det_jac_c0, inv_jac_c0
-        )
-        dm_facet_index = (
-            neigh_cell.sub_cells_ids[cell.dimension].tolist().index(cell.id)
-        )
-        dm_dof_n_index = neigh_element.data.dof.entity_dofs[cell.dimension][
-            dm_facet_index
-        ]
-
-        n_dm_phi = dm_tr_phi_tab[0, :, dm_dof_n_index, 0:dim].shape[0]
-        n_m_dof = n_dm_phi * m_components
+        n_md_dof = traces['md'].shape[2] * n_components
+        n_cd_dof = traces['ca'].shape[2] * n_components
+        n_qd_dof = traces['qd'].shape[2] * n_components
+        n_qa_dof = traces['qa'].shape[2] * n_components
 
         idx_dof = {
-            "q": slice(0, n_q_dof),
-            "m": slice(n_q_dof, n_q_dof + n_m_dof),
+            "md": slice(0, n_md_dof),
+            "ca": slice(n_md_dof, n_md_dof + n_cd_dof),
+            "qd": slice(n_md_dof + n_cd_dof, n_md_dof + n_cd_dof + n_qd_dof),
+            "qa": slice(n_md_dof + n_cd_dof + n_qd_dof, n_md_dof + n_cd_dof + n_qd_dof + n_qa_dof),
         }
 
-        n_dof = n_q_dof + n_m_dof
-        js = (n_dof, n_dof)
-        rs = n_dof
-        j_el = np.zeros(js)
-        r_el = np.zeros(rs)
+        n_dof = n_md_dof + n_cd_dof + n_qd_dof + n_qa_dof
+        # js = (n_dof, n_dof)
+        # rs = n_dof
+        # j_el = np.zeros(js)
+        # r_el = np.zeros(rs)
 
+        # compute normal
+        neigh_list = find_higher_dimension_neighs(cell,md_space.dof_map.mesh_topology)
+        neigh_check = len(neigh_list) > 0
+        assert neigh_check
+        # select neighbor
+        neigh_cell = md_data.mesh.cells[neigh_list[0]]
         dim = neigh_cell.dimension
+        n = normal(md_data.mesh, neigh_cell, cell)
+
+
         with ad.AutoDiff(alpha) as alpha:
             el_form = np.zeros(n_dof)
-            alpha_q = alpha[:, idx_dof["q"]]
-            alpha_m = alpha[:, idx_dof["m"]]
 
-            # compute normal
-            n = normal(q_data.mesh, neigh_cell, cell)
+            alpha_md = alpha[:, idx_dof["md"]]
+            # alpha_ca = alpha[:, idx_dof["ca"]]
+            alpha_qd = alpha[:, idx_dof["qd"]]
+            alpha_qa = alpha[:, idx_dof["qa"]]
+
+            tr_dmq_h = traces['md']
+            # tr_dca_h = traces['ca']
+            tr_dqd_h = traces['qd']
+            tr_dqa_h = traces['qa']
 
             for i, omega in enumerate(weights):
-                beta_v = f_beta(x[i, 0], x[i, 1], x[i, 2])
-                gamma_v = f_gamma(x[i, 0], x[i, 1], x[i, 2])
-                c_v = f_c(x[i, 0], x[i, 1], x[i, 2])
+                beta_md_v = f_beta_md(x[i, 0], x[i, 1], x[i, 2])
+                gamma_md_v = f_gamma_md(x[i, 0], x[i, 1], x[i, 2])
+                p_v = f_p_D(x[i, 0], x[i, 1], x[i, 2])
 
-                dq_h = dq_tr_phi_tab[0, i, dq_dof_n_index, 0:dim]  # @ n[0:dim]
-                dm_h = dm_tr_phi_tab[0, i, dm_dof_n_index, 0:dim]  # @ n[0:dim]
+                beta_qd_v = f_beta_qd(x[i, 0], x[i, 1], x[i, 2])
+                gamma_qd_v = f_gamma_qd(x[i, 0], x[i, 1], x[i, 2])
+                t_v = f_t_D(x[i, 0], x[i, 1], x[i, 2])
 
-                # This sign may be needed in 1d computations because BC orientation
-                # However in pure Hdiv functions in 2d and 3d it is not needed
-                bc_sign = np.sign(n[0:dim])[0]
+                dmd_h = tr_dmq_h[0:1, i, :, :] @ n
+                # dca_h = tr_dca_h[0:1, i, :, :] @ n
+                dqd_h = tr_dqd_h[0:1, i, :, :] @ n
+                dqa_h = tr_dqa_h[0:1, i, :, :] @ n
 
-                q_h_n = bc_sign * alpha_q @ dq_h
-                m_h_n = bc_sign * alpha_m @ dm_h
+                md_h_n = alpha_md @ dmd_h
+                qd_h_n = alpha_qd @ dqd_h
+                qa_h_n = alpha_qa @ dqa_h
 
                 equ_1_integrand = (
-                    (1.0 / beta_v)
-                    * (q_h_n + m_h_n + beta_v * c_v - gamma_v * c_v)
-                    * bc_sign
-                    * dq_h.T
+                    (1.0 / beta_md_v)
+                    * (md_h_n + beta_md_v * p_v - gamma_md_v)
+                    * dmd_h.T
+                )
+
+                equ_2_integrand = (
+                    (1.0 / beta_qd_v)
+                    * (qd_h_n + qa_h_n + beta_qd_v * t_v - gamma_qd_v)
+                    * dqd_h.T
                 )
 
                 multiphysic_integrand = np.zeros((1, n_dof))
-                multiphysic_integrand[:, idx_dof["q"]] = equ_1_integrand
+                multiphysic_integrand[:, idx_dof["md"]] = equ_1_integrand
+                multiphysic_integrand[:, idx_dof["qd"]] = equ_2_integrand
                 discrete_integrand = (multiphysic_integrand).reshape((n_dof,))
                 el_form += det_jac[i] * omega * discrete_integrand
 
