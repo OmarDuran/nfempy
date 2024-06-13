@@ -49,6 +49,7 @@ class DiffusionWeakForm(WeakForm):
         n_components = 1
         f_K_thermal = self.functions["K_thermal"]
         f_kappa = self.functions["kappa"]
+        f_mu = self.functions["mu"]
         dt = self.functions["delta_t"]
 
         cell = md_data.cell
@@ -228,7 +229,7 @@ class DiffusionWeakForm(WeakForm):
                 z_h = a_z @ du_h
                 h_h = a_h @ du_h
 
-                md_h_n *= 1.0 / f_kappa(xv[0], xv[1], xv[2])
+                md_h_n *= 1.0 / (f_kappa(xv[0], xv[1], xv[2]) / f_mu(xv[0], xv[1], xv[2]))
                 qd_h_n *= 1.0 / f_K_thermal(xv[0], xv[1], xv[2])
 
                 div_md_h = a_md_n @ div_dv_h.T
@@ -238,12 +239,12 @@ class DiffusionWeakForm(WeakForm):
 
                 equ_1_integrand = (md_h_n @ dv_h.T) - (p_h_n @ div_dv_h)
                 # equ_2_integrand = (ca_h_n @ dv_h.T) - (z_h_n @ div_dv_h)
-                equ_3_integrand = (qd_h_n @ dv_h.T) - (h_h_n @ div_dv_h)
+                equ_3_integrand = (qd_h_n @ dv_h.T) - (t_h_n @ div_dv_h)
                 # equ_4_integrand = (qa_h_n @ dv_h.T) - 0.0 * (h_h_n @ div_dv_h)
                 equ_5_integrand = (div_md_h + (0.0/dt)*(p_h_n - p_h)) @ du_h.T
                 equ_6_integrand = (div_ca_h + (1.0/dt)*(z_h_n - z_h)) @ du_h.T
                 equ_7_integrand = (div_qd_h + div_qa_h + (0.0/dt)*(h_h_n - h_h)) @ du_h.T
-                equ_8_integrand = (t_h_n - h_h_n) @ du_h.T
+                equ_8_integrand = (t_h_n - 0.25 * h_h_n) @ du_h.T
                 equ_9_integrand = (sv_h_n - 0.0) @ du_h.T
                 equ_10_integrand = (x_H2O_l_h_n - (1.0 - z_h_n)) @ du_h.T
                 equ_11_integrand = (x_H2O_v_h_n - (1.0 - z_h_n)) @ du_h.T
@@ -431,8 +432,11 @@ class AdvectionWeakForm(WeakForm):
 
         # compute trace u space
         fields = ["md", "ca", "qd", "qa"]
-        traces_v = trace_product_space(
-            fields, self.space, points, c1_element.data, True
+        traces_v_p = trace_product_space(
+            fields, self.space, points, c1_element.data, True, 0
+        )
+        traces_v_n = trace_product_space(
+            fields, self.space, points, c1_element.data, True, 1
         )
         fields = ["h", "z"]
         traces_s_p = trace_product_space(
@@ -537,15 +541,15 @@ class AdvectionWeakForm(WeakForm):
                 alpha_h_p = alpha[:, idx_dof["h_p"]]
                 alpha_h_n = alpha[:, idx_dof["h_n"]]
 
-                dmd_p_h = traces_v["md"][0:1, i, :, :] @ n_p
-                dca_p_h = traces_v["ca"][0:1, i, :, :] @ n_p
-                dqd_p_h = traces_v["qd"][0:1, i, :, :] @ n_p
-                dqa_p_h = traces_v["qa"][0:1, i, :, :] @ n_p
+                dmd_p_h = traces_v_p["md"][0:1, i, :, :] @ n_p
+                dca_p_h = traces_v_p["ca"][0:1, i, :, :] @ n_p
+                dqd_p_h = traces_v_p["qd"][0:1, i, :, :] @ n_p
+                dqa_p_h = traces_v_p["qa"][0:1, i, :, :] @ n_p
 
-                dmd_n_h = traces_v["md"][0:1, i, :, :] @ n_n
-                dca_n_h = traces_v["ca"][0:1, i, :, :] @ n_n
-                dqd_n_h = traces_v["qd"][0:1, i, :, :] @ n_n
-                dqa_n_h = traces_v["qa"][0:1, i, :, :] @ n_n
+                dmd_n_h = traces_v_n["md"][0:1, i, :, :] @ n_n
+                dca_n_h = traces_v_n["ca"][0:1, i, :, :] @ n_n
+                dqd_n_h = traces_v_n["qd"][0:1, i, :, :] @ n_n
+                dqa_n_h = traces_v_n["qa"][0:1, i, :, :] @ n_n
 
                 md_p_h = alpha_md_p @ dmd_p_h.T
                 ca_p_h = alpha_ca_p @ dca_p_h.T

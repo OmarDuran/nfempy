@@ -101,16 +101,22 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
     # Nonlinear solver data
     n_iterations = 20
     eps_tol = 1.0e-4
-    delta_t = 1.0e-3
-    t_end = 1.0e-3
+
+    day = 86400.0
+    delta_t = 1.0 * day
+    t_end = 1.0 * day
 
     n_dof_g = fe_space.n_dof
 
-    # Material data as scalars
+    # Domain dimensions
+    lx = 10.0
+    ly = 1.0
+    lz = 1.0
 
     # Constant material properties
-    m_K_thermal = 3.0
-    m_kappa = 1.0
+    m_K_thermal = 1.8
+    m_mu = 1.0e-3
+    m_kappa = 5.0e-14
     m_porosity = 0.1
     m_rho_r = 2650.0
     m_cp_r = 1000.0
@@ -120,6 +126,9 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
 
     def f_kappa(x, y, z):
         return m_kappa
+
+    def f_mu(x, y, z):
+        return m_mu
 
     def f_porosity(x, y, z):
         return m_porosity
@@ -133,6 +142,7 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
     m_functions = {
         "K_thermal": f_K_thermal,
         "kappa": f_kappa,
+        "mu" : f_mu,
         "porosity": f_porosity,
         "rho_r": f_rho_r,
         "cp_r": f_cp_r,
@@ -140,19 +150,19 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
     }
 
     def xi_map(x, y, z, m_west, m_east):
-        return m_west * (1 - x) + m_east * x
+        return m_west * (1 - x/lx) + m_east * x/lx
 
     def eta_map(x, y, z, m_south, m_north):
-        return m_south * (1 - y) + m_north * y
+        return m_south * (1 - y/ly) + m_north * y / ly
 
-    f_p = partial(xi_map, m_west=11.0, m_east=1.0)
+    f_p = partial(xi_map, m_west=11.0e6, m_east=1.0e6)
     f_beta_md = partial(xi_map, m_west=1.0e14, m_east=1.0e14)
     f_gamma_md = partial(xi_map, m_west=0.0, m_east=0.0)
-    f_t = partial(eta_map, m_south=100.0, m_north=100.0)
+    f_t = partial(eta_map, m_south=523.15, m_north=473.15)
     f_beta_qd = partial(eta_map, m_south=1.0e14, m_north=1.0e14)
     f_gamma_qd = partial(eta_map, m_south=0.0, m_north=0.0)
     f_z = partial(xi_map, m_west=1.0, m_east=0.0)
-    f_h = partial(xi_map, m_west=1.0, m_east=0.0)
+    f_h = partial(xi_map, m_west=2000.0, m_east=0.0)
 
     m_bc_functions = {
         "p_D": f_p,
@@ -315,25 +325,31 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
 
 
 def create_domain(dimension):
+
+    # Domain dimensions
+    lx = 10.0
+    ly = 1.0
+    lz = 1.0
+
     if dimension == 1:
-        box_points = np.array([[0, 0, 0], [1, 0, 0]])
+        box_points = np.array([[0, 0, 0], [lx, 0, 0]])
         domain = build_box_1D(box_points)
         return domain
     elif dimension == 2:
-        box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
+        box_points = np.array([[0, 0, 0], [lx, 0, 0], [lx, ly, 0], [0, ly, 0]])
         domain = build_box_2D(box_points)
         return domain
     else:
         box_points = np.array(
             [
                 [0.0, 0.0, 0.0],
-                [1.0, 0.0, 0.0],
-                [1.0, 1.0, 0.0],
-                [0.0, 1.0, 0.0],
-                [0.0, 0.0, 1.0],
-                [1.0, 0.0, 1.0],
-                [1.0, 1.0, 1.0],
-                [0.0, 1.0, 1.0],
+                [lx, 0.0, 0.0],
+                [lx, ly, 0.0],
+                [0.0, ly, 0.0],
+                [0.0, 0.0, lz],
+                [lx, 0.0, lz],
+                [lx, ly, lz],
+                [0.0, ly, lz],
             ]
         )
         domain = build_box_3D(box_points)
@@ -358,7 +374,7 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 
 def main():
-    h = 0.05
+    h = 0.25
     dimension = 2
 
     domain = create_domain(dimension)
