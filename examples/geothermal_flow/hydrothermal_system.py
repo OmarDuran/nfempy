@@ -100,11 +100,11 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
 
     # Nonlinear solver data
     n_iterations = 20
-    eps_tol = 1.0e3
+    eps_tol = 1.0e-1
 
     day = 86400.0
-    delta_t = 0.1 * day
-    t_end = 0.1 * day
+    delta_t = 0.5 * day
+    t_end = 0.5 * day
 
     n_dof_g = fe_space.n_dof
 
@@ -178,11 +178,12 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
             return m_other
 
     eps = 1.0e16
+    eps_inv = 1.0e-12
     f_p = partial(xi_eta_map, m_west=11.0e6, m_east=1.0e6, m_south=0.0, m_north=0.0)
-    f_beta_md = partial(xi_eta_map, m_west=eps, m_east=eps, m_south=1/eps, m_north=1/eps)
+    f_beta_md = partial(xi_eta_map, m_west=eps, m_east=eps, m_south=eps_inv, m_north=eps_inv)
     f_gamma_md = partial(xi_map, m_west=0.0, m_east=0.0, m_other= 0.0)
     f_t = partial(xi_eta_map, m_west=0.0, m_east=0.0, m_south=523.15, m_north=473.15)
-    f_beta_qd = partial(xi_eta_map, m_west=1/eps, m_east=1/eps, m_south=eps, m_north=eps)
+    f_beta_qd = partial(xi_eta_map, m_west=eps_inv, m_east=eps_inv, m_south=eps, m_north=eps)
     f_gamma_qd = partial(eta_map, m_south=0.0, m_north=0.0, m_other= 0.0)
     f_z = partial(xi_map, m_west=1.0, m_east=0.0, m_other= 0.0)
     f_h = partial(xi_map, m_west=2000.0, m_east=0.0, m_other= 0.0)
@@ -443,7 +444,7 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 
 def main():
-    h = 1.0
+    h = 0.25
     dimension = 2
 
     domain = create_domain(dimension)
