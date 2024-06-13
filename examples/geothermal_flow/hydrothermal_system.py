@@ -100,11 +100,11 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
 
     # Nonlinear solver data
     n_iterations = 20
-    eps_tol = 1.0e-4
+    eps_tol = 1.0e3
 
     day = 86400.0
-    delta_t = 1.0 * day
-    t_end = 1.0 * day
+    delta_t = 0.1 * day
+    t_end = 0.1 * day
 
     n_dof_g = fe_space.n_dof
 
@@ -116,7 +116,7 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
     # Constant material properties
     m_K_thermal = 1.8
     m_mu = 1.0e-3
-    m_kappa = 5.0e-14
+    m_kappa = 1.0e-14 # approx 10 [mD]
     m_porosity = 0.1
     m_rho_r = 2650.0
     m_cp_r = 1000.0
@@ -149,20 +149,43 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
         "delta_t": delta_t,
     }
 
-    def xi_map(x, y, z, m_west, m_east):
-        return m_west * (1 - x/lx) + m_east * x/lx
+    def xi_eta_map(x, y, z, m_west, m_east, m_south, m_north):
+        if np.isclose(x, 0.0):
+            return m_west
+        elif np.isclose(x, lx):
+            return m_east
+        elif np.isclose(y, 0.0):
+            return m_south
+        elif np.isclose(y, ly):
+            return m_north
+        else:
+            return 0.0
 
-    def eta_map(x, y, z, m_south, m_north):
-        return m_south * (1 - y/ly) + m_north * y / ly
+    def xi_map(x, y, z, m_west, m_east, m_other):
+        if np.isclose(x, 0.0):
+            return m_west
+        elif np.isclose(x, lx):
+            return m_east
+        else:
+            return m_other
 
-    f_p = partial(xi_map, m_west=11.0e6, m_east=1.0e6)
-    f_beta_md = partial(xi_map, m_west=1.0e14, m_east=1.0e14)
-    f_gamma_md = partial(xi_map, m_west=0.0, m_east=0.0)
-    f_t = partial(eta_map, m_south=523.15, m_north=473.15)
-    f_beta_qd = partial(eta_map, m_south=1.0e14, m_north=1.0e14)
-    f_gamma_qd = partial(eta_map, m_south=0.0, m_north=0.0)
-    f_z = partial(xi_map, m_west=1.0, m_east=0.0)
-    f_h = partial(xi_map, m_west=2000.0, m_east=0.0)
+    def eta_map(x, y, z, m_south, m_north, m_other):
+        if np.isclose(y, 0.0):
+            return m_south
+        elif np.isclose(y, ly):
+            return m_north
+        else:
+            return m_other
+
+    eps = 1.0e16
+    f_p = partial(xi_eta_map, m_west=11.0e6, m_east=1.0e6, m_south=0.0, m_north=0.0)
+    f_beta_md = partial(xi_eta_map, m_west=eps, m_east=eps, m_south=1/eps, m_north=1/eps)
+    f_gamma_md = partial(xi_map, m_west=0.0, m_east=0.0, m_other= 0.0)
+    f_t = partial(xi_eta_map, m_west=0.0, m_east=0.0, m_south=523.15, m_north=473.15)
+    f_beta_qd = partial(xi_eta_map, m_west=1/eps, m_east=1/eps, m_south=eps, m_north=eps)
+    f_gamma_qd = partial(eta_map, m_south=0.0, m_north=0.0, m_other= 0.0)
+    f_z = partial(xi_map, m_west=1.0, m_east=0.0, m_other= 0.0)
+    f_h = partial(xi_map, m_west=2000.0, m_east=0.0, m_other= 0.0)
 
     m_bc_functions = {
         "p_D": f_p,
@@ -208,13 +231,58 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
     ]
     sequence_c1_epairs = [(pair[0], gidx_midx[pair[1]]) for pair in c1_epairs]
 
-    # Initial Guess
-    f_p = partial(xi_map, m_west=1.0, m_east=1.0)
-    f_t = partial(eta_map, m_south=100.0, m_north=100.0)
-    f_z = partial(xi_map, m_west=0.0, m_east=0.0)
+    # Initial condition
+    def nu_ini(x,y,z, m_val):
+        return np.array([[m_val * np.ones_like(x), m_val * np.ones_like(y), m_val * np.ones_like(z)]])
 
+    def xi_ini(x,y,z, m_val):
+        return np.array([m_val * np.ones_like(x)])
 
-    alpha = np.zeros(n_dof_g)
+    f_md = partial(nu_ini, m_val=0.0)
+    f_ca = partial(nu_ini, m_val=0.0)
+    f_qd = partial(nu_ini, m_val=0.0)
+    f_qa = partial(nu_ini, m_val=0.0)
+    f_p = partial(xi_ini, m_val=1.0e6)
+    f_z = partial(xi_ini, m_val=0.0)
+    f_h = partial(xi_ini, m_val=473.15*4)
+    f_t = partial(xi_ini, m_val=473.15)
+    f_sv = partial(xi_ini, m_val=0.0)
+    f_x_H2O_l = partial(xi_ini, m_val=1.0)
+    f_x_H2O_v = partial(xi_ini, m_val=1.0)
+    f_x_NaCl_l = partial(xi_ini, m_val=0.0)
+    f_x_NaCl_v = partial(xi_ini, m_val=0.0)
+
+    ic_functions = {
+        "md": f_md,
+        "ca": f_ca,
+        "qd": f_qd,
+        "qa": f_qa,
+        "p": f_p,
+        "z": f_z,
+        "h": f_h,
+        "t": f_t,
+        "sv": f_sv,
+        "x_H2O_l": f_x_H2O_l,
+        "x_H2O_v": f_x_H2O_v,
+        "x_NaCl_l": f_x_NaCl_l,
+        "x_NaCl_v": f_x_NaCl_v,
+    }
+    alpha = l2_projector(fe_space,ic_functions)
+    if write_vtk_q:
+        # post-process solution
+        time_idx = 0
+        st = time.time()
+        file_name = "hydrothermal_system_" + str(time_idx) + ".vtk"
+        cell_centered_fields = []
+        for item in method[1].items():
+            field, (family, k_order) = item
+            if family not in ["RT", "BDM"]:
+                cell_centered_fields.append(field)
+
+        write_vtk_file(file_name, gmesh, fe_space, alpha, cell_centered_fields)
+        et = time.time()
+        elapsed_time = et - st
+        print("Post-processing time:", elapsed_time, "seconds")
 
     for t in np.arange(delta_t, t_end + delta_t, delta_t):
         print("Current time value: ", t)
@@ -271,10 +339,10 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
             Asp = sps.csr_matrix((av, aj, ai))
 
             res_norm = np.linalg.norm(res_g)
+            print("Stop Criterion:: Residual norm: ", res_norm)
             stop_criterion_q = res_norm < eps_tol
             if stop_criterion_q:
                 print("Nonlinear solver converged")
-                print("Residual norm: ", res_norm)
                 print("Number of iterations: ", iter)
                 break
 
@@ -308,8 +376,9 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
 
     if write_vtk_q:
         # post-process solution
+        time_idx = 1
         st = time.time()
-        file_name = "hydrothermal_system.vtk"
+        file_name = "hydrothermal_system_" + str(time_idx) + ".vtk"
         cell_centered_fields = []
         for item in method[1].items():
             field, (family, k_order) = item
@@ -374,7 +443,7 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 
 def main():
-    h = 0.25
+    h = 1.0
     dimension = 2
 
     domain = create_domain(dimension)

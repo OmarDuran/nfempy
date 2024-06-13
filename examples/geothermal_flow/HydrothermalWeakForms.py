@@ -48,7 +48,10 @@ class DiffusionWeakForm(WeakForm):
 
         n_components = 1
         f_K_thermal = self.functions["K_thermal"]
+        f_rho_r = self.functions["rho_r"]
+        f_cp_r = self.functions["cp_r"]
         f_kappa = self.functions["kappa"]
+        f_phi = self.functions["porosity"]
         f_mu = self.functions["mu"]
         dt = self.functions["delta_t"]
 
@@ -208,6 +211,8 @@ class DiffusionWeakForm(WeakForm):
                 a_p = alpha[idx_dof["p"]]
                 a_z = alpha[idx_dof["z"]]
                 a_h = alpha[idx_dof["h"]]
+                a_t = alpha[idx_dof["t"]]
+                a_sv = alpha[idx_dof["sv"]]
 
                 # FEM approximation
                 md_h_n = a_md_n @ dmd_h
@@ -228,22 +233,54 @@ class DiffusionWeakForm(WeakForm):
                 p_h = a_p @ du_h
                 z_h = a_z @ du_h
                 h_h = a_h @ du_h
+                t_h = a_t @ du_h
+                sv_h = a_sv @ du_h
 
-                md_h_n *= 1.0 / (f_kappa(xv[0], xv[1], xv[2]) / f_mu(xv[0], xv[1], xv[2]))
+                # fluid and rock data
+                rho_l = 1000.0
+                rho_v = 1.0
+                mu_l = 0.001
+                mu_v = 0.00001
+                rho_n = sv_h_n * rho_v + (1.0 - sv_h_n) * rho_l
+                rho = sv_h * rho_v + (1.0 - sv_h) * rho_l
+                rho_r = f_rho_r(xv[0], xv[1], xv[2])
+                cp_r = f_cp_r(xv[0], xv[1], xv[2])
+
+
+                lambda_H2O_l = (x_H2O_l_h_n * rho_l * (1.0 - sv_h_n) / mu_l)
+                lambda_H2O_v = (x_H2O_v_h_n * rho_v * sv_h_n / mu_v)
+                lambda_NaCl_l = (x_NaCl_l_h_n * rho_l * (1.0 - sv_h_n) / mu_l)
+                lambda_NaCl_v = (x_NaCl_v_h_n * rho_v * sv_h_n / mu_v)
+                lambda_H2O = (lambda_H2O_l + lambda_H2O_v)
+                lambda_NaCl = (lambda_NaCl_l + lambda_NaCl_v)
+                lambda_m = lambda_H2O + lambda_NaCl
+
+                md_h_n *= 1.0 / (lambda_m * f_kappa(xv[0], xv[1], xv[2]))
                 qd_h_n *= 1.0 / f_K_thermal(xv[0], xv[1], xv[2])
+                phi_v = f_phi(xv[0], xv[1], xv[2])
 
                 div_md_h = a_md_n @ div_dv_h.T
                 div_ca_h = a_ca_n @ div_dv_h.T
                 div_qd_h = a_qd_n @ div_dv_h.T
                 div_qa_h = a_qa_n @ div_dv_h.T
 
+
+                # accumulation terms
+                overall_mass = (1.0/dt) * phi_v * (rho_n - rho)
+                mass_z = (1.0/dt) * phi_v * (rho_n * z_h_n - rho * z_h)
+
+                p_work = phi_v * (p_h_n-p_h)
+                solid_energy = (1.0-phi_v) * rho_r * cp_r *(t_h_n - t_h)
+                fluid_energy = phi_v * (rho_n * h_h_n - rho * h_h)
+                energy = (1.0 / dt) * (fluid_energy + solid_energy - p_work)
+
                 equ_1_integrand = (md_h_n @ dv_h.T) - (p_h_n @ div_dv_h)
                 # equ_2_integrand = (ca_h_n @ dv_h.T) - (z_h_n @ div_dv_h)
                 equ_3_integrand = (qd_h_n @ dv_h.T) - (t_h_n @ div_dv_h)
                 # equ_4_integrand = (qa_h_n @ dv_h.T) - 0.0 * (h_h_n @ div_dv_h)
-                equ_5_integrand = (div_md_h + (0.0/dt)*(p_h_n - p_h)) @ du_h.T
-                equ_6_integrand = (div_ca_h + (1.0/dt)*(z_h_n - z_h)) @ du_h.T
-                equ_7_integrand = (div_qd_h + div_qa_h + (0.0/dt)*(h_h_n - h_h)) @ du_h.T
+                equ_5_integrand = (div_md_h + overall_mass) @ du_h.T
+                equ_6_integrand = (div_ca_h + mass_z) @ du_h.T
+                equ_7_integrand = (div_qd_h + div_qa_h + energy) @ du_h.T
                 equ_8_integrand = (t_h_n - 0.25 * h_h_n) @ du_h.T
                 equ_9_integrand = (sv_h_n - 0.0) @ du_h.T
                 equ_10_integrand = (x_H2O_l_h_n - (1.0 - z_h_n)) @ du_h.T
@@ -354,14 +391,12 @@ class DiffusionWeakFormBCRobin(WeakForm):
                 qa_h_n = alpha_qa @ dqa_h
 
                 equ_1_integrand = (
-                    (1.0 / beta_md_v)
-                    * (md_h_n + beta_md_v * p_v - gamma_md_v)
+                    (1.0 / beta_md_v) * (md_h_n + beta_md_v * p_v - gamma_md_v)
                     * dmd_h.T
                 )
 
                 equ_2_integrand = (
-                    (1.0 / beta_qd_v)
-                    * (qd_h_n + qa_h_n + beta_qd_v * t_v - gamma_qd_v)
+                    (1.0 / beta_qd_v) * (qd_h_n + qa_h_n + beta_qd_v * t_v - gamma_qd_v)
                     * dqd_h.T
                 )
 
