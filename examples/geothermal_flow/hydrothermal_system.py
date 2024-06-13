@@ -14,6 +14,7 @@ License: GPL-3.0 license
 import time
 from functools import partial
 import numpy as np
+import scipy.sparse as sps
 from petsc4py import PETSc
 
 from geometry.domain import Domain
@@ -94,15 +95,14 @@ def method_definition():
 
 
 def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
-
     dim = gmesh.dimension
     fe_space = create_product_space(method, gmesh)
 
     # Nonlinear solver data
     n_iterations = 20
     eps_tol = 1.0e-4
-    delta_t = 1.0
-    t_end = 1.0
+    delta_t = 1.0e-3
+    t_end = 1.0e-3
 
     n_dof_g = fe_space.n_dof
 
@@ -136,6 +136,7 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
         "porosity": f_porosity,
         "rho_r": f_rho_r,
         "cp_r": f_cp_r,
+        "delta_t": delta_t,
     }
 
     def xi_map(x, y, z, m_west, m_east):
@@ -144,24 +145,24 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
     def eta_map(x, y, z, m_south, m_north):
         return m_south * (1 - y) + m_north * y
 
-
-
-    f_p = partial(xi_map, m_west=25.0, m_east=3.56)
-    f_beta_md = partial(xi_map, m_west=1.0e10, m_east=1.0e10)
+    f_p = partial(xi_map, m_west=11.0, m_east=1.0)
+    f_beta_md = partial(xi_map, m_west=1.0e14, m_east=1.0e14)
     f_gamma_md = partial(xi_map, m_west=0.0, m_east=0.0)
-    f_t = partial(eta_map, m_south=200.0, m_north=200.0)
-    f_beta_qd = partial(eta_map, m_south=1.0e10, m_north=1.0e10)
+    f_t = partial(eta_map, m_south=100.0, m_north=100.0)
+    f_beta_qd = partial(eta_map, m_south=1.0e14, m_north=1.0e14)
     f_gamma_qd = partial(eta_map, m_south=0.0, m_north=0.0)
-    f_z = partial(xi_map, m_west=0.0, m_east=0.0)
+    f_z = partial(xi_map, m_west=1.0, m_east=0.0)
+    f_h = partial(xi_map, m_west=1.0, m_east=0.0)
 
     m_bc_functions = {
         "p_D": f_p,
-        "t_D": f_t,
-        "z_inlet": f_z,
         "beta_md": f_beta_md,
         "gamma_md": f_gamma_md,
+        "t_D": f_t,
         "beta_qd": f_beta_qd,
         "gamma_qd": f_gamma_qd,
+        "z_inlet": f_z,
+        "h_inlet": f_h,
     }
 
     weak_form = DiffusionWeakForm(fe_space)
@@ -198,6 +199,11 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
     sequence_c1_epairs = [(pair[0], gidx_midx[pair[1]]) for pair in c1_epairs]
 
     # Initial Guess
+    f_p = partial(xi_map, m_west=1.0, m_east=1.0)
+    f_t = partial(eta_map, m_south=100.0, m_north=100.0)
+    f_z = partial(xi_map, m_west=0.0, m_east=0.0)
+
+
     alpha = np.zeros(n_dof_g)
 
     for t in np.arange(delta_t, t_end + delta_t, delta_t):
@@ -233,23 +239,26 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
                     (alpha_n, alpha),
                     t,
                 ],
-                # "advection_form": [
-                #     "interface_form",
-                #     sequence_c1_itriplets,
-                #     advection_weak_form,
-                #     alpha_n_p_1,
-                # ],
-                # "advection_bc_form": [
-                #     "bc_interface_form",
-                #     sequence_c1_epairs,
-                #     bc_advection_weak_form,
-                #     alpha_n_p_1,
-                # ],
+                "advection_form": [
+                    "interface_form",
+                    sequence_c1_itriplets,
+                    advection_weak_form,
+                    alpha_n,
+                ],
+                "advection_bc_form": [
+                    "bc_interface_form",
+                    sequence_c1_epairs,
+                    bc_advection_weak_form,
+                    alpha_n,
+                ],
             }
             assembler.form_to_input_list = form_to_input_list
-            assembler.scatter_forms(measure_time_q=False)
+            assembler.scatter_forms(measure_time_q=True)
 
             jac_g.assemble()
+
+            ai, aj, av = jac_g.getValuesCSR()
+            Asp = sps.csr_matrix((av, aj, ai))
 
             res_norm = np.linalg.norm(res_g)
             stop_criterion_q = res_norm < eps_tol
@@ -294,12 +303,10 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
         cell_centered_fields = []
         for item in method[1].items():
             field, (family, k_order) = item
-            if family not in ['RT', 'BDM']:
+            if family not in ["RT", "BDM"]:
                 cell_centered_fields.append(field)
 
-        write_vtk_file(
-            file_name, gmesh, fe_space, alpha_n, cell_centered_fields
-        )
+        write_vtk_file(file_name, gmesh, fe_space, alpha_n, cell_centered_fields)
         et = time.time()
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
@@ -351,8 +358,7 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
 
 
 def main():
-
-    h = 0.1
+    h = 0.05
     dimension = 2
 
     domain = create_domain(dimension)

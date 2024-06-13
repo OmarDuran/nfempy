@@ -94,7 +94,7 @@ class ThreeFieldsDiffusionWeakForm(WeakForm):
                     ]
                 )
 
-                grad_dm_h = dm_h_tab[1: dm_h.shape[0] + 1, i, :, 0:dim]
+                grad_dm_h = dm_h_tab[1 : dm_h.shape[0] + 1, i, :, 0:dim]
                 div_dm_h = np.array(
                     [
                         [
@@ -213,7 +213,6 @@ class ThreeFieldsDiffusionWeakFormBCRobin(WeakForm):
         n_dm_phi = dm_tr_phi_tab[0, :, dm_dof_n_index, 0:dim].shape[0]
         n_m_dof = n_dm_phi * m_components
 
-
         idx_dof = {
             "q": slice(0, n_q_dof),
             "m": slice(n_q_dof, n_q_dof + n_m_dof),
@@ -228,20 +227,19 @@ class ThreeFieldsDiffusionWeakFormBCRobin(WeakForm):
         dim = neigh_cell.dimension
         with ad.AutoDiff(alpha) as alpha:
             el_form = np.zeros(n_dof)
-            alpha_q = alpha[:, idx_dof['q']]
-            alpha_m = alpha[:, idx_dof['m']]
+            alpha_q = alpha[:, idx_dof["q"]]
+            alpha_m = alpha[:, idx_dof["m"]]
 
             # compute normal
             n = normal(q_data.mesh, neigh_cell, cell)
-
 
             for i, omega in enumerate(weights):
                 beta_v = f_beta(x[i, 0], x[i, 1], x[i, 2])
                 gamma_v = f_gamma(x[i, 0], x[i, 1], x[i, 2])
                 c_v = f_c(x[i, 0], x[i, 1], x[i, 2])
 
-                dq_h = dq_tr_phi_tab[0, i, dq_dof_n_index, 0:dim]# @ n[0:dim]
-                dm_h = dm_tr_phi_tab[0, i, dm_dof_n_index, 0:dim]# @ n[0:dim]
+                dq_h = dq_tr_phi_tab[0, i, dq_dof_n_index, 0:dim]  # @ n[0:dim]
+                dm_h = dm_tr_phi_tab[0, i, dm_dof_n_index, 0:dim]  # @ n[0:dim]
 
                 # This sign may be needed in 1d computations because BC orientation
                 # However in pure Hdiv functions in 2d and 3d it is not needed
@@ -250,9 +248,12 @@ class ThreeFieldsDiffusionWeakFormBCRobin(WeakForm):
                 q_h_n = bc_sign * alpha_q @ dq_h
                 m_h_n = bc_sign * alpha_m @ dm_h
 
-                equ_1_integrand = (1.0 / beta_v) * (
-                    q_h_n + m_h_n + beta_v * c_v - gamma_v * c_v
-                ) * bc_sign * dq_h.T
+                equ_1_integrand = (
+                    (1.0 / beta_v)
+                    * (q_h_n + m_h_n + beta_v * c_v - gamma_v * c_v)
+                    * bc_sign
+                    * dq_h.T
+                )
 
                 multiphysic_integrand = np.zeros((1, n_dof))
                 multiphysic_integrand[:, idx_dof["q"]] = equ_1_integrand
@@ -315,9 +316,7 @@ class ThreeFieldsAdvectionWeakForm(WeakForm):
             dm_facet_index = (
                 c0_data.cell.sub_cells_ids[cell_c1.dimension].tolist().index(cell_c1.id)
             )
-            dm_dof_n_index = c0_data.dof.entity_dofs[cell_c1.dimension][
-                dm_facet_index
-            ]
+            dm_dof_n_index = c0_data.dof.entity_dofs[cell_c1.dimension][dm_facet_index]
             dm_h = dm_tr_phi_tab[0, :, dm_dof_n_index, 0:dim]
 
             du_tr_phi_tab = u_space.elements[iel].evaluate_basis(
@@ -349,9 +348,14 @@ class ThreeFieldsAdvectionWeakForm(WeakForm):
             "q_p": slice(0, n_q_dof),
             "m_p": slice(n_q_dof, n_q_dof + n_m_dof),
             "u_p": slice(n_q_dof + n_m_dof, n_q_dof + n_m_dof + n_u_dof),
-            "q_n": slice(n_q_dof + n_m_dof + n_u_dof, 2*n_q_dof + n_m_dof + n_u_dof),
-            "m_n": slice(2*n_q_dof + n_m_dof + n_u_dof, 2*n_q_dof + 2*n_m_dof + n_u_dof),
-            "u_n": slice(2*n_q_dof + 2*n_m_dof + n_u_dof, 2*n_q_dof + 2*n_m_dof + 2*n_u_dof),
+            "q_n": slice(n_q_dof + n_m_dof + n_u_dof, 2 * n_q_dof + n_m_dof + n_u_dof),
+            "m_n": slice(
+                2 * n_q_dof + n_m_dof + n_u_dof, 2 * n_q_dof + 2 * n_m_dof + n_u_dof
+            ),
+            "u_n": slice(
+                2 * n_q_dof + 2 * n_m_dof + n_u_dof,
+                2 * n_q_dof + 2 * n_m_dof + 2 * n_u_dof,
+            ),
         }
 
         n_dof = 2 * n_q_dof + 2 * n_m_dof + 2 * n_u_dof
@@ -450,9 +454,7 @@ class ThreeFieldsAdvectionWeakFormBC(WeakForm):
             dm_facet_index = (
                 c0_data.cell.sub_cells_ids[cell_c1.dimension].tolist().index(cell_c1.id)
             )
-            dm_dof_n_index = c0_data.dof.entity_dofs[cell_c1.dimension][
-                dm_facet_index
-            ]
+            dm_dof_n_index = c0_data.dof.entity_dofs[cell_c1.dimension][dm_facet_index]
             dm_h = dm_tr_phi_tab[0, :, dm_dof_n_index, 0:dim]
             trace_m_space.append(dm_h)
 

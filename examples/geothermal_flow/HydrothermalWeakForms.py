@@ -3,12 +3,14 @@ import numpy as np
 
 from weak_forms.weak_from import WeakForm
 from basis.element_data import ElementData
+from basis.finite_element import FiniteElement
 from geometry.compute_normal import normal
 from basis.basis_trace import trace_product_space
 
 from basis.parametric_transformation import transform_lower_to_higher
 from topology.topological_queries import find_higher_dimension_neighs
-from topology.topological_queries import sub_entity_by_co_dimension
+from basis.element_family import family_by_name
+
 
 class DiffusionWeakForm(WeakForm):
     def evaluate_form(self, element_index, alpha_n, alpha, t):
@@ -47,6 +49,7 @@ class DiffusionWeakForm(WeakForm):
         n_components = 1
         f_K_thermal = self.functions["K_thermal"]
         f_kappa = self.functions["kappa"]
+        dt = self.functions["delta_t"]
 
         cell = md_data.cell
         dim = cell.dimension
@@ -87,23 +90,63 @@ class DiffusionWeakForm(WeakForm):
                 v_dofs + p_dof + z_dof + h_dof, v_dofs + p_dof + z_dof + h_dof + t_dof
             ),
             "sv": slice(
-                v_dofs + p_dof + z_dof + h_dof + t_dof, v_dofs + p_dof + z_dof + h_dof + t_dof + sv_dof
+                v_dofs + p_dof + z_dof + h_dof + t_dof,
+                v_dofs + p_dof + z_dof + h_dof + t_dof + sv_dof,
             ),
             "x_H2O_l": slice(
                 v_dofs + p_dof + z_dof + h_dof + t_dof + sv_dof,
-                v_dofs + p_dof + z_dof + h_dof + t_dof + sv_dof + x_H2O_l_dof
+                v_dofs + p_dof + z_dof + h_dof + t_dof + sv_dof + x_H2O_l_dof,
             ),
             "x_H2O_v": slice(
                 v_dofs + p_dof + z_dof + h_dof + t_dof + sv_dof + x_H2O_l_dof,
-                v_dofs + p_dof + z_dof + h_dof + t_dof + sv_dof + x_H2O_l_dof + x_H2O_v_dof
+                v_dofs
+                + p_dof
+                + z_dof
+                + h_dof
+                + t_dof
+                + sv_dof
+                + x_H2O_l_dof
+                + x_H2O_v_dof,
             ),
             "x_NaCl_l": slice(
-                v_dofs + p_dof + z_dof + h_dof + t_dof + sv_dof + x_H2O_l_dof + x_H2O_v_dof,
-                v_dofs + p_dof + z_dof + h_dof + t_dof + sv_dof + x_H2O_l_dof + x_H2O_v_dof + x_NaCl_l_dof
+                v_dofs
+                + p_dof
+                + z_dof
+                + h_dof
+                + t_dof
+                + sv_dof
+                + x_H2O_l_dof
+                + x_H2O_v_dof,
+                v_dofs
+                + p_dof
+                + z_dof
+                + h_dof
+                + t_dof
+                + sv_dof
+                + x_H2O_l_dof
+                + x_H2O_v_dof
+                + x_NaCl_l_dof,
             ),
             "x_NaCl_v": slice(
-                v_dofs + p_dof + z_dof + h_dof + t_dof + sv_dof + x_H2O_l_dof + x_H2O_v_dof + x_NaCl_l_dof,
-                v_dofs + p_dof + z_dof + h_dof + t_dof + sv_dof + x_H2O_l_dof + x_H2O_v_dof + x_NaCl_l_dof + x_NaCl_v_dof
+                v_dofs
+                + p_dof
+                + z_dof
+                + h_dof
+                + t_dof
+                + sv_dof
+                + x_H2O_l_dof
+                + x_H2O_v_dof
+                + x_NaCl_l_dof,
+                v_dofs
+                + p_dof
+                + z_dof
+                + h_dof
+                + t_dof
+                + sv_dof
+                + x_H2O_l_dof
+                + x_H2O_v_dof
+                + x_NaCl_l_dof
+                + x_NaCl_v_dof,
             ),
         }
 
@@ -151,16 +194,15 @@ class DiffusionWeakForm(WeakForm):
                 a_qd_n = alpha_n[:, idx_dof["qd"]]
                 a_qa_n = alpha_n[:, idx_dof["qa"]]
 
-                a_p_n = alpha_n[:,idx_dof["p"]]
-                a_z_n = alpha_n[:,idx_dof["z"]]
-                a_h_n = alpha_n[:,idx_dof["h"]]
-                a_t_n = alpha_n[:,idx_dof["t"]]
-                a_sv_n = alpha_n[:,idx_dof["sv"]]
+                a_p_n = alpha_n[:, idx_dof["p"]]
+                a_z_n = alpha_n[:, idx_dof["z"]]
+                a_h_n = alpha_n[:, idx_dof["h"]]
+                a_t_n = alpha_n[:, idx_dof["t"]]
+                a_sv_n = alpha_n[:, idx_dof["sv"]]
                 a_x_H2O_l_n = alpha_n[:, idx_dof["x_H2O_l"]]
                 a_x_H2O_v_n = alpha_n[:, idx_dof["x_H2O_v"]]
                 a_x_NaCl_l_n = alpha_n[:, idx_dof["x_NaCl_l"]]
                 a_x_NaCl_v_n = alpha_n[:, idx_dof["x_NaCl_v"]]
-
 
                 a_p = alpha[idx_dof["p"]]
                 a_z = alpha[idx_dof["z"]]
@@ -168,9 +210,9 @@ class DiffusionWeakForm(WeakForm):
 
                 # FEM approximation
                 md_h_n = a_md_n @ dmd_h
-                ca_h_n = a_ca_n @ dmd_h
+                ca_h_n = a_ca_n @ dca_h
                 qd_h_n = a_qd_n @ dqd_h
-                qa_h_n = a_qa_n @ dmd_h
+                qa_h_n = a_qa_n @ dqa_h
 
                 p_h_n = a_p_n @ du_h
                 z_h_n = a_z_n @ du_h
@@ -195,17 +237,12 @@ class DiffusionWeakForm(WeakForm):
                 div_qa_h = a_qa_n @ div_dv_h.T
 
                 equ_1_integrand = (md_h_n @ dv_h.T) - (p_h_n @ div_dv_h)
-
-                # delete 2
-                equ_2_integrand = (ca_h_n @ dv_h.T) - (z_h_n @ div_dv_h)
-
-                equ_3_integrand = (qd_h_n @ dv_h.T) - (t_h_n @ div_dv_h)
-                # delete 4
-                equ_4_integrand = (qa_h_n @ dv_h.T) - 0.0 * (h_h_n @ div_dv_h)
-
-                equ_5_integrand = (div_md_h) @ du_h.T
-                equ_6_integrand = (div_ca_h) @ du_h.T
-                equ_7_integrand = (div_qd_h + div_qa_h) @ du_h.T
+                # equ_2_integrand = (ca_h_n @ dv_h.T) - (z_h_n @ div_dv_h)
+                equ_3_integrand = (qd_h_n @ dv_h.T) - (h_h_n @ div_dv_h)
+                # equ_4_integrand = (qa_h_n @ dv_h.T) - 0.0 * (h_h_n @ div_dv_h)
+                equ_5_integrand = (div_md_h + (0.0/dt)*(p_h_n - p_h)) @ du_h.T
+                equ_6_integrand = (div_ca_h + (1.0/dt)*(z_h_n - z_h)) @ du_h.T
+                equ_7_integrand = (div_qd_h + div_qa_h + (0.0/dt)*(h_h_n - h_h)) @ du_h.T
                 equ_8_integrand = (t_h_n - h_h_n) @ du_h.T
                 equ_9_integrand = (sv_h_n - 0.0) @ du_h.T
                 equ_10_integrand = (x_H2O_l_h_n - (1.0 - z_h_n)) @ du_h.T
@@ -213,12 +250,11 @@ class DiffusionWeakForm(WeakForm):
                 equ_12_integrand = (x_NaCl_l_h_n - z_h_n) @ du_h.T
                 equ_13_integrand = (x_NaCl_v_h_n - z_h_n) @ du_h.T
 
-
                 multiphysic_integrand = np.zeros((1, n_dof))
                 multiphysic_integrand[:, idx_dof["md"]] = equ_1_integrand
-                multiphysic_integrand[:, idx_dof["ca"]] = equ_2_integrand
+                # multiphysic_integrand[:, idx_dof["ca"]] = equ_2_integrand
                 multiphysic_integrand[:, idx_dof["qd"]] = equ_3_integrand
-                multiphysic_integrand[:, idx_dof["qa"]] = equ_4_integrand
+                # multiphysic_integrand[:, idx_dof["qa"]] = equ_4_integrand
                 multiphysic_integrand[:, idx_dof["p"]] = equ_5_integrand
                 multiphysic_integrand[:, idx_dof["z"]] = equ_6_integrand
                 multiphysic_integrand[:, idx_dof["h"]] = equ_7_integrand
@@ -256,36 +292,34 @@ class DiffusionWeakFormBCRobin(WeakForm):
         points, weights = self.space.bc_quadrature
         x, jac, det_jac, inv_jac = md_space.bc_elements[iel].evaluate_mapping(points)
 
-        fields = ['md', 'ca', 'qd', 'qa']
-        traces = trace_product_space(fields, self.space, points, md_data)
+        fields = ["md", "ca", "qd", "qa"]
+        traces = trace_product_space(fields, self.space, points, md_data, False)
 
-        n_md_dof = traces['md'].shape[2] * n_components
-        n_cd_dof = traces['ca'].shape[2] * n_components
-        n_qd_dof = traces['qd'].shape[2] * n_components
-        n_qa_dof = traces['qa'].shape[2] * n_components
+        n_md_dof = traces["md"].shape[2] * n_components
+        n_cd_dof = traces["ca"].shape[2] * n_components
+        n_qd_dof = traces["qd"].shape[2] * n_components
+        n_qa_dof = traces["qa"].shape[2] * n_components
 
         idx_dof = {
             "md": slice(0, n_md_dof),
             "ca": slice(n_md_dof, n_md_dof + n_cd_dof),
             "qd": slice(n_md_dof + n_cd_dof, n_md_dof + n_cd_dof + n_qd_dof),
-            "qa": slice(n_md_dof + n_cd_dof + n_qd_dof, n_md_dof + n_cd_dof + n_qd_dof + n_qa_dof),
+            "qa": slice(
+                n_md_dof + n_cd_dof + n_qd_dof,
+                n_md_dof + n_cd_dof + n_qd_dof + n_qa_dof,
+            ),
         }
 
         n_dof = n_md_dof + n_cd_dof + n_qd_dof + n_qa_dof
-        # js = (n_dof, n_dof)
-        # rs = n_dof
-        # j_el = np.zeros(js)
-        # r_el = np.zeros(rs)
 
         # compute normal
-        neigh_list = find_higher_dimension_neighs(cell,md_space.dof_map.mesh_topology)
+        neigh_list = find_higher_dimension_neighs(cell, md_space.dof_map.mesh_topology)
         neigh_check = len(neigh_list) > 0
         assert neigh_check
         # select neighbor
         neigh_cell = md_data.mesh.cells[neigh_list[0]]
         dim = neigh_cell.dimension
         n = normal(md_data.mesh, neigh_cell, cell)
-
 
         with ad.AutoDiff(alpha) as alpha:
             el_form = np.zeros(n_dof)
@@ -295,10 +329,10 @@ class DiffusionWeakFormBCRobin(WeakForm):
             alpha_qd = alpha[:, idx_dof["qd"]]
             alpha_qa = alpha[:, idx_dof["qa"]]
 
-            tr_dmq_h = traces['md']
+            tr_dmq_h = traces["md"]
             # tr_dca_h = traces['ca']
-            tr_dqd_h = traces['qd']
-            tr_dqa_h = traces['qa']
+            tr_dqd_h = traces["qd"]
+            tr_dqa_h = traces["qa"]
 
             for i, omega in enumerate(weights):
                 beta_md_v = f_beta_md(x[i, 0], x[i, 1], x[i, 2])
@@ -348,135 +382,212 @@ class AdvectionWeakForm(WeakForm):
         if self.space is None or self.functions is None:
             raise ValueError
 
-        q_space = self.space.discrete_spaces["q"]
-        m_space = self.space.discrete_spaces["m"]
-        u_space = self.space.discrete_spaces["u"]
+        md_space = self.space.discrete_spaces["md"]
+        ca_space = self.space.discrete_spaces["ca"]
+        qd_space = self.space.discrete_spaces["qd"]
+        qa_space = self.space.discrete_spaces["qa"]
+        z_space = self.space.discrete_spaces["z"]
+        h_space = self.space.discrete_spaces["h"]
 
-        f_velocity = self.functions["velocity"]
+        n_components = ca_space.n_comp
 
-        q_components = q_space.n_comp
-        m_components = m_space.n_comp
-        u_components = u_space.n_comp
+        md_data_p: ElementData = md_space.elements[iel_p].data
+        ca_data_p: ElementData = ca_space.elements[iel_p].data
+        qd_data_p: ElementData = qd_space.elements[iel_p].data
+        qa_data_p: ElementData = qa_space.elements[iel_p].data
+        z_data_p: ElementData = z_space.elements[iel_p].data
+        h_data_p: ElementData = h_space.elements[iel_p].data
 
-        q_data_p: ElementData = q_space.elements[iel_p].data
-        m_data_p: ElementData = m_space.elements[iel_p].data
-        u_data_p: ElementData = u_space.elements[iel_p].data
+        md_data_n: ElementData = md_space.elements[iel_n].data
+        ca_data_n: ElementData = ca_space.elements[iel_n].data
+        qd_data_n: ElementData = qd_space.elements[iel_n].data
+        qa_data_n: ElementData = qa_space.elements[iel_n].data
+        z_data_n: ElementData = z_space.elements[iel_n].data
+        h_data_n: ElementData = h_space.elements[iel_n].data
 
-        q_data_n: ElementData = q_space.elements[iel_n].data
-        m_data_n: ElementData = m_space.elements[iel_n].data
-        u_data_n: ElementData = u_space.elements[iel_n].data
-
-        dim = q_data_p.cell.dimension
+        dim = ca_data_p.cell.dimension
 
         # trace of qh on both sides
-        gmesh = q_space.mesh_topology.mesh
-        cell_c1 = gmesh.cells[cell_id]
-        element_c1_data = ElementData(cell_c1, m_space.mesh_topology.mesh)
+        gmesh = ca_data_p.mesh
+        c1_cell = gmesh.cells[cell_id]
+        element_c1_data = ElementData(c1_cell, gmesh)
         points, weights = self.space.bc_quadrature
+        c1_element = FiniteElement(
+            cell_id, family_by_name("Lagrange"), 0, gmesh, True, 0
+        )
+        x, _, det_jac, _ = c1_element.evaluate_mapping(points)
+
+        # compute normal
+        neigh_list = find_higher_dimension_neighs(
+            c1_cell, md_space.dof_map.mesh_topology
+        )
+        neigh_check = len(neigh_list) > 0
+        assert neigh_check
+        # select neighbor
+        neigh_cell = md_data_p.mesh.cells[neigh_list[0]]
+        n_p = normal(md_data_p.mesh, neigh_cell, c1_cell)
+        neigh_cell = md_data_p.mesh.cells[neigh_list[1]]
+        n_n = normal(md_data_p.mesh, neigh_cell, c1_cell)
 
         # compute trace u space
-        trace_m_space = []
-        trace_u_space = []
-        trace_x = []
-        normals = []
-        dofs = []
-        det_jacs = []
-        for iel, c0_data in zip([iel_p, iel_n], [q_data_p, q_data_n]):
-            mapped_points = transform_lower_to_higher(points, element_c1_data, c0_data)
-            x_c0, jac_c0, det_jac_c0, inv_jac_c0 = m_space.elements[
-                iel
-            ].evaluate_mapping(mapped_points)
-            dm_tr_phi_tab = m_space.elements[iel].evaluate_basis(
-                mapped_points, jac_c0, det_jac_c0, inv_jac_c0
-            )
-            dm_facet_index = (
-                c0_data.cell.sub_cells_ids[cell_c1.dimension].tolist().index(cell_c1.id)
-            )
-            dm_dof_n_index = c0_data.dof.entity_dofs[cell_c1.dimension][dm_facet_index]
-            dm_h = dm_tr_phi_tab[0, :, dm_dof_n_index, 0:dim]
+        fields = ["md", "ca", "qd", "qa"]
+        traces_v = trace_product_space(
+            fields, self.space, points, c1_element.data, True
+        )
+        fields = ["h", "z"]
+        traces_s_p = trace_product_space(
+            fields, self.space, points, c1_element.data, True, 0
+        )
+        traces_s_n = trace_product_space(
+            fields, self.space, points, c1_element.data, True, 1
+        )
 
-            du_tr_phi_tab = u_space.elements[iel].evaluate_basis(
-                mapped_points, jac_c0, det_jac_c0, inv_jac_c0
-            )
-            n = normal(gmesh, c0_data.cell, cell_c1)
-            du_h = du_tr_phi_tab[0, :, :, 0:dim]
+        n_hdiv_dof = md_data_p.dof.n_dof
+        n_dg_dof = z_data_p.dof.n_dof
 
-            trace_m_space.append(dm_h)
-            trace_u_space.append(du_h)
-            trace_x.append(x_c0)
-            normals.append(n)
-            dofs.append(dm_dof_n_index)
-            det_jac_c0[0] = 1.0
-            det_jacs.append(det_jac_c0)
-
-        assert q_data_p.dof.n_dof == q_data_n.dof.n_dof
-        assert m_data_p.dof.n_dof == m_data_n.dof.n_dof
-        assert u_data_p.dof.n_dof == u_data_n.dof.n_dof
-
-        n_dq_h = q_data_p.dof.n_dof
-        n_dm_h = m_data_p.dof.n_dof
-        n_du_h = u_data_p.dof.n_dof
-        n_q_dof = n_dq_h * q_components
-        n_m_dof = n_dm_h * m_components
-        n_u_dof = n_du_h * u_components
+        n_dmd_dof, n_dca_dof, n_dqd_dof, n_dqa_dof = 4 * [n_hdiv_dof]
+        n_dp_dof, n_dz_dof, n_dh_dof = 3 * [n_dg_dof]
+        n_dof_p = 4 * n_hdiv_dof + 9 * n_dg_dof
 
         idx_dof = {
-            "q_p": slice(0, n_q_dof),
-            "m_p": slice(n_q_dof, n_q_dof + n_m_dof),
-            "u_p": slice(n_q_dof + n_m_dof, n_q_dof + n_m_dof + n_u_dof),
-            "q_n": slice(n_q_dof + n_m_dof + n_u_dof, 2 * n_q_dof + n_m_dof + n_u_dof),
-            "m_n": slice(
-                2 * n_q_dof + n_m_dof + n_u_dof, 2 * n_q_dof + 2 * n_m_dof + n_u_dof
+            "md_p": slice(0, n_dmd_dof),
+            "ca_p": slice(n_dmd_dof, n_dmd_dof + n_dca_dof),
+            "qd_p": slice(n_dmd_dof + n_dca_dof, n_dmd_dof + n_dca_dof + n_dqd_dof),
+            "qa_p": slice(
+                n_dmd_dof + n_dca_dof + n_dqd_dof,
+                n_dmd_dof + n_dca_dof + n_dqd_dof + n_dqa_dof,
             ),
-            "u_n": slice(
-                2 * n_q_dof + 2 * n_m_dof + n_u_dof,
-                2 * n_q_dof + 2 * n_m_dof + 2 * n_u_dof,
+            "p_p": slice(
+                n_dmd_dof + n_dca_dof + n_dqd_dof + n_dqa_dof,
+                n_dmd_dof + n_dca_dof + n_dqd_dof + n_dqa_dof + n_dp_dof,
+            ),
+            "z_p": slice(
+                n_dmd_dof + n_dca_dof + n_dqd_dof + n_dqa_dof + n_dp_dof,
+                n_dmd_dof + n_dca_dof + n_dqd_dof + n_dqa_dof + n_dp_dof + n_dz_dof,
+            ),
+            "h_p": slice(
+                n_dmd_dof + n_dca_dof + n_dqd_dof + n_dqa_dof + n_dp_dof + n_dz_dof,
+                n_dmd_dof
+                + n_dca_dof
+                + n_dqd_dof
+                + n_dqa_dof
+                + n_dp_dof
+                + n_dz_dof
+                + n_dh_dof,
+            ),
+            "md_n": slice(n_dof_p, n_dof_p + n_dmd_dof),
+            "ca_n": slice(n_dof_p + n_dmd_dof, n_dof_p + n_dmd_dof + n_dca_dof),
+            "qd_n": slice(
+                n_dof_p + n_dmd_dof + n_dca_dof,
+                n_dof_p + n_dmd_dof + n_dca_dof + n_dqd_dof,
+            ),
+            "qa_n": slice(
+                n_dof_p + n_dmd_dof + n_dca_dof + n_dqd_dof,
+                n_dof_p + n_dmd_dof + n_dca_dof + n_dqd_dof + n_dqa_dof,
+            ),
+            "p_n": slice(
+                n_dof_p + n_dmd_dof + n_dca_dof + n_dqd_dof + n_dqa_dof,
+                n_dof_p + n_dmd_dof + n_dca_dof + n_dqd_dof + n_dqa_dof + n_dp_dof,
+            ),
+            "z_n": slice(
+                n_dof_p + n_dmd_dof + n_dca_dof + n_dqd_dof + n_dqa_dof + n_dp_dof,
+                n_dof_p
+                + n_dmd_dof
+                + n_dca_dof
+                + n_dqd_dof
+                + n_dqa_dof
+                + n_dp_dof
+                + n_dz_dof,
+            ),
+            "h_n": slice(
+                n_dof_p
+                + n_dmd_dof
+                + n_dca_dof
+                + n_dqd_dof
+                + n_dqa_dof
+                + n_dp_dof
+                + n_dz_dof,
+                n_dof_p
+                + n_dmd_dof
+                + n_dca_dof
+                + n_dqd_dof
+                + n_dqa_dof
+                + n_dp_dof
+                + n_dz_dof
+                + n_dh_dof,
             ),
         }
 
-        n_dof = 2 * n_q_dof + 2 * n_m_dof + 2 * n_u_dof
-        js = (n_dof, n_dof)
-        rs = n_dof
-        j_el = np.zeros(js)
-        r_el = np.zeros(rs)
+        n_dof = 2 * n_dof_p
         alpha = np.concatenate((alpha_p, alpha_n))
         with ad.AutoDiff(alpha) as alpha:
             el_form = np.zeros(n_dof)
 
             for i, omega in enumerate(weights):
-                alpha_m_p = alpha[:, idx_dof["m_p"]][:, dofs[0]]
-                alpha_m_n = alpha[:, idx_dof["m_n"]][:, dofs[1]]
-                alpha_u_p = alpha[:, idx_dof["u_p"]]
-                alpha_u_n = alpha[:, idx_dof["u_n"]]
+                alpha_md_p = alpha[:, idx_dof["md_p"]]
+                alpha_ca_p = alpha[:, idx_dof["ca_p"]]
+                alpha_qd_p = alpha[:, idx_dof["qd_p"]]
+                alpha_qa_p = alpha[:, idx_dof["qa_p"]]
+                alpha_md_n = alpha[:, idx_dof["md_n"]]
+                alpha_ca_n = alpha[:, idx_dof["ca_n"]]
+                alpha_qd_n = alpha[:, idx_dof["qd_n"]]
+                alpha_qa_n = alpha[:, idx_dof["qa_n"]]
+                alpha_z_p = alpha[:, idx_dof["z_p"]]
+                alpha_z_n = alpha[:, idx_dof["z_n"]]
+                alpha_h_p = alpha[:, idx_dof["h_p"]]
+                alpha_h_n = alpha[:, idx_dof["h_n"]]
 
-                assert np.all(np.isclose(alpha_m_p.val, alpha_m_n.val))
+                dmd_p_h = traces_v["md"][0:1, i, :, :] @ n_p
+                dca_p_h = traces_v["ca"][0:1, i, :, :] @ n_p
+                dqd_p_h = traces_v["qd"][0:1, i, :, :] @ n_p
+                dqa_p_h = traces_v["qa"][0:1, i, :, :] @ n_p
 
-                x_p, x_n = trace_x
-                assert np.all(np.isclose(x_p, x_n))
-                xv = x_p = x_n
+                dmd_n_h = traces_v["md"][0:1, i, :, :] @ n_n
+                dca_n_h = traces_v["ca"][0:1, i, :, :] @ n_n
+                dqd_n_h = traces_v["qd"][0:1, i, :, :] @ n_n
+                dqa_n_h = traces_v["qa"][0:1, i, :, :] @ n_n
 
-                dm_h_p, dm_h_n = trace_m_space[0][i], trace_m_space[1][i]
-                m_h_p, m_h_n = alpha_m_p @ dm_h_p, alpha_m_n @ dm_h_n
+                md_p_h = alpha_md_p @ dmd_p_h.T
+                ca_p_h = alpha_ca_p @ dca_p_h.T
+                qd_p_h = alpha_qd_p @ dqd_p_h.T
+                qa_p_h = alpha_qa_p @ dqa_p_h.T
 
-                n_p, n_n = normals
-                du_h_p, du_h_n = trace_u_space[0][i], trace_u_space[1][i]
-                u_h_p, u_h_n = alpha_u_p @ du_h_p, alpha_u_n @ du_h_n
+                md_n_h = alpha_md_n @ dmd_n_h.T
+                ca_n_h = alpha_ca_n @ dca_n_h.T
+                qd_n_h = alpha_qd_n @ dqd_n_h.T
+                qa_n_h = alpha_qa_n @ dqa_n_h.T
 
-                v_n = f_velocity(xv[:, 0], xv[:, 1], xv[:, 2]) @ n_p
+                dz_h_p, dz_h_n = (
+                    traces_s_p["z"][0, i, :, :],
+                    traces_s_n["z"][0, i, :, :],
+                )
+                dh_h_p, dh_h_n = (
+                    traces_s_p["h"][0, i, :, :],
+                    traces_s_n["h"][0, i, :, :],
+                )
+                z_h_p, z_h_n = alpha_z_p @ dz_h_p, alpha_z_n @ dz_h_n
+                h_h_p, h_h_n = alpha_h_p @ dh_h_p, alpha_h_n @ dh_h_n
+
+                md_n = md_p_h.val[0, 0]
                 beta_upwind = 0.0
-                if v_n > 0.0 or np.isclose(v_n, 0.0):
+                if md_n > 0.0 or np.isclose(md_n, 0.0):
                     beta_upwind = 1.0
 
-                u_h_upwind = (1.0 - beta_upwind) * u_h_n + beta_upwind * u_h_p
+                z_h_upwind = (1.0 - beta_upwind) * z_h_n + beta_upwind * z_h_p
+                h_h_upwind = (1.0 - beta_upwind) * h_h_n + beta_upwind * h_h_p
 
-                equ_1_integrand = 0.5 * (m_h_p - u_h_upwind * v_n) @ dm_h_p.T
-                equ_2_integrand = 0.5 * (m_h_n - u_h_upwind * v_n) @ dm_h_n.T
+                equ_1_integrand = +0.5 * (ca_p_h - z_h_upwind * md_p_h) @ dca_p_h
+                equ_2_integrand = +0.5 * (ca_n_h - z_h_upwind * md_n_h) @ dca_n_h
+                equ_3_integrand = +0.5 * (qa_p_h - h_h_upwind * md_p_h) @ dqa_p_h
+                equ_4_integrand = +0.5 * (qa_n_h - h_h_upwind * md_n_h) @ dqa_n_h
 
                 multiphysic_integrand = np.zeros((1, n_dof))
-                multiphysic_integrand[:, idx_dof["m_p"]][:, dofs[0]] = equ_1_integrand
-                multiphysic_integrand[:, idx_dof["m_n"]][:, dofs[1]] = equ_2_integrand
+                multiphysic_integrand[:, idx_dof["ca_p"]] = equ_1_integrand
+                multiphysic_integrand[:, idx_dof["ca_n"]] = equ_2_integrand
+                multiphysic_integrand[:, idx_dof["qa_p"]] = equ_3_integrand
+                multiphysic_integrand[:, idx_dof["qa_n"]] = equ_4_integrand
                 discrete_integrand = (multiphysic_integrand).reshape((n_dof,))
-                el_form += det_jacs[0][i] * omega * discrete_integrand
+                el_form += det_jac[i] * omega * discrete_integrand
 
         r_el, j_el = el_form.val, el_form.der.reshape((n_dof, n_dof))
 
@@ -489,115 +600,139 @@ class AdvectionWeakFormBC(WeakForm):
         if self.space is None or self.functions is None:
             raise ValueError
 
-        q_space = self.space.discrete_spaces["q"]
-        m_space = self.space.discrete_spaces["m"]
-        u_space = self.space.discrete_spaces["u"]
+        f_z = self.functions["z_inlet"]
+        f_h = self.functions["h_inlet"]
 
-        f_u = self.functions["u"]
-        f_velocity = self.functions["velocity"]
+        md_space = self.space.discrete_spaces["md"]
+        ca_space = self.space.discrete_spaces["ca"]
+        qd_space = self.space.discrete_spaces["qd"]
+        qa_space = self.space.discrete_spaces["qa"]
+        z_space = self.space.discrete_spaces["z"]
+        h_space = self.space.discrete_spaces["h"]
 
-        q_components = q_space.n_comp
-        m_components = m_space.n_comp
-        u_components = u_space.n_comp
+        n_components = ca_space.n_comp
 
-        q_data: ElementData = q_space.elements[iel].data
-        m_data: ElementData = m_space.elements[iel].data
-        u_data: ElementData = u_space.elements[iel].data
+        md_data: ElementData = md_space.elements[iel].data
+        ca_data: ElementData = ca_space.elements[iel].data
+        qd_data: ElementData = qd_space.elements[iel].data
+        qa_data: ElementData = qa_space.elements[iel].data
+        z_data: ElementData = z_space.elements[iel].data
+        h_data: ElementData = h_space.elements[iel].data
 
-        dim = q_data.cell.dimension
+        dim = ca_data.cell.dimension
 
         # trace of qh on both sides
-        gmesh = q_space.mesh_topology.mesh
-        cell_c1 = gmesh.cells[cell_id]
-        element_c1_data = ElementData(cell_c1, m_space.mesh_topology.mesh)
+        gmesh = ca_data.mesh
+        c1_cell = gmesh.cells[cell_id]
+        element_c1_data = ElementData(c1_cell, gmesh)
         points, weights = self.space.bc_quadrature
+        c1_element = FiniteElement(
+            cell_id, family_by_name("Lagrange"), 0, gmesh, True, 0
+        )
+        x, _, det_jac, _ = c1_element.evaluate_mapping(points)
+
+        # compute normal
+        neigh_list = find_higher_dimension_neighs(
+            c1_cell, md_space.dof_map.mesh_topology
+        )
+        neigh_check = len(neigh_list) > 0
+        assert neigh_check
+        # select neighbor
+        neigh_cell = md_data.mesh.cells[neigh_list[0]]
+        dim = neigh_cell.dimension
+        n = normal(md_data.mesh, neigh_cell, c1_cell)
 
         # compute trace u space
-        trace_m_space = []
-        trace_u_space = []
-        trace_x = []
-        normals = []
-        det_jacs = []
-        dofs = []
-        for iel, c0_data in zip([iel], [q_data]):
-            mapped_points = transform_lower_to_higher(points, element_c1_data, c0_data)
-            x_c0, jac_c0, det_jac_c0, inv_jac_c0 = m_space.elements[
-                iel
-            ].evaluate_mapping(mapped_points)
-            dm_tr_phi_tab = m_space.elements[iel].evaluate_basis(
-                mapped_points, jac_c0, det_jac_c0, inv_jac_c0
-            )
-            dm_facet_index = (
-                c0_data.cell.sub_cells_ids[cell_c1.dimension].tolist().index(cell_c1.id)
-            )
-            dm_dof_n_index = c0_data.dof.entity_dofs[cell_c1.dimension][dm_facet_index]
-            dm_h = dm_tr_phi_tab[0, :, dm_dof_n_index, 0:dim]
-            trace_m_space.append(dm_h)
+        fields = ["md", "ca", "qd", "qa"]
+        traces_v = trace_product_space(
+            fields, self.space, points, c1_element.data, True
+        )
+        fields = ["h", "z"]
+        traces_s = trace_product_space(
+            fields, self.space, points, c1_element.data, True, 0
+        )
 
-            du_tr_phi_tab = u_space.elements[iel].evaluate_basis(
-                mapped_points, jac_c0, det_jac_c0, inv_jac_c0
-            )
-            n = normal(gmesh, c0_data.cell, cell_c1)
-            du_h = du_tr_phi_tab[0, :, :, 0:dim]
-            trace_u_space.append(du_h)
-            trace_x.append(x_c0)
-            normals.append(n)
-            dofs.append(dm_dof_n_index)
-            det_jac_c0[0] = 1.0
-            det_jacs.append(det_jac_c0)
+        n_hdiv_dof = md_data.dof.n_dof
+        n_dg_dof = z_data.dof.n_dof
 
-        n_dq_h = q_data.dof.n_dof
-        n_dm_h = m_data.dof.n_dof
-        n_du_h = u_data.dof.n_dof
-        n_q_dof = n_dq_h * q_components
-        n_m_dof = n_dm_h * m_components
-        n_u_dof = n_du_h * u_components
+        n_dmd_dof, n_dca_dof, n_dqd_dof, n_dqa_dof = 4 * [n_hdiv_dof]
+        n_dp_dof, n_dz_dof, n_dh_dof = 3 * [n_dg_dof]
 
         idx_dof = {
-            "q": slice(0, n_q_dof),
-            "m": slice(n_q_dof, n_q_dof + n_m_dof),
-            "u": slice(n_q_dof + n_m_dof, n_q_dof + n_m_dof + n_u_dof),
+            "md": slice(0, n_dmd_dof),
+            "ca": slice(n_dmd_dof, n_dmd_dof + n_dca_dof),
+            "qd": slice(n_dmd_dof + n_dca_dof, n_dmd_dof + n_dca_dof + n_dqd_dof),
+            "qa": slice(
+                n_dmd_dof + n_dca_dof + n_dqd_dof,
+                n_dmd_dof + n_dca_dof + n_dqd_dof + n_dqa_dof,
+            ),
+            "p": slice(
+                n_dmd_dof + n_dca_dof + n_dqd_dof + n_dqa_dof,
+                n_dmd_dof + n_dca_dof + n_dqd_dof + n_dqa_dof + n_dp_dof,
+            ),
+            "z": slice(
+                n_dmd_dof + n_dca_dof + n_dqd_dof + n_dqa_dof + n_dp_dof,
+                n_dmd_dof + n_dca_dof + n_dqd_dof + n_dqa_dof + n_dp_dof + n_dz_dof,
+            ),
+            "h": slice(
+                n_dmd_dof + n_dca_dof + n_dqd_dof + n_dqa_dof + n_dp_dof + n_dz_dof,
+                n_dmd_dof
+                + n_dca_dof
+                + n_dqd_dof
+                + n_dqa_dof
+                + n_dp_dof
+                + n_dz_dof
+                + n_dh_dof,
+            ),
         }
 
-        n_dof = n_q_dof + n_m_dof + n_u_dof
-        js = (n_dof, n_dof)
-        rs = n_dof
-        j_el = np.zeros(js)
-        r_el = np.zeros(rs)
+        n_dof = 4 * n_hdiv_dof + 9 * n_dg_dof
+
         with ad.AutoDiff(alpha) as alpha:
             el_form = np.zeros(n_dof)
 
             for i, omega in enumerate(weights):
-                alpha_m = alpha[:, idx_dof["m"]][:, dofs[0]]
-                alpha_u = alpha[:, idx_dof["u"]]
-                xv = trace_x[i]
-                n = normals[i]
+                alpha_md = alpha[:, idx_dof["md"]]
+                alpha_ca = alpha[:, idx_dof["ca"]]
+                alpha_qd = alpha[:, idx_dof["qd"]]
+                alpha_qa = alpha[:, idx_dof["qa"]]
+                alpha_z = alpha[:, idx_dof["z"]]
+                alpha_h = alpha[:, idx_dof["h"]]
 
-                # This sign may be needed in 1d computations because BC orientation
-                # However in pure Hdiv functions in 2d and 3d it is not needed
-                bc_sign = np.sign(n[0:dim])[0]
+                dmd_h = traces_v["md"][0:1, i, :, :] @ n
+                dca_h = traces_v["ca"][0:1, i, :, :] @ n
+                dqd_h = traces_v["qd"][0:1, i, :, :] @ n
+                dqa_h = traces_v["qa"][0:1, i, :, :] @ n
 
-                dm_h = trace_m_space[0][i]
-                m_h = alpha_m @ dm_h
+                md_h = alpha_md @ dmd_h.T
+                ca_h = alpha_ca @ dca_h.T
+                qd_h = alpha_qd @ dqd_h.T
+                qa_h = alpha_qa @ dqa_h.T
 
-                du_h = trace_u_space[0][i]
-                u_h = alpha_u @ du_h
+                dz_h = traces_s["z"][0, i, :, :]
+                dh_h = traces_s["h"][0, i, :, :]
+                z_h = alpha_z @ dz_h
+                h_h = alpha_h @ dh_h
 
-                v_n = f_velocity(xv[:, 0], xv[:, 1], xv[:, 2]) @ n
-                u_v = f_u(xv[:, 0], xv[:, 1], xv[:, 2])[0]
-
+                md_n = md_h.val[0, 0]
                 beta_upwind = 0.0
-                if v_n > 0.0 or np.isclose(v_n, 0.0):
+                if md_n > 0.0 or np.isclose(md_n, 0.0):
                     beta_upwind = 1.0
 
-                u_h_upwind = (1.0 - beta_upwind) * u_v + beta_upwind * u_h
+                z_v = f_z(x[i, 0], x[i, 1], x[i, 2])
+                h_v = f_h(x[i, 0], x[i, 1], x[i, 2])
 
-                equ_1_integrand = (m_h - bc_sign * (u_h_upwind * v_n)) @ dm_h.T
+                z_h_upwind = (1.0 - beta_upwind) * z_v + beta_upwind * z_h
+                h_h_upwind = (1.0 - beta_upwind) * h_v + beta_upwind * h_h
+
+                equ_1_integrand = (ca_h - z_h_upwind * md_h) @ dca_h
+                equ_2_integrand = (qa_h - h_h_upwind * md_h) @ dqa_h
 
                 multiphysic_integrand = np.zeros((1, n_dof))
-                multiphysic_integrand[:, idx_dof["m"]][:, dofs[0]] = equ_1_integrand
+                multiphysic_integrand[:, idx_dof["ca"]] = equ_1_integrand
+                multiphysic_integrand[:, idx_dof["qa"]] = equ_2_integrand
                 discrete_integrand = (multiphysic_integrand).reshape((n_dof,))
-                el_form += det_jacs[0][i] * omega * discrete_integrand
+                el_form += det_jac[i] * omega * discrete_integrand
 
         r_el, j_el = el_form.val, el_form.der.reshape((n_dof, n_dof))
 

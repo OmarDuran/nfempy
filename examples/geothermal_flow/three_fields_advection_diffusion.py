@@ -113,7 +113,7 @@ def three_fields_formulation(method, gmesh, write_vtk_q=False):
     # constant permeability
     m_kappa = np.pi
     # constant velocity
-    m_velocity = 100.0 # 1.0e-10
+    m_velocity = 100.0  # 1.0e-10
     m_velocity_v = m_velocity * np.ones(3)  # 2.0
 
     # beta
@@ -232,42 +232,42 @@ def three_fields_formulation(method, gmesh, write_vtk_q=False):
                 [
                     [
                         (
-                                m_c_r
-                                * (m_beta_r - m_gamma_r)
-                                * (
-                                        m_kappa * m_velocity
-                                        - (-1 + np.exp((x * m_velocity) / m_kappa))
-                                        * m_kappa
-                                        * (m_beta_l - m_velocity)
-                                )
-                                + m_c_l
-                                * (m_beta_l - m_gamma_l)
-                                * (
-                                        np.exp((x * m_velocity) / m_kappa)
-                                        * m_kappa
-                                        * (m_beta_r - m_velocity)
-                                        - np.exp(m_velocity / m_kappa)
-                                        * (
-                                                m_beta_r * m_kappa
-                                                + m_kappa * m_velocity
-                                                - m_kappa * m_velocity
-                                        )
-                                )
-                        )
-                        / (
-                                (
-                                        m_beta_l * m_kappa
-                                        + m_kappa * m_velocity
-                                        - m_kappa * m_velocity
-                                )
+                            m_c_r
+                            * (m_beta_r - m_gamma_r)
+                            * (
+                                m_kappa * m_velocity
+                                - (-1 + np.exp((x * m_velocity) / m_kappa))
+                                * m_kappa
+                                * (m_beta_l - m_velocity)
+                            )
+                            + m_c_l
+                            * (m_beta_l - m_gamma_l)
+                            * (
+                                np.exp((x * m_velocity) / m_kappa)
+                                * m_kappa
                                 * (m_beta_r - m_velocity)
                                 - np.exp(m_velocity / m_kappa)
-                                * (m_beta_l - m_velocity)
                                 * (
-                                        m_beta_r * m_kappa
-                                        + m_kappa * m_velocity
-                                        - m_kappa * m_velocity
+                                    m_beta_r * m_kappa
+                                    + m_kappa * m_velocity
+                                    - m_kappa * m_velocity
                                 )
+                            )
+                        )
+                        / (
+                            (
+                                m_beta_l * m_kappa
+                                + m_kappa * m_velocity
+                                - m_kappa * m_velocity
+                            )
+                            * (m_beta_r - m_velocity)
+                            - np.exp(m_velocity / m_kappa)
+                            * (m_beta_l - m_velocity)
+                            * (
+                                m_beta_r * m_kappa
+                                + m_kappa * m_velocity
+                                - m_kappa * m_velocity
+                            )
                         )
                     ]
                 ]
@@ -302,7 +302,6 @@ def three_fields_formulation(method, gmesh, write_vtk_q=False):
         "velocity": f_velocity,
     }
 
-
     weak_form = ThreeFieldsDiffusionWeakForm(fe_space)
     weak_form.functions = m_functions
     bc_weak_form = ThreeFieldsDiffusionWeakFormBCRobin(fe_space)
@@ -336,9 +335,6 @@ def three_fields_formulation(method, gmesh, write_vtk_q=False):
     ]
     sequence_c1_epairs = [(pair[0], gidx_midx[pair[1]]) for pair in c1_epairs]
 
-
-
-
     # Initial Guess
     alpha_n = np.zeros(n_dof_g)
 
@@ -356,20 +352,37 @@ def three_fields_formulation(method, gmesh, write_vtk_q=False):
         # alpha_n_p_1 = l2_projector(fe_space, exact_functions)
 
         for iter in range(n_iterations):
-
             # break
 
             # Assembler
             assembler = SequentialAssembler(fe_space, jac_g, res_g)
             form_to_input_list = {
-                'difussion_form': ['time_dependent_form', sequence_domain, weak_form,
-                                   (alpha_n_p_1, alpha_n), t],
-                'difussion_bc_form': ['time_dependent_bc_form', sequence_bc_domain,
-                                      bc_weak_form, (alpha_n_p_1, alpha_n), t],
-                'advection_form': ['interface_form', sequence_c1_itriplets,
-                                   advection_weak_form, alpha_n_p_1],
-                'advection_bc_form': ['bc_interface_form', sequence_c1_epairs,
-                                      bc_advection_weak_form, alpha_n_p_1]
+                "difussion_form": [
+                    "time_dependent_form",
+                    sequence_domain,
+                    weak_form,
+                    (alpha_n_p_1, alpha_n),
+                    t,
+                ],
+                "difussion_bc_form": [
+                    "time_dependent_bc_form",
+                    sequence_bc_domain,
+                    bc_weak_form,
+                    (alpha_n_p_1, alpha_n),
+                    t,
+                ],
+                "advection_form": [
+                    "interface_form",
+                    sequence_c1_itriplets,
+                    advection_weak_form,
+                    alpha_n_p_1,
+                ],
+                "advection_bc_form": [
+                    "bc_interface_form",
+                    sequence_c1_epairs,
+                    bc_advection_weak_form,
+                    alpha_n_p_1,
+                ],
             }
             assembler.form_to_input_list = form_to_input_list
             assembler.scatter_forms(measure_time_q=False)
@@ -413,7 +426,9 @@ def three_fields_formulation(method, gmesh, write_vtk_q=False):
         alpha_n = alpha_n_p_1
 
     st = time.time()
-    q_l2_error, m_l2_error, u_l2_error = l2_error(dim, fe_space, exact_functions, alpha_n_p_1)
+    q_l2_error, m_l2_error, u_l2_error = l2_error(
+        dim, fe_space, exact_functions, alpha_n_p_1
+    )
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
