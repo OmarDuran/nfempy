@@ -103,8 +103,8 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
     eps_tol = 1.0e-1
 
     day = 86400.0
-    delta_t = 0.5 * day
-    t_end = 0.5 * day
+    delta_t = 1.0 * day
+    t_end = 1.0 * day
 
     n_dof_g = fe_space.n_dof
 
@@ -116,7 +116,7 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
     # Constant material properties
     m_K_thermal = 1.8
     m_mu = 1.0e-3
-    m_kappa = 1.0e-14 # approx 10 [mD]
+    m_kappa = 1.0e-15 # approx 1 [mD]
     m_porosity = 0.1
     m_rho_r = 2650.0
     m_cp_r = 1000.0
@@ -178,7 +178,7 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
             return m_other
 
     eps = 1.0e16
-    eps_inv = 1.0e-12
+    eps_inv = 1.0e-14
     f_p = partial(xi_eta_map, m_west=11.0e6, m_east=1.0e6, m_south=0.0, m_north=0.0)
     f_beta_md = partial(xi_eta_map, m_west=eps, m_east=eps, m_south=eps_inv, m_north=eps_inv)
     f_gamma_md = partial(xi_map, m_west=0.0, m_east=0.0, m_other= 0.0)
