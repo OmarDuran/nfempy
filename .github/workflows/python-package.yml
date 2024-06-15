@@ -31,11 +31,11 @@ jobs:
         use-only-tar-bz2: true 
         auto-update-conda: true
         auto-activate-base: true
+        activate-environment: test
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies  
       run: |
         echo ${{ github.workspace }}
-        conda activate test
         # sudo apt-get install libglu1-mesa libxrender1 libxcursor1 libxft2 libxinerama1 ffmpeg libsm6 libxext6
         sudo apt-get install libglu1
         conda install -c conda-forge petsc
