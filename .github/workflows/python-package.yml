@@ -64,4 +64,6 @@ jobs:
         
     - name: Test l2-projectors
       run: |
+        export OPENBLAS_NUM_THREADS=1 
+        export OPENBLAS_MAIN_FREE=1
         gdb -ex r -ex bt --args python -m pytest tests/test_projectors 
