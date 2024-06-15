@@ -3,20 +3,19 @@
 
 name: Pytest
 on:
+  workflow_dispatch:
   push:
-    branches: [ "main", "develop"]
+    branches: ["main", "develop"]
   pull_request:
-    branches: [ "main", "develop"]
+    branches: ["main", "develop"]
   # schedule:
   #   # Do a nightly run of the tests
   #   - cron: '0 1 * * *'
 
 jobs:
   build:
+    name: Check installation
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash -el {0}    
     strategy:
       fail-fast: false
       matrix:
