@@ -58,4 +58,4 @@ jobs:
         
     - name: Test l2-projectors
       run: |
-        python -m pytest tests/test_projectors 
+        python -m pytest -v --durations=10 --maxfail=1 tests/test_projectors 
