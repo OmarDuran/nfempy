@@ -36,10 +36,19 @@ import matplotlib.pyplot as plt
 
 
 def create_product_space(method, gmesh):
+    # if gmesh.dimension == 1:
+    #     field_bc_physical_tags = [2, 3]
+    # elif gmesh.dimension == 2:
+    #     field_bc_physical_tags = [2, 3, 4, 5]
+    # elif gmesh.dimension == 3:
+    #     field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
+    # else:
+    #     raise ValueError("Case not available.")
+
     if gmesh.dimension == 1:
         field_bc_physical_tags = [2, 3]
     elif gmesh.dimension == 2:
-        field_bc_physical_tags = [2, 3, 4, 5]
+        field_bc_physical_tags = [5, 6, 7, 8]
     elif gmesh.dimension == 3:
         field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
     else:
@@ -103,8 +112,8 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
     eps_tol = 1.0e-1
 
     day = 86400.0
-    delta_t = 1.0 * day
-    t_end = 1.0 * day
+    delta_t = 0.1 * day
+    t_end = 0.1 * day
 
     n_dof_g = fe_space.n_dof
 
@@ -116,7 +125,7 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
     # Constant material properties
     m_K_thermal = 1.8
     m_mu = 1.0e-3
-    m_kappa = 1.0e-15 # approx 1 [mD]
+    m_kappa = 5.0e-14 # approx 50 [mD]
     m_porosity = 0.1
     m_rho_r = 2650.0
     m_cp_r = 1000.0
@@ -178,13 +187,14 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
             return m_other
 
     eps = 1.0e16
-    eps_inv = 1.0e-14
+    eps_inv = 1.0e-13
     f_p = partial(xi_eta_map, m_west=11.0e6, m_east=1.0e6, m_south=0.0, m_north=0.0)
     f_beta_md = partial(xi_eta_map, m_west=eps, m_east=eps, m_south=eps_inv, m_north=eps_inv)
     f_gamma_md = partial(xi_map, m_west=0.0, m_east=0.0, m_other= 0.0)
-    f_t = partial(xi_eta_map, m_west=0.0, m_east=0.0, m_south=523.15, m_north=473.15)
-    f_beta_qd = partial(xi_eta_map, m_west=eps_inv, m_east=eps_inv, m_south=eps, m_north=eps)
-    f_gamma_qd = partial(eta_map, m_south=0.0, m_north=0.0, m_other= 0.0)
+
+    f_t = partial(xi_eta_map, m_west=523.15, m_east=473.15, m_south=0.0, m_north=0.0)
+    f_beta_qd = partial(xi_eta_map, m_west=eps, m_east=eps, m_south=eps_inv, m_north=eps_inv)
+    f_gamma_qd = partial(xi_map, m_west=0.0, m_east=0.0, m_other= 0.0)
     f_z = partial(xi_map, m_west=1.0, m_east=0.0, m_other= 0.0)
     f_h = partial(xi_map, m_west=2000.0, m_east=0.0, m_other= 0.0)
 
@@ -442,16 +452,29 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
         gmesh.write_vtk()
     return gmesh
 
+def create_mesh_from_file(file_name, dim, write_vtk_q=False):
+    gmesh = Mesh(dimension=dim, file_name=file_name)
+    gmesh.build_conformal_mesh()
+    if write_vtk_q:
+        gmesh.write_vtk()
+    return gmesh
 
 def main():
     h = 0.25
     dimension = 2
+    load_external_mesh_q = True
 
     domain = create_domain(dimension)
     error_data = np.empty((0, 2), float)
     method = method_definition()
-    mesher = create_conformal_mesher(domain, h, 0)
-    gmesh = create_mesh(dimension, mesher, True)
+
+    if load_external_mesh_q:
+        mesh_file = "pp_gmsh_frac_file.msh"
+        gmesh = create_mesh_from_file(mesh_file, dimension, True)
+    else:
+        mesher = create_conformal_mesher(domain, h, 0)
+        gmesh = create_mesh(dimension, mesher, True)
+
     hydrothermal_mixed_formulation(method, gmesh, True)
     return
 

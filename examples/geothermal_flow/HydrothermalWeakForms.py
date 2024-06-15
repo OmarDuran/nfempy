@@ -246,7 +246,7 @@ class DiffusionWeakForm(WeakForm):
                 rho_r = f_rho_r(xv[0], xv[1], xv[2])
                 cp_r = f_cp_r(xv[0], xv[1], xv[2])
 
-
+                # mobilities and fractional flows
                 lambda_H2O_l = (x_H2O_l_h_n * rho_l * (1.0 - sv_h_n) / mu_l)
                 lambda_H2O_v = (x_H2O_v_h_n * rho_v * sv_h_n / mu_v)
                 lambda_NaCl_l = (x_NaCl_l_h_n * rho_l * (1.0 - sv_h_n) / mu_l)
