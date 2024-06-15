@@ -48,6 +48,6 @@ jobs:
         python -m pip install .
         python -m pip freeze   
 
-    # - name: Test with pytest
-    #   run: |
-    #     python -m pytest
+    - name: Test nfempy
+      run: |
+        python -m pytest tests/test_geometry
