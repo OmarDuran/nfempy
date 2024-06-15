@@ -36,8 +36,8 @@ class FiniteElement:
             self.family = "Lagrange"
             family = family_by_name(self.family)
             self.basis_generator = basix.create_element(
-                family_name=family,
-                cell_name=cell_type,
+                family=family,
+                celltype=cell_type,
                 degree=self.k_order,
                 lagrange_variant=variant,
                 discontinuous=self.discontinuous,
@@ -56,8 +56,8 @@ class FiniteElement:
                 )
             else:
                 self.basis_generator = basix.create_element(
-                    family_name=family,
-                    cell_name=cell_type,
+                    family=family,
+                    celltype=cell_type,
                     degree=self.k_order,
                     lagrange_variant=variant,
                     discontinuous=self.discontinuous,

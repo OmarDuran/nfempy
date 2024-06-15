@@ -14,8 +14,8 @@ class DoFMap:
     ):
         self.mesh_topology = mesh_topology
         self.ref_element = basix.create_element(
-            family_name=family,
-            cell_name=element_type,
+            family=family,
+            celltype=element_type,
             degree=k_order,
             lagrange_variant=basis_variant,
             discontinuous=discontinuous,

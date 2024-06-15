@@ -469,7 +469,7 @@ def main():
     k_order = 0
     h = 0.5
     n_ref = 6
-    dimensions = [2]
+    dimensions = [1]
     folder_name = "output"
     plot_rates_q = False
 
