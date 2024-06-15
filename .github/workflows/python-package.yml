@@ -48,6 +48,10 @@ jobs:
         python -m pip install .
         python -m pip freeze   
 
-    - name: Test nfempy
+    - name: Test nfempy geometry
       run: |
         python -m pytest tests/test_geometry
+
+    - name: Test nfempy meshing
+      run: |
+        python -m pytest tests/test_meshing   
