@@ -1,14 +1,12 @@
 import time
 
 import numpy as np
+import scipy.sparse as sps
 from petsc4py import PETSc
-
-from basis.element_family import family_by_name
-from spaces.product_space import ProductSpace
 from weak_forms.l2_projector_weak_form import L2ProjectorWeakForm
 
 
-def l2_projector(fe_space, functions, symmetric_solver_q=True):
+def l2_projector(fe_space, functions, symmetric_solver_q=True, scipy_solver_q=False):
     n_dof_g = fe_space.n_dof
     rg = np.zeros(n_dof_g)
     alpha = np.zeros(n_dof_g)
@@ -63,23 +61,28 @@ def l2_projector(fe_space, functions, symmetric_solver_q=True):
     print("Assembly time:", elapsed_time, "seconds")
 
     # solving ls
-    st = time.time()
-    ksp = PETSc.KSP().create()
-    ksp.setOperators(A)
-    b = A.createVecLeft()
-    b.array[:] = -rg
-    x = A.createVecRight()
-
-    ksp.setType("preonly")
-    if symmetric_solver_q:
-        ksp.getPC().setType("cholesky")
+    if scipy_solver_q:
+        ai, aj, av = A.getValuesCSR()
+        A_sp = sps.csr_matrix((av, aj, ai))
+        alpha = sps.linalg.spsolve(A_sp, -rg)
     else:
-        ksp.getPC().setType("lu")
-    ksp.getPC().setFactorSolverType("mumps")
-    ksp.setConvergenceHistory()
+        st = time.time()
+        ksp = PETSc.KSP().create()
+        ksp.setOperators(A)
+        b = A.createVecLeft()
+        b.array[:] = -rg
+        x = A.createVecRight()
 
-    ksp.solve(b, x)
-    alpha = x.array
+        ksp.setType("preonly")
+        if symmetric_solver_q:
+            ksp.getPC().setType("cholesky")
+        else:
+            ksp.getPC().setType("lu")
+        ksp.getPC().setFactorSolverType("mumps")
+        ksp.setConvergenceHistory()
+
+        ksp.solve(b, x)
+        alpha = x.array
 
     et = time.time()
     elapsed_time = et - st
