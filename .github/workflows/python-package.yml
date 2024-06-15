@@ -41,8 +41,8 @@ jobs:
         conda install -c conda-forge -y petsc4py
 
         python -m pip install --upgrade pip
-        python -m pip install --upgrade --upgrade-strategy eager -r requirements.txt
-        python -m pip install pytest==8.2.2
+        python -m pip install --upgrade -r requirements.txt
+        python -m pip install pytest==7.1.3
     - name: Test with pytest
       run: |
         python -m pytest
