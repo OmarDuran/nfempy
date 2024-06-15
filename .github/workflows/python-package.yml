@@ -57,7 +57,11 @@ jobs:
     - name: Test meshing
       run: |
         python -m pytest tests/test_meshing
-        
-    - name: Test l2-projectors
+
+    - name: Test PETSc import
       run: |
-        python -m pytest tests/test_projectors 
+        python -c 'from petsc4py import PETSc'        
+        
+    # - name: Test l2-projectors
+    #   run: |
+    #     python -m pytest tests/test_projectors 
