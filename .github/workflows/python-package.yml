@@ -58,6 +58,6 @@ jobs:
         conda install -c conda-forge petsc
         conda install -c conda-forge petsc4py
 
-    # - name: Test with pytest
-    #   run: |
-    #     python -m pytest
+    - name: Test with pytest
+      run: |
+        python -m pytest
