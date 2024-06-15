@@ -1,3 +1,4 @@
+numpy
 fenics-basix
 networkx
 meshio
@@ -7,6 +8,6 @@ pyvista
 black
 pytest
 pypardiso
-matplotlib
 shapely
+matplotlib
 joblib
