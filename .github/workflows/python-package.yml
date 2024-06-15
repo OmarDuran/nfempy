@@ -13,6 +13,11 @@ jobs:
   test:
     name: Test installation
     runs-on: ubuntu-latest
+    env:
+      OMP_NUM_THREADS: 1
+      MKL_NUM_THREADS: 1
+      NUMEXPR_NUM_THREADS: 1
+      OPENBLAS_NUM_THREADS: 1    
     defaults:
       run:
         shell: bash -el {0}    
