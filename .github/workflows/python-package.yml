@@ -13,6 +13,11 @@ jobs:
   test:
     name: Test installation
     runs-on: ubuntu-latest
+    env:
+      OMP_NUM_THREADS: 1
+      MKL_NUM_THREADS: 1
+      NUMEXPR_NUM_THREADS: 1
+      OPENBLAS_NUM_THREADS: 1    
     defaults:
       run:
         shell: bash -el {0}    
@@ -64,4 +69,6 @@ jobs:
         
     - name: Test l2-projectors
       run: |
+        export OPENBLAS_NUM_THREADS=1 
+        export OPENBLAS_MAIN_FREE=1
         gdb -ex r -ex bt --args python -m pytest tests/test_projectors 
