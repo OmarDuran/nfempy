@@ -22,55 +22,27 @@ jobs:
         python-version: ["3.10", "3.11"]
 
     steps:
-    # - uses: actions/checkout@v3
-    # - name: Set up Python ${{ matrix.python-version }}
-      # uses: actions/setup-python@v3
-      # with:
-      #   python-version: ${{ matrix.python-version }}
-      #   architecture: x64
-      #   cache: 'pip'
     - uses: actions/checkout@v3      
     - uses: conda-incubator/setup-miniconda@v2
       with:
         architecture: x64      
         miniconda-version: "latest"
-        channels: anaconda, conda-forge
-        use-only-tar-bz2: true  # IMPORTANT: This needs to be set for caching to work properly!
+        channels: conda, conda-forge
+        use-only-tar-bz2: true 
         auto-update-conda: true
         auto-activate-base: true
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies  
       run: |
-        # sudo apt-get update
-        # sudo apt-get upgrade
-        echo ${{ github.workspace }}
-        sudo apt-get install libglu1
-        # conda init bash
-        # conda create --yes --name nfempy
-        # ls
-        # conda activate nfempy || true        
-        echo ${{ github.workspace }}
-        # # install a message passing interface and mpi4py
-        # sudo apt-get install libopenmpi-dev  # alt.: conda install -c conda-forge openmpi
-        # pip install --user mpi4py  # alt.: conda install -c anaconda mpi4py
-        
-        # # install petsc and and petsc4py
-        # conda install -c conda-forge petsc
-        # conda install -c conda-forge petsc4py
-        
+        #echo ${{ github.workspace }}
+        sudo apt-get update
+        sudo apt-get install libglu1-mesa libxrender1 libxcursor1 libxft2 libxinerama1 ffmpeg libsm6 libxext6
+        echo ${{ github.workspace }}        
+        conda install -c conda-forge -y petsc4py
+
         python -m pip install --upgrade pip
-        python -m pip install pytest
         python -m pip install --upgrade --upgrade-strategy eager -r requirements.txt
-        # python -m pip install --upgrade cython
-        # python -m pip install mpi4py petsc #petsc4py
-        conda install -c conda-forge petsc
-        conda install -c conda-forge petsc4py
-    #- name: Lint with flake8
-    #  run: |
-        # stop the build if there are Python syntax errors or undefined names
-    #    flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-    #    flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        python -m pip install pytest
     - name: Test with pytest
       run: |
         python -m pytest
