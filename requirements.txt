@@ -8,6 +8,6 @@ pyvista
 black
 pytest
 pypardiso
-matplotlib
 shapely
+matplotlib
 joblib
