@@ -1,17 +1,17 @@
 # This workflow will install Python dependencies, run tests and lint with a variety of Python versions
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
 
-name: Python package
+name: Pytest
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main" , "develop"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main" , "develop"]
 
 jobs:
-  build:
-
+  test:
+    name: Test installation
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -19,58 +19,43 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11"]
+        python-version: ["3.9", "3.10", "3.11"]       
 
-    steps:
-    # - uses: actions/checkout@v3
-    # - name: Set up Python ${{ matrix.python-version }}
-      # uses: actions/setup-python@v3
-      # with:
-      #   python-version: ${{ matrix.python-version }}
-      #   architecture: x64
-      #   cache: 'pip'
+    steps:    
     - uses: actions/checkout@v3      
     - uses: conda-incubator/setup-miniconda@v2
       with:
         architecture: x64      
         miniconda-version: "latest"
-        channels: anaconda, conda-forge
-        use-only-tar-bz2: true  # IMPORTANT: This needs to be set for caching to work properly!
+        channels: conda, conda-forge
+        use-only-tar-bz2: true 
         auto-update-conda: true
         auto-activate-base: true
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies  
       run: |
-        # sudo apt-get update
-        # sudo apt-get upgrade
-        echo ${{ github.workspace }}
+        conda activate test
+        # sudo apt-get install libglu1-mesa libxrender1 libxcursor1 libxft2 libxinerama1 ffmpeg libsm6 libxext6
         sudo apt-get install libglu1
-        # conda init bash
-        # conda create --yes --name nfempy
-        # ls
-        # conda activate nfempy || true        
-        echo ${{ github.workspace }}
-        # # install a message passing interface and mpi4py
-        # sudo apt-get install libopenmpi-dev  # alt.: conda install -c conda-forge openmpi
-        # pip install --user mpi4py  # alt.: conda install -c anaconda mpi4py
-        
-        # # install petsc and and petsc4py
-        # conda install -c conda-forge petsc
-        # conda install -c conda-forge petsc4py
-        
-        python -m pip install --upgrade pip
-        python -m pip install pytest
-        python -m pip install --upgrade --upgrade-strategy eager -r requirements.txt
-        # python -m pip install --upgrade cython
-        # python -m pip install mpi4py petsc #petsc4py
         conda install -c conda-forge petsc
         conda install -c conda-forge petsc4py
-    #- name: Lint with flake8
-    #  run: |
-        # stop the build if there are Python syntax errors or undefined names
-    #    flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-    #    flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: Test with pytest
+        
+        python -m pip install --upgrade pip
+        python -m pip install --upgrade -r requirements.txt
+
+    - name: Install nfempy
       run: |
-        python -m pytest
+        python -m pip install .
+        python -m pip freeze   
+
+    - name: Test geometry
+      run: |
+        python -m pytest tests/test_geometry
+
+    - name: Test meshing
+      run: |
+        python -m pytest tests/test_meshing
+        
+    # - name: Test l2-projectors
+    #   run: |
+    #     python -m pytest tests/test_projectors 

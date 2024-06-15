@@ -1,10 +1,8 @@
 import time
 
 import numpy as np
+import scipy.sparse as sps
 from petsc4py import PETSc
-
-from basis.element_family import family_by_name
-from spaces.product_space import ProductSpace
 from weak_forms.l2_projector_weak_form import L2ProjectorWeakForm
 
 
