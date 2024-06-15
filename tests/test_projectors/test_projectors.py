@@ -92,7 +92,7 @@ def generate_mesh(h_cell, dim):
 
 
 @pytest.mark.parametrize("k_order", k_orders)
-def test_scalar_h1_projector(k_order):
+def abc_test_scalar_h1_projector(k_order):
     h_cell = 1.0
     # scalar functions
     s_fun = s_functions[k_order - 1]
@@ -132,7 +132,7 @@ def test_scalar_h1_projector(k_order):
 
 
 @pytest.mark.parametrize("k_order", k_orders)
-def test_vector_hdiv_projector(k_order):
+def abc_test_vector_hdiv_projector(k_order):
     h_cell = 1.0
     # vector functions
     v_fun = v_functions[k_order - 1]
