@@ -13,6 +13,11 @@ jobs:
   test:
     name: Test installation
     runs-on: ubuntu-latest
+    env:
+      OMP_NUM_THREADS: 1
+      MKL_NUM_THREADS: 1
+      NUMEXPR_NUM_THREADS: 1
+      OPENBLAS_NUM_THREADS: 1    
     defaults:
       run:
         shell: bash -el {0}    
@@ -22,21 +27,23 @@ jobs:
         python-version: ["3.9", "3.10", "3.11"]       
 
     steps:    
-    - uses: actions/checkout@v3      
-    - uses: conda-incubator/setup-miniconda@v2
+    - uses: actions/checkout@v4      
+    - uses: conda-incubator/setup-miniconda@v3
       with:
         architecture: x64      
         miniconda-version: "latest"
+        channel-priority: flexible
         channels: conda, conda-forge
         use-only-tar-bz2: true 
         auto-update-conda: true
         auto-activate-base: true
+        activate-environment: test
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies  
       run: |
-        conda activate test
+        echo ${{ github.workspace }}
         # sudo apt-get install libglu1-mesa libxrender1 libxcursor1 libxft2 libxinerama1 ffmpeg libsm6 libxext6
-        sudo apt-get install libglu1
+        sudo apt-get install gdb libglu1
         conda install -c conda-forge petsc
         conda install -c conda-forge petsc4py
         
@@ -55,7 +62,13 @@ jobs:
     - name: Test meshing
       run: |
         python -m pytest tests/test_meshing
+
+    - name: Test PETSc import
+      run: |
+        python -c 'from petsc4py import PETSc'        
         
-    # - name: Test l2-projectors
-    #   run: |
-    #     python -m pytest tests/test_projectors 
+    - name: Test l2-projectors
+      run: |
+        export OPENBLAS_NUM_THREADS=1 
+        export OPENBLAS_MAIN_FREE=1
+        gdb -ex r -ex bt --args python -m pytest tests/test_projectors 
