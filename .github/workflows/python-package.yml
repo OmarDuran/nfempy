@@ -62,6 +62,6 @@ jobs:
       run: |
         python -c 'from petsc4py import PETSc'        
         
-    # - name: Test l2-projectors
-    #   run: |
-    #     python -m pytest tests/test_projectors 
+    - name: Test l2-projectors
+      run: |
+        gdb -ex r -ex bt --args python -m pytest tests/test_projectors 
