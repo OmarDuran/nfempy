@@ -58,6 +58,6 @@ jobs:
       run: |
         python -m pytest tests/test_meshing
         
-    # - name: Test l2-projectors
-    #   run: |
-    #     python -m pytest tests/test_projectors 
+    - name: Test l2-projectors
+      run: |
+        python -m pytest tests/test_projectors 
