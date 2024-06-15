@@ -38,7 +38,7 @@ jobs:
       run: |
         echo ${{ github.workspace }}
         # sudo apt-get install libglu1-mesa libxrender1 libxcursor1 libxft2 libxinerama1 ffmpeg libsm6 libxext6
-        sudo apt-get install libglu1
+        sudo apt-get install gdb libglu1
         conda install -c conda-forge petsc
         conda install -c conda-forge petsc4py
         
