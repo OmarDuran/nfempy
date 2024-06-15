@@ -11,7 +11,7 @@ on:
 
 jobs:
   build:
-
+    name: Check installation
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -22,7 +22,7 @@ jobs:
         python-version: ["3.9", "3.10", "3.11"]
 
     steps:
-    - name: Check installation
+    
     - uses: actions/checkout@v3      
     - uses: conda-incubator/setup-miniconda@v2
       with:
