@@ -5,7 +5,7 @@ gmsh
 scipy
 pyvista
 black
-pytest==8.2.2
+pytest
 pypardiso
 matplotlib
 shapely
