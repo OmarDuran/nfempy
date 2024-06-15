@@ -39,7 +39,7 @@ jobs:
         #echo ${{ github.workspace }}
         sudo apt-get update
         sudo apt-get install libglu1-mesa libxrender1 libxcursor1 libxft2 libxinerama1 ffmpeg libsm6 libxext6
-        export LD_LIBRARY_PATH=/usr/local/lib64/:$LD_LIBRARY_PATH
+        # export LD_LIBRARY_PATH=/usr/local/lib64/:$LD_LIBRARY_PATH
         #echo ${{ github.workspace }}        
         conda install -c conda-forge -y petsc4py
 
