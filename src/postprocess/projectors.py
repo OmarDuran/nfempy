@@ -6,7 +6,7 @@ from petsc4py import PETSc
 from weak_forms.l2_projector_weak_form import L2ProjectorWeakForm
 
 
-def l2_projector(fe_space, functions, symmetric_solver_q=True, scipy_solver_q=False):
+def l2_projector(fe_space, functions, symmetric_solver_q=True):
     n_dof_g = fe_space.n_dof
     rg = np.zeros(n_dof_g)
     alpha = np.zeros(n_dof_g)
@@ -61,28 +61,23 @@ def l2_projector(fe_space, functions, symmetric_solver_q=True, scipy_solver_q=Fa
     print("Assembly time:", elapsed_time, "seconds")
 
     # solving ls
-    if scipy_solver_q:
-        ai, aj, av = A.getValuesCSR()
-        A_sp = sps.csr_matrix((av, aj, ai))
-        alpha = sps.linalg.spsolve(A_sp, -rg)
+    st = time.time()
+    ksp = PETSc.KSP().create()
+    ksp.setOperators(A)
+    b = A.createVecLeft()
+    b.array[:] = -rg
+    x = A.createVecRight()
+
+    ksp.setType("preonly")
+    if symmetric_solver_q:
+        ksp.getPC().setType("cholesky")
     else:
-        st = time.time()
-        ksp = PETSc.KSP().create()
-        ksp.setOperators(A)
-        b = A.createVecLeft()
-        b.array[:] = -rg
-        x = A.createVecRight()
+        ksp.getPC().setType("lu")
+    ksp.getPC().setFactorSolverType("mumps")
+    ksp.setConvergenceHistory()
 
-        ksp.setType("preonly")
-        if symmetric_solver_q:
-            ksp.getPC().setType("cholesky")
-        else:
-            ksp.getPC().setType("lu")
-        ksp.getPC().setFactorSolverType("mumps")
-        ksp.setConvergenceHistory()
-
-        ksp.solve(b, x)
-        alpha = x.array
+    ksp.solve(b, x)
+    alpha = x.array
 
     et = time.time()
     elapsed_time = et - st
