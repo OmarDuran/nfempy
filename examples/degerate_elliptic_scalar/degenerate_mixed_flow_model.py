@@ -427,6 +427,7 @@ def material_data_definition(dim):
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")
     cases = [case_0, case_1, case_2, case_3]
+
     return cases
 
 
@@ -467,9 +468,9 @@ def compose_case_name(method, dimension, domain, material, folder_name=None):
 def main():
     # fixed directives
     k_order = 0
-    h = 0.5
-    n_ref = 6
-    dimensions = [1]
+    h = 0.05
+    n_ref = 5
+    dimensions = [2]
     folder_name = "output"
     plot_rates_q = False
 
