@@ -25,3 +25,7 @@ class Vertex(Shape):
     @point.setter
     def point(self, point: np.ndarray):
         self._point: np.ndarray = point
+
+    def shape_assignment(self, other):
+        super().shape_assignment(other)
+        self.point = other.point

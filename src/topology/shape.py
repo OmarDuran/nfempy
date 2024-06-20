@@ -54,6 +54,10 @@ class Shape(ABC):
     def dimension(self):
         return self._dimension
 
+    @dimension.setter
+    def dimension(self, dimension):
+        self._dimension
+
     @property
     def composite(self):
         return self._composite
@@ -168,3 +172,17 @@ class Shape(ABC):
                 len([shape for shape in self.immersed_shapes if shape == other]) == 1
             )
         return boundary_q or immersed_q
+
+    def shape_assignment(self, other):
+        if self.dimension != other.dimension:
+            raise ValueError("Cannot assign shapes with differing dimensions.")
+        if self.composite != other.composite:
+            raise ValueError("Cannot assign composite shapes to a non-composite shape, or vice versa.")
+
+        self.active = other.active
+        self.tag = other.tag
+        self.physical_tag = other.physical_tag
+        self.dimension = other.dimension
+        self.composite = other.composite
+        self.boundary_shapes = other.boundary_shapes
+        self.immersed_shapes = other.immersed_shapes
