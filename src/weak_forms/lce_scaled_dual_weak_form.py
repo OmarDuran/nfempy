@@ -5,7 +5,7 @@ from auto_diff.vecvalder import VecValDer
 from basis.element_data import ElementData
 from basis.parametric_transformation import transform_lower_to_higher
 from geometry.compute_normal import normal
-from topology.topological_queries import find_higher_dimension_neighs
+from mesh.topological_queries import find_higher_dimension_neighs
 from weak_forms.weak_from import WeakForm
 
 

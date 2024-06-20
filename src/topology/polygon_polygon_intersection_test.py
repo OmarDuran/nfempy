@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-import geometry.triangle_triangle_intersection_test as tt_intersector
+import topology.triangle_triangle_intersection_test as tt_intersector
 
 
 class PolygonPolygonIntersectionTest:

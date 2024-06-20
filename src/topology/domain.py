@@ -1,7 +1,7 @@
 import networkx as nx
 import numpy as np
 
-from geometry.shape import Shape
+from topology.shape import Shape
 
 
 class Domain:

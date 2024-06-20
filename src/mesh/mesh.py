@@ -5,9 +5,9 @@ import meshio
 import networkx as nx
 import numpy as np
 
-from geometry.domain import Domain
+from topology.domain import Domain
 from mesh.mesh_cell import MeshCell, barycenter, rotate_vector
-from topology.mesh_coloring import coloring_mesh_by_co_dimension
+from mesh.mesh_coloring import coloring_mesh_by_co_dimension
 
 
 class Mesh:

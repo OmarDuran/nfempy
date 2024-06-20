@@ -4,8 +4,7 @@ import numpy as np
 from basis.element_data import ElementData
 from basis.parametric_transformation import transform_lower_to_higher
 from geometry.compute_normal import normal
-from topology.topological_queries import find_higher_dimension_neighs
-from topology.topological_queries import sub_entity_by_co_dimension
+from mesh.topological_queries import find_higher_dimension_neighs
 from weak_forms.weak_from import WeakForm
 
 

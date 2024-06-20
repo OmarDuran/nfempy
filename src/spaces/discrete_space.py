@@ -8,7 +8,7 @@ from basis.element_family import basis_variant, family_by_name
 from basis.element_type import type_by_dimension
 from basis.finite_element import FiniteElement
 from spaces.dof_map import DoFMap
-from topology.mesh_topology import MeshTopology
+from mesh.mesh_topology import MeshTopology
 
 
 class DiscreteSpace:

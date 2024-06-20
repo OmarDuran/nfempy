@@ -5,8 +5,8 @@ import numpy as np
 import strong_solution_cosserat_elasticity_example_1 as lce
 from petsc4py import PETSc
 
-from geometry.domain import Domain
-from geometry.domain_market import build_box_1D, build_box_2D, build_box_3D
+from topology.domain import Domain
+from topology.domain_market import build_box_1D, build_box_2D, build_box_3D
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
 from mesh.mesh_metrics import mesh_size

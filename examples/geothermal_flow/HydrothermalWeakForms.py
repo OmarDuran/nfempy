@@ -7,8 +7,7 @@ from basis.finite_element import FiniteElement
 from geometry.compute_normal import normal
 from basis.basis_trace import trace_product_space
 
-from basis.parametric_transformation import transform_lower_to_higher
-from topology.topological_queries import find_higher_dimension_neighs
+from mesh.topological_queries import find_higher_dimension_neighs
 from basis.element_family import family_by_name
 
 

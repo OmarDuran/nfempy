@@ -1,5 +1,5 @@
 from mesh.mesh_cell import MeshCell
-from topology.mesh_topology import MeshTopology
+from mesh.mesh_topology import MeshTopology
 
 
 def find_higher_dimension_neighs(cell: MeshCell, mesh_topology: MeshTopology):

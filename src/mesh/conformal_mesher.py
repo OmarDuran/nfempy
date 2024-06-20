@@ -1,7 +1,7 @@
 import gmsh
 import numpy as np
 
-from geometry.domain import Domain
+from topology.domain import Domain
 
 
 class ConformalMesher:

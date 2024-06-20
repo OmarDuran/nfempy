@@ -104,11 +104,67 @@ class Shape(ABC):
     def admissible_dimensions(self):
         pass
 
+    def hash(self):
+        return hash((self.dimension, self.tag))
+
     def __eq__(self, other):
-        return (self.dimension, self.tag) == (other.dimension, other.tag)
+        equality_by_dimension_and_tag = (self.dimension, self.tag) == (
+            other.dimension,
+            other.tag,
+        )
+
+        n_boundary_shapes_q = self.boundary_shapes.size == other.boundary_shapes.size
+        n_immersed_shapes_q = self.immersed_shapes.size == other.immersed_shapes.size
+
+        equality_by_boundary_shapes = True
+        if self.boundary_shapes.size != 0 and n_boundary_shapes_q:
+            equality_by_boundary_shapes = np.all(
+                np.array(
+                    [
+                        shape == other_shape
+                        for shape, other_shape in zip(
+                            self.boundary_shapes, other.boundary_shapes
+                        )
+                    ]
+                )
+            )
+
+        equality_by_immersed_shapes = True
+        if self.immersed_shapes.size != 0 and n_immersed_shapes_q:
+            equality_by_boundary_shapes = np.all(
+                np.array(
+                    [
+                        shape == other_shape
+                        for shape, other_shape in zip(
+                            self.immersed_shapes, other.immersed_shapes
+                        )
+                    ]
+                )
+            )
+        equality_q = (
+            equality_by_dimension_and_tag
+            and n_boundary_shapes_q
+            and n_immersed_shapes_q
+            and equality_by_boundary_shapes
+            and equality_by_immersed_shapes
+        )
+        return equality_q
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     def __contains__(self, other):
         other_id = (other.dimension, other.tag)
         boundary_ids = [(shape.dimension, shape.tag) for shape in self.boundary_shapes]
         immersed_ids = [(shape.dimension, shape.tag) for shape in self.immersed_shapes]
-        return (other_id in boundary_ids) or (other_id in immersed_ids)
+        boundary_q = other_id in boundary_ids
+        immersed_q = other_id in immersed_ids
+        if boundary_q:
+            boundary_q = (
+                len([shape for shape in self.boundary_shapes if shape == other]) == 1
+            )
+        if immersed_q:
+            immersed_q = (
+                len([shape for shape in self.immersed_shapes if shape == other]) == 1
+            )
+        return boundary_q or immersed_q

@@ -2,14 +2,14 @@ import csv
 
 import numpy as np
 
-from geometry.domain import Domain
-from geometry.edge import Edge
-from geometry.face import Face
-from geometry.shape_manipulation import ShapeManipulation
-from geometry.shell import Shell
-from geometry.solid import Shape, Solid
-from geometry.vertex import Vertex
-from geometry.wire import Wire
+from topology.domain import Domain
+from topology.edge import Edge
+from topology.face import Face
+from topology.shape_manipulation import ShapeManipulation
+from topology.shell import Shell
+from topology.solid import Solid
+from topology.vertex import Vertex
+from topology.wire import Wire
 
 
 def read_fractures_file(n_points, file_name):

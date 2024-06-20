@@ -217,9 +217,9 @@ class LCEPrimalWeakForm(WeakForm):
 
                 multiphysic_integrand = np.zeros((1, n_dof))
                 multiphysic_integrand[:, 0:n_u_dof:1] = strain_energy_h
-                multiphysic_integrand[
-                    :, n_u_dof : n_u_dof + n_t_dof : 1
-                ] = curvature_energy_h
+                multiphysic_integrand[:, n_u_dof : n_u_dof + n_t_dof : 1] = (
+                    curvature_energy_h
+                )
 
                 discrete_integrand = (multiphysic_integrand).reshape((n_dof,))
                 el_form += det_jac[i] * omega * discrete_integrand

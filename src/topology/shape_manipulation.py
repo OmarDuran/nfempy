@@ -1,15 +1,14 @@
 import numpy as np
 from numpy import linalg as la
 
-import geometry.polygon_polygon_intersection_test as pp_intersector
-import geometry.triangle_triangle_intersection_test as tt_intersector
-from geometry.edge import Edge
-from geometry.face import Face
-from geometry.shape import Shape
-from geometry.shell import Shell
-from geometry.solid import Solid
-from geometry.vertex import Vertex
-from geometry.wire import Wire
+import topology.polygon_polygon_intersection_test as pp_intersector
+import topology.triangle_triangle_intersection_test as tt_intersector
+from topology.edge import Edge
+from topology.face import Face
+from topology.shape import Shape
+from topology.shell import Shell
+from topology.vertex import Vertex
+from topology.wire import Wire
 
 
 class ShapeManipulation:

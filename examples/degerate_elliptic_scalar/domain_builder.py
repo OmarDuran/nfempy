@@ -1,10 +1,10 @@
 import numpy as np
 
-from geometry.domain import Domain
-from geometry.edge import Edge
-from geometry.face import Face
-from geometry.vertex import Vertex
-from geometry.wire import Wire
+from topology.domain import Domain
+from topology.edge import Edge
+from topology.face import Face
+from topology.vertex import Vertex
+from topology.wire import Wire
 
 
 def build_line_1D(line_points, physical_tags=None):

@@ -1,12 +1,7 @@
 import auto_diff as ad
-import basix
 import numpy as np
-from auto_diff.vecvalder import VecValDer
-from basix import CellType
 
 from basis.element_data import ElementData
-from basis.parametric_transformation import transform_lower_to_higher
-from topology.topological_queries import find_higher_dimension_neighs
 from weak_forms.weak_from import WeakForm
 
 
