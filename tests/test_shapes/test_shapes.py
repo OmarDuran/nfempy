@@ -5,6 +5,8 @@ from topology.edge import Edge
 from topology.wire import Wire
 from topology.face import Face
 from topology.shell import Shell
+from topology.solid import Solid
+from topology.composite_solid import CompositeSolid
 
 from topology.graphical_shape import draw_vertex_sequence
 
@@ -189,3 +191,139 @@ def test_shell():
     assert f1 in s0
     assert w0 in s0
     assert w1 in s0
+
+def build_solid(points):
+
+    vertices = np.array([Vertex(tag, point) for tag, point in enumerate(points)])
+    edge_connectivities = [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 0],
+        [4, 5],
+        [5, 6],
+        [6, 7],
+        [7, 4],
+        [0, 4],
+        [1, 5],
+        [2, 6],
+        [3, 7],
+    ]
+
+    edges = []
+    for tag, con in enumerate(edge_connectivities):
+        edge = Edge(tag, vertices[con])
+        edges.append(edge)
+
+    edges = np.array(edges)
+    tag += 1
+
+    wire_0 = Wire(tag, edges[[0, 1, 2, 3]], vertices[[0]])
+    tag += 1
+
+    wire_1 = Wire(tag, edges[[4, 5, 6, 7]], vertices[[4]])
+    tag += 1
+
+    wire_2 = Wire(tag, edges[[0, 9, 4, 8]], vertices[[0]])
+    tag += 1
+
+    wire_3 = Wire(tag, edges[[1, 10, 5, 9]], vertices[[1]])
+    tag += 1
+
+    wire_4 = Wire(tag, edges[[2, 11, 6, 10]], vertices[[2]])
+    tag += 1
+
+    wire_5 = Wire(tag, edges[[3, 11, 7, 8]], vertices[[3]])
+    tag += 1
+
+    wires = np.array([wire_0, wire_1, wire_2, wire_3, wire_4, wire_5])
+
+    surfaces = []
+    for wire in wires:
+        surface = Face(tag, np.array([wire]))
+        surfaces.append(surface)
+        tag += 1
+    surfaces = np.array(surfaces)
+
+    shell = Shell(tag, surfaces, wires, )
+    tag += 1
+
+    solid = Solid(tag, np.array([shell]))
+    return shell, solid
+
+def test_solid():
+    points = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [1.0, 0.0, 1.0],
+            [1.0, 1.0, 1.0],
+            [0.0, 1.0, 1.0],
+        ]
+    )
+    shell, solid = build_solid(points)
+
+    # wires = solid.boundary_shapes[0].boundary_shapes
+    # vertex_seq = [wire.orient_immersed_vertices() for wire in wires]
+    # draw_vertex_sequence(0, vertex_seq, True)
+
+    assert solid.dimension == 3
+    assert hash((solid.dimension, solid.tag)) == solid.hash()
+    assert not solid.composite
+
+    assert solid == solid
+
+    # test immersed_shapes
+    assert shell in solid
+
+def test_commposite_solid():
+
+    points = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [1.0, 0.0, 1.0],
+            [1.0, 1.0, 1.0],
+            [0.0, 1.0, 1.0],
+        ]
+    )
+    shell0, solid0 = build_solid(points)
+
+    points = np.array(
+        [
+            [0.0, 0.0, 1.0],
+            [1.0, 0.0, 1.0],
+            [1.0, 1.0, 1.0],
+            [0.0, 1.0, 1.0],
+            [0.0, 0.0, 2.0],
+            [1.0, 0.0, 2.0],
+            [1.0, 1.0, 2.0],
+            [0.0, 1.0, 2.0],
+        ]
+    )
+    shell1, solid1 = build_solid(points)
+    csolid = CompositeSolid(0, np.array([solid0,solid1]), np.array([shell0,shell1]))
+
+    # wires0 = csolid.boundary_shapes[0].boundary_shapes
+    # wires1 = csolid.boundary_shapes[1].boundary_shapes
+    # wires = np.concatenate((wires0,wires1))
+    # vertex_seq = [wire.orient_immersed_vertices() for wire in wires]
+    # draw_vertex_sequence(0, vertex_seq, True)
+
+    assert csolid.dimension == 3
+    assert hash((csolid.dimension, csolid.tag)) == csolid.hash()
+    assert csolid.composite
+
+    assert csolid == csolid
+
+    # test immersed_shapes
+    assert solid0 in csolid
+    assert solid1 in csolid
+    assert shell0 in csolid
+    assert shell1 in csolid
