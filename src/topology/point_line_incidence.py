@@ -21,7 +21,7 @@ def point_line_intersection(p: np.array, a: np.array, b: np.array, eps: float = 
     if point_a_incidence_q:
         return a
 
-    point_b_incidence_q = np.all(np.isclose(a, p, rtol=collapse_tol, atol=collapse_tol))
+    point_b_incidence_q = np.all(np.isclose(b, p, rtol=collapse_tol, atol=collapse_tol))
     if point_b_incidence_q:
         return b
 
@@ -49,6 +49,18 @@ def point_line_intersection(p: np.array, a: np.array, b: np.array, eps: float = 
         return None
 
 def points_line_intersection(points: np.array, a: np.array, b: np.array, eps: float = incidence_tol) -> float:
+    # compute intersections
     point_line_int = partial(point_line_intersection,a=a,b=b,eps=eps)
     result = list(map(point_line_int,points))
+
+    # filter points outside segment
+    result = np.array(list(filter(lambda x: x is not None, result)))
     return result
+
+def points_line_orientation(points: np.array, a: np.array, b: np.array, eps: float = incidence_tol) -> float:
+    points = np.array(points_line_intersection(points, a, b, eps))
+    if points.shape[0] == 0:
+        return points
+    # assuming segment is oriented from a to b
+    idx = np.argsort(np.linalg.norm(points - a, axis=1))
+    return points[idx]

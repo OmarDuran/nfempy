@@ -10,6 +10,7 @@ from topology.composite_solid import CompositeSolid
 
 from topology.graphical_shape import draw_vertex_sequence
 
+
 def build_solid(points):
 
     vertices = np.array([Vertex(tag, point) for tag, point in enumerate(points)])
@@ -63,16 +64,21 @@ def build_solid(points):
         tag += 1
     surfaces = np.array(surfaces)
 
-    shell = Shell(tag, surfaces, wires, )
+    shell = Shell(
+        tag,
+        surfaces,
+        wires,
+    )
     tag += 1
 
     solid = Solid(tag, np.array([shell]))
     return shell, solid
 
+
 def test_vertex():
 
-    v0: Vertex = Vertex(0, np.array([0.0,0.0,0.0]))
-    v1: Vertex = Vertex(1, np.array([0.0,0.0,0.0]))
+    v0: Vertex = Vertex(0, np.array([0.0, 0.0, 0.0]))
+    v1: Vertex = Vertex(1, np.array([0.0, 0.0, 0.0]))
     v2: Vertex = Vertex(2, np.array([0.5, 0.0, 0.0]))
 
     assert v0.dimension == 0
@@ -97,11 +103,12 @@ def test_vertex():
     assert v2 in v0
     assert v2 in v1
 
+
 def test_edge():
 
-    v0: Vertex = Vertex(0, np.array([0.0,0.0,0.0]))
-    v1: Vertex = Vertex(1, np.array([0.5,0.5,0.5]))
-    v2: Vertex = Vertex(2, np.array([1.0,1.0,1.0]))
+    v0: Vertex = Vertex(0, np.array([0.0, 0.0, 0.0]))
+    v1: Vertex = Vertex(1, np.array([0.5, 0.5, 0.5]))
+    v2: Vertex = Vertex(2, np.array([1.0, 1.0, 1.0]))
 
     e0: Edge = Edge(0, np.array([v0, v1]))
     e1: Edge = Edge(1, np.array([v1, v2]))
@@ -114,7 +121,7 @@ def test_edge():
     assert not e1.composite
     assert not e2.composite
 
-    e2.immersed_shapes = np.array([e0,e1])
+    e2.immersed_shapes = np.array([e0, e1])
 
     assert hash((e0.dimension, e0.tag)) == e0.hash()
     assert hash((e1.dimension, e1.tag)) == e1.hash()
@@ -127,12 +134,13 @@ def test_edge():
     assert e0 in e2
     assert e1 in e2
 
+
 def test_wire():
 
-    v0: Vertex = Vertex(0, np.array([0.0,0.0,0.0]))
-    v1: Vertex = Vertex(1, np.array([1.0,0.0,0.0]))
-    v2: Vertex = Vertex(2, np.array([1.0,1.0,1.0]))
-    v3: Vertex = Vertex(3, np.array([0.0,1.0,1.0]))
+    v0: Vertex = Vertex(0, np.array([0.0, 0.0, 0.0]))
+    v1: Vertex = Vertex(1, np.array([1.0, 0.0, 0.0]))
+    v2: Vertex = Vertex(2, np.array([1.0, 1.0, 1.0]))
+    v3: Vertex = Vertex(3, np.array([0.0, 1.0, 1.0]))
 
     e0: Edge = Edge(0, np.array([v0, v1]))
     e1: Edge = Edge(1, np.array([v1, v2]))
@@ -154,9 +162,9 @@ def test_wire():
     assert w1.composite
     assert w2.composite
 
-    assert np.all(w0.orientation == np.array([ 1,  1,  1, -1]))
-    assert np.all(w1.orientation == np.array([ 1,  1, -1,  1]))
-    assert np.all(w2.orientation == np.array([ 1,  1,  1, -1]))
+    assert np.all(w0.orientation == np.array([1, 1, 1, -1]))
+    assert np.all(w1.orientation == np.array([1, 1, -1, 1]))
+    assert np.all(w2.orientation == np.array([1, 1, 1, -1]))
 
     assert w0 == w0
     assert w0 != w1
@@ -169,12 +177,13 @@ def test_wire():
     assert e2 in w0
     assert e3 in w0
 
+
 def test_face():
 
-    v0: Vertex = Vertex(0, np.array([0.0,0.0,0.0]))
-    v1: Vertex = Vertex(1, np.array([1.0,0.0,0.0]))
-    v2: Vertex = Vertex(2, np.array([1.0,1.0,1.0]))
-    v3: Vertex = Vertex(3, np.array([0.0,1.0,1.0]))
+    v0: Vertex = Vertex(0, np.array([0.0, 0.0, 0.0]))
+    v1: Vertex = Vertex(1, np.array([1.0, 0.0, 0.0]))
+    v2: Vertex = Vertex(2, np.array([1.0, 1.0, 1.0]))
+    v3: Vertex = Vertex(3, np.array([0.0, 1.0, 1.0]))
 
     e0: Edge = Edge(0, np.array([v0, v1]))
     e1: Edge = Edge(1, np.array([v1, v2]))
@@ -211,11 +220,11 @@ def test_face():
 
 def test_shell():
 
-    v0: Vertex = Vertex(0, np.array([0.0,0.0,0.0]))
-    v1: Vertex = Vertex(1, np.array([1.0,0.0,0.0]))
-    v2: Vertex = Vertex(2, np.array([0.0,1.0,0.0]))
-    v3: Vertex = Vertex(3, np.array([2.0,1.0,1.0]))
-    v4: Vertex = Vertex(4, np.array([1.0,2.0,1.0]))
+    v0: Vertex = Vertex(0, np.array([0.0, 0.0, 0.0]))
+    v1: Vertex = Vertex(1, np.array([1.0, 0.0, 0.0]))
+    v2: Vertex = Vertex(2, np.array([0.0, 1.0, 0.0]))
+    v3: Vertex = Vertex(3, np.array([2.0, 1.0, 1.0]))
+    v4: Vertex = Vertex(4, np.array([1.0, 2.0, 1.0]))
 
     e0: Edge = Edge(0, np.array([v0, v1]))
     e1: Edge = Edge(1, np.array([v1, v2]))
@@ -232,8 +241,8 @@ def test_shell():
     f0: Face = Face(0, np.array([w0]))
     f1: Face = Face(1, np.array([w1]))
 
-    s0: Shell = Shell(0, np.array([f0,f1]), np.array([w0,w1]))
-    s1: Shell = Shell(0, np.array([f1,f0]), np.array([w1,w0]))
+    s0: Shell = Shell(0, np.array([f0, f1]), np.array([w0, w1]))
+    s1: Shell = Shell(0, np.array([f1, f0]), np.array([w1, w0]))
 
     # vertex_seq = [wire.orient_immersed_vertices() for wire in s0.boundary_shapes]
     # draw_vertex_sequence(0, vertex_seq, True)
@@ -250,6 +259,7 @@ def test_shell():
     assert f1 in s0
     assert w0 in s0
     assert w1 in s0
+
 
 def test_solid():
     points = np.array(
@@ -278,6 +288,7 @@ def test_solid():
 
     # test immersed_shapes
     assert shell in solid
+
 
 def test_commposite_solid():
 
@@ -308,7 +319,7 @@ def test_commposite_solid():
         ]
     )
     shell1, solid1 = build_solid(points)
-    csolid0 = CompositeSolid(0, np.array([solid0, solid1]), np.array([shell0,shell1]))
+    csolid0 = CompositeSolid(0, np.array([solid0, solid1]), np.array([shell0, shell1]))
     csolid1 = CompositeSolid(0, np.array([solid1, solid0]), np.array([shell1, shell0]))
 
     # wires0 = csolid.boundary_shapes[0].boundary_shapes
@@ -330,12 +341,13 @@ def test_commposite_solid():
     assert shell0 in csolid0
     assert shell1 in csolid0
 
+
 def test_shape_assignment():
 
-    v0: Vertex = Vertex(0, np.array([0.0,0.0,0.0]))
-    v1: Vertex = Vertex(1, np.array([1.0,0.0,0.0]))
-    v2: Vertex = Vertex(2, np.array([1.0,1.0,1.0]))
-    v3: Vertex = Vertex(3, np.array([0.0,1.0,1.0]))
+    v0: Vertex = Vertex(0, np.array([0.0, 0.0, 0.0]))
+    v1: Vertex = Vertex(1, np.array([1.0, 0.0, 0.0]))
+    v2: Vertex = Vertex(2, np.array([1.0, 1.0, 1.0]))
+    v3: Vertex = Vertex(3, np.array([0.0, 1.0, 1.0]))
 
     e0: Edge = Edge(0, np.array([v0, v1]))
     e1: Edge = Edge(1, np.array([v1, v2]))
