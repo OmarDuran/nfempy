@@ -177,7 +177,9 @@ class Shape(ABC):
         if self.dimension != other.dimension:
             raise ValueError("Cannot assign shapes with differing dimensions.")
         if self.composite != other.composite:
-            raise ValueError("Cannot assign composite shapes to a non-composite shape, or vice versa.")
+            raise ValueError(
+                "Cannot assign composite shapes to a non-composite shape, or vice versa."
+            )
 
         self.active = other.active
         self.tag = other.tag

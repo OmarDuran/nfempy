@@ -13,19 +13,25 @@ from topology.shell import Shell
 from topology.shape import Shape
 
 
-def vertex_with_same_geometry(vertex_a:Vertex, vertex_b:Vertex, eps: float = collapse_tol):
+def vertex_with_same_geometry(
+    vertex_a: Vertex, vertex_b: Vertex, eps: float = collapse_tol
+):
     point_a = vertex_a.point
     point_b = vertex_b.point
     same_geometry_q = np.all(np.isclose(point_a, point_b, rtol=eps, atol=eps))
     return same_geometry_q
 
-def vertex_strong_equality(vertex_a:Vertex, vertex_b:Vertex):
+
+def vertex_strong_equality(vertex_a: Vertex, vertex_b: Vertex):
     shape_equality_q = vertex_a == vertex_b
-    geometry_equality_q = vertex_with_same_geometry(vertex_a,vertex_b)
+    geometry_equality_q = vertex_with_same_geometry(vertex_a, vertex_b)
     strong_equality = shape_equality_q and geometry_equality_q
     return strong_equality
 
-def collapse_vertex(v_tool: Vertex, v_object: Vertex, eps: float = collapse_tol) -> Vertex:
+
+def collapse_vertex(
+    v_tool: Vertex, v_object: Vertex, eps: float = collapse_tol
+) -> Vertex:
     if vertex_strong_equality(v_tool, v_object):
         return v_tool
     elif vertex_with_same_geometry(v_tool, v_object, eps):
@@ -34,9 +40,13 @@ def collapse_vertex(v_tool: Vertex, v_object: Vertex, eps: float = collapse_tol)
     else:
         return v_object
 
-def vertex_edge_boundary_intersection(v_tool:Vertex, edge_object: Edge, eps: float = collapse_tol):
+
+def vertex_edge_boundary_intersection(
+    v_tool: Vertex, edge_object: Edge, eps: float = collapse_tol
+):
     check = [
-         vertex_with_same_geometry(v_tool, e_vertex, eps) for e_vertex in edge_object.boundary_shapes
+        vertex_with_same_geometry(v_tool, e_vertex, eps)
+        for e_vertex in edge_object.boundary_shapes
     ]
     if check[0]:
         return edge_object.boundary_shapes[0]
@@ -81,14 +91,18 @@ def point_line_intersection(A, B, P):
     # Check if all non-None t values are the same
     return all(t == t_values[0] for t in t_values)
 
-def vertex_edge_intersection(v_tool:Vertex, edge_object: Edge, eps: float = collapse_tol):
 
-    bc_out = vertex_edge_boundary_intersection(v_tool,edge_object, eps)
+def vertex_edge_intersection(
+    v_tool: Vertex, edge_object: Edge, eps: float = collapse_tol
+):
+
+    bc_out = vertex_edge_boundary_intersection(v_tool, edge_object, eps)
     if bc_out is not None:
         return bc_out
 
     check = [
-         vertex_with_same_geometry(v_tool, e_vertex) for e_vertex in edge_object.boundary_shapes
+        vertex_with_same_geometry(v_tool, e_vertex)
+        for e_vertex in edge_object.boundary_shapes
     ]
     if check[0]:
         return edge_object.boundary_shapes[0]
@@ -97,16 +111,16 @@ def vertex_edge_intersection(v_tool:Vertex, edge_object: Edge, eps: float = coll
     else:
         return None
 
+
 def point_on_edge_boundary(point, edge):
-    check = [
-        np.all(np.isclose(point, vertex.point)) for vertex in edge.boundary_shapes
-    ]
+    check = [np.all(np.isclose(point, vertex.point)) for vertex in edge.boundary_shapes]
     if check[0]:
         return edge.boundary_shapes[0]
     elif check[1]:
         return edge.boundary_shapes[1]
     else:
         return None
+
 
 def points_on_face_boundary(points, face):
     wires = face.boundary_shapes
@@ -123,8 +137,7 @@ def points_on_face_boundary(points, face):
 def embed_vertex_in_edge_boundary(vertex, edge):
     vertices_bc = [vertex_bc for vertex_bc in edge.boundary_shapes]
     check = [
-        np.all(np.isclose(vertex.point, vertex_bc.point))
-        for vertex_bc in vertices_bc
+        np.all(np.isclose(vertex.point, vertex_bc.point)) for vertex_bc in vertices_bc
     ]
     if check[0]:
         edge.boundary_shapes[0] = vertex
@@ -224,12 +237,8 @@ def intersect_edges(
             )
             if intersection_data[0]:
                 new_point = intersection_data[1]
-                obj_vertex = point_on_edge_boundary(
-                    new_point, edge_i
-                )
-                tool_vertex = point_on_edge_boundary(
-                    new_point, edge_j
-                )
+                obj_vertex = point_on_edge_boundary(new_point, edge_i)
+                tool_vertex = point_on_edge_boundary(new_point, edge_j)
                 # Connected edges by a common vertex are ignored
                 if obj_vertex is not None and tool_vertex is not None:
                     if obj_vertex == tool_vertex:
@@ -271,13 +280,9 @@ def intersect_edges(
             if len(case_indices) == 0:
                 continue
             vertices_to_embed = np.array([vertex_map[i] for i in case_indices])
-            _ = embed_vertex_in_edge(
-                vertices_to_embed, edge_i, tag_shift=e_tag
-            )
+            _ = embed_vertex_in_edge(vertices_to_embed, edge_i, tag_shift=e_tag)
             if len(edge_i.immersed_shapes) > 0:
-                new_e_tags = np.array(
-                    [shape.tag for shape in edge_i.immersed_shapes]
-                )
+                new_e_tags = np.array([shape.tag for shape in edge_i.immersed_shapes])
                 e_tag = np.max(new_e_tags) + 1
                 edges = np.append(edges, edge_i.immersed_shapes)
 
@@ -329,12 +334,8 @@ def intersect_faces(
             )
             if intersection_data[0]:
                 new_points = np.array([intersection_data[1], intersection_data[2]])
-                obj_edge = points_on_face_boundary(
-                    new_points, face_i
-                )
-                tool_edge = points_on_face_boundary(
-                    new_points, face_j
-                )
+                obj_edge = points_on_face_boundary(new_points, face_i)
+                tool_edge = points_on_face_boundary(new_points, face_j)
                 # Connected faces by a common edge are ignored
                 if obj_edge is not None and tool_edge is not None:
                     if obj_edge == tool_edge:
@@ -350,16 +351,10 @@ def intersect_faces(
                 # new approach
                 if len(existence_check) != 0 and np.any(existence_check):
                     v_index = np.argwhere(existence_check)[0, 0]
-                    point_pairs = np.append(
-                        (point_pairs, point_pairs[v_index]), axis=0
-                    )
+                    point_pairs = np.append((point_pairs, point_pairs[v_index]), axis=0)
                 else:
-                    point_pairs = np.append(
-                        point_pairs, np.array([new_points]), axis=0
-                    )
-                case_plane_indices = np.vstack(
-                    (case_plane_indices, np.array([i, j]))
-                )
+                    point_pairs = np.append(point_pairs, np.array([new_points]), axis=0)
+                case_plane_indices = np.vstack((case_plane_indices, np.array([i, j])))
 
     if len(point_pairs) > 0:
         # map recurrences and make geometry unique
