@@ -1,10 +1,7 @@
 import time
-import math
 import numpy as np
-import scipy
 from petsc4py import PETSc
 
-from basis.element_data import ElementData
 from geometry.domain import Domain
 from domain_builder import build_line_1D, build_surface_2D
 from mesh.conformal_mesher import ConformalMesher
