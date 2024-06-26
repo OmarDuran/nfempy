@@ -427,7 +427,7 @@ def material_data_definition(dim):
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")
     cases = [case_0, case_1, case_2, case_3]
-
+    cases = [case_0]
     return cases
 
 
@@ -468,11 +468,11 @@ def compose_case_name(method, dimension, domain, material, folder_name=None):
 def main():
     # fixed directives
     k_order = 0
-    h = 0.05
+    h = 0.5
     n_ref = 5
     dimensions = [2]
     folder_name = "output"
-    plot_rates_q = False
+    plot_rates_q = True
 
     # method variants
     methods = method_definition(k_order)
@@ -499,7 +499,7 @@ def main():
                     for l in range(n_ref):
                         h_val = h * (2**-l)
                         case_name_with_level = case_name + "l_" + str(l) + "_"
-                        mesher = create_conformal_mesher(domain[1], h, l)
+                        mesher = create_conformal_mesher(domain[1], h_val, 0)
                         gmesh = create_mesh(dimension, mesher, True)
                         h_min, h_mean, h_max = mesh_size(gmesh)
                         error_val = two_fields_formulation(
