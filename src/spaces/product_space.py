@@ -25,23 +25,17 @@ class ProductSpace:
             dims.append(data[0])
 
         self.integration_order = 2 * np.max(k_orders) + 1
-        dim = np.max(dims)
-        if dim == 0:
-            self.quadrature = (np.array([1.0]), np.array([1.0]))
-        else:
-            cell_type = type_by_dimension(dim)
-            self.quadrature = basix.make_quadrature(
-                cell_type, self.integration_order, basix.QuadratureType.gauss_jacobi
-            )
+        dims = np.unique(dims)
+        self.quadrature = [None, None, None, None]
+        for dim in dims:
+            if dim == 0:
+                self.quadrature[dim] = (np.array([1.0]), np.array([1.0]))
+            else:
+                cell_type = type_by_dimension(dim)
+                self.quadrature[dim] = basix.make_quadrature(cell_type, self.integration_order, basix.QuadratureType.gauss_jacobi)
 
-        # bc quadrature
-        if dim - 1 == 0:
-            self.bc_quadrature = (np.array([1.0]), np.array([1.0]))
-        else:
-            cell_type = type_by_dimension(dim - 1)
-            self.bc_quadrature = basix.make_quadrature(
-                cell_type, self.integration_order, basix.QuadratureType.gauss_jacobi
-            )
+        self.bc_quadrature = self.quadrature
+
 
     def _define_discrete_spaces(self, discrete_spaces_data):
         self.discrete_spaces = {}

@@ -12,51 +12,61 @@ from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
 
 
-def method_definition(k_order, flux_name, potential_name):
+def method_definition(k_order,  flux_names, potential_names):
     # lower order convention
     method_1 = {
-        flux_name: ("RT", k_order + 1),
-        potential_name: ("Lagrange", k_order),
+        flux_names[0]: ("RT", k_order + 1),
+        flux_names[1]: ("RT", k_order + 1),
+        potential_names[0]: ("Lagrange", k_order),
+        potential_names[1]: ("Lagrange", k_order),
     }
 
     methods = [method_1]
     method_names = ["mixed_rt"]
     return zip(method_names, methods)
 
-def create_product_space(method, gmesh, flux_name, potential_name):
+def create_product_space(method, gmesh, flux_names, potential_names):
+
+    assert method[1][flux_names[0]][1] == method[1][flux_names[1]][1]
+    assert method[1][potential_names[0]][1] == method[1][potential_names[1]][1]
+
     # FESpace: data
-    mp_k_order = method[1][flux_name][1]
-    p_k_order = method[1][potential_name][1]
+    mp_k_order = method[1][flux_names[0]][1]
+    p_k_order = method[1][potential_names[0]][1]
 
     mp_components = 1
     p_components = 1
 
-    mp_family = method[1][flux_name][0]
-    p_family = method[1][potential_name][0]
+    assert method[1][flux_names[0]][0] == method[1][flux_names[1]][0]
+    assert method[1][potential_names[0]][0] == method[1][potential_names[1]][0]
+
+    mp_family = method[1][flux_names[1]][0]
+    p_family = method[1][potential_names[1]][0]
 
     discrete_spaces_data = {
-        # flux_name: (gmesh.dimension, mp_components, mp_family, mp_k_order, gmesh),
-        flux_name + '_c1': (gmesh.dimension - 1, mp_components, mp_family, mp_k_order, gmesh),
-        # potential_name: (gmesh.dimension, p_components, p_family, p_k_order, gmesh),
-        potential_name + '_c1': (gmesh.dimension-1, p_components, p_family, p_k_order, gmesh),
+        # flux_names[0]: (gmesh.dimension, mp_components, mp_family, mp_k_order, gmesh),
+        flux_names[1]: (gmesh.dimension - 1, mp_components, mp_family, mp_k_order, gmesh),
+        # potential_names[0]: (gmesh.dimension, p_components, p_family, p_k_order, gmesh),
+        potential_names[1]: (gmesh.dimension-1, p_components, p_family, p_k_order, gmesh),
     }
 
     mp_disc_Q = False
     p_disc_Q = True
     discrete_spaces_disc = {
-        # flux_name: mp_disc_Q,
-        flux_name + '_c1': mp_disc_Q,
-        # potential_name: p_disc_Q,
-        potential_name + '_c1': p_disc_Q,
+        # flux_names[0]: mp_disc_Q,
+        flux_names[1]: mp_disc_Q,
+        # potential_names[0]: p_disc_Q,
+        potential_names[1]: p_disc_Q,
     }
 
     if gmesh.dimension == 2:
-        mp_field_bc_physical_tags = [2, 3, 4, 5, 99, 101]
+        mp_field_bc_physical_tags = [[2, 3, 4, 5, 99, 101], [10]]
     else:
         raise ValueError("Case not available.")
 
     discrete_spaces_bc_physical_tags = {
-        flux_name + '_c1': mp_field_bc_physical_tags,
+        # flux_names[0]: mp_field_bc_physical_tags[0],
+        flux_names[1]: mp_field_bc_physical_tags[1],
     }
 
     space = ProductSpace(discrete_spaces_data)
@@ -84,7 +94,8 @@ def generate_geometry_2d():
 
 def fracture_disjoint_set():
     fracture_1 = np.array([[0.5, 0.1, 0], [0.5, 0.75, 0]])
-    fractures = [fracture_1]
+    fracture_2 = np.array([[0.1, 0.5, 0], [0.75, 0.5, 0]])
+    fractures = [fracture_1, fracture_2]
     return fractures
 
 
@@ -131,25 +142,27 @@ gmesh = generate_mesh(True)
 
 
 k_order = 0
+co_dim = 1
 write_vtk_q = True
 case_name = 'md_elliptic_'
-flux_name = 'u'
-potential_name = 'p'
-methods = method_definition(k_order, flux_name + '_c1', potential_name + '_c1')
+flux_names = ['u_c0', 'u_c1']
+potential_names = ['p_c0', 'p_c1']
+methods = method_definition(k_order, flux_names, potential_names)
 for method in methods:
-    fe_space = create_product_space(method, gmesh, flux_name, potential_name)
+    fe_space = create_product_space(method, gmesh, flux_names, potential_names)
     aka = 0
 
-flux_name += '_c1'
-potential_name += '_c1'
-exact_functions_c0 = get_exact_functions_by_co_dimension(0, flux_name, potential_name, m_c, m_kappa, m_delta)
-alpha = l2_projector(fe_space,exact_functions_c0)
+exact_functions_c0 = get_exact_functions_by_co_dimension(0, flux_names, potential_names, m_c, m_kappa, m_delta)
+exact_functions_c1 = get_exact_functions_by_co_dimension(1, flux_names, potential_names, m_c, m_kappa, m_delta)
+exact_functions = [exact_functions_c0,exact_functions_c1] # {**exact_functions_c0, **exact_functions_c1}
+
+alpha = l2_projector(fe_space,exact_functions[co_dim])
 if write_vtk_q:
     # post-process solution
     st = time.time()
     file_name = case_name + "two_fields.vtk"
     write_vtk_file_with_exact_solution(
-        file_name, gmesh, fe_space, exact_functions_c0, alpha
+        file_name, gmesh, fe_space, exact_functions[co_dim], alpha
     )
     et = time.time()
     elapsed_time = et - st
