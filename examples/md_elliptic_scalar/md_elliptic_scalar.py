@@ -89,7 +89,7 @@ def generate_conformal_mesh(fracture_tags):
         fractures.append(fracture_2d_set()[tag])
     mesher.set_fracture_network(generate_fracture_network(fractures))
     mesher.set_points()
-    mesher.generate(0.1)
+    mesher.generate(0.5)
     mesher.write_mesh("gmesh.msh")
     return mesher
 
@@ -105,7 +105,7 @@ def generate_mesh(fracture_tags, write_vtk_q = False):
     return gmesh
 
 
-fracture_tags = fracture_set_tags[1]
+fracture_tags = fracture_set_tags[0]
 gmesh = generate_mesh(fracture_tags, True)
 check_q = gmesh.circulate_internal_bc()
 assert check_q[0]
