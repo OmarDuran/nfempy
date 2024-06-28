@@ -6,6 +6,54 @@ from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
 
 
+
+
+
+
+# Material data as scalars
+m_kappa = 1.0
+
+c = 1
+m_delta = 10 ** -3
+
+
+def p_fracture(x, y, z):
+    return np.sin(2 * np.pi * y)
+
+def p_grad_fracture(x, y, z):
+    return 2 * np.pi * np.cos(2 * np.pi * y)
+
+def f_kappa(x, y, z):
+    return m_kappa
+
+def f_delta(x, y, z):
+    return m_delta
+
+
+
+# exact solution
+
+p_exact = lambda x, y, z: np.array([(c * x + f_delta(x, y, z)) * p_fracture(x, y, z)])
+u_exact = lambda x, y, z: np.array(
+    [
+        [
+            -c * p_fracture(x, y, z),
+            - (c * x + f_delta(x, y, z)) * p_grad_fracture(x, y, z),
+        ]
+    ]
+)
+
+p_f_exact = lambda x, y, z: np.array(
+    [
+        np.sin(2 * np.pi * y),
+    ]
+)
+u_f_exact = lambda x, y, z: np.array([- f_kappa(x, y, z) *  f_delta(x, y, z) * p_grad_fracture(x, y, z)])
+
+f_rhs = lambda x, y, z: np.array([[4 * (np.pi**2) * (c * x + f_delta(x, y, z)) * p_fracture(x, y, z)]])
+r_rhs = lambda x, y, z: np.array([[4 * (np.pi**2) * f_kappa(x, y, z) *  f_delta(x, y, z)  * np.sin(2 * np.pi * y)]])
+
+
 fracture_set_tags = [[0], [0, 1], [0, 1, 2], [0, 1, 2, 3], [0, 1, 2, 3, 4]]
 
 
@@ -61,4 +109,10 @@ fracture_tags = fracture_set_tags[1]
 gmesh = generate_mesh(fracture_tags, True)
 check_q = gmesh.circulate_internal_bc()
 assert check_q[0]
+
+
+
+
+
+
 
