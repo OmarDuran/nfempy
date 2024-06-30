@@ -184,6 +184,11 @@ def test_collapse_vertex():
     v3 = collapse_vertex(v4, v3, eps=0.11)
     assert vertex_strong_equality(v4, v3)
 
+    v3: Vertex = Vertex(1, np.array([0.1, 0.0, 0.0]))
+    v4: Vertex = Vertex(2, np.array([0.0, 0.1, 0.0]))
+    v3 = collapse_vertex(v4, v3)
+    assert not vertex_strong_equality(v4, v3)
+
 
 def test_vertex_tool_edge_object():
 

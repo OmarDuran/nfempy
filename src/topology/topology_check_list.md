@@ -1,0 +1,6 @@
+- [x] Vertex - shapes intersection
+- [ ] Edge - shapes intersection
+- [ ] Wire - shapes intersection
+- [ ] Face - shapes intersection
+- [ ] Shell - shapes intersection
+- [ ] Solid - shapes intersection
