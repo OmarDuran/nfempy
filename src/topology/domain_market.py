@@ -5,7 +5,7 @@ import numpy as np
 from topology.domain import Domain
 from topology.edge import Edge
 from topology.face import Face
-from topology.shape_manipulation import ShapeManipulation
+from topology.shape_manipulation import embed_edge_in_face
 from topology.shell import Shell
 from topology.solid import Solid
 from topology.vertex import Vertex
@@ -193,7 +193,7 @@ def build_box_2D_with_lines(box_points, lines_file, physical_tags=None):
         lines_file, max_e_tag=max_e_tag, max_v_tag=max_v_tag, max_p_tag=max_p_tag + 1
     )
 
-    ShapeManipulation.embed_edge_in_face(domain_lines.shapes[1], face)
+    embed_edge_in_face(domain_lines.shapes[1], face)
     domain.append_shapes(domain_lines.shapes[0])
     domain.append_shapes(domain_lines.shapes[1])
 
@@ -204,7 +204,7 @@ def build_box_2D_with_lines(box_points, lines_file, physical_tags=None):
     # performing multiple intersection of connected and disjointed edges
     edges_obj = domain.shapes[1]
     edges_tool = domain.shapes[1]
-    (frag_edges, frag_vertices) = ShapeManipulation.intersect_edges(
+    (frag_edges, frag_vertices) = intersect_edges(
         edges_obj,
         edges_tool,
         v_tag_shift=max_v_tag,
@@ -308,10 +308,6 @@ def build_box_3D_with_planes(box_points, planes_file, physical_tags=None):
     domain.append_shapes(domain_planes.shapes[1])
     domain.append_shapes(domain_planes.shapes[2])
 
-    # ShapeManipulation.embed_edge_in_face(domain_lines.shapes[1], face)
-    # domain.append_shapes(domain_lines.shapes[0])
-    # domain.append_shapes(domain_lines.shapes[1])
-
     max_v_tag = len(domain.shapes[0])
     max_e_tag = len(domain.shapes[1])
     max_f_tag = len(domain.shapes[2])
@@ -320,7 +316,7 @@ def build_box_3D_with_planes(box_points, planes_file, physical_tags=None):
     # step two multiple plane intersection of of connected and disjointed planes
     faces_obj = domain.shapes[2]
     faces_tool = domain.shapes[2]
-    (frag_edges, frag_vertices) = ShapeManipulation.intersect_faces(
+    (frag_edges, frag_vertices) = intersect_faces(
         faces_obj,
         faces_tool,
         f_tag_shift=max_f_tag,

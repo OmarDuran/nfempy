@@ -1,7 +1,6 @@
 import numpy as np
 from topology.graphical_shape import draw_vertex_sequence
 from topology.domain import Domain
-
 from topology.domain_market import build_box_3D
 
 box_points = np.array(
