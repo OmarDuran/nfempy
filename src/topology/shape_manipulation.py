@@ -4,6 +4,8 @@ from numpy import linalg as la
 from globals import topology_collapse_tol as collapse_tol
 from topology.vertex import Vertex
 
+
+
 import topology.polygon_polygon_intersection_test as pp_intersector
 import topology.triangle_triangle_intersection_test as tt_intersector
 from topology.edge import Edge
@@ -41,21 +43,6 @@ def collapse_vertex(
         return v_object
 
 
-def vertex_edge_boundary_intersection(
-    v_tool: Vertex, edge_object: Edge, eps: float = collapse_tol
-):
-    check = [
-        vertex_with_same_geometry(v_tool, e_vertex, eps)
-        for e_vertex in edge_object.boundary_shapes
-    ]
-    if check[0]:
-        return edge_object.boundary_shapes[0]
-    elif check[1]:
-        return edge_object.boundary_shapes[1]
-    else:
-        return None
-
-
 def point_line_intersection(A, B, P):
     x1, y1, z1 = A
     x2, y2, z2 = B
@@ -91,14 +78,27 @@ def point_line_intersection(A, B, P):
     # Check if all non-None t values are the same
     return all(t == t_values[0] for t in t_values)
 
+def vertex_edge_boundary_intersection(
+    v_tool: Vertex, edge_object: Edge, eps: float = collapse_tol
+):
+    check = [
+        vertex_with_same_geometry(v_tool, e_vertex, eps)
+        for e_vertex in edge_object.boundary_shapes
+    ]
+    if check[0]:
+        return edge_object.boundary_shapes[0]
+    elif check[1]:
+        return edge_object.boundary_shapes[1]
+    else:
+        return None
 
 def vertex_edge_intersection(
     v_tool: Vertex, edge_object: Edge, eps: float = collapse_tol
 ):
-
     bc_out = vertex_edge_boundary_intersection(v_tool, edge_object, eps)
     if bc_out is not None:
         return bc_out
+
 
     check = [
         vertex_with_same_geometry(v_tool, e_vertex)

@@ -1,7 +1,7 @@
 from functools import partial
 from globals import topology_point_line_incidence_tol as p_incidence_tol
 from globals import topology_line_line_incidence_tol as l_incidence_tol
-from globals import topology_collapse_tol as collapse_tol
+
 import numpy as np
 import matplotlib.pyplot as plt
 from topology.point_line_incidence import point_line_intersection
@@ -31,7 +31,7 @@ def line_line_intersection(
     pa = a + t * d1
     pc = c + s * d2
     # Check if the intersection points are the same
-    if np.allclose(pa, pc, rtol=l_incidence_tol, atol=l_incidence_tol):
+    if np.allclose(pa, pc, rtol=eps, atol=eps):
         out = point_line_intersection(pa, c, d)
         if out is not None:
             return np.array([pa])
