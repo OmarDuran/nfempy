@@ -2,8 +2,8 @@
 Three main boolean operations are supported:
 
 - Intersection or common parts
-- Union or Fusion or +
 - Difference or Cut or -
+- Union or Fusion or +
 
 # Notes on domains:
 The general idea is to have graph representation of the domains in order to
@@ -19,6 +19,9 @@ For md-domains and meshes, the natural steps are:
 
 # Notes on intersections:
 This operation may generate new shapes and rely in geometrical information. Based on the information given in [[Open cascade]](https://dev.opencascade.org/doc/overview/html/specification__boolean_operations.html). No pave blocks / sectors are supported.
+
+# Difference or Cut or -:
+This operation is restricted for shapes having a boundary representation  only to boundary representation (BRep). In other words, only operations between shapes with co_dimension difference of one are permitted.
 
 
 

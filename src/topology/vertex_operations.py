@@ -1,15 +1,16 @@
 import numpy as np
-from typing import Union
+from typing import Union, List, Tuple
 from topology.vertex import Vertex
 from topology.edge import Edge
 from topology.wire import Wire
 from topology.face import Face
 from topology.shell import Shell
 
+from globals import topology_tag_shape_info as tag_info
 from globals import topology_collapse_tol as collapse_tol
 from globals import topology_point_line_incidence_tol as p_incidence_tol
 from topology.point_line_incidence import point_line_intersection
-
+from functools import partial
 
 def vertex_with_same_geometry_q(
     vertex_a: Vertex, vertex_b: Vertex, eps: float = p_incidence_tol
@@ -40,7 +41,7 @@ def collapse_vertex(
 
 
 def vertex_vertex_intersection(
-    v_tool: Vertex, v_object: Vertex, tag: int = -1, eps: float = p_incidence_tol
+    v_tool: Vertex, v_object: Vertex, tag: int = tag_info.min, eps: float = p_incidence_tol
 ) -> Union[None, Vertex]:
     if vertex_strong_equality_q(v_tool, v_object):
         return v_object  # same as v_tool
@@ -52,7 +53,7 @@ def vertex_vertex_intersection(
 
 
 def vertex_edge_boundary_intersection(
-    v_tool: Vertex, edge_object: Edge, tag: int = -1, eps: float = p_incidence_tol
+    v_tool: Vertex, edge_object: Edge, tag: int = tag_info.min, eps: float = p_incidence_tol
 ) -> Union[None, Vertex]:
     strong_check = [
         vertex_strong_equality_q(v_tool, e_vertex)
@@ -79,7 +80,7 @@ def vertex_edge_boundary_intersection(
 
 
 def vertex_edge_intersection(
-    v_tool: Vertex, edge_object: Edge, tag: int = -1, eps: float = p_incidence_tol
+    v_tool: Vertex, edge_object: Edge, tag: int = tag_info.min, eps: float = p_incidence_tol
 ) -> Union[None, Vertex]:
     bc_out = vertex_edge_boundary_intersection(v_tool, edge_object, tag, eps)
     if bc_out is not None:
@@ -93,3 +94,23 @@ def vertex_edge_intersection(
         return None
     else:
         return Vertex(tag, out)
+
+def vertices_edge_intersection(
+    vertices_tool: Vertex, edge_object: Edge, tag: int = tag_info.min, eps: float = p_incidence_tol
+) -> Tuple[np.ndarray, np.ndarray]:
+
+    intersect_with_line = partial(vertex_edge_intersection, edge_object=edge_object,tag=tag_info.min,eps=eps)
+    resulting_shapes = np.array(list(map(intersect_with_line,vertices_tool)))
+
+    shapes_tool = []
+    shape_intx = []
+    for idx, shape in enumerate(resulting_shapes):
+        if shape is None:
+            continue
+        shape.tag = tag
+        tag += 1
+        shape_intx.append(shape)
+        shapes_tool.append(vertices_tool[idx])
+    shape_intx = np.array(shape_intx)
+    shapes_tool = np.array(shapes_tool)
+    return shape_intx, shapes_tool

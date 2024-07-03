@@ -121,3 +121,4 @@ class Domain:
             with_labels=True,
             node_color="skyblue",
         )
+

@@ -5,14 +5,14 @@ from globals import topology_line_line_incidence_tol as l_incidence_tol
 import numpy as np
 import matplotlib.pyplot as plt
 from topology.point_line_incidence import point_line_intersection
-from topology.point_line_incidence import points_line_orientation
+from topology.point_line_incidence import points_line_intersection
 
 
 def line_line_intersection(
     a: np.array, b: np.array, c: np.array, d: np.array, eps: float = l_incidence_tol
 ) -> float:
 
-    out = points_line_orientation(np.array([a, b]), c, d, p_incidence_tol)
+    out = points_line_intersection(np.array([a, b]), c, d, p_incidence_tol)
     if len(out) > 0:
         return out
 

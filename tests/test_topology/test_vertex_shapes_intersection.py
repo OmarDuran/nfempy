@@ -10,7 +10,7 @@ from topology.point_line_incidence import colinear_measurement
 from topology.point_line_incidence import point_line_incidence
 from topology.point_line_incidence import point_line_intersection
 from topology.point_line_incidence import points_line_intersection
-from topology.point_line_incidence import points_line_orientation
+from topology.point_line_incidence import points_line_argsort
 
 from topology.vertex_operations import vertex_with_same_geometry_q
 from topology.vertex_operations import vertex_strong_equality_q
@@ -122,8 +122,7 @@ def test_points_line_intersection():
     assert np.all(np.isclose(out[0], np.array([0.95, 0.95, 0.95])))
     assert np.all(np.isclose(out[1], np.array([0.425, 0.425, 0.425])))
 
-
-def test_points_line_orientation():
+def test_points_line_argsort():
 
     # points for segment
     a = np.array([0.0, 0.0, 0.0])
@@ -132,14 +131,12 @@ def test_points_line_orientation():
     gammas = np.linspace(-1.0, 1.1, 5)
     points = np.array([(1 - gamma) * np.array([1.0, 1.0, 1.0]) for gamma in gammas])
     # a to b oriented
-    out = points_line_orientation(points, a, b)
-    assert np.all(np.isclose(out[0], np.array([0.425, 0.425, 0.425])))
-    assert np.all(np.isclose(out[1], np.array([0.95, 0.95, 0.95])))
+    out = points_line_argsort(points, a, b, ba_sorting= False)
+    assert np.all(np.isclose(out, np.array([4,3,2,1,0])))
 
     # b to a oriented
-    out = points_line_orientation(points, b, a)
-    assert np.all(np.isclose(out[0], np.array([0.95, 0.95, 0.95])))
-    assert np.all(np.isclose(out[1], np.array([0.425, 0.425, 0.425])))
+    out = points_line_argsort(points, a, b, ba_sorting=True)
+    assert np.all(np.isclose(out, np.array([2, 1, 3, 0, 4])))
 
 
 def test_vertex_with_same_geometry():

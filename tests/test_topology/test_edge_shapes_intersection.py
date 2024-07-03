@@ -118,7 +118,7 @@ def test_line_line_intersection():
     c = np.array([-1.5, -1.5, -1.5])
     d = np.array([0.0, 0.0, 0.0])
     out = line_line_intersection(a, b, c, d)
-    assert np.all(np.isclose(out, np.array([[-1.5, -1.5, -1.5], [0.0, 0.0, 0.0]])))
+    assert np.all(np.isclose(out, np.array([[0.0, 0.0, 0.0], [-1.5, -1.5, -1.5]])))
 
 
 def test_lines_line_intersection():

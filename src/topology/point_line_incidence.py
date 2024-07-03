@@ -72,12 +72,11 @@ def points_line_intersection(
     return result
 
 
-def points_line_orientation(
-    points: np.array, a: np.array, b: np.array, eps: float = incidence_tol
-) -> float:
-    points = np.array(points_line_intersection(points, a, b, eps))
-    if points.shape[0] == 0:
-        return points
-    # assuming segment is oriented from a to b
-    idx = np.argsort(np.linalg.norm(points - a, axis=1))
-    return points[idx]
+def points_line_argsort(
+    points: np.array, a: np.array, b: np.array, ba_sorting: bool = False) -> float:
+    # by default assuming segment is oriented from a to b
+    if ba_sorting:
+        idx = np.argsort(np.linalg.norm(points - b, axis=1))
+    else:
+        idx = np.argsort(np.linalg.norm(points - a, axis=1))
+    return idx
