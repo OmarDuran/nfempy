@@ -7,11 +7,12 @@ from topology.face import Face
 from topology.shell import Shell
 
 from globals import topology_collapse_tol as collapse_tol
+from globals import topology_point_line_incidence_tol as p_incidence_tol
 from topology.point_line_incidence import point_line_intersection
 
 
 def vertex_with_same_geometry_q(
-    vertex_a: Vertex, vertex_b: Vertex, eps: float = collapse_tol
+    vertex_a: Vertex, vertex_b: Vertex, eps: float = p_incidence_tol
 ):
     point_a = vertex_a.point
     point_b = vertex_b.point
@@ -25,6 +26,7 @@ def vertex_strong_equality_q(vertex_a: Vertex, vertex_b: Vertex):
     strong_equality = shape_equality_q and geometry_equality_q
     return strong_equality
 
+
 def collapse_vertex(
     v_tool: Vertex, v_object: Vertex, eps: float = collapse_tol
 ) -> Vertex:
@@ -36,35 +38,50 @@ def collapse_vertex(
     else:
         return None
 
+
 def vertex_vertex_intersection(
-    v_tool: Vertex, v_object: Vertex, eps: float = collapse_tol
+    v_tool: Vertex, v_object: Vertex, tag: int = -1, eps: float = p_incidence_tol
 ) -> Union[None, Vertex]:
     if vertex_strong_equality_q(v_tool, v_object):
-        return v_object
+        return v_object  # same as v_tool
     elif vertex_with_same_geometry_q(v_tool, v_object, eps):
-        v_object.shape_assignment(v_tool)
-        return v_object
+        vertex = Vertex(tag, v_tool.point)  # same geometry as v_tool
+        return vertex
     else:
         return None
 
+
 def vertex_edge_boundary_intersection(
-    v_tool: Vertex, edge_object: Edge, eps: float = collapse_tol
+    v_tool: Vertex, edge_object: Edge, tag: int = -1, eps: float = p_incidence_tol
 ) -> Union[None, Vertex]:
-    check = [
+    strong_check = [
+        vertex_strong_equality_q(v_tool, e_vertex)
+        for e_vertex in edge_object.boundary_shapes
+    ]
+    weak_check = [
         vertex_with_same_geometry_q(v_tool, e_vertex, eps)
         for e_vertex in edge_object.boundary_shapes
     ]
-    if check[0]:
+    if strong_check[0]:
         return edge_object.boundary_shapes[0]
-    elif check[1]:
+    elif strong_check[1]:
         return edge_object.boundary_shapes[1]
+    if weak_check[0]:
+        v0: Vertex = edge_object.boundary_shapes[0]
+        vertex = Vertex(tag, v0.point)
+        return vertex
+    elif weak_check[1]:
+        v1: Vertex = edge_object.boundary_shapes[1]
+        vertex = Vertex(tag, v1.point)
+        return vertex
     else:
         return None
 
+
 def vertex_edge_intersection(
-    v_tool: Vertex, edge_object: Edge, eps: float = collapse_tol
+    v_tool: Vertex, edge_object: Edge, tag: int = -1, eps: float = p_incidence_tol
 ) -> Union[None, Vertex]:
-    bc_out = vertex_edge_boundary_intersection(v_tool, edge_object, eps)
+    bc_out = vertex_edge_boundary_intersection(v_tool, edge_object, tag, eps)
     if bc_out is not None:
         return bc_out
 
@@ -75,5 +92,4 @@ def vertex_edge_intersection(
     if out is None:
         return None
     else:
-        tag = v_tool.tag
         return Vertex(tag, out)

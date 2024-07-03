@@ -18,7 +18,6 @@ from topology.vertex_operations import vertex_vertex_intersection
 from topology.vertex_operations import vertex_edge_intersection
 
 
-
 def test_point_line_colinear_measurement():
 
     a = np.array([0.0, 0.0, 0.0])
@@ -172,21 +171,24 @@ def test_vertex_vertex_intersection():
     v1: Vertex = Vertex(1, np.array([1.0, 0.0, 0.0]))
     v2: Vertex = Vertex(2, np.array([0.0, 0.0, 0.0]))
 
-    out = vertex_vertex_intersection(v1, v0)
+    out = vertex_vertex_intersection(v1, v0, tag=3)
     assert out is None
 
-    v2 = vertex_vertex_intersection(v0, v2)
-    assert vertex_strong_equality_q(v0, v2)
+    out = vertex_vertex_intersection(v0, v2, tag=2)
+    assert vertex_strong_equality_q(out, v2)
+    out = vertex_vertex_intersection(v0, v2, tag=3)
+    assert not vertex_strong_equality_q(out, v2)
 
     v3: Vertex = Vertex(1, np.array([0.1, 0.0, 0.0]))
     v4: Vertex = Vertex(2, np.array([0.0, 0.1, 0.0]))
-    out = vertex_vertex_intersection(v4, v3, eps=0.11)
+    out = vertex_vertex_intersection(v4, v3, tag=2, eps=0.11)
     assert vertex_strong_equality_q(v4, out)
 
     v3: Vertex = Vertex(1, np.array([0.1, 0.0, 0.0]))
     v4: Vertex = Vertex(2, np.array([0.0, 0.1, 0.0]))
-    out = vertex_vertex_intersection(v4, v3)
+    out = vertex_vertex_intersection(v4, v3, tag=4)
     assert out is None
+
 
 def test_vertex_edge_intersection():
 

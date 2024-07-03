@@ -5,7 +5,6 @@ from globals import topology_collapse_tol as collapse_tol
 from topology.vertex import Vertex
 
 
-
 import topology.polygon_polygon_intersection_test as pp_intersector
 import topology.triangle_triangle_intersection_test as tt_intersector
 from topology.edge import Edge
@@ -78,6 +77,7 @@ def point_line_intersection(A, B, P):
     # Check if all non-None t values are the same
     return all(t == t_values[0] for t in t_values)
 
+
 def vertex_edge_boundary_intersection(
     v_tool: Vertex, edge_object: Edge, eps: float = collapse_tol
 ):
@@ -92,13 +92,13 @@ def vertex_edge_boundary_intersection(
     else:
         return None
 
+
 def vertex_edge_intersection(
     v_tool: Vertex, edge_object: Edge, eps: float = collapse_tol
 ):
     bc_out = vertex_edge_boundary_intersection(v_tool, edge_object, eps)
     if bc_out is not None:
         return bc_out
-
 
     check = [
         vertex_with_same_geometry(v_tool, e_vertex)
