@@ -11,15 +11,14 @@ from topology.vertex_operations import vertex_with_same_geometry_q
 from topology.vertex_operations import vertices_edge_intersection
 from topology.vertex_operations import vertex_edge_intersection
 
-from mesh.conformal_mesher import ConformalMesher
-from mesh.mesh import Mesh
+from mesh.discrete_domain import DiscreteDomain
 
-def create_conformal_mesher(domain: Domain, h, ref_l=0):
-    mesher = ConformalMesher(dimension=domain.dimension)
-    mesher.domain = domain
-    mesher.generate_from_domain(h, ref_l)
-    mesher.write_mesh("gmesh.msh")
-    return mesher
+def create_conformal_mesh(domain: Domain, h, ref_l=0):
+    domain_h = DiscreteDomain(dimension=domain.dimension)
+    domain_h.domain = domain
+    domain_h.generate_mesh(h, ref_l)
+    domain_h.write_mesh("gmesh.msh")
+    return domain_h
 
 def index_shape_by_co_dimension(shape, max_dim: int = 1):
     return (max_dim - shape.dimension, shape.tag)
@@ -34,12 +33,15 @@ v0: Vertex = Vertex(0, np.array([0.0, 0.0, 0.0]))
 v1: Vertex = Vertex(1, np.array([1.0, 1.0, 1.0]))
 e0: Edge = Edge(0, np.array([v0, v1]))
 
+v0.physical_tag = 2
+v1.physical_tag = 3
+e0.physical_tag = 1
+
 v2: Vertex = Vertex(2, np.array([0.25, 0.25, 0.25]))
-v3: Vertex = Vertex(3, np.array([0.5, 0.5, 0.5]))
+v3: Vertex = Vertex(3, np.array([0.4, 0.4, 0.4]))
 
 
 
-# All co_dimensions are persistent
 shapes = [{}, {}]
 [append_shape(shapes, shape) for shape in [v0, v1, v2, v3, e0]]
 
@@ -86,13 +88,16 @@ def vertices_edge_difference(vertices_tool: Vertex, edge_object: Edge, tag: int 
             v0 = vertex_a
         else:
             v0 = Vertex(tag, chain[0])
+            v0.physical_tag = edge_object.physical_tag
             tag += 1
         if vertex_with_same_geometry_q(Vertex(tag, chain[1]), vertex_b):
             v1 = vertex_b
         else:
             v1 = Vertex(tag, chain[1])
+            v1.physical_tag = edge_object.physical_tag
             tag += 1
         e = Edge(tag, np.array([v0,v1]))
+        e.physical_tag = edge_object.physical_tag
         tag += 1
         new_vertices.append(v0)
         new_vertices.append(v1)
@@ -100,14 +105,23 @@ def vertices_edge_difference(vertices_tool: Vertex, edge_object: Edge, tag: int 
 
     return new_vertices, new_edges
 parts = vertices_edge_difference(intxs_e0, e0, tag=7)
+[append_shape(shapes, shape) for shape in parts[0]]
+[append_shape(shapes, shape) for shape in parts[1]]
 
 domain = Domain(dimension=1)
+# domain.append_shapes(parts[0])
+# domain.append_shapes(parts[1])
+# domain.build_grahp()
+# domain.draw_grahp()
+
+e0.immersed_shapes = np.concatenate((parts[0], parts[1]))
 domain.append_shapes(parts[0])
-domain.append_shapes(parts[1])
+domain.append_shapes(np.concatenate((np.array([e0]), parts[1])))
 domain.build_grahp()
-domain.draw_grahp()
+# domain.draw_grahp()
+
 
 h_val = 0.1
-mesher = create_conformal_mesher(domain, h_val, 0)
+mesher = create_conformal_mesh(domain, h_val, 0)
 
 aka = 0
