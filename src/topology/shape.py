@@ -12,6 +12,9 @@ class Shape(ABC):
         self._composite = False
         self._boundary_shapes = np.array([], dtype=Shape)
         self._immersed_shapes = np.array([], dtype=Shape)
+        # TODO: Remane _immersed_shapes to _embed_shapes
+        # https://math.stackexchange.com/questions/68254/what-is-the-difference-between-immersion-and-embedding
+        # self._embedded_shapes = np.array([], dtype=Shape)
 
     @staticmethod
     def shape_dimension_by_type(name):

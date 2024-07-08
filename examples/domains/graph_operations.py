@@ -3,7 +3,13 @@ import matplotlib.pyplot as plt
 
 def plot_grahp(G):
     # Draw the graph
-    nx.draw(G, with_labels=True, node_color='skyblue', node_size=700, font_size=16, font_color='black')
+    # nx.draw(G, with_labels=True, node_color='skyblue', node_size=700, font_size=16, font_color='black')
+    nx.draw(
+        G,
+        pos=nx.circular_layout(G),
+        with_labels=True,
+        node_color="skyblue",
+    )
     plt.show()
 
 
@@ -62,9 +68,9 @@ def md_conformal_to_no_conformal():
     # 1) Compute intersection
     I = nx.intersection(G,H)
     # 2) same co_dimension coupling
-    C = nx.Graph()
-    C.add_edge((1,4), (1,3))
-    C.add_edge((1,5), (1,3))
+    C = nx.DiGraph()
+    C.add_edge((1,3), (1,4))
+    C.add_edge((1,3), (1,5))
     # 3) add extra duplicates
     G.add_edge((0,2), (1,4))
     G.add_edge((0,3), (1,5))
@@ -77,7 +83,8 @@ def md_conformal_to_no_conformal():
     U = D.copy()
     U.add_edges_from(e for e in C.edges)
 
-    plot_grahp(D)
+    cycles = list(nx.chordless_cycles(U))
+    plot_grahp(U)
 
 # md_sequence()
 

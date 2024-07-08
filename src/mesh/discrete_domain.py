@@ -64,7 +64,7 @@ class DiscreteDomain:
         return tag_stride[dim]
 
     def __physical_group_vertices(self):
-        physical_tags_0d = np.unique([shape.physical_tag for shape in self.domain.shapes[0]])
+        physical_tags_0d = np.unique([shape.physical_tag for shape in self.domain.shapes[0] if shape.physical_tag is not None])
         for physical_tag in physical_tags_0d:
             filtered_shapes = [shape for shape in self.domain.shapes[0] if shape.physical_tag == physical_tag]
             if len(filtered_shapes) > 0:
@@ -76,7 +76,7 @@ class DiscreteDomain:
 
     def __physical_group_curves(self):
         physical_tags_1d = np.unique(
-            [shape.physical_tag for shape in self.domain.shapes[1]])
+            [shape.physical_tag for shape in self.domain.shapes[1] if shape.physical_tag is not None])
         for physical_tag in physical_tags_1d:
             filtered_shapes = [shape for shape in self.domain.shapes[1] if
                                shape.physical_tag == physical_tag]
@@ -93,6 +93,21 @@ class DiscreteDomain:
                 1, curve_tags, physical_tag
             )
         gmsh.model.occ.synchronize()
+
+    def __embed_vertices_in_curves(self):
+        for curve in self.domain.shapes[1]:
+            if curve.composite:
+                continue
+            shapes_with_same_dimension = [shape for shape in curve.immersed_shapes
+                                          if shape.dimension == curve.dimension]
+            if len(shapes_with_same_dimension) > 0:
+                continue
+
+            tags_0d = []
+            for shape in curve.immersed_shapes: # only vertices are embedded in curves
+                tags_0d = tags_0d + [self.stride_tag(0,shape.tag)]
+            tags_0d = list(np.unique(tags_0d))
+            gmsh.model.mesh.embed(0, tags_0d, 1, self.stride_tag(1, curve.tag))
 
     def convert_domain_to_occ_description(self):
         self.__compute_entities_strides()
@@ -149,7 +164,7 @@ class DiscreteDomain:
         self.__physical_group_vertices()
         if dimension > 0:
             self.__physical_group_curves()
-        return
+
 
         if dimension > 1:
             for surface in self.domain.shapes[2]:
@@ -169,29 +184,7 @@ class DiscreteDomain:
 
         # embed entities
         if dimension > 0:
-            tags_1d = [shape.tag for shape in self.domain.shapes[1]]
-            for curve in self.domain.shapes[1]:
-                if curve.composite:
-                    continue
-                shapes_with_same_dimension = [shape for shape in curve.immersed_shapes
-                                              if shape.dimension == curve.dimension]
-                if len(shapes_with_same_dimension) > 0:
-                    continue
-                # print("surface tag: ", surface.tag)
-                tags_0d = []
-                shapes_c1 = [shape for shape in curve.immersed_shapes]
-                for shape_c1 in shapes_c1:
-                    tags_0d = tags_0d + [
-                        vertex.tag + 1 for vertex in shape_c1.boundary_shapes
-                    ]
-                tags_0d = list(np.unique(tags_0d))
-                gmsh.model.mesh.embed(0, tags_0d, 1, curve_stride + curve.tag + 1)
-
-                # numNodes = 10
-                # for tag_1d in tags_1d:
-                #     gmsh.model.mesh.setTransfiniteCurve(
-                #         tag_1d, numNodes, "Bump", coef=0.125 / 2
-                #     )
+            self.__embed_vertices_in_curves()
 
         # embed entities
         if dimension > 1:
