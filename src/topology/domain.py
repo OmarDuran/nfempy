@@ -78,7 +78,7 @@ class Domain:
         self.shapes[0] = np.array(shapes)
 
     def shape_index(self, shape):
-        return (self.dimension - shape.dimension, shape.tag)
+        return shape.index(max_dimension=self.dimension)
 
     def gather_graph_edges(self, shape: Shape, tuple_id_list):
         for bc_shape in shape.boundary_shapes:

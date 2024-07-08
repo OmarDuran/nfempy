@@ -114,6 +114,9 @@ class Shape(ABC):
     def hash(self):
         return hash((self.dimension, self.tag))
 
+    def index(self, max_dimension: int = 3):
+        return (max_dimension - self.dimension, self.tag)
+
     def __eq__(self, other):
         equality_by_dimension_and_tag = (self.dimension, self.tag) == (
             other.dimension,

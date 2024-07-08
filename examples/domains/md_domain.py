@@ -15,7 +15,6 @@ from topology.vertex_operations import vertex_with_same_geometry_q
 from topology.vertex_operations import vertices_edge_intersection
 
 from mesh.discrete_domain import DiscreteDomain
-from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
 
 def plot_graph(G):
@@ -26,28 +25,12 @@ def plot_graph(G):
         node_color="skyblue",
     )
 
-def create_conformal_mesh(domain: Domain, h, ref_l=0):
-    domain_h = DiscreteDomain(dimension=domain.dimension)
-    domain_h.domain = domain
-    domain_h.generate_mesh(h, ref_l)
-    domain_h.write_mesh("gmesh.msh")
-    return domain_h
-
-def create_mesh(dimension, write_vtk_q=False):
-    gmesh = Mesh(dimension=dimension, file_name="gmesh.msh")
-    gmesh.build_conformal_mesh()
-    if write_vtk_q:
-        gmesh.write_vtk()
-    return gmesh
-
-def indexate_shape(shape, max_dim: int = 1):
-    return (max_dim - shape.dimension, shape.tag)
-
 def append_shape(shapes, shape, max_dim: int = 1):
     co_dim = max_dim - shape.dimension
-    shapes[co_dim][indexate_shape(shape)] = shape
+    shapes[co_dim][shape.index(max_dimension=max_dim)] = shape
     return
 
+max_dim = 1
 # shape collection
 shapes = [{}, {}]
 
@@ -168,8 +151,8 @@ md_G_partial = domain_broken.graph.copy()
 # Perform union
 vertex_interfaces = {}
 for v_tool in vertices_tool:
-    v_tool_index = indexate_shape(v_tool)
-    chunk = [indexate_shape(vertex) for vertex in parts[1] if vertex_with_same_geometry_q(vertex, v_tool)]
+    v_tool_index = v_tool.index(max_dimension=max_dim)
+    chunk = [vertex.index(max_dimension=max_dim) for vertex in parts[1] if vertex_with_same_geometry_q(vertex, v_tool)]
     vertex_interfaces[v_tool.hash()] = chunk
     predecessors = [list(md_G_partial.predecessors(index))[0] for index in chunk]
     [md_G_partial.add_edge(index,v_tool_index) for index in predecessors]
@@ -178,7 +161,7 @@ for v_tool in vertices_tool:
 
 # plot_graph(md_G_partial)
 # Step 1: remove embeddings from the graph. This is a BRep graph
-nodes_to_remove = [indexate_shape(shape) for shape in vertices_to_embed[vertices_embeddability_q]]
+nodes_to_remove = [shape.index(max_dimension=max_dim) for shape in vertices_to_embed[vertices_embeddability_q]]
 md_G_partial.remove_nodes_from(nodes_to_remove)
 # plot_graph(md_G_partial)
 
@@ -209,8 +192,17 @@ md_brep_domain.append_shapes(vertices_to_embed[vertices_embeddability_q])
 md_brep_domain.build_grahp()
 md_brep_domain.draw_grahp()
 
+# Conformal gmsh discrete representation
 h_val = 0.1
-conformal_mesh = create_conformal_mesh(md_brep_domain, h_val, 0)
-gmesh = create_mesh(dimension=1,write_vtk_q=True)
+domain_h = DiscreteDomain(dimension=md_brep_domain.dimension)
+domain_h.domain = md_brep_domain
+domain_h.generate_mesh(h_val, 0)
+domain_h.write_mesh("gmesh.msh")
+
+# Mesh representation
+gmesh = Mesh(dimension=md_brep_domain.dimension, file_name="gmesh.msh")
+gmesh.build_conformal_mesh()
+gmesh.write_vtk()
+
 
 aka = 0
