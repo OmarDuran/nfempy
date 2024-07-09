@@ -118,7 +118,7 @@ def test_points_line_intersection():
 
     gammas = np.linspace(-1.0, 1.1, 5)
     points = np.array([(1 - gamma) * np.array([1.0, 1.0, 1.0]) for gamma in gammas])
-    out = points_line_intersection(points, a, b)
+    out, intx_q = points_line_intersection(points, a, b)
     assert np.all(np.isclose(out[0], np.array([0.95, 0.95, 0.95])))
     assert np.all(np.isclose(out[1], np.array([0.425, 0.425, 0.425])))
 

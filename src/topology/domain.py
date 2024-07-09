@@ -19,6 +19,15 @@ class Domain:
         assert counts[0] == len(shapes)
         self.shapes[dim[0]] = np.append(self.shapes[dim[0]], shapes, axis=0)
 
+    def max_tag(self):
+        tags = [
+            shape.tag
+            for shapes_d in self.shapes
+            for shape in shapes_d
+        ]
+        max = np.max(np.array(tags))
+        return max
+
     def max_physical_tag(self):
         physical_tags = [
             shape.physical_tag
@@ -101,8 +110,10 @@ class Domain:
             if immersed_shape.dimension != 0:
                 self.gather_graph_edges(immersed_shape, tuple_id_list)
 
-    def build_grahp(self):
-        disjoint_shapes = [shape_i for shape_i in self.shapes[self.dimension]]
+    def build_grahp(self, dimension = None):
+        if dimension is None:
+            dimension = self.dimension
+        disjoint_shapes = [shape_i for shape_i in self.shapes[dimension]]
         tuple_id_list = []
         for shape in disjoint_shapes:
             self.gather_graph_edges(shape, tuple_id_list)

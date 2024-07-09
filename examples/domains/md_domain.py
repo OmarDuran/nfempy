@@ -3,7 +3,8 @@ import numpy as np
 import networkx as nx
 
 from topology.domain import Domain
-from globals import topology_point_line_incidence_tol as l_incidence_tol
+from topology.domain_operations import create_domain, domain_intersection
+
 from globals import topology_tag_shape_info as tag_info
 from topology.vertex import Vertex
 from topology.edge import Edge
@@ -13,6 +14,7 @@ from topology.point_line_incidence import point_line_intersection
 from topology.point_line_incidence import points_line_argsort
 from topology.vertex_operations import vertex_with_same_geometry_q
 from topology.vertex_operations import vertices_edge_intersection
+from topology.vertex_operations import vertices_edge_difference
 
 from mesh.discrete_domain import DiscreteDomain
 from mesh.mesh import Mesh
@@ -39,17 +41,19 @@ shapes = [{}, {}]
 v0: Vertex = Vertex(0, np.array([0.0, 0.0, 0.0]))
 v1: Vertex = Vertex(1, np.array([1.0, 1.0, 1.0]))
 e0: Edge = Edge(0, np.array([v0, v1]))
+v0.physical_tag = 2 # physical tag for BC of pdes on c0
+v1.physical_tag = 3 # physical tag for BC of pdes on c0
+e0.physical_tag = 1 # physical tag for pdes on c0
 
-v0.physical_tag = 2
-v1.physical_tag = 3
-e0.physical_tag = 1
+domain = create_domain(dimension=max_dim, shapes=np.array([v0, v1, e0]))
 
-# Define subdomains to substract
+# Define domains to be subtracted
 v2: Vertex = Vertex(2, np.array([0.25, 0.25, 0.25]))
-# v3: Vertex = Vertex(3, np.array([0.4, 0.4, 0.4]))
-v2.physical_tag = 10
-# v3.physical_tag = 10
+v2.physical_tag = 10 # physical tag for pdes on c1
 
+c1_domain = create_domain(dimension=max_dim, shapes=np.array([v2]))
+
+intx_domain = domain_intersection(c1_domain, domain)
 
 [append_shape(shapes, shape) for shape in [v0, v1, v2, e0]]
 
@@ -58,61 +62,8 @@ vertices_tool = np.array([v2])
 intxs_e0, vertices_tool = vertices_edge_intersection(vertices_tool, e0, tag=4)
 [append_shape(shapes, shape) for shape in intxs_e0]
 
+
 # Step 2: Compute difference
-def vertices_edge_difference(vertices_tool: Vertex, edge_object: Edge, tag: int = tag_info.min, eps: float = l_incidence_tol):
-
-    # deduplication of vertices
-    points_tool = np.array([vertex.point for vertex in vertices_tool])
-    points_tool, v_indices = np.unique(points_tool, return_index=True, axis=0)
-    vertices_tool = vertices_tool[v_indices]
-
-    a, b = edge_object.boundary_points()
-    vertex_a, vertex_b = edge_object.boundary_shapes
-    # filter no incident points
-    points = points_line_intersection(points_tool, a, b, eps)
-    idx = points_line_argsort(points, a, b)
-    internal_idx = idx.copy()
-
-    first_point_is_on_a = np.all(np.isclose(points[idx][0], a))
-    last_point_is_on_b = np.all(np.isclose(points[idx][-1], b))
-    if first_point_is_on_a:
-        internal_idx = np.delete(internal_idx, 0)
-    if last_point_is_on_b:
-        internal_idx = np.delete(internal_idx, -1)
-
-    # including end points
-    expanded_pts = points[internal_idx]
-    expanded_pts = np.insert(expanded_pts, 0, a, axis=0)
-    expanded_pts = np.append(expanded_pts, np.array([b]), axis = 0)
-
-    ridx = np.arange(expanded_pts.shape[0])
-
-    # Create a point chain
-    chains = np.array([(expanded_pts[ridx[i]], expanded_pts[ridx[i+1]]) for i in range(len(ridx) - 1)])
-    new_vertices = []
-    new_edges = []
-    for chain in chains:
-        if vertex_with_same_geometry_q(Vertex(tag, chain[0]), vertex_a):
-            v0 = vertex_a
-        else:
-            v0 = Vertex(tag, chain[0])
-            v0.physical_tag = edge_object.physical_tag
-            tag += 1
-        if vertex_with_same_geometry_q(Vertex(tag, chain[1]), vertex_b):
-            v1 = vertex_b
-        else:
-            v1 = Vertex(tag, chain[1])
-            v1.physical_tag = edge_object.physical_tag
-            tag += 1
-        e = Edge(tag, np.array([v0,v1]))
-        e.physical_tag = edge_object.physical_tag
-        tag += 1
-        new_vertices.append(v0)
-        new_vertices.append(v1)
-        new_edges.append(e)
-
-    return new_edges, new_vertices
-
 parts = vertices_edge_difference(intxs_e0, e0, tag=7)
 [append_shape(shapes, shape) for shape in parts[0]]
 [append_shape(shapes, shape) for shape in parts[1]]

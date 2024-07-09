@@ -67,9 +67,16 @@ def points_line_intersection(
     point_line_int = partial(point_line_intersection, a=a, b=b, eps=eps)
     result = list(map(point_line_int, points))
 
+    def data_type(data):
+        if isinstance(data, np.ndarray):
+            return True
+        else:
+            return False
+    intx_q = np.array([data_type(data) for data in result])
+
     # filter points outside segment
     result = np.array(list(filter(lambda x: x is not None, result)))
-    return result
+    return result, intx_q
 
 
 def points_line_argsort(
