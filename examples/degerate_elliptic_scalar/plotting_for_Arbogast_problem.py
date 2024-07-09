@@ -25,15 +25,15 @@ def paint_scalar_on_canvas_plane(vtk_file_name, scalar_name, title_string):
     # First subplot for physical_solution
     plotter.subplot(0, 0)
     args = dict(
-        title_font_size=20,
-        label_font_size=20,
+        title_font_size=35,
+        label_font_size=35,
         shadow=False,
         n_labels=4,
         italic=True,
         fmt="%.1e",
         font_family="courier",
         position_x=0.2,
-        position_y=0.91,
+        position_y=0.87,
         title=title_string,
     )
     quantity_data = pyvista_unstructure_mesh.point_data[scalar_name]
@@ -69,7 +69,7 @@ def plot_over_line(vtk_file_name, scalar_names, title_string, figure_name):
     # Plotting
     plt.figure(figsize=(10, 6))
     lineObjects = plt.plot(x, np.array(quantities_norm).T)
-    linewidths = [2.0, 2.0]
+    linewidths = [4.0, 4.0]
     styles = ["solid", "--"]
 
     for i, line in enumerate(lineObjects):
@@ -195,8 +195,8 @@ def one_dimnesional_plots(
 k_order = 0
 source_folder_name = "output"
 figure_folder_name = "Arbogast_figures"
-figure_format = "eps"
-dimensions = [1]
+figure_format = "pdf"
+dimensions = [2]
 methods = method_definition(k_order)
 titles_map = {
     "p_h": "Physical pressure",
@@ -216,31 +216,31 @@ titles_map = {
 # Filters for 2d
 filters_2d = {
     "method": ["mixed_rt"],
-    "l": 5,
-    "suffix": "_physical_two_fields_l2_error.vtk",
+    "l": 4,
+    "suffix": "_physical_two_fields.vtk",
     "domain_type": ["fitted", "unfitted"],
-    "parameter": [0.5],
-    "scalar_name": "u_error",
+    "parameter": [2],
+    "scalar_name": "p_h",
 }
-# two_dimnesional_plots(k_order,source_folder_name,figure_folder_name,figure_format,dimensions,methods,titles_map,filters_2d)
+two_dimnesional_plots(k_order,source_folder_name,figure_folder_name,figure_format,dimensions,methods,titles_map,filters_2d)
 
 # Filters for 1d
 figure_format_1d = "pdf"
 filters_1d = {
     "method": ["mixed_rt"],
-    "l": 7,
+    "l": 4,
     "suffix": "_two_fields.vtk",
     "domain_type": ["fitted", "unfitted"],
     "parameter": [0.5],
     "scalar_names": ["v_h", "v_e"],
 }
-one_dimnesional_plots(
-    k_order,
-    source_folder_name,
-    figure_folder_name,
-    figure_format_1d,
-    dimensions,
-    methods,
-    titles_map,
-    filters_1d,
-)
+# one_dimnesional_plots(
+#     k_order,
+#     source_folder_name,
+#     figure_folder_name,
+#     figure_format_1d,
+#     dimensions,
+#     methods,
+#     titles_map,
+#     filters_1d,
+# )
