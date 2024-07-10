@@ -122,6 +122,7 @@ def test_points_line_intersection():
     assert np.all(np.isclose(out[0], np.array([0.95, 0.95, 0.95])))
     assert np.all(np.isclose(out[1], np.array([0.425, 0.425, 0.425])))
 
+
 def test_points_line_argsort():
 
     # points for segment
@@ -131,8 +132,8 @@ def test_points_line_argsort():
     gammas = np.linspace(-1.0, 1.1, 5)
     points = np.array([(1 - gamma) * np.array([1.0, 1.0, 1.0]) for gamma in gammas])
     # a to b oriented
-    out = points_line_argsort(points, a, b, ba_sorting= False)
-    assert np.all(np.isclose(out, np.array([4,3,2,1,0])))
+    out = points_line_argsort(points, a, b, ba_sorting=False)
+    assert np.all(np.isclose(out, np.array([4, 3, 2, 1, 0])))
 
     # b to a oriented
     out = points_line_argsort(points, a, b, ba_sorting=True)

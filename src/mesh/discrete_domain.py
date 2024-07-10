@@ -36,7 +36,7 @@ class DiscreteDomain:
                 vertex.point[1],
                 vertex.point[2],
                 self.lc,
-                self.stride_tag(0,vertex.tag),
+                self.stride_tag(0, vertex.tag),
             )
         gmsh.model.occ.synchronize()
 
@@ -44,13 +44,16 @@ class DiscreteDomain:
         for curve in self.domain.shapes[1]:
             if curve.composite:
                 continue
-            shapes_with_same_dimension = [shape for shape in curve.immersed_shapes if
-                                          shape.dimension == curve.dimension]
+            shapes_with_same_dimension = [
+                shape
+                for shape in curve.immersed_shapes
+                if shape.dimension == curve.dimension
+            ]
             if len(shapes_with_same_dimension) > 0:
                 continue
-            tag = self.stride_tag(1,curve.tag)
-            b = self.stride_tag(0,curve.boundary_shapes[0].tag)
-            e = self.stride_tag(0,curve.boundary_shapes[1].tag)
+            tag = self.stride_tag(1, curve.tag)
+            b = self.stride_tag(0, curve.boundary_shapes[0].tag)
+            e = self.stride_tag(0, curve.boundary_shapes[1].tag)
             gmsh.model.occ.addLine(b, e, tag)
         gmsh.model.occ.synchronize()
 
@@ -64,48 +67,68 @@ class DiscreteDomain:
         return tag_stride[dim]
 
     def __physical_group_vertices(self):
-        physical_tags_0d = np.unique([shape.physical_tag for shape in self.domain.shapes[0] if shape.physical_tag is not None])
+        physical_tags_0d = np.unique(
+            [
+                shape.physical_tag
+                for shape in self.domain.shapes[0]
+                if shape.physical_tag is not None
+            ]
+        )
         for physical_tag in physical_tags_0d:
-            filtered_shapes = [shape for shape in self.domain.shapes[0] if shape.physical_tag == physical_tag]
+            filtered_shapes = [
+                shape
+                for shape in self.domain.shapes[0]
+                if shape.physical_tag == physical_tag
+            ]
             if len(filtered_shapes) > 0:
-                v_tags = [self.stride_tag(0,shape.tag) for shape in filtered_shapes]
-                gmsh.model.addPhysicalGroup(
-                    0, v_tags, physical_tag
-                )
+                v_tags = [self.stride_tag(0, shape.tag) for shape in filtered_shapes]
+                gmsh.model.addPhysicalGroup(0, v_tags, physical_tag)
         gmsh.model.occ.synchronize()
 
     def __physical_group_curves(self):
         physical_tags_1d = np.unique(
-            [shape.physical_tag for shape in self.domain.shapes[1] if shape.physical_tag is not None])
+            [
+                shape.physical_tag
+                for shape in self.domain.shapes[1]
+                if shape.physical_tag is not None
+            ]
+        )
         for physical_tag in physical_tags_1d:
-            filtered_shapes = [shape for shape in self.domain.shapes[1] if
-                               shape.physical_tag == physical_tag]
+            filtered_shapes = [
+                shape
+                for shape in self.domain.shapes[1]
+                if shape.physical_tag == physical_tag
+            ]
             curve_tags = []
             for curve in filtered_shapes:
                 if curve.composite:
                     continue
-                shapes_with_same_dimension = [shape for shape in curve.immersed_shapes
-                                              if shape.dimension == curve.dimension]
+                shapes_with_same_dimension = [
+                    shape
+                    for shape in curve.immersed_shapes
+                    if shape.dimension == curve.dimension
+                ]
                 if len(shapes_with_same_dimension) > 0:
                     continue
-                curve_tags.append(self.stride_tag(1,curve.tag))
-            gmsh.model.addPhysicalGroup(
-                1, curve_tags, physical_tag
-            )
+                curve_tags.append(self.stride_tag(1, curve.tag))
+            gmsh.model.addPhysicalGroup(1, curve_tags, physical_tag)
         gmsh.model.occ.synchronize()
 
     def __embed_vertices_in_curves(self):
         for curve in self.domain.shapes[1]:
             if curve.composite:
                 continue
-            shapes_with_same_dimension = [shape for shape in curve.immersed_shapes
-                                          if shape.dimension == curve.dimension]
+            shapes_with_same_dimension = [
+                shape
+                for shape in curve.immersed_shapes
+                if shape.dimension == curve.dimension
+            ]
             if len(shapes_with_same_dimension) > 0:
                 continue
 
             tags_0d = []
-            for shape in curve.immersed_shapes: # only vertices are embedded in curves
-                tags_0d = tags_0d + [self.stride_tag(0,shape.tag)]
+            for shape in curve.immersed_shapes:  # only vertices are embedded in curves
+                tags_0d = tags_0d + [self.stride_tag(0, shape.tag)]
             tags_0d = list(np.unique(tags_0d))
             gmsh.model.mesh.embed(0, tags_0d, 1, self.stride_tag(1, curve.tag))
 
@@ -164,7 +187,6 @@ class DiscreteDomain:
         self.__physical_group_vertices()
         if dimension > 0:
             self.__physical_group_curves()
-
 
         if dimension > 1:
             for surface in self.domain.shapes[2]:

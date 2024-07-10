@@ -20,11 +20,7 @@ class Domain:
         self.shapes[dim[0]] = np.append(self.shapes[dim[0]], shapes, axis=0)
 
     def max_tag(self):
-        tags = [
-            shape.tag
-            for shapes_d in self.shapes
-            for shape in shapes_d
-        ]
+        tags = [shape.tag for shapes_d in self.shapes for shape in shapes_d]
         max = np.max(np.array(tags))
         return max
 
@@ -110,7 +106,7 @@ class Domain:
             if immersed_shape.dimension != 0:
                 self.gather_graph_edges(immersed_shape, tuple_id_list)
 
-    def build_grahp(self, dimension = None):
+    def build_grahp(self, dimension=None):
         if dimension is None:
             dimension = self.dimension
         disjoint_shapes = [shape_i for shape_i in self.shapes[dimension]]
@@ -126,7 +122,6 @@ class Domain:
                 d0_nodes = [shape.index(self.dimension) for shape in disjoint_shapes]
                 self.graph.add_nodes_from(d0_nodes)
 
-
     def draw_grahp(self):
         nx.draw(
             self.graph,
@@ -134,4 +129,3 @@ class Domain:
             with_labels=True,
             node_color="skyblue",
         )
-

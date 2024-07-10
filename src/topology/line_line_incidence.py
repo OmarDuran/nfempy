@@ -18,12 +18,12 @@ def line_line_intersection(
         if np.sum(intx_q) > 1:
             return out, intx_q
         else:
-            assert np.all(np.isclose(out,np.array([a, b])[intx_q]))
+            assert np.all(np.isclose(out, np.array([a, b])[intx_q]))
             return out
 
     # Direction vectors
-    d1 = (b - a)
-    d2 = (d - c)
+    d1 = b - a
+    d2 = d - c
 
     # Matrix form Ax = r
     A = np.array([d1, -d2]).T
@@ -64,7 +64,10 @@ def lines_line_intersection(
 
 
 def lines_lines_intersection(
-    lines_tools: np.array, lines_objects, deduplicate_points_q: bool= False, eps: float = l_incidence_tol
+    lines_tools: np.array,
+    lines_objects,
+    deduplicate_points_q: bool = False,
+    eps: float = l_incidence_tol,
 ) -> float:
     # compute intersections
 

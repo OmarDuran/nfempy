@@ -72,6 +72,7 @@ def points_line_intersection(
             return True
         else:
             return False
+
     intx_q = np.array([data_type(data) for data in result])
 
     # filter points outside segment
@@ -80,7 +81,8 @@ def points_line_intersection(
 
 
 def points_line_argsort(
-    points: np.array, a: np.array, b: np.array, ba_sorting: bool = False) -> float:
+    points: np.array, a: np.array, b: np.array, ba_sorting: bool = False
+) -> float:
     # by default assuming segment is oriented from a to b
     if ba_sorting:
         idx = np.argsort(np.linalg.norm(points - b, axis=1))

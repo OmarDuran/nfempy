@@ -16,6 +16,7 @@ from topology.point_line_incidence import points_line_intersection
 from topology.point_line_incidence import points_line_argsort
 from functools import partial
 
+
 def vertex_with_same_geometry_q(
     vertex_a: Vertex, vertex_b: Vertex, eps: float = p_incidence_tol
 ):
@@ -45,7 +46,10 @@ def collapse_vertex(
 
 
 def vertex_vertex_intersection(
-    v_tool: Vertex, v_object: Vertex, tag: int = tag_info.min, eps: float = p_incidence_tol
+    v_tool: Vertex,
+    v_object: Vertex,
+    tag: int = tag_info.min,
+    eps: float = p_incidence_tol,
 ) -> Union[None, Vertex]:
     if vertex_strong_equality_q(v_tool, v_object):
         return v_object  # same as v_tool
@@ -57,7 +61,10 @@ def vertex_vertex_intersection(
 
 
 def vertex_edge_boundary_intersection(
-    v_tool: Vertex, edge_object: Edge, tag: int = tag_info.min, eps: float = p_incidence_tol
+    v_tool: Vertex,
+    edge_object: Edge,
+    tag: int = tag_info.min,
+    eps: float = p_incidence_tol,
 ) -> Union[None, Vertex]:
     strong_check = [
         vertex_strong_equality_q(v_tool, e_vertex)
@@ -84,7 +91,10 @@ def vertex_edge_boundary_intersection(
 
 
 def vertex_edge_intersection(
-    v_tool: Vertex, edge_object: Edge, tag: int = tag_info.min, eps: float = p_incidence_tol
+    v_tool: Vertex,
+    edge_object: Edge,
+    tag: int = tag_info.min,
+    eps: float = p_incidence_tol,
 ) -> Union[None, Vertex]:
     bc_out = vertex_edge_boundary_intersection(v_tool, edge_object, tag, eps)
     if bc_out is not None:
@@ -99,12 +109,18 @@ def vertex_edge_intersection(
     else:
         return Vertex(tag, out)
 
+
 def vertices_edge_intersection(
-    vertices_tool: Vertex, edge_object: Edge, tag: int = tag_info.min, eps: float = p_incidence_tol
+    vertices_tool: Vertex,
+    edge_object: Edge,
+    tag: int = tag_info.min,
+    eps: float = p_incidence_tol,
 ) -> Tuple[np.ndarray, np.ndarray]:
 
-    intersect_with_line = partial(vertex_edge_intersection, edge_object=edge_object,tag=tag_info.min,eps=eps)
-    resulting_shapes = np.array(list(map(intersect_with_line,vertices_tool)))
+    intersect_with_line = partial(
+        vertex_edge_intersection, edge_object=edge_object, tag=tag_info.min, eps=eps
+    )
+    resulting_shapes = np.array(list(map(intersect_with_line, vertices_tool)))
 
     shapes_tool = []
     shape_intx = []
@@ -119,18 +135,30 @@ def vertices_edge_intersection(
     shapes_tool = np.array(shapes_tool)
     return shape_intx, shapes_tool
 
+
 def vertices_edges_intersection(
-    vertices_tool: Vertex, edges_object: Edge, tag: int = tag_info.min, eps: float = p_incidence_tol
+    vertices_tool: Vertex,
+    edges_object: Edge,
+    tag: int = tag_info.min,
+    eps: float = p_incidence_tol,
 ) -> Tuple[np.ndarray, np.ndarray]:
 
     output = []
-    for edge in  edges_object:
-        shape_intx, shapes_tool = vertices_edge_intersection(vertices_tool, edge, tag, eps)
+    for edge in edges_object:
+        shape_intx, shapes_tool = vertices_edge_intersection(
+            vertices_tool, edge, tag, eps
+        )
         tag = np.max([shape.tag for shape in shape_intx])
         output.append((edge, shape_intx, shapes_tool))
     return output
 
-def vertices_edge_difference(vertices_tool: Vertex, edge_object: Edge, tag: int = tag_info.min, eps: float = l_incidence_tol):
+
+def vertices_edge_difference(
+    vertices_tool: Vertex,
+    edge_object: Edge,
+    tag: int = tag_info.min,
+    eps: float = l_incidence_tol,
+):
 
     # deduplication of vertices
     points_tool = np.array([vertex.point for vertex in vertices_tool])
@@ -144,7 +172,9 @@ def vertices_edge_difference(vertices_tool: Vertex, edge_object: Edge, tag: int 
     vertex_a, vertex_b = edge_object.boundary_shapes
     # filter no incident points
     points, intx_q = points_line_intersection(points_tool, a, b, eps)
-    if len(points) == 0 and np.all(np.logical_not(intx_q)): # no new shapes are generated
+    if len(points) == 0 and np.all(
+        np.logical_not(intx_q)
+    ):  # no new shapes are generated
         return [], []
 
     idx = points_line_argsort(points, a, b)
@@ -160,12 +190,17 @@ def vertices_edge_difference(vertices_tool: Vertex, edge_object: Edge, tag: int 
     # including end points
     expanded_pts = points[internal_idx]
     expanded_pts = np.insert(expanded_pts, 0, a, axis=0)
-    expanded_pts = np.append(expanded_pts, np.array([b]), axis = 0)
+    expanded_pts = np.append(expanded_pts, np.array([b]), axis=0)
 
     ridx = np.arange(expanded_pts.shape[0])
 
     # Create a point chain
-    chains = np.array([(expanded_pts[ridx[i]], expanded_pts[ridx[i+1]]) for i in range(len(ridx) - 1)])
+    chains = np.array(
+        [
+            (expanded_pts[ridx[i]], expanded_pts[ridx[i + 1]])
+            for i in range(len(ridx) - 1)
+        ]
+    )
     new_vertices = []
     new_edges = []
     for chain in chains:
@@ -197,11 +232,24 @@ def vertices_edge_difference(vertices_tool: Vertex, edge_object: Edge, tag: int 
     return new_edges, new_vertices
 
 
-def vertices_edges_difference(vertices_tool: Vertex, edges_object: Edge, tag: int = tag_info.min, eps: float = l_incidence_tol):
+def vertices_edges_difference(
+    vertices_tool: Vertex,
+    edges_object: Edge,
+    tag: int = tag_info.min,
+    eps: float = l_incidence_tol,
+):
     output = []
-    for edge in  edges_object:
-        new_edges, new_vertices = vertices_edge_difference(vertices_tool, edge, tag, eps)
+    for edge in edges_object:
+        new_edges, new_vertices = vertices_edge_difference(
+            vertices_tool, edge, tag, eps
+        )
         if len(new_vertices) != 0 and len(new_edges) != 0:
-            tag = np.max([shape.tag for shape in new_vertices] + [shape.tag for shape in new_edges]) + 1
+            tag = (
+                np.max(
+                    [shape.tag for shape in new_vertices]
+                    + [shape.tag for shape in new_edges]
+                )
+                + 1
+            )
         output.append((edge, new_edges, new_vertices))
     return output
