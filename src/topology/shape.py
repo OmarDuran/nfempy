@@ -194,3 +194,15 @@ class Shape(ABC):
         self.composite = other.composite
         self.boundary_shapes = other.boundary_shapes
         self.immersed_shapes = other.immersed_shapes
+
+    # def __copy__(self):
+    #     new_shape = type(self).__init__()
+    #     # Copy the attributes
+    #     new_shape.active = self.active
+    #     new_shape.tag = self.tag
+    #     new_shape.physical_tag = self.physical_tag
+    #     new_shape.dimension = self.dimension
+    #     new_shape.composite = self.composite
+    #     new_shape.boundary_shapes = self.boundary_shapes
+    #     new_shape.immersed_shapes = self.immersed_shapes
+    #     return new_shape

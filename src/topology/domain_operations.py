@@ -1,6 +1,6 @@
 import numpy as np
 import networkx as nx
-
+import copy
 from topology.domain import Domain
 
 
@@ -120,11 +120,11 @@ def domain_union(domain_c0:Domain, domain_c1:Domain, tag: int = tag_info.min, ep
     for shape_by_dimension in domain_c0.shapes:
         for shape in shape_by_dimension:
             co_dimension = max_dim - shape.dimension
-            all_shapes[co_dimension][shape.index(max_dimension=max_dim)] = shape
+            all_shapes[co_dimension][shape.index(max_dimension=max_dim)] = copy.copy(shape)
     for shape_by_dimension in domain_c1.shapes:
         for shape in shape_by_dimension:
             co_dimension = max_dim - shape.dimension
-            all_shapes[co_dimension][shape.index(max_dimension=max_dim)] = shape
+            all_shapes[co_dimension][shape.index(max_dimension=max_dim)] = copy.copy(shape)
 
     domain_c0.build_grahp()
     md_G_partial = domain_c0.graph.copy()

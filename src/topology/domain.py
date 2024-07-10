@@ -120,6 +120,13 @@ class Domain:
 
         self.graph = nx.from_edgelist(tuple_id_list, create_using=nx.DiGraph)
 
+        # case where a domain is composed of disjoint vertices
+        if dimension == 0:
+            if len(list(self.graph.nodes())) == 0:
+                d0_nodes = [shape.index(self.dimension) for shape in disjoint_shapes]
+                self.graph.add_nodes_from(d0_nodes)
+
+
     def draw_grahp(self):
         nx.draw(
             self.graph,
