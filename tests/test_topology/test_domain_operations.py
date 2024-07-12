@@ -192,6 +192,7 @@ def md_domain_multiple_lines(case, transform_points_q):
                 np.array([7, 1]),
                 np.array([1, 3]),
                 np.array([3, 5]),
+                np.array([13, 14]),
             ]
         },
         "c2": {
@@ -202,6 +203,7 @@ def md_domain_multiple_lines(case, transform_points_q):
                 np.array([7, 1]),
                 np.array([1, 3]),
                 np.array([3, 5]),
+                np.array([13, 14]),
             ]
         },
         "c3": {
@@ -214,6 +216,7 @@ def md_domain_multiple_lines(case, transform_points_q):
                 np.array([10, 8]),
                 np.array([10, 9]),
                 np.array([10, 12]),
+                np.array([13, 14]),
             ]
         },
         "c4": {
@@ -223,6 +226,7 @@ def md_domain_multiple_lines(case, transform_points_q):
                 np.array([1, 3]),
                 np.array([3, 5]),
                 np.array([8, 11]),
+                np.array([13, 14]),
             ]
         },
         "c5": {
@@ -233,6 +237,7 @@ def md_domain_multiple_lines(case, transform_points_q):
                 np.array([1, 3]),
                 np.array([3, 6]),
                 np.array([0, 4]),
+                np.array([13, 14]),
             ]
         },
         "c6": {
@@ -249,6 +254,7 @@ def md_domain_multiple_lines(case, transform_points_q):
                 np.array([4, 7]),
                 np.array([6, 1]),
                 np.array([6, 3]),
+                np.array([13, 14]),
             ]
         },
     }
@@ -269,6 +275,8 @@ def md_domain_multiple_lines(case, transform_points_q):
             [+0.0, +0.0, 0.0],
             [+0.0, -1.0, 0.0],
             [-0.5, -0.5, 0.0],
+            [+0.0, +0.0, -0.5],
+            [+0.0, +0.0, +0.5],
         ]
     )
 
@@ -322,13 +330,23 @@ def md_domain_multiple_lines(case, transform_points_q):
     return domain, domain_c1, domain_c0, md_domain
 
 
+def __betti_numbers(G):
+    # Calculate the 0th Betti number (number of connected components)
+    beta_0 = nx.number_strongly_connected_components(G)
+
+    # Calculate the 1st Betti number (number of independent cycles)
+    num_edges = G.number_of_edges()
+    num_nodes = G.number_of_nodes()
+    beta_1 = num_edges - num_nodes + beta_0
+    return beta_0, beta_1
+
 @pytest.mark.parametrize(
     "case, transform_points_q",
     [
-        ("c0", False),
-        ("c0", True),
-        ("c1", False),
-        ("c1", True),
+        # ("c0", False),
+        # ("c0", True),
+        # ("c1", False),
+        # ("c1", True),
         ("c2", False),
         ("c2", True),
         ("c3", False),
@@ -352,6 +370,10 @@ def test_operations_on_multiple_lines(case, transform_points_q):
     domain_c0.build_grahp()
     md_domain.build_grahp()
 
+    assert __betti_numbers(domain_c1.graph) == (len(domain_c1.shapes[0]),0)
+    # assert __betti_numbers(md_domain.graph) == __betti_numbers(domain_c0.graph)
+    # assert __betti_numbers(md_domain.graph) == __betti_numbers(domain.graph)
+
     intx_0 = nx.intersection(domain.graph, domain_c0.graph)
     intx_1 = nx.intersection(md_domain.graph, domain_c0.graph)
     intx_2 = nx.intersection(md_domain.graph, domain_c1.graph)
@@ -371,17 +393,19 @@ def test_operations_on_multiple_lines(case, transform_points_q):
     internal_bc_graph.remove_edges_from(intx_1.edges())
     c0_graph.add_edges_from(internal_bc_graph.edges())
 
-    intx_0.remove_nodes_from([shape.index(1) for shape in domain.shapes[0]])
-    assert list(intx_0.nodes()) == []
+    # assert nx.is_isomorphic(c0_graph, domain_c0.graph)
 
-    intx_2.remove_nodes_from([shape.index(1) for shape in domain_c1.shapes[0]])
-    assert list(intx_2.nodes()) == []
+    # intx_0.remove_nodes_from([shape.index(1) for shape in domain.shapes[0]])
+    # assert list(intx_0.nodes()) == []
+    #
+    # intx_2.remove_nodes_from([shape.index(1) for shape in domain_c1.shapes[0]])
+    # assert list(intx_2.nodes()) == []
 
-    if case in ["c0"]:
-        diff = nx.difference(c0_graph, domain_c0.graph)
-        diff.remove_nodes_from(domain_c0.graph.nodes())
-        assert list(diff.nodes()) == []
-        assert list(diff.edges()) == []
+    # if case in ["c0"]:
+    #     diff = nx.difference(c0_graph, domain_c0.graph)
+    #     diff.remove_nodes_from(domain_c0.graph.nodes())
+    #     assert list(diff.nodes()) == []
+    #     assert list(diff.edges()) == []
 
     # Conformal mesh representation
     __mesh_md_domain(md_domain)

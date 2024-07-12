@@ -43,7 +43,12 @@ This operation is restricted for shapes having a boundary representation  only t
 
 - New parts will are going to inherit the physical tag from the object shape
 
+# Notes on graphs:
+Important quantities:
 
+- in degree: 0 for higher dimensional objects
+- out degree: 0 for vertex
+- subgraphs: in the sense of `G.subgraph(nodes_to_include).copy()`
 
 ## Check list for intersections
 Marked items should be understood as tested.
