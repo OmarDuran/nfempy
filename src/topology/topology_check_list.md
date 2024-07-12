@@ -33,6 +33,8 @@ The proceedure follows the main general steps:
 - Build md-Omega_h via `md_Omega_h = DiscreteDomain(dimension=domain.dimension)`
 - Write a vtk representation of `md_Omega_h`
 
+It seems than enrich the mesh structure with topological orders could easy the fraction of the mesh. See: Fracture and fragmentation of simplicial finite element meshes using graphs. Alejandro Mota, Jaroslaw Knap and Michael Ortiz (2008)
+
 
 
 # Notes on intersections:
