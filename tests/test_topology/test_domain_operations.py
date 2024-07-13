@@ -2,13 +2,13 @@ import pytest
 import subprocess
 import numpy as np
 import networkx as nx
-from topology.domain_operations import create_domain
-from topology.domain_operations import domain_difference
-from topology.domain_operations import domain_union
+from topology.operations.domain_operations import create_domain
+from topology.operations.domain_operations import domain_difference
+from topology.operations.domain_operations import domain_union
 from topology.vertex import Vertex
 from topology.edge import Edge
 
-from topology.line_line_incidence import lines_lines_intersection
+from geometry.operations.line_geometry_operations import lines_lines_intersection
 
 from mesh.discrete_domain import DiscreteDomain
 from mesh.mesh import Mesh
@@ -340,6 +340,7 @@ def __betti_numbers(G):
     beta_1 = num_edges - num_nodes + beta_0
     return beta_0, beta_1
 
+
 @pytest.mark.parametrize(
     "case, transform_points_q",
     [
@@ -370,7 +371,7 @@ def test_operations_on_multiple_lines(case, transform_points_q):
     domain_c0.build_grahp()
     md_domain.build_grahp()
 
-    assert __betti_numbers(domain_c1.graph) == (len(domain_c1.shapes[0]),0)
+    assert __betti_numbers(domain_c1.graph) == (len(domain_c1.shapes[0]), 0)
     # assert __betti_numbers(md_domain.graph) == __betti_numbers(domain_c0.graph)
     # assert __betti_numbers(md_domain.graph) == __betti_numbers(domain.graph)
 

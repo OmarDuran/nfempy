@@ -1,9 +1,9 @@
 
 
 import numpy as np
-from topology.domain_operations import create_domain
-from topology.domain_operations  import domain_difference
-from topology.domain_operations  import domain_union
+from topology.operations.domain_operations import create_domain
+from topology.operations.domain_operations import domain_difference
+from topology.operations.domain_operations import domain_union
 from topology.vertex import Vertex
 from topology.edge import Edge
 from topology.wire import Wire

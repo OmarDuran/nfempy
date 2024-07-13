@@ -3,7 +3,7 @@ import networkx as nx
 import numpy as np
 from numpy import linalg as la
 
-import topology.polygon_polygon_intersection_test as pp_intersector
+import geometry.operations.polygon_polygon_intersection_test as pp_intersector
 import topology.triangle_triangle_intersection_test as tt_intersector
 
 from .geometry_cell import GeometryCell

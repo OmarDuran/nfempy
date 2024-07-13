@@ -1,12 +1,12 @@
 from functools import partial
-from globals import topology_point_line_incidence_tol as p_incidence_tol
-from globals import topology_line_line_incidence_tol as l_incidence_tol
+from globals import geometry_point_line_incidence_tol as p_incidence_tol
+from globals import geometry_line_line_incidence_tol as l_incidence_tol
 
 import numpy as np
 import matplotlib.pyplot as plt
-from topology.point_line_incidence import point_line_intersection
-from topology.point_line_incidence import points_line_intersection
-from topology.point_line_incidence import point_line_incidence
+from geometry.operations.point_geometry_operations import point_line_intersection
+from geometry.operations.point_geometry_operations import points_line_intersection
+from geometry.operations.point_geometry_operations import point_line_incidence
 
 
 def line_line_intersection(

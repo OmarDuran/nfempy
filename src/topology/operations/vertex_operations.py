@@ -7,13 +7,13 @@ from topology.face import Face
 from topology.shell import Shell
 
 from globals import topology_tag_shape_info as tag_info
-from globals import topology_collapse_tol as collapse_tol
-from globals import topology_point_line_incidence_tol as p_incidence_tol
-from globals import topology_point_line_incidence_tol as l_incidence_tol
-from topology.point_line_incidence import point_line_incidence
-from topology.point_line_incidence import point_line_intersection
-from topology.point_line_incidence import points_line_intersection
-from topology.point_line_incidence import points_line_argsort
+from globals import geometry_collapse_tol as collapse_tol
+from globals import geometry_point_line_incidence_tol as p_incidence_tol
+from globals import geometry_point_line_incidence_tol as l_incidence_tol
+from geometry.operations.point_geometry_operations import point_line_incidence
+from geometry.operations.point_geometry_operations import point_line_intersection
+from geometry.operations.point_geometry_operations import points_line_intersection
+from geometry.operations.point_geometry_operations import points_line_argsort
 from functools import partial
 
 

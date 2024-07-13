@@ -5,19 +5,12 @@ from topology.domain import Domain
 
 
 # supported shape operations
-from topology.vertex_operations import vertices_edges_intersection
-from topology.vertex_operations import vertices_edges_difference
-from topology.vertex_operations import vertex_with_same_geometry_q
-
-from typing import Union, List, Tuple
-from topology.vertex import Vertex
-from topology.edge import Edge
-from topology.wire import Wire
-from topology.face import Face
-from topology.shell import Shell
+from topology.operations.vertex_operations import vertices_edges_intersection
+from topology.operations.vertex_operations import vertices_edges_difference
+from topology.operations.vertex_operations import vertex_with_same_geometry_q
 
 from globals import topology_tag_shape_info as tag_info
-from globals import topology_point_line_incidence_tol as p_incidence_tol
+from globals import geometry_point_line_incidence_tol as p_incidence_tol
 
 
 def __append_shape(shapes, shape, max_dim: int = 1):

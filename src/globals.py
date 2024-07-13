@@ -1,9 +1,11 @@
-# topological operations
 import numpy as np
 
-topology_collapse_tol = 1.0e-10
-topology_point_line_incidence_tol = 1.0e-10
-topology_line_line_incidence_tol = 1.0e-10
-topology_point_polygon_incidence_tol = 1.0e-10
-topology_line_polygon_incidence_tol = 1.0e-10
+# geometrical operations
+geometry_collapse_tol = 1.0e-10
+geometry_point_line_incidence_tol = 1.0e-10
+geometry_line_line_incidence_tol = 1.0e-10
+geometry_point_polygon_incidence_tol = 1.0e-10
+geometry_line_polygon_incidence_tol = 1.0e-10
+
+# topological operations
 topology_tag_shape_info = np.iinfo(np.int32)

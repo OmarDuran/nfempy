@@ -203,7 +203,8 @@ class DiscreteDomain:
                 else:
                     tags_1d = tags_1d + [self.stride_tag(1, shape_c1.tag)]
                 tags_0d = tags_0d + [
-                    self.stride_tag(0, vertex.tag) for vertex in shape_c1.boundary_shapes
+                    self.stride_tag(0, vertex.tag)
+                    for vertex in shape_c1.boundary_shapes
                 ]
 
             tags_0d = list(np.unique(tags_0d))

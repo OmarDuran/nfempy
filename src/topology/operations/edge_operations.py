@@ -1,18 +1,14 @@
-import numpy as np
 from typing import Union
 from topology.vertex import Vertex
 from topology.edge import Edge
-from topology.wire import Wire
-from topology.face import Face
-from topology.shell import Shell
 
-from globals import topology_collapse_tol as collapse_tol
-from globals import topology_point_line_incidence_tol as p_incidence_tol
-from globals import topology_line_line_incidence_tol as l_incidence_tol
-from topology.vertex_operations import vertex_with_same_geometry_q
-from topology.vertex_operations import vertex_edge_boundary_intersection
-from topology.vertex_operations import vertex_edge_intersection
-from topology.line_line_incidence import line_line_intersection
+from globals import geometry_collapse_tol as collapse_tol
+from globals import geometry_point_line_incidence_tol as p_incidence_tol
+from globals import geometry_line_line_incidence_tol as l_incidence_tol
+from topology.operations.vertex_operations import vertex_with_same_geometry_q
+from topology.operations.vertex_operations import vertex_edge_boundary_intersection
+from topology.operations.vertex_operations import vertex_edge_intersection
+from geometry.operations.line_geometry_operations import line_line_intersection
 
 
 def edge_with_same_geometry_q(edge_a: Edge, edge_b: Edge, eps: float = collapse_tol):

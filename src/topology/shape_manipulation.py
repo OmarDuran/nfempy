@@ -5,7 +5,7 @@ from globals import topology_collapse_tol as collapse_tol
 from topology.vertex import Vertex
 
 
-import topology.polygon_polygon_intersection_test as pp_intersector
+import geometry.operations.polygon_polygon_intersection_test as pp_intersector
 import topology.triangle_triangle_intersection_test as tt_intersector
 from topology.edge import Edge
 from topology.wire import Wire
