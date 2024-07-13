@@ -2,6 +2,7 @@ from functools import partial
 from globals import topology_point_polygon_incidence_tol as incidence_tol
 from globals import topology_collapse_tol as collapse_tol
 from topology.point_line_incidence import point_line_intersection
+from topology.polygon_operations import triangulate_polygon
 import numpy as np
 
 
@@ -69,7 +70,10 @@ def point_triangle_intersection(
     v = (dot_ab_ab * dot_ap_ac - dot_ab_ac * dot_ap_ab) / denom
 
     # Check if point is inside the triangle
-    return (u >= 0) and (v >= 0) and (u + v <= 1)
+    if (u >= 0) and (v >= 0) and (u + v <= 1):
+        return p
+    else:
+        return None
 
 
 def points_triangle_intersection(
@@ -91,3 +95,55 @@ def points_triangle_intersection(
     result = np.array(list(filter(lambda x: x is not None, result)))
     return result, intx_q
 
+
+def __point_triangles_intersection(
+    p: np.array, triangles: np.array, eps: float = incidence_tol
+) -> float:
+
+    result = []
+    # compute intersections
+    for triangle in triangles:
+        a, b, c = triangle
+        out = point_triangle_intersection(p,a,b,c,eps)
+        result.append(out)
+
+    return result
+
+def point_polygon_intersection(
+    p: np.array, polygon_points: np.array, eps: float = incidence_tol
+) -> float:
+
+    triangles = triangulate_polygon(polygon_points)
+    # compute intersections
+    results = __point_triangles_intersection(p,triangles,eps)
+
+    def data_type(data):
+        if isinstance(data, np.ndarray):
+            return True
+        else:
+            return False
+
+    triangle_idx_q = np.array([data_type(data) for data in results])
+    if np.any(triangle_idx_q):
+        return p
+    else:
+        return None
+
+def points_polygon_intersection(
+    points: np.array, polygon_points: np.array, eps: float = incidence_tol
+) -> float:
+    # compute intersections
+    point_line_int = partial(point_polygon_intersection, polygon_points=polygon_points, eps=eps)
+    result = list(map(point_line_int, points))
+
+    def data_type(data):
+        if isinstance(data, np.ndarray):
+            return True
+        else:
+            return False
+
+    intx_q = np.array([data_type(data) for data in result])
+
+    # filter points outside segment
+    result = np.array(list(filter(lambda x: x is not None, result)))
+    return result, intx_q
