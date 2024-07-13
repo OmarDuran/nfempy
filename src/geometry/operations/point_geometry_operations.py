@@ -6,13 +6,13 @@ from globals import geometry_point_polygon_incidence_tol as incidence_tol
 from geometry.operations.polygon_geometry_operations import triangulate_polygon
 
 
-
 def colinear_measurement(p: np.array, a: np.array, b: np.array) -> float:
     v = a - p
     u = b - p
     ve, ue = np.array([v, u])
     measurement = 0.5 * np.linalg.norm(np.cross(ve, ue))
     return measurement
+
 
 def point_line_incidence(
     p: np.array, a: np.array, b: np.array, eps: float = l_incidence_tol
@@ -91,6 +91,7 @@ def points_line_argsort(
     else:
         idx = np.argsort(np.linalg.norm(points - a, axis=1))
     return idx
+
 
 def coplanar_measurement(p: np.array, a: np.array, b: np.array, c: np.array) -> float:
     t_equ = np.hstack((np.array([a, b, c, p]), np.ones((4, 1))))

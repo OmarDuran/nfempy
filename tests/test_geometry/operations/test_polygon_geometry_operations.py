@@ -5,7 +5,10 @@ from geometry.operations.polygon_geometry_operations import polygon_normal
 from geometry.operations.polygon_geometry_operations import convex_q
 from geometry.operations.polygon_geometry_operations import triangulate_convex_polygon
 from geometry.operations.polygon_geometry_operations import triangulate_polygon
-from geometry.operations.polygon_geometry_operations import __projection_directions, winding_number
+from geometry.operations.polygon_geometry_operations import (
+    __projection_directions,
+    winding_number,
+)
 
 
 def __transformation_matrix(theta, tx, ty, tz):

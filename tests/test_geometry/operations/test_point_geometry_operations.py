@@ -14,7 +14,6 @@ from geometry.operations.point_geometry_operations import point_polygon_intersec
 from geometry.operations.point_geometry_operations import points_polygon_intersection
 
 
-
 def test_point_line_colinear_measurement():
 
     a = np.array([0.0, 0.0, 0.0])
@@ -135,6 +134,7 @@ def test_points_line_argsort():
     # b to a oriented
     out = points_line_argsort(points, a, b, ba_sorting=True)
     assert np.all(np.isclose(out, np.array([2, 1, 3, 0, 4])))
+
 
 def __transformation_matrix(theta, tx, ty, tz):
     Rx = np.array(

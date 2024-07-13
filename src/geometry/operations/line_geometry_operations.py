@@ -1,12 +1,15 @@
 from functools import partial
+from geometry.operations.point_geometry_operations import points_line_argsort
+from globals import geometry_collapse_precision as collapse_precision
 from globals import geometry_point_line_incidence_tol as p_incidence_tol
 from globals import geometry_line_line_incidence_tol as l_incidence_tol
+from globals import geometry_line_polygon_incidence_tol as s_incidence_tol
 
 import numpy as np
 import matplotlib.pyplot as plt
-from geometry.operations.point_geometry_operations import point_line_intersection
 from geometry.operations.point_geometry_operations import points_line_intersection
-from geometry.operations.point_geometry_operations import point_line_incidence
+from geometry.operations.point_geometry_operations import point_triangle_intersection
+from geometry.operations.polygon_geometry_operations import triangulate_polygon
 
 
 def line_line_intersection(
@@ -58,7 +61,7 @@ def lines_line_intersection(
     line_line_intx = partial(line_line_intersection, c=a, d=b, eps=eps)
     result = [line_line_intx(line[0], line[1]) for line in lines]
 
-    # filter points outside segment
+    # filter lines outside segment
     result = np.array(list(filter(lambda x: x is not None, result)))
     return result
 
@@ -94,8 +97,7 @@ def lines_lines_intersection(
             for point in points_in_line:
                 points = np.append(points, point, axis=0)
         # Define domains to be subtracted
-        precision = 12
-        points_rounded = np.round(points, decimals=10)
+        points_rounded = np.round(points, decimals=collapse_precision)
         _, idx = np.unique(points_rounded, axis=0, return_index=True)
         unique_points = points[idx]
         return unique_points
@@ -131,3 +133,193 @@ def line_line_plot(a: np.array, b: np.array, c: np.array, d: np.array):
     ax.set_zlabel("Z")
     ax.legend()
     plt.show()
+
+
+def coplanar_measurements(
+    line: np.array, a: np.array, b: np.array, c: np.array
+) -> float:
+    p, q = line
+    p_t_equ = np.hstack((np.array([a, b, c, p]), np.ones((4, 1))))
+    measurement_p = np.linalg.det(p_t_equ) / 6.0
+
+    q_t_equ = np.hstack((np.array([a, b, c, q]), np.ones((4, 1))))
+    measurement_q = np.linalg.det(q_t_equ) / 6.0
+    return measurement_p, measurement_q
+
+
+def line_triangle_incidence(
+    line: np.array, a: np.array, b: np.array, c: np.array, eps: float = s_incidence_tol
+) -> bool:
+    measurement_p, measurement_q = coplanar_measurements(line, a, b, c)
+    p_triangle_incidence_q = np.isclose(measurement_p, 0.0, rtol=eps, atol=eps)
+    q_triangle_incidence_q = np.isclose(measurement_q, 0.0, rtol=eps, atol=eps)
+
+    if p_triangle_incidence_q or q_triangle_incidence_q:
+        return True
+    elif (measurement_p < 0.0 or p_triangle_incidence_q) and (
+        measurement_q > 0.0 or q_triangle_incidence_q
+    ):
+        return True
+    elif (measurement_p > 0.0 or p_triangle_incidence_q) and (
+        measurement_q < 0.0 or q_triangle_incidence_q
+    ):
+        return True
+    else:
+        return False
+
+
+def line_triangle_intersection(
+    line: np.array, a: np.array, b: np.array, c: np.array, eps: float = s_incidence_tol
+) -> np.array:
+
+    out = line_triangle_incidence(line, a, b, c, eps)
+    if not out:
+        return None
+
+    p, q = line
+
+    # point to triangle intersections
+    p_intersection = point_triangle_intersection(p, a, b, c, eps)
+    q_intersection = point_triangle_intersection(q, a, b, c, eps)
+    if (p_intersection is not None) and (q_intersection is not None):
+        return line
+
+    # line to triangle boundary intersections
+    lines = np.array([[a, b], [b, c], [c, a]])
+    out = lines_line_intersection(lines, p, q, eps)
+    if out.shape[0] != 0:
+        out_rounded = np.round(out, decimals=collapse_precision)
+        _, idx = np.unique(out_rounded, axis=0, return_index=True)
+        out = out[idx]
+        if out.shape[0] == 1:
+            return out[0]
+        else:
+            return out
+    else:
+        if p_intersection is not None:
+            return np.array([p])
+        if q_intersection is not None:
+            return np.array([q])
+
+    # line to triangle intersection
+    # Line segment direction vector
+    line_dir = q - p
+
+    # Edge vectors
+    ab = b - a
+    ac = c - a
+
+    # Calculate normal of the triangle
+    normal = np.cross(ab, ac)
+    denom = np.dot(normal, line_dir)
+    if np.isclose(denom, 0.0, rtol=eps, atol=eps):
+        return None
+
+    # Calculate the distance from line_start to the plane of the triangle
+    d = np.dot(normal, a - p) / denom
+    if d < 0 or d > 1:
+        return False
+
+    # Calculate the intersection point on the line
+    intx_point = p + d * line_dir
+    intx_point = point_triangle_intersection(intx_point, a, b, c, eps)
+    if intx_point is None:
+        return None
+    else:
+        return np.array([intx_point])
+
+
+def lines_triangle_intersection(
+    lines: np.array, a: np.array, b: np.array, c: np.array, eps: float = s_incidence_tol
+) -> np.array:
+
+    # compute intersections
+    lines_triangle_int = partial(line_triangle_intersection, a=a, b=b, c=c, eps=eps)
+    result = list(map(lines_triangle_int, lines))
+
+    def data_type(data):
+        if isinstance(data, np.ndarray):
+            return True
+        else:
+            return False
+
+    intx_q = np.array([data_type(data) for data in result])
+
+    # filter points outside segment
+    result = np.array(list(filter(lambda x: x is not None, result)))
+    return result, intx_q
+
+
+def __line_triangles_intersection(
+    line: np.array, triangles: np.array, eps: float = s_incidence_tol
+) -> float:
+
+    result = []
+    # compute intersections
+    for triangle in triangles:
+        a, b, c = triangle
+        out = line_triangle_intersection(line, a, b, c, eps)
+        result.append(out)
+
+    return result
+
+
+def line_polygon_intersection(
+    line: np.array, polygon_points: np.array, eps: float = s_incidence_tol
+) -> np.array:
+
+    triangles = triangulate_polygon(polygon_points)
+    # compute intersections
+    results = __line_triangles_intersection(line, triangles, eps)
+
+    def data_type(data):
+        if isinstance(data, np.ndarray):
+            return True
+        else:
+            return False
+
+    triangle_idx_q = np.array([data_type(data) for data in results])
+    if np.any(triangle_idx_q):
+        intx_data = np.empty((0, 3), float)
+        for i, out in enumerate(results):
+            if triangle_idx_q[i]:
+                if len(out.shape) > 2:
+                    for intx_point in out:
+                        intx_data = np.append(intx_data, intx_point, axis=0)
+                else:
+                    intx_data = np.append(intx_data, out, axis=0)
+
+        # Define domains to be subtracted
+        intx_data_rounded = np.round(intx_data, decimals=collapse_precision)
+        _, idx = np.unique(intx_data_rounded, axis=0, return_index=True)
+        intx_data = intx_data[idx]
+        a, b = line
+        idx_sort = points_line_argsort(intx_data, a, b)
+        if intx_data.shape[0] > 2:  # return only external intersections
+            return intx_data[idx_sort[np.array([0, -1])]]
+        else:
+            return intx_data[idx_sort]
+    else:
+        return None
+
+
+def lines_polygon_intersection(
+    lines: np.array, polygon_points: np.array, eps: float = s_incidence_tol
+) -> float:
+    # compute intersections
+    line_line_int = partial(
+        line_polygon_intersection, polygon_points=polygon_points, eps=eps
+    )
+    result = list(map(line_line_int, lines))
+
+    def data_type(data):
+        if isinstance(data, np.ndarray):
+            return True
+        else:
+            return False
+
+    intx_q = np.array([data_type(data) for data in result])
+
+    # filter points outside segment
+    result = np.array(list(filter(lambda x: x is not None, result)))
+    return result, intx_q
