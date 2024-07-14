@@ -7,6 +7,7 @@ from topology.face import Face
 from topology.shell import Shell
 
 from globals import topology_tag_shape_info as tag_info
+from globals import geometry_collapse_precision as collapse_precision
 from globals import geometry_collapse_tol as collapse_tol
 from globals import geometry_point_line_incidence_tol as p_incidence_tol
 from globals import geometry_point_line_incidence_tol as l_incidence_tol
@@ -163,10 +164,9 @@ def vertices_edge_difference(
     # deduplication of vertices
     points_tool = np.array([vertex.point for vertex in vertices_tool])
 
-    precision = 12
-    points_rounded = np.round(points_tool, decimals=precision)
-    _, idx = np.unique(points_rounded, axis=0, return_index=True)
-    points_tool = points_tool[idx]
+    points_rounded = np.round(points_tool, decimals=collapse_precision)
+    _, unique_idx = np.unique(points_rounded, axis=0, return_index=True)
+    points_tool = points_tool[unique_idx]
 
     a, b = edge_object.boundary_points()
     vertex_a, vertex_b = edge_object.boundary_shapes
@@ -206,7 +206,7 @@ def vertices_edge_difference(
     for chain in chains:
         if vertex_with_same_geometry_q(Vertex(tag, chain[0]), vertex_a):
             if first_point_is_on_a:
-                v0 = vertices_tool[intx_q][idx][0]
+                v0 = vertices_tool[unique_idx][intx_q][idx][0]
             else:
                 v0 = vertex_a
         else:
@@ -215,7 +215,7 @@ def vertices_edge_difference(
             tag += 1
         if vertex_with_same_geometry_q(Vertex(tag, chain[1]), vertex_b):
             if last_point_is_on_b:
-                v1 = vertices_tool[intx_q][idx][-1]
+                v1 = vertices_tool[unique_idx][intx_q][idx][-1]
             else:
                 v1 = vertex_b
         else:
@@ -240,9 +240,7 @@ def vertices_edges_difference(
 ):
     output = []
     for edge in edges_object:
-        new_edges, new_vertices = vertices_edge_difference(
-            vertices_tool, edge, tag, eps
-        )
+        new_edges, new_vertices = vertices_edge_difference(vertices_tool, edge, tag, eps)
         if len(new_vertices) != 0 and len(new_edges) != 0:
             tag = (
                 np.max(

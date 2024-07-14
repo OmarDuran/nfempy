@@ -36,11 +36,16 @@ def polygon_normal(points: np.array):
 
     # get two relevant in-plane directions
     dxc = np.array([np.linalg.norm(point - xc) for point in points])
-    pa = points[np.argmax(dxc)]
-    points_red = np.delete(points, np.argmax(dxc), axis=0)
-    dxc_red = np.delete(dxc, np.argmax(dxc), axis=0)
-    pb = points_red[np.argmax(dxc_red)]
-    pc = points_red[np.argmin(dxc_red)]
+    if np.isclose(np.max(dxc), np.min(dxc)):
+        pa = points[0]
+        pb = points[1]
+        pc = points[2]
+    else:
+        pa = points[np.argmax(dxc)]
+        points_red = np.delete(points, np.argmax(dxc), axis=0)
+        dxc_red = np.delete(dxc, np.argmax(dxc), axis=0)
+        pb = points_red[np.argmax(dxc_red)]
+        pc = points_red[np.argmin(dxc_red)]
 
     # normal vector of the polygon
     normal = __normalize(np.cross(pb - pa, pc - pa))

@@ -6,7 +6,7 @@ from topology.operations.domain_operations import domain_union
 from topology.vertex import Vertex
 from topology.edge import Edge
 
-from topology.line_line_incidence import lines_lines_intersection
+from geometry.operations.line_geometry_operations import lines_lines_intersection
 
 from mesh.discrete_domain import DiscreteDomain
 from mesh.mesh import Mesh

@@ -52,6 +52,26 @@ Important quantities:
 - out degree: 0 for vertex
 - subgraphs: in the sense of `G.subgraph(nodes_to_include).copy()`
 
+## Check list for geometry operations
+Marked items should be understood as tested.
+## point - operations
+
+- [x] Point - Point intersection
+- [x] Point - Line intersection
+- [x] Point - Non convex Polygon intersection
+
+## line - operations
+
+- [x] Line - Point intersection
+- [x] Line - Line intersection
+- [x] Line - Non convex Polygon intersection
+
+## Polygon - operations
+
+- [x] Polygon - Point intersection
+- [x] Polygon - Line intersection
+- [ ] Polygon - Non convex Polygon intersection (Needed for robust 3D calculations)
+
 ## Check list for intersections
 Marked items should be understood as tested.
 ## Vertex - shapes intersection

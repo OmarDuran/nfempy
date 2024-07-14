@@ -344,10 +344,10 @@ def __betti_numbers(G):
 @pytest.mark.parametrize(
     "case, transform_points_q",
     [
-        # ("c0", False),
-        # ("c0", True),
-        # ("c1", False),
-        # ("c1", True),
+        ("c0", False),
+        ("c0", True),
+        ("c1", False),
+        ("c1", True),
         ("c2", False),
         ("c2", True),
         ("c3", False),

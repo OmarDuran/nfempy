@@ -1,12 +1,12 @@
 import numpy as np
 from numpy import linalg as la
 
-from globals import topology_collapse_tol as collapse_tol
+from globals import geometry_collapse_tol as collapse_tol
 from topology.vertex import Vertex
 
 
 import geometry.operations.polygon_polygon_intersection_test as pp_intersector
-import topology.triangle_triangle_intersection_test as tt_intersector
+import geometry.operations.triangle_triangle_intersection_test as tt_intersector
 from topology.edge import Edge
 from topology.wire import Wire
 from topology.face import Face
