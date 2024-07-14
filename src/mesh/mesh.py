@@ -104,6 +104,15 @@ class Mesh:
         mesh_cell.id = tag
         return mesh_cell
 
+    def max_cell_id(self):
+        return self.cells.shape[0] - 1
+
+    def append_cells(self, cells: np.array):
+        min_cell_id = np.min(np.array([cell.id for cell in cells]))
+        if self.max_cell_id() >= min_cell_id:
+            raise ValueError('cell identifier already used, max cell id: ', self.max_cell_id())
+        self.cells = np.append(self.cells, cells, axis=0)
+
     def insert_vertex(self, node_tag, physical_tag=None):
         cell_id = self.entities_0d[node_tag]
         cell_absent_q = self.cells[cell_id] is None
@@ -630,7 +639,10 @@ class Mesh:
             raise ValueError("Dimension not available: ", dimension)
 
         for id in mesh_cell_list:
-            tuple_id_list.append((mesh_cell.id, id))
+            # tuple_id_list.append((mesh_cell.id, id))
+            b_mesh_cell_index = mesh_cell.index()
+            e_mesh_cell_index = self.cells[id].index()
+            tuple_id_list.append((b_mesh_cell_index, e_mesh_cell_index))
             if self.cells[id].dimension != dimension:
                 self.gather_graph_edges(dimension, self.cells[id], tuple_id_list)
 
@@ -730,6 +742,49 @@ class Mesh:
             with_labels=True,
             node_color="skyblue",
         )
+
+    def cut_c1_conformity_physical_tags(self, physical_tags):
+
+        # physical_tag of
+        gc1 = self.build_graph(2, 1)
+        tgc1 = gc1.copy()
+        c1_cells = [cell for cell in self.cells if
+                    cell.material_id == physical_tags['c1']]
+
+        # operate only on graph
+        cell_id = self.max_cell_id() + 1
+        new_cells = []
+        old_edges = []
+        new_edges = []
+        for c1_cell in c1_cells:
+            c1_idx = c1_cell.index()
+            c2_cells_idx = list(gc1.predecessors(c1_idx))
+
+            for c2_idx in c2_cells_idx:
+                old_edges.append((c2_idx, c1_idx))
+
+                c1_cell_clone = c1_cell.clone()
+                c1_cell_clone.id = cell_id
+                c1_cell_clone.material_id = physical_tags['c1_clones']
+                new_cells.append(c1_cell_clone)
+
+                new_edges.append((c2_idx, c1_cell_clone.index()))
+
+                cell_id += 1
+                aka = 0
+        tgc1.remove_edges_from(old_edges)
+        tgc1.add_edges_from(new_edges)
+        self.append_cells(np.array(new_cells))
+
+        # update cells in place
+        for i, graph_edge in enumerate(new_edges):
+            c2_idx, c1_idx = graph_edge
+            o_c2_idx, o_c1_idx = old_edges[i]
+            assert c2_idx == o_c2_idx
+            c2_cells = self.cells[c2_idx[1]]
+            idx = c2_cells.sub_cell_index(1, o_c1_idx[1])
+            assert idx is not None
+            c2_cells.sub_cells_ids[1][idx] = c1_idx[1]
 
     def compute_normals_on_embed_shapes(self):
         assert self.dimension == 2

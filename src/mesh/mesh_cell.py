@@ -92,6 +92,33 @@ class MeshCell:
         assert self.dimension >= dim
         self.sub_cells_ids[dim] = cells_ids
 
+    def sub_cell_index(self, dim, target_id: int):
+        indices = np.where(self.sub_cells_ids[dim] == target_id)[0]
+        if indices.size > 0:
+            return indices[0]
+        else:
+            return None
+
+    def node_tag_index(self, target_tag: int):
+        indices = np.where(self.node_tags == target_tag)[0]
+        if indices.size > 0:
+            return indices[0]
+        else:
+            return None
+
+    def index(self):
+        return (self.dimension, self.id, self.material_id)
+
+    def clone(self):
+        cell_clone = MeshCell(self.dimension)
+        cell_clone.set_material_id(self.material_id)
+        cell_clone.set_node_tags(self.node_tags)
+        cell_clone.id = self.id
+        cell_clone.perm = self.perm
+        cell_clone.physical_name = self.physical_name
+        cell_clone.normal = self.normal
+        return cell_clone
+
     @staticmethod
     def mesh_cell_type(dimension):
         types = ("0d-cell", "1d-cell", "2d-cell", "3d-cell")
