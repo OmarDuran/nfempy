@@ -2,7 +2,7 @@ import time
 import numpy as np
 from petsc4py import PETSc
 
-from topology.domain import Domain
+from geometry.domain import Domain
 from domain_builder import build_line_1D, build_surface_2D
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh

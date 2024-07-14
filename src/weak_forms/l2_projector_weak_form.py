@@ -23,7 +23,7 @@ class L2ProjectorWeakForm(WeakForm):
 
             cell = data.cell
             dim = cell.dimension
-            points, weights = self.space.quadrature
+            points, weights = self.space.quadrature[dim]
             x, jac, det_jac, inv_jac = space.elements[iel].evaluate_mapping(points)
             phi_tab = space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
 
