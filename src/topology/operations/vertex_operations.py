@@ -240,7 +240,9 @@ def vertices_edges_difference(
 ):
     output = []
     for edge in edges_object:
-        new_edges, new_vertices = vertices_edge_difference(vertices_tool, edge, tag, eps)
+        new_edges, new_vertices = vertices_edge_difference(
+            vertices_tool, edge, tag, eps
+        )
         if len(new_vertices) != 0 and len(new_edges) != 0:
             tag = (
                 np.max(
