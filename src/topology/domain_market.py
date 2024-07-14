@@ -169,7 +169,7 @@ def build_box_3D(box_points, physical_tags=None):
     return domain
 
 
-def create_md_domain_2D(
+def create_md_box_2D(
     box_points: np.array,
     domain_physical_tags: dict,
     lines: np.array = None,

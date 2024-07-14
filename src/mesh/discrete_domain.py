@@ -9,6 +9,7 @@ class DiscreteDomain:
         self.dimension = dimension
         self.domain: Domain = None
         self.lc = None
+        self.mesh_arguments: dict = {}
         self.d0_stride = 0
         self.d1_stride = 0
         self.d2_stride = 0
@@ -145,6 +146,16 @@ class DiscreteDomain:
                     continue
                 curve_tags.append(self.stride_tag(1, curve.tag))
             gmsh.model.addPhysicalGroup(1, curve_tags, physical_tag)
+
+            target_physical_tags, curve_controls = self.mesh_arguments.get('curves_refinement', ([], None))
+            if physical_tag in target_physical_tags and curve_controls is not None:
+                numNodes = curve_controls.get('n_points', 5)
+                mesh_type = curve_controls.get('meshType', 'Bump')
+                coef = curve_controls.get('coef', 0.1)
+                for tag_1d in curve_tags:
+                    gmsh.model.mesh.setTransfiniteCurve(
+                        tag_1d, numNodes, mesh_type, coef=coef
+                    )
         gmsh.model.occ.synchronize()
 
     def __physical_group_surfaces(self):
@@ -211,12 +222,6 @@ class DiscreteDomain:
             tags_1d = list(np.unique(tags_1d))
             gmsh.model.mesh.embed(0, tags_0d, 2, self.stride_tag(2, surface.tag))
             gmsh.model.mesh.embed(1, tags_1d, 2, self.stride_tag(2, surface.tag))
-
-            # numNodes = 10
-            # for tag_1d in tags_1d:
-            #     gmsh.model.mesh.setTransfiniteCurve(
-            #         tag_1d, numNodes, "Bump", coef=0.125 / 2
-            #     )
 
     def convert_domain_to_occ_description(self):
         self.__compute_entities_strides()
@@ -313,13 +318,14 @@ class DiscreteDomain:
                         tag_1d, numNodes, "Bump", coef=0.25
                     )
 
-    def generate_mesh(self, lc, n_refinements=0):
+    def generate_mesh(self, mesh_arguments: dict = {}):
         gmsh.initialize()
         gmsh.option.setNumber("General.Terminal", 0)
-        self.lc = lc
+        self.mesh_arguments = mesh_arguments
+        self.lc = self.mesh_arguments.get('lc', np.inf)
+        n_refinements = self.mesh_arguments.get('n_refinements', 0)
 
         self.convert_domain_to_occ_description()
-
         for d in range(self.dimension + 1):
             gmsh.model.mesh.generate(d)
         for _ in range(n_refinements):
