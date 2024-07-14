@@ -24,7 +24,7 @@ class OdenDualWeakForm(WeakForm):
 
         cell = q_data.cell
         dim = cell.dimension
-        points, weights = self.space.quadrature
+        points, weights = self.space.quadrature[dim]
         x, jac, det_jac, inv_jac = q_space.elements[iel].evaluate_mapping(points)
 
         # basis
