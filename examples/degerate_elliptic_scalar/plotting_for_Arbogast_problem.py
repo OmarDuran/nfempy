@@ -197,7 +197,7 @@ k_order = 0
 source_folder_name = "output"
 figure_folder_name = "Arbogast_figures"
 figure_format = "pdf"
-dimensions = [1]
+dimensions = [2]
 methods = method_definition(k_order)
 titles_map = {
     "p_h": "Physical pressure",
@@ -220,28 +220,29 @@ filters_2d = {
     "l": 4,
     "suffix": "_physical_two_fields.vtk",
     "domain_type": ["fitted", "unfitted"],
-    "parameter": [2],
-    "scalar_name": "p_h",
-}
-#two_dimnesional_plots(k_order,source_folder_name,figure_folder_name,figure_format,dimensions,methods,titles_map,filters_2d)
+    "parameter": [1],
+    "scalar_name": "p_e",
 
-# Filters for 1d
+}
+two_dimnesional_plots(k_order,source_folder_name,figure_folder_name,figure_format,dimensions,methods,titles_map,filters_2d)
+
+#Filters for 1d
 figure_format_1d = "pdf"
 filters_1d = {
     "method": ["mixed_rt"],
     "l": 4,
     "suffix": "_two_fields.vtk",
     "domain_type": ["fitted", "unfitted"],
-    "parameter": [0.5],
-    "scalar_names": ["v_h", "v_e"],
+    "parameter": [-1.5],
+    "scalar_names": ["v_e","v_h"],
 }
-one_dimnesional_plots(
-    k_order,
-    source_folder_name,
-    figure_folder_name,
-    figure_format_1d,
-    dimensions,
-    methods,
-    titles_map,
-    filters_1d,
-)
+# one_dimnesional_plots(
+#      k_order,
+#     source_folder_name,
+#     figure_folder_name,
+#     figure_format_1d,
+#     dimensions,
+#     methods,
+#     titles_map,
+#     filters_1d,
+# )
