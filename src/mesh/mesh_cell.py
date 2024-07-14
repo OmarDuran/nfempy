@@ -107,7 +107,7 @@ class MeshCell:
             return None
 
     def index(self):
-        return (self.dimension, self.id, self.material_id)
+        return (self.dimension, self.id)
 
     def clone(self):
         cell_clone = MeshCell(self.dimension)

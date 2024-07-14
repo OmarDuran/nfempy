@@ -2,7 +2,7 @@ import time
 import numpy as np
 from petsc4py import PETSc
 
-from geometry.domain import Domain
+from topology.domain import Domain
 from domain_builder import build_line_1D, build_surface_2D
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
@@ -466,8 +466,8 @@ def main():
     # fixed directives
     k_order = 0
     h = 0.5
-    n_ref = 5
-    dimensions = [2]
+    n_ref = 4
+    dimensions = [1]
     folder_name = "output"
     plot_rates_q = False
 

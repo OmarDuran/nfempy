@@ -25,7 +25,7 @@ class ToPhysicalProjectionWeakForm(WeakForm):
 
         cell = v_data.cell
         dim = cell.dimension
-        points, weights = self.space.quadrature
+        points, weights = self.space.quadrature[dim]
         x, jac, det_jac, inv_jac = v_space.elements[iel].evaluate_mapping(points)
 
         # basis

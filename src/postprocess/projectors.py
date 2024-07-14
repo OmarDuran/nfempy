@@ -25,7 +25,6 @@ def l2_projector(fe_space, functions, symmetric_solver_q=True):
 
     def scatter_form_data(A, i, weak_form):
         # destination indexes
-        print("el idx: ", i)
         dest = weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
         r_el, j_el = weak_form.evaluate_form(i, alpha_l)

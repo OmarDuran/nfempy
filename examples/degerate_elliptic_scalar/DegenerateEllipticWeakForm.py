@@ -31,7 +31,7 @@ class DegenerateEllipticWeakForm(WeakForm):
 
         cell = v_data.cell
         dim = cell.dimension
-        points, weights = self.space.quadrature
+        points, weights = self.space.quadrature[dim]
         x, jac, det_jac, inv_jac = v_space.elements[iel].evaluate_mapping(points)
 
         # basis
@@ -138,7 +138,8 @@ class DegenerateEllipticWeakFormBCDirichlet(WeakForm):
         mp_data: ElementData = mp_space.bc_elements[iel].data
 
         cell = mp_data.cell
-        points, weights = self.space.bc_quadrature
+        dim = cell.dimension
+        points, weights = self.space.bc_quadrature[dim]
         dim = cell.dimension
         x, jac, det_jac, inv_jac = mp_space.bc_elements[iel].evaluate_mapping(points)
 
@@ -146,7 +147,7 @@ class DegenerateEllipticWeakFormBCDirichlet(WeakForm):
         neigh_list = find_higher_dimension_neighs(cell, mp_space.dof_map.mesh_topology)
         neigh_check_mp = len(neigh_list) > 0
         assert neigh_check_mp
-        neigh_cell_id = neigh_list[0]
+        neigh_cell_id = neigh_list[0][1]
         neigh_cell_index = mp_space.id_to_element[neigh_cell_id]
         neigh_element = mp_space.elements[neigh_cell_index]
         neigh_cell = neigh_element.data.cell

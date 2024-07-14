@@ -6,7 +6,7 @@ from spaces.product_space import ProductSpace
 
 def l2_error(dim, fe_space, functions, alpha, skip_fields=[]):
     l2_errors = []
-    points, weights = fe_space.quadrature
+    points, weights = fe_space.quadrature[dim]
     for item in fe_space.discrete_spaces.items():
         name, space = item
         if name in skip_fields:
@@ -65,7 +65,7 @@ def l2_error(dim, fe_space, functions, alpha, skip_fields=[]):
 
 def l2_error_projected(dim, fe_space, alpha, skip_fields=[]):
     l2_errors = []
-    points, weights = fe_space.quadrature
+    points, weights = fe_space.quadrature[dim]
     for item in fe_space.discrete_spaces.items():
         name, space = item
         if name in skip_fields:

@@ -33,8 +33,14 @@ class ProductSpace:
             else:
                 cell_type = type_by_dimension(dim)
                 self.quadrature[dim] = basix.make_quadrature(cell_type, self.integration_order, basix.QuadratureType.gauss_jacobi)
-
-        self.bc_quadrature = self.quadrature
+        self.bc_quadrature = [None, None, None, None]
+        for dim in dims:
+            dim -= 1
+            if dim == 0:
+                self.bc_quadrature[dim] = (np.array([1.0]), np.array([1.0]))
+            else:
+                cell_type = type_by_dimension(dim)
+                self.bc_quadrature[dim] = basix.make_quadrature(cell_type, self.integration_order, basix.QuadratureType.gauss_jacobi)
 
 
     def _define_discrete_spaces(self, discrete_spaces_data):
@@ -95,15 +101,12 @@ class ProductSpace:
 
         # find high-dimension neigh
         entity_map = space.dof_map.mesh_topology.entity_map_by_dimension(cell.dimension)
-        neigh_list = list(entity_map.predecessors(cell_id))
+        neigh_list = list(entity_map.predecessors(cell.index()))
         neigh_check_q = len(neigh_list) > 0
         assert neigh_check_q
 
-        neigh_cell_id = neigh_list[0]
-        neigh_cell_index = space.id_to_element[neigh_cell_id]
-        neigh_cell = space.elements[neigh_cell_index].data.cell
-
         # destination indexes
+        neigh_cell_id = neigh_list[0][1]
         field_dest = space.dof_map.bc_destination_indices(neigh_cell_id, cell_id)
         return field_dest
 

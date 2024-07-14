@@ -33,11 +33,7 @@ class MeshTopology:
     def _build_entity_ids(self):
         dim = self.dimension
         for d in range(dim + 1):
-            self.entity_ids[d] = [
-                id
-                for id in list(self.entity_maps[d].nodes())
-                if self.mesh.cells[id].dimension == d
-            ]
+            self.entity_ids[d] = [dim_id[1] for dim_id in list(self.entity_maps[d].nodes()) if dim_id[0] == d]
 
     def build_data(self):
         self.entity_maps.clear()
