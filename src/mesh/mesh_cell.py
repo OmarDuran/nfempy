@@ -113,6 +113,7 @@ class MeshCell:
         cell_clone = MeshCell(self.dimension)
         cell_clone.set_material_id(self.material_id)
         cell_clone.set_node_tags(self.node_tags)
+        cell_clone.sub_cells_ids = self.sub_cells_ids
         cell_clone.id = self.id
         cell_clone.perm = self.perm
         cell_clone.physical_name = self.physical_name

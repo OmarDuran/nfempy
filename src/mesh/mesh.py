@@ -104,6 +104,12 @@ class Mesh:
         mesh_cell.id = tag
         return mesh_cell
 
+    def max_node_tag(self):
+        return self.points.shape[0] - 1
+
+    def append_points(self, points: np.array):
+        self.points = np.append(self.points, points, axis=0)
+
     def max_cell_id(self):
         return self.cells.shape[0] - 1
 
@@ -742,49 +748,6 @@ class Mesh:
             with_labels=True,
             node_color="skyblue",
         )
-
-    def cut_c1_conformity_physical_tags(self, physical_tags):
-
-        # physical_tag of
-        gc1 = self.build_graph(2, 1)
-        tgc1 = gc1.copy()
-        c1_cells = [cell for cell in self.cells if
-                    cell.material_id == physical_tags['c1']]
-
-        # operate only on graph
-        cell_id = self.max_cell_id() + 1
-        new_cells = []
-        old_edges = []
-        new_edges = []
-        for c1_cell in c1_cells:
-            c1_idx = c1_cell.index()
-            c2_cells_idx = list(gc1.predecessors(c1_idx))
-
-            for c2_idx in c2_cells_idx:
-                old_edges.append((c2_idx, c1_idx))
-
-                c1_cell_clone = c1_cell.clone()
-                c1_cell_clone.id = cell_id
-                c1_cell_clone.material_id = physical_tags['c1_clones']
-                new_cells.append(c1_cell_clone)
-
-                new_edges.append((c2_idx, c1_cell_clone.index()))
-
-                cell_id += 1
-                aka = 0
-        tgc1.remove_edges_from(old_edges)
-        tgc1.add_edges_from(new_edges)
-        self.append_cells(np.array(new_cells))
-
-        # update cells in place
-        for i, graph_edge in enumerate(new_edges):
-            c2_idx, c1_idx = graph_edge
-            o_c2_idx, o_c1_idx = old_edges[i]
-            assert c2_idx == o_c2_idx
-            c2_cells = self.cells[c2_idx[1]]
-            idx = c2_cells.sub_cell_index(1, o_c1_idx[1])
-            assert idx is not None
-            c2_cells.sub_cells_ids[1][idx] = c1_idx[1]
 
     def compute_normals_on_embed_shapes(self):
         assert self.dimension == 2
