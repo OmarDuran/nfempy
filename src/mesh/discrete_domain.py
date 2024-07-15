@@ -147,11 +147,13 @@ class DiscreteDomain:
                 curve_tags.append(self.stride_tag(1, curve.tag))
             gmsh.model.addPhysicalGroup(1, curve_tags, physical_tag)
 
-            target_physical_tags, curve_controls = self.mesh_arguments.get('curves_refinement', ([], None))
+            target_physical_tags, curve_controls = self.mesh_arguments.get(
+                "curves_refinement", ([], None)
+            )
             if physical_tag in target_physical_tags and curve_controls is not None:
-                numNodes = curve_controls.get('n_points', 5)
-                mesh_type = curve_controls.get('meshType', 'Bump')
-                coef = curve_controls.get('coef', 0.1)
+                numNodes = curve_controls.get("n_points", 5)
+                mesh_type = curve_controls.get("meshType", "Bump")
+                coef = curve_controls.get("coef", 0.1)
                 for tag_1d in curve_tags:
                     gmsh.model.mesh.setTransfiniteCurve(
                         tag_1d, numNodes, mesh_type, coef=coef
@@ -322,8 +324,8 @@ class DiscreteDomain:
         gmsh.initialize()
         gmsh.option.setNumber("General.Terminal", 0)
         self.mesh_arguments = mesh_arguments
-        self.lc = self.mesh_arguments.get('lc', np.inf)
-        n_refinements = self.mesh_arguments.get('n_refinements', 0)
+        self.lc = self.mesh_arguments.get("lc", np.inf)
+        n_refinements = self.mesh_arguments.get("n_refinements", 0)
 
         self.convert_domain_to_occ_description()
         for d in range(self.dimension + 1):

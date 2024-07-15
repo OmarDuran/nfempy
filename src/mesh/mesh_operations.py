@@ -4,18 +4,21 @@ from mesh.mesh import Mesh
 from mesh.mesh_metrics import cell_centroid
 from geometry.operations.point_geometry_operations import points_line_intersection
 
-def cut_conformity_along_c1_line(line: np.array, physical_tags, mesh:Mesh):
+
+def cut_conformity_along_c1_line(line: np.array, physical_tags, mesh: Mesh):
 
     assert mesh.dimension == 2
 
     a, b = line
-    tangent_dir = (b - a) / np.linalg.norm(b-a)
-    normal_dir = tangent_dir[np.array([1,0,2])]
+    tangent_dir = (b - a) / np.linalg.norm(b - a)
+    normal_dir = tangent_dir[np.array([1, 0, 2])]
     normal_dir[0] *= -1.0
 
     # cut conformity on c1 objects
     gd2c1 = mesh.build_graph(2, 1)
-    raw_c1_cells = np.array([cell for cell in mesh.cells if cell.material_id == physical_tags['line']])
+    raw_c1_cells = np.array(
+        [cell for cell in mesh.cells if cell.material_id == physical_tags["line"]]
+    )
     raw_c1_cell_xcs = np.array([cell_centroid(cell, mesh) for cell in raw_c1_cells])
 
     out, intx_q = points_line_intersection(raw_c1_cell_xcs, a, b)
@@ -35,7 +38,7 @@ def cut_conformity_along_c1_line(line: np.array, physical_tags, mesh:Mesh):
 
             c1_cell_clone = c1_cell.clone()
             c1_cell_clone.id = cell_id
-            c1_cell_clone.material_id = physical_tags['line_clones']
+            c1_cell_clone.material_id = physical_tags["line_clones"]
             new_cells.append(c1_cell_clone)
 
             new_edges.append((c0_idx, c1_cell_clone.index()))
@@ -57,10 +60,18 @@ def cut_conformity_along_c1_line(line: np.array, physical_tags, mesh:Mesh):
     # cut conformity on c2 objects
     gd2c2 = mesh.build_graph(2, 2)
     gd1c1 = mesh.build_graph(1, 1)
-    raw_c2_cells_idx = np.unique(np.concatenate([cell.sub_cells_ids[0] for cell in c1_cells]))
-    c2_cells = np.array([mesh.cells[idx] for idx in raw_c2_cells_idx if mesh.cells[idx].material_id != physical_tags['internal_bc']])
+    raw_c2_cells_idx = np.unique(
+        np.concatenate([cell.sub_cells_ids[0] for cell in c1_cells])
+    )
+    c2_cells = np.array(
+        [
+            mesh.cells[idx]
+            for idx in raw_c2_cells_idx
+            if mesh.cells[idx].material_id != physical_tags["internal_bc"]
+        ]
+    )
 
-    if c2_cells.shape[0] == 0: # no internal points to process
+    if c2_cells.shape[0] == 0:  # no internal points to process
         return
 
     # operate only on graph
@@ -89,8 +100,8 @@ def cut_conformity_along_c1_line(line: np.array, physical_tags, mesh:Mesh):
             c2_cell_clone = c2_cell.clone()
             c2_cell_clone.id = cell_id
             c2_cell_clone.node_tags = np.array([node_tag])
-            if c2_cell.material_id == physical_tags['point']:
-                c2_cell_clone.material_id = physical_tags['point_clones']
+            if c2_cell.material_id == physical_tags["point"]:
+                c2_cell_clone.material_id = physical_tags["point_clones"]
             new_cells.append(c2_cell_clone)
             new_points.append(point_clone)
             cell_id += 1
@@ -100,14 +111,13 @@ def cut_conformity_along_c1_line(line: np.array, physical_tags, mesh:Mesh):
             old_edges.append((c0_idx, c2_idx))
             new_edges.append((c0_idx, c2_cell_clone.index()))
 
-
         for c0_idx in c0_cells_idx[negative_side]:
             point_clone = mesh.points[c2_cell.node_tags].copy()
             c2_cell_clone = c2_cell.clone()
             c2_cell_clone.id = cell_id
             c2_cell_clone.node_tags = np.array([node_tag])
-            if c2_cell.material_id == physical_tags['point']:
-                c2_cell_clone.material_id = physical_tags['point_clones']
+            if c2_cell.material_id == physical_tags["point"]:
+                c2_cell_clone.material_id = physical_tags["point_clones"]
             new_cells.append(c2_cell_clone)
             new_points.append(point_clone)
             cell_id += 1
@@ -141,6 +151,9 @@ def cut_conformity_along_c1_line(line: np.array, physical_tags, mesh:Mesh):
                     continue
                 sub_cell.node_tags[idx] = n_node_tag
 
-def cut_conformity_along_c1_lines(lines: np.array, physical_tags, mesh:Mesh):
-    cut_conformity = partial(cut_conformity_along_c1_line, physical_tags=physical_tags,mesh=mesh)
-    list(map(cut_conformity,lines))
+
+def cut_conformity_along_c1_lines(lines: np.array, physical_tags, mesh: Mesh):
+    cut_conformity = partial(
+        cut_conformity_along_c1_line, physical_tags=physical_tags, mesh=mesh
+    )
+    list(map(cut_conformity, lines))

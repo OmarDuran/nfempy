@@ -12,7 +12,7 @@ class MDProductSpace:
 
     def _define_product_spaces_by_dimension(self, product_spaces):
         if len(product_spaces) > 3:
-            raise ValueError('Mixed dimensional problems supported up to dimension 3.')
+            raise ValueError("Mixed dimensional problems supported up to dimension 3.")
         self.product_spaces_by_dim = product_spaces
 
     def _define_integration_order_and_quadrature(self, discrete_spaces_data):
@@ -31,7 +31,9 @@ class MDProductSpace:
                 self.quadrature[dim] = (np.array([1.0]), np.array([1.0]))
             else:
                 cell_type = type_by_dimension(dim)
-                self.quadrature[dim] = basix.make_quadrature(cell_type, self.integration_order, basix.QuadratureType.gauss_jacobi)
+                self.quadrature[dim] = basix.make_quadrature(
+                    cell_type, self.integration_order, basix.QuadratureType.gauss_jacobi
+                )
         self.bc_quadrature = [None, None, None, None]
         for dim in dims:
             dim -= 1
@@ -39,8 +41,9 @@ class MDProductSpace:
                 self.bc_quadrature[dim] = (np.array([1.0]), np.array([1.0]))
             else:
                 cell_type = type_by_dimension(dim)
-                self.bc_quadrature[dim] = basix.make_quadrature(cell_type, self.integration_order, basix.QuadratureType.gauss_jacobi)
-
+                self.bc_quadrature[dim] = basix.make_quadrature(
+                    cell_type, self.integration_order, basix.QuadratureType.gauss_jacobi
+                )
 
     def _define_discrete_spaces(self, discrete_spaces_data):
         self.discrete_spaces = {}
@@ -70,7 +73,6 @@ class MDProductSpace:
         for item in self.discrete_spaces_dofs.items():
             name, dofs = item
             self.n_dof += dofs
-
 
     @staticmethod
     def _retrieve_space_destination_indexes(space, cell_index):

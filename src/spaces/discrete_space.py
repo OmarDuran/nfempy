@@ -27,12 +27,10 @@ class DiscreteSpace:
         self.name = "Unnamed"
         self.mesh_topology = MeshTopology(mesh, dimension)
         self.discontinuous = False
-        self.physical_tag_filter = True
         self.elements = []
         self.element_ids = []
         self.id_to_element = {}
 
-        # self.bc_mesh_topology = MeshTopology(mesh, dimension - 1)
         self.bc_elements = []
         self.bc_element_ids = []
         self.id_to_bc_element = {}
@@ -45,56 +43,10 @@ class DiscreteSpace:
 
     def build_structures(self, physical_tags=[None]):
         self._build_dof_map_on_physical_tags(physical_tags)
-        self._build_elements()
+        self._build_elements(physical_tags)
 
     def build_boundary_structures(self, bc_physical_tags=[None]):
         self._build_bc_elements(bc_physical_tags)
-
-    # def build_structures_on_physical_tags(self, physical_tags=[]):
-    #     self._build_dof_map_on_physical_tags(physical_tags)
-    #     self._build_elements()
-
-    def _build_dof_map(self, only_on_physical_tags=True, timing_q=False):
-        if timing_q:
-            st = time.time()
-
-        if only_on_physical_tags:
-            self.mesh_topology.build_data()
-        else:
-            self.physical_tag_filter = False
-            self.mesh_topology.build_data()
-
-        self.element_type = type_by_dimension(self.dimension)
-        basis_family = self.family
-        if self.dimension == 0:
-            self.family = basis_family = family_by_name("Lagrange")
-            self.k_order = 0
-        if self.dimension == 1 and self.family in [
-            family_by_name("RT"),
-            family_by_name("BDM"),
-            family_by_name("N1E"),
-            family_by_name("N2E"),
-        ]:
-            self.family = basis_family = family_by_name("Lagrange")
-        self.dof_map = DoFMap(
-            self.mesh_topology,
-            basis_family,
-            self.element_type,
-            self.k_order,
-            basis_variant(),
-            discontinuous=self.discontinuous,
-        )
-        self.dof_map.set_topological_dimension(self.dimension)
-        self.dof_map.build_entity_maps(n_components=self.n_comp)
-        self.n_dof = self.dof_map.dof_number()
-        if timing_q:
-            et = time.time()
-            elapsed_time = et - st
-            print(
-                self.name + "_fe_space:: DoFMap construction time:",
-                elapsed_time,
-                "seconds",
-            )
 
     def _build_dof_map_on_physical_tags(self, physical_tags=[None], timing_q=False):
         if timing_q:
@@ -132,16 +84,16 @@ class DiscreteSpace:
                 "seconds",
             )
 
-    def _build_elements(self, timing_q=False, parallel_run_q=False):
+    def _build_elements(self, physical_tags, timing_q=False, parallel_run_q=False):
         if timing_q:
             st = time.time()
 
         self.element_ids = self.mesh_topology.entities_by_dimension(self.dimension)
         # if self.physical_tag_filter:
-        #     mesh = self.mesh_topology.mesh
-        #     self.element_ids = [
-        #         id for id in self.element_ids if mesh.cells[id].material_id is not None
-        #     ]
+        mesh = self.mesh_topology.mesh
+        self.element_ids = [
+            id for id in self.element_ids if mesh.cells[id].material_id in physical_tags
+        ]
 
         if parallel_run_q:
             num_cores = multiprocessing.cpu_count()
@@ -199,20 +151,19 @@ class DiscreteSpace:
             )
         print(self.name + "_fe_space:: Number elements:", len(self.elements))
 
-    def _build_bc_elements(self, physical_tags, timing_q=False):
+    def _build_bc_elements(self, b_physical_tags, timing_q=False):
         if timing_q:
             st = time.time()
 
         self.bc_element_ids = self.mesh_topology.entities_by_dimension(
             self.dimension - 1
         )
-        if self.physical_tag_filter:
-            mesh = self.mesh_topology.mesh
-            self.bc_element_ids = [
-                id
-                for id in self.bc_element_ids
-                if mesh.cells[id].material_id in physical_tags
-            ]
+        mesh = self.mesh_topology.mesh
+        self.bc_element_ids = [
+            id
+            for id in self.bc_element_ids
+            if mesh.cells[id].material_id in b_physical_tags
+        ]
 
         bc_discontinuous = self.discontinuous
         bc_k_order = self.k_order
