@@ -1,7 +1,7 @@
 import networkx as nx
 import numpy as np
 
-from geometry.shape import Shape
+from topology.shape import Shape
 
 
 class Domain:
@@ -18,6 +18,11 @@ class Domain:
         dim, counts = np.unique(dims, return_counts=True)
         assert counts[0] == len(shapes)
         self.shapes[dim[0]] = np.append(self.shapes[dim[0]], shapes, axis=0)
+
+    def max_tag(self):
+        tags = [shape.tag for shapes_d in self.shapes for shape in shapes_d]
+        max = np.max(np.array(tags))
+        return max
 
     def max_physical_tag(self):
         physical_tags = [
@@ -77,12 +82,15 @@ class Domain:
                 shapes = shapes + [shape]
         self.shapes[0] = np.array(shapes)
 
+    def shape_index(self, shape):
+        return shape.index(max_dimension=self.dimension)
+
     def gather_graph_edges(self, shape: Shape, tuple_id_list):
         for bc_shape in shape.boundary_shapes:
             tuple_id_list.append(
                 (
-                    (self.dimension - shape.dimension, shape.tag),
-                    (self.dimension - bc_shape.dimension, bc_shape.tag),
+                    self.shape_index(shape),
+                    self.shape_index(bc_shape),
                 )
             )
             if bc_shape.dimension != 0:
@@ -91,28 +99,28 @@ class Domain:
         for immersed_shape in shape.immersed_shapes:
             tuple_id_list.append(
                 (
-                    (self.dimension - shape.dimension, shape.tag),
-                    (self.dimension - immersed_shape.dimension, immersed_shape.tag),
+                    self.shape_index(shape),
+                    self.shape_index(immersed_shape),
                 )
             )
             if immersed_shape.dimension != 0:
                 self.gather_graph_edges(immersed_shape, tuple_id_list)
 
-    def build_grahp(self):
-        disjoint_shapes = [shape_i for shape_i in self.shapes[self.dimension]]
+    def build_grahp(self, dimension=None):
+        if dimension is None:
+            dimension = self.dimension
+        disjoint_shapes = [shape_i for shape_i in self.shapes[dimension]]
         tuple_id_list = []
         for shape in disjoint_shapes:
             self.gather_graph_edges(shape, tuple_id_list)
 
         self.graph = nx.from_edgelist(tuple_id_list, create_using=nx.DiGraph)
 
-    def build_graph_embed(self):
-        disjoint_shapes = [shape_i for shape_i in self.shapes[self.dimension]]
-        tuple_id_list = []
-        for shape in disjoint_shapes:
-            self.gather_graph_edges(shape, tuple_id_list)
-
-        self.graph = nx.from_edgelist(tuple_id_list, create_using=nx.DiGraph)
+        # case where a domain is composed of disjoint vertices
+        if dimension == 0:
+            if len(list(self.graph.nodes())) == 0:
+                d0_nodes = [shape.index(self.dimension) for shape in disjoint_shapes]
+                self.graph.add_nodes_from(d0_nodes)
 
     def draw_grahp(self):
         nx.draw(

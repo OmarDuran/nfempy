@@ -2,7 +2,7 @@ import time
 import numpy as np
 from petsc4py import PETSc
 
-from geometry.domain import Domain
+from topology.domain import Domain
 from domain_builder import build_line_1D, build_surface_2D
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
@@ -54,13 +54,18 @@ def create_product_space(method, gmesh, flux_name, potential_name):
     else:
         raise ValueError("Case not available.")
 
-    discrete_spaces_bc_physical_tags = {
+    physical_tags = {
+        flux_name: [1, 2],
+        potential_name: [1, 2],
+    }
+
+    b_physical_tags = {
         flux_name: mp_field_bc_physical_tags,
     }
 
     space = ProductSpace(discrete_spaces_data)
     space.make_subspaces_discontinuous(discrete_spaces_disc)
-    space.build_structures(discrete_spaces_bc_physical_tags)
+    space.build_structures(physical_tags, b_physical_tags)
     return space
 
 
@@ -424,7 +429,7 @@ def material_data_definition(dim):
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")
     cases = [case_0, case_1, case_2, case_3]
-    #cases = [case_0]
+    cases = [case_0]
     return cases
 
 
@@ -467,9 +472,9 @@ def main():
     k_order = 0
     h = 0.5
     n_ref = 5
-    dimensions = [2]
+    dimensions = [1]
     folder_name = "output"
-    plot_rates_q = False
+    plot_rates_q = True
 
     # method variants
     methods = method_definition(k_order)

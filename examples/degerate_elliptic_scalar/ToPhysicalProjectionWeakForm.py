@@ -1,13 +1,7 @@
 import auto_diff as ad
-import basix
 import numpy as np
-from auto_diff.vecvalder import VecValDer
-from basix import CellType
 
 from basis.element_data import ElementData
-from basis.parametric_transformation import transform_lower_to_higher
-from geometry.compute_normal import normal
-from topology.topological_queries import find_higher_dimension_neighs
 from weak_forms.weak_from import WeakForm
 
 
@@ -31,7 +25,7 @@ class ToPhysicalProjectionWeakForm(WeakForm):
 
         cell = v_data.cell
         dim = cell.dimension
-        points, weights = self.space.quadrature
+        points, weights = self.space.quadrature[dim]
         x, jac, det_jac, inv_jac = v_space.elements[iel].evaluate_mapping(points)
 
         # basis

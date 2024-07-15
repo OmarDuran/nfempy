@@ -1,13 +1,10 @@
 import auto_diff as ad
-import basix
 import numpy as np
-from auto_diff.vecvalder import VecValDer
-from basix import CellType
 
 from basis.element_data import ElementData
 from basis.parametric_transformation import transform_lower_to_higher
 from geometry.compute_normal import normal
-from topology.topological_queries import find_higher_dimension_neighs
+from mesh.topological_queries import find_higher_dimension_neighs
 from weak_forms.weak_from import WeakForm
 
 
@@ -34,7 +31,7 @@ class DegenerateEllipticWeakForm(WeakForm):
 
         cell = v_data.cell
         dim = cell.dimension
-        points, weights = self.space.quadrature
+        points, weights = self.space.quadrature[dim]
         x, jac, det_jac, inv_jac = v_space.elements[iel].evaluate_mapping(points)
 
         # basis
@@ -141,7 +138,8 @@ class DegenerateEllipticWeakFormBCDirichlet(WeakForm):
         mp_data: ElementData = mp_space.bc_elements[iel].data
 
         cell = mp_data.cell
-        points, weights = self.space.bc_quadrature
+        dim = cell.dimension
+        points, weights = self.space.bc_quadrature[dim]
         dim = cell.dimension
         x, jac, det_jac, inv_jac = mp_space.bc_elements[iel].evaluate_mapping(points)
 
@@ -149,7 +147,7 @@ class DegenerateEllipticWeakFormBCDirichlet(WeakForm):
         neigh_list = find_higher_dimension_neighs(cell, mp_space.dof_map.mesh_topology)
         neigh_check_mp = len(neigh_list) > 0
         assert neigh_check_mp
-        neigh_cell_id = neigh_list[0]
+        neigh_cell_id = neigh_list[0][1]
         neigh_cell_index = mp_space.id_to_element[neigh_cell_id]
         neigh_element = mp_space.elements[neigh_cell_index]
         neigh_cell = neigh_element.data.cell

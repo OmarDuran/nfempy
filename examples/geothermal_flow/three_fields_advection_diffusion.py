@@ -16,12 +16,11 @@ from functools import partial
 import numpy as np
 from petsc4py import PETSc
 
-from geometry.domain import Domain
-from geometry.domain_market import build_box_1D, build_box_2D, build_box_3D
+from topology.domain import Domain
+from topology.domain_market import build_box_1D, build_box_2D, build_box_3D
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
 from postprocess.l2_error_post_processor import l2_error
-from postprocess.projectors import l2_projector
 from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
 from spaces.product_space import ProductSpace
 from assembly.SequentialAssembler import SequentialAssembler

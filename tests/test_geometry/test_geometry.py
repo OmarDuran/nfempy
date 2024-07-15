@@ -1,21 +1,13 @@
-import pytest
 import numpy as np
 import os
-from geometry.vertex import Vertex
-from geometry.edge import Edge
-from geometry.wire import Wire
-from geometry.face import Face
-from geometry.shell import Shell
-from geometry.solid import Solid
-from geometry.domain import Domain
-from geometry.domain_market import (
+from topology.vertex import Vertex
+from topology.domain import Domain
+from topology.domain_market import (
     build_box_1D,
     build_box_2D,
-    build_box_3D,
-    read_fractures_file,
 )
-from geometry.domain_market import build_box_2D_with_lines
-from geometry.shape_manipulation import ShapeManipulation
+from topology.domain_market import build_box_2D_with_lines
+from topology.shape_manipulation import ShapeManipulation
 
 from mesh.conformal_mesher import ConformalMesher
 

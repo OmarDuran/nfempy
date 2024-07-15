@@ -84,7 +84,7 @@ def plot_over_line(vtk_file_name, scalar_names, title_string, figure_name):
     plt.legend(iter(lineObjects), legends, fontsize=20)
     plt.title(title_string, fontsize=25)
     plt.xlabel("Length", fontsize=25)
-    plt.ylabel('', fontsize=25)
+    plt.ylabel("", fontsize=25)
     plt.savefig(figure_name)
     return
 
@@ -222,11 +222,19 @@ filters_2d = {
     "domain_type": ["fitted", "unfitted"],
     "parameter": [1],
     "scalar_name": "p_e",
-
 }
-two_dimnesional_plots(k_order,source_folder_name,figure_folder_name,figure_format,dimensions,methods,titles_map,filters_2d)
+two_dimnesional_plots(
+    k_order,
+    source_folder_name,
+    figure_folder_name,
+    figure_format,
+    dimensions,
+    methods,
+    titles_map,
+    filters_2d,
+)
 
-#Filters for 1d
+# Filters for 1d
 figure_format_1d = "pdf"
 filters_1d = {
     "method": ["mixed_rt"],
@@ -234,7 +242,7 @@ filters_1d = {
     "suffix": "_two_fields.vtk",
     "domain_type": ["fitted", "unfitted"],
     "parameter": [-1.5],
-    "scalar_names": ["v_e","v_h"],
+    "scalar_names": ["v_e", "v_h"],
 }
 # one_dimnesional_plots(
 #      k_order,

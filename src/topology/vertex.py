@@ -1,6 +1,6 @@
 import numpy as np
 
-from geometry.shape import Shape
+from topology.shape import Shape
 
 
 class Vertex(Shape):
@@ -25,3 +25,7 @@ class Vertex(Shape):
     @point.setter
     def point(self, point: np.ndarray):
         self._point: np.ndarray = point
+
+    def shape_assignment(self, other):
+        super().shape_assignment(other)
+        self.point = other.point

@@ -22,18 +22,10 @@ s_functions = [
 
 v_functions = [
     lambda x, y, z: np.array([[y, -x, -z]]),
-    lambda x, y, z: np.array(
-        [[(1 - y) * y**1, -(1 - x) * x**1, -(1 - z) * z**1]]
-    ),
-    lambda x, y, z: np.array(
-        [[(1 - y) * y**2, -(1 - x) * x**2, -(1 - z) * z**2]]
-    ),
-    lambda x, y, z: np.array(
-        [[(1 - y) * y**3, -(1 - x) * x**3, -(1 - z) * z**3]]
-    ),
-    lambda x, y, z: np.array(
-        [[(1 - y) * y**4, -(1 - x) * x**4, -(1 - z) * z**4]]
-    ),
+    lambda x, y, z: np.array([[(1 - y) * y**1, -(1 - x) * x**1, -(1 - z) * z**1]]),
+    lambda x, y, z: np.array([[(1 - y) * y**2, -(1 - x) * x**2, -(1 - z) * z**2]]),
+    lambda x, y, z: np.array([[(1 - y) * y**3, -(1 - x) * x**3, -(1 - z) * z**3]]),
+    lambda x, y, z: np.array([[(1 - y) * y**4, -(1 - x) * x**4, -(1 - z) * z**4]]),
 ]
 
 

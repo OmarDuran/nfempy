@@ -13,6 +13,9 @@ class ProductSpace:
         self._define_integration_order_and_quadrature(discrete_spaces_data)
         self._define_discrete_spaces(discrete_spaces_data)
 
+    def _define_fields_physical_tags(self, fields_physical_tags):
+        self.fields_physical_tags = fields_physical_tags
+
     def _define_fields_names(self, discrete_spaces_data):
         self.names = list(discrete_spaces_data.keys())
 
@@ -25,17 +28,25 @@ class ProductSpace:
             dims.append(data[0])
 
         self.integration_order = 2 * np.max(k_orders) + 1
-        dims = np.unique(dims)
         self.quadrature = [None, None, None, None]
-        for dim in dims:
+        for dim in range(np.max(dims) + 1):
             if dim == 0:
                 self.quadrature[dim] = (np.array([1.0]), np.array([1.0]))
             else:
                 cell_type = type_by_dimension(dim)
-                self.quadrature[dim] = basix.make_quadrature(cell_type, self.integration_order, basix.QuadratureType.gauss_jacobi)
-
-        self.bc_quadrature = self.quadrature
-
+                self.quadrature[dim] = basix.make_quadrature(
+                    cell_type, self.integration_order, basix.QuadratureType.gauss_jacobi
+                )
+        self.bc_quadrature = [None, None, None, None]
+        for dim in dims:
+            dim -= 1
+            if dim == 0:
+                self.bc_quadrature[dim] = (np.array([1.0]), np.array([1.0]))
+            else:
+                cell_type = type_by_dimension(dim)
+                self.bc_quadrature[dim] = basix.make_quadrature(
+                    cell_type, self.integration_order, basix.QuadratureType.gauss_jacobi
+                )
 
     def _define_discrete_spaces(self, discrete_spaces_data):
         self.discrete_spaces = {}
@@ -66,17 +77,28 @@ class ProductSpace:
             name, dofs = item
             self.n_dof += dofs
 
+    def dimension(self):
+        dims = []
+        for item in self.discrete_spaces.items():
+            _, space = item
+            dims.append(space.dimension)
+        product_space_dim = np.max(dims)
+        return product_space_dim
+
     def make_subspaces_discontinuous(self, discrete_space_disc):
         for name in self.names:
             disc_Q = discrete_space_disc.get(name, False)
             if disc_Q:
                 self.discrete_spaces[name].make_discontinuous()
 
-    def build_structures(self, discrete_spaces_bc_physical_tags):
+    def build_structures(self, physical_tags, b_physical_tags):
+        self._define_fields_physical_tags(physical_tags)
         for item in self.discrete_spaces.items():
             name, space = item
-            physical_tags = discrete_spaces_bc_physical_tags.get(name, [])
-            space.build_structures(physical_tags)
+            list_physical_tags = physical_tags.get(name, [None])
+            list_b_physical_tags = b_physical_tags.get(name, [])
+            space.build_structures(list_physical_tags)
+            space.build_boundary_structures(list_b_physical_tags)
 
         self._define_discrete_spaces_dof()
         self._define_n_dof()
@@ -95,15 +117,12 @@ class ProductSpace:
 
         # find high-dimension neigh
         entity_map = space.dof_map.mesh_topology.entity_map_by_dimension(cell.dimension)
-        neigh_list = list(entity_map.predecessors(cell_id))
+        neigh_list = list(entity_map.predecessors(cell.index()))
         neigh_check_q = len(neigh_list) > 0
         assert neigh_check_q
 
-        neigh_cell_id = neigh_list[0]
-        neigh_cell_index = space.id_to_element[neigh_cell_id]
-        neigh_cell = space.elements[neigh_cell_index].data.cell
-
         # destination indexes
+        neigh_cell_id = neigh_list[0][1]
         field_dest = space.dof_map.bc_destination_indices(neigh_cell_id, cell_id)
         return field_dest
 

@@ -1,7 +1,7 @@
 import networkx as nx
 import numpy as np
 
-from topology.mesh_topology import MeshTopology
+from mesh.mesh_topology import MeshTopology
 
 
 def coloring_mesh_by_co_dimension(n_colors, mesh, dim, sub_entity_co_dim):

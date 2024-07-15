@@ -5,7 +5,7 @@ import numpy as np
 from mesh.mesh_metrics import cell_centroid
 from basis.element_family import family_by_name
 from geometry.mapping import evaluate_linear_shapes, evaluate_mapping
-from spaces.product_space import ProductSpace
+from mesh.mesh_topology import MeshTopology
 
 
 def node_average_quatity(node_idx, cell_idxs, fe_space, name, alpha):
@@ -15,10 +15,12 @@ def node_average_quatity(node_idx, cell_idxs, fe_space, name, alpha):
     gmesh = space.mesh_topology.mesh
     dim = gmesh.dimension
 
-    cells = [gmesh.cells[id] for id in cell_idxs if gmesh.cells[id].dimension == dim]
+    cells = [gmesh.cells[dim_id[1]] for dim_id in cell_idxs]
 
     f_h_values = []
     for cell in cells:
+        if cell.material_id not in fe_space.fields_physical_tags[name]:
+            continue
         element_idx = space.id_to_element[cell.id]
         element = space.elements[element_idx]
 
@@ -132,11 +134,13 @@ def write_vtk_file(file_name, gmesh, fe_space, alpha, cell_centered=[]):
             fh_data = np.zeros((len(gmesh.points), n_data))
             vertices = space.mesh_topology.entities_by_dimension(0)
             cell_vertex_map = space.mesh_topology.entity_map_by_dimension(0)
-            for node_idx in vertices:
-                if not cell_vertex_map.has_node(node_idx):
+            for vertex_idx in vertices:
+                vertex_g_index = (0, vertex_idx)
+                if not cell_vertex_map.has_node(vertex_g_index):
                     continue
+                node_idx = gmesh.cells[vertex_idx].node_tags[0]
+                cell_idxs = list(cell_vertex_map.predecessors(vertex_g_index))
 
-                cell_idxs = list(cell_vertex_map.predecessors(node_idx))
                 f_h = node_average_quatity(node_idx, cell_idxs, fe_space, name, alpha)
                 fh_data[node_idx] = f_h.ravel()
 
@@ -171,6 +175,14 @@ def write_vtk_file_with_exact_solution(
     p_data_dict = {}
     c_data_dict = {}
 
+    # dims = []
+    # for item in fe_space.discrete_spaces.items():
+    #     _, space = item
+    #     dims.append(space.dimension)
+    # product_space_dim = np.max(dims)
+    # mesh_topology: MeshTopology = MeshTopology(gmesh, product_space_dim)
+    # mesh_topology.build_data()
+
     for item in fe_space.discrete_spaces.items():
         name, space = item
         n_comp = space.n_comp
@@ -200,11 +212,12 @@ def write_vtk_file_with_exact_solution(
 
             vertices = space.mesh_topology.entities_by_dimension(0)
             cell_vertex_map = space.mesh_topology.entity_map_by_dimension(0)
-            for node_idx in vertices:
-                if not cell_vertex_map.has_node(node_idx):
+            for vertex_idx in vertices:
+                vertex_g_index = (0, vertex_idx)
+                if not cell_vertex_map.has_node(vertex_g_index):
                     continue
-
-                cell_idxs = list(cell_vertex_map.predecessors(node_idx))
+                node_idx = gmesh.cells[vertex_idx].node_tags[0]
+                cell_idxs = list(cell_vertex_map.predecessors(vertex_g_index))
 
                 x = gmesh.points[node_idx]
                 f_e = f_exact(x[0], x[1], x[2])
@@ -216,10 +229,14 @@ def write_vtk_file_with_exact_solution(
             p_data_dict[name + "_e"] = fe_data
 
     mesh_points = gmesh.points
-    cells = [cell for cell in gmesh.cells if cell.dimension == gmesh.dimension]
+    cells = [
+        cell
+        for cell in gmesh.cells
+        if cell.material_id in fe_space.fields_physical_tags[name]
+    ]
     con_d = np.array([cell.node_tags for cell in cells])
     meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
-    cells_dict = {meshio_cell_types[gmesh.dimension]: con_d}
+    cells_dict = {meshio_cell_types[fe_space.dimension()]: con_d}
 
     mesh = meshio.Mesh(
         points=mesh_points,
@@ -266,11 +283,12 @@ def write_vtk_file_pointwise_l2_error(
 
             vertices = space.mesh_topology.entities_by_dimension(0)
             cell_vertex_map = space.mesh_topology.entity_map_by_dimension(0)
-            for node_idx in vertices:
-                if not cell_vertex_map.has_node(node_idx):
+            for vertex_idx in vertices:
+                vertex_g_index = (0, vertex_idx)
+                if not cell_vertex_map.has_node(vertex_g_index):
                     continue
-
-                cell_idxs = list(cell_vertex_map.predecessors(node_idx))
+                node_idx = gmesh.cells[vertex_idx].node_tags[0]
+                cell_idxs = list(cell_vertex_map.predecessors(vertex_g_index))
 
                 x = gmesh.points[node_idx]
                 f_e = f_exact(x[0], x[1], x[2])

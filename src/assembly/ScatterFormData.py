@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 def __scatter_generic_lhs_data(jac_g, jac_l, destination_idx):
     data = jac_l.ravel()
     row = np.repeat(destination_idx, len(destination_idx))

@@ -1,30 +1,19 @@
 import time
 
 import numpy as np
-import scipy
 from petsc4py import PETSc
 import matplotlib.pyplot as plt
 
-from basis.element_data import ElementData
-from geometry.domain import Domain
-from geometry.domain_market import build_box_1D, build_box_2D, build_box_3D
+from topology.domain import Domain
+from topology.domain_market import build_box_1D, build_box_2D, build_box_3D
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
 from postprocess.l2_error_post_processor import l2_error
-from postprocess.projectors import l2_projector
 from postprocess.solution_post_processor import (
     write_vtk_file_with_exact_solution,
     write_vtk_file_pointwise_l2_error,
 )
 from spaces.product_space import ProductSpace
-from weak_forms.laplace_dual_weak_form import (
-    LaplaceDualWeakForm,
-    LaplaceDualWeakFormBCDirichlet,
-)
-from weak_forms.laplace_primal_weak_form import (
-    LaplacePrimalWeakForm,
-    LaplacePrimalWeakFormBCDirichlet,
-)
 
 from oden_primal_weak_form import OdenPrimalWeakForm, OdenPrimalWeakFormBCDirichlet
 from oden_dual_weak_form import OdenDualWeakForm
@@ -283,13 +272,19 @@ def hdiv_model_problem(k_order, gmesh, write_vtk_q=False):
     q_field_bc_physical_tags = [2, 3, 4, 5]
     if dim == 3:
         q_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
-    discrete_spaces_bc_physical_tags = {
+
+    physical_tags = {
+        "q": [1],
+        "u": [1],
+    }
+
+    b_physical_tags = {
         "q": q_field_bc_physical_tags,
     }
 
     fe_space = ProductSpace(discrete_spaces_data)
     fe_space.make_subspaces_discontinuous(discrete_spaces_disc)
-    fe_space.build_structures(discrete_spaces_bc_physical_tags)
+    fe_space.build_structures(physical_tags, b_physical_tags)
 
     n_dof_g = fe_space.n_dof
     rg = np.zeros(n_dof_g)
@@ -547,7 +542,7 @@ def main():
     k_order = 1
     h = 0.25
     n_ref = 4  # no. of refinement
-    dimension = 2
+    dimension = 1
     ref_l = 0
 
     n_data = 3

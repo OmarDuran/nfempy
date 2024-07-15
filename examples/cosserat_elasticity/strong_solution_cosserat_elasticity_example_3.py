@@ -601,14 +601,7 @@ def rhs_scaled(m_lambda, m_mu, m_kappa, dim: int = 2):
     else:
         return lambda x, y, z: np.array(
             [
-                -2
-                * (np.pi**2)
-                * (-1 + y)
-                * y
-                * (-1 + z)
-                * z
-                * m_mu
-                * np.sin(np.pi * x)
+                -2 * (np.pi**2) * (-1 + y) * y * (-1 + z) * z * m_mu * np.sin(np.pi * x)
                 + (-1 + z)
                 * z
                 * (
@@ -639,14 +632,7 @@ def rhs_scaled(m_lambda, m_mu, m_kappa, dim: int = 2):
                         + 2 * m_kappa * np.sin(np.pi * x)
                     )
                 ),
-                -2
-                * (np.pi**2)
-                * (-1 + x)
-                * x
-                * (-1 + z)
-                * z
-                * m_mu
-                * np.sin(np.pi * y)
+                -2 * (np.pi**2) * (-1 + x) * x * (-1 + z) * z * m_mu * np.sin(np.pi * y)
                 + (-1 + x)
                 * x
                 * (
@@ -677,14 +663,7 @@ def rhs_scaled(m_lambda, m_mu, m_kappa, dim: int = 2):
                         + 2 * m_kappa * np.sin(np.pi * y)
                     )
                 ),
-                -2
-                * (np.pi**2)
-                * (-1 + x)
-                * x
-                * (-1 + y)
-                * y
-                * m_mu
-                * np.sin(np.pi * z)
+                -2 * (np.pi**2) * (-1 + x) * x * (-1 + y) * y * m_mu * np.sin(np.pi * z)
                 + np.pi
                 * m_lambda
                 * (
@@ -862,14 +841,7 @@ def stress_divergence(m_lambda, m_mu, m_kappa, dim: int = 2):
     else:
         return lambda x, y, z: np.array(
             [
-                -2
-                * (np.pi**2)
-                * (-1 + y)
-                * y
-                * (-1 + z)
-                * z
-                * m_mu
-                * np.sin(np.pi * x)
+                -2 * (np.pi**2) * (-1 + y) * y * (-1 + z) * z * m_mu * np.sin(np.pi * x)
                 + (-1 + z)
                 * z
                 * (
@@ -900,14 +872,7 @@ def stress_divergence(m_lambda, m_mu, m_kappa, dim: int = 2):
                         + 2 * m_kappa * np.sin(np.pi * x)
                     )
                 ),
-                -2
-                * (np.pi**2)
-                * (-1 + x)
-                * x
-                * (-1 + z)
-                * z
-                * m_mu
-                * np.sin(np.pi * y)
+                -2 * (np.pi**2) * (-1 + x) * x * (-1 + z) * z * m_mu * np.sin(np.pi * y)
                 + (-1 + x)
                 * x
                 * (
@@ -938,14 +903,7 @@ def stress_divergence(m_lambda, m_mu, m_kappa, dim: int = 2):
                         + 2 * m_kappa * np.sin(np.pi * y)
                     )
                 ),
-                -2
-                * (np.pi**2)
-                * (-1 + x)
-                * x
-                * (-1 + y)
-                * y
-                * m_mu
-                * np.sin(np.pi * z)
+                -2 * (np.pi**2) * (-1 + x) * x * (-1 + y) * y * m_mu * np.sin(np.pi * z)
                 + np.pi
                 * m_lambda
                 * (

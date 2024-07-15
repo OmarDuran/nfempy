@@ -5,9 +5,9 @@ import meshio
 import networkx as nx
 import numpy as np
 
-from geometry.domain import Domain
+from topology.domain import Domain
 from mesh.mesh_cell import MeshCell, barycenter, rotate_vector
-from topology.mesh_coloring import coloring_mesh_by_co_dimension
+from mesh.mesh_coloring import coloring_mesh_by_co_dimension
 
 
 class Mesh:
@@ -103,6 +103,23 @@ class Mesh:
         mesh_cell.set_node_tags(node_tags)
         mesh_cell.id = tag
         return mesh_cell
+
+    def max_node_tag(self):
+        return self.points.shape[0] - 1
+
+    def append_points(self, points: np.array):
+        self.points = np.append(self.points, points, axis=0)
+
+    def max_cell_id(self):
+        return self.cells.shape[0] - 1
+
+    def append_cells(self, cells: np.array):
+        min_cell_id = np.min(np.array([cell.id for cell in cells]))
+        if self.max_cell_id() >= min_cell_id:
+            raise ValueError(
+                "cell identifier already used, max cell id: ", self.max_cell_id()
+            )
+        self.cells = np.append(self.cells, cells, axis=0)
 
     def insert_vertex(self, node_tag, physical_tag=None):
         cell_id = self.entities_0d[node_tag]
@@ -614,74 +631,24 @@ class Mesh:
             meshio.write("geometric_mesh_0d.vtk", mesh_0d)
 
     def gather_graph_edges(self, dimension, mesh_cell, tuple_id_list):
-        if mesh_cell.id is None:
+        if mesh_cell.id is None and mesh_cell.dimension != dimension:
             return
 
-        mesh_cell_list = None
-        if dimension == 0:
-            mesh_cell_list = mesh_cell.sub_cells_ids[0]
-        elif dimension == 1:
-            mesh_cell_list = mesh_cell.sub_cells_ids[1]
-        elif dimension == 2:
-            mesh_cell_list = mesh_cell.sub_cells_ids[2]
-        elif dimension == 3:
-            mesh_cell_list = mesh_cell.sub_cells_ids[3]
+        if dimension in [0, 1, 2, 3]:
+            mesh_cell_list = mesh_cell.sub_cells_ids[dimension]
         else:
             raise ValueError("Dimension not available: ", dimension)
 
         for id in mesh_cell_list:
-            tuple_id_list.append((mesh_cell.id, id))
+            b_mesh_cell_index = mesh_cell.index()
+            e_mesh_cell_index = self.cells[id].index()
+            tuple_id_list.append((b_mesh_cell_index, e_mesh_cell_index))
             if self.cells[id].dimension != dimension:
                 self.gather_graph_edges(dimension, self.cells[id], tuple_id_list)
-
-    def gather_graph_edges_on_physical_tags(
-        self, physical_tags, dimension, mesh_cell, tuple_id_list
-    ):
-        if mesh_cell.id is None:
-            return
-
-        mesh_cell_list = None
-        if dimension == 0:
-            mesh_cell_list = mesh_cell.sub_cells_ids[0]
-        elif dimension == 1:
-            mesh_cell_list = mesh_cell.sub_cells_ids[1]
-        elif dimension == 2:
-            mesh_cell_list = mesh_cell.sub_cells_ids[2]
-        elif dimension == 3:
-            mesh_cell_list = mesh_cell.sub_cells_ids[3]
-        else:
-            raise ValueError("Dimension not available: ", dimension)
-
-        # this assertion is associated with the condition below:
-        # if i > 0 and self.cells[id].dimension == 1:
-        assert self.dimension == 2
-        for i, id in enumerate(mesh_cell_list):
-            if i > 0 and self.cells[id].dimension == 1:
-                continue
-            tuple_id_list.append((mesh_cell.id, id))
-            if self.cells[id].dimension != dimension:
-                self.gather_graph_edges_on_physical_tags(
-                    physical_tags, dimension, self.cells[id], tuple_id_list
-                )
 
     def build_graph(self, dimension, co_dimension):
         disjoint_cells = [
             cell_i for cell_i in self.cells if cell_i.dimension == dimension
-        ]
-
-        tuple_id_list = [[] for i in range(len(disjoint_cells))]
-        for i, cell_i in enumerate(disjoint_cells):
-            self.gather_graph_edges(dimension - co_dimension, cell_i, tuple_id_list[i])
-        tuple_id_list = list(itertools.chain(*tuple_id_list))
-
-        graph = nx.from_edgelist(tuple_id_list, create_using=nx.DiGraph)
-        return graph
-
-    def build_graph_on_materials(self, dimension, co_dimension):
-        disjoint_cells = [
-            cell_i
-            for cell_i in self.cells
-            if cell_i.dimension == dimension and cell_i.material_id is not None
         ]
 
         tuple_id_list = [[] for i in range(len(disjoint_cells))]
@@ -701,9 +668,7 @@ class Mesh:
 
         tuple_id_list = [[] for i in range(len(disjoint_cells))]
         for i, cell_i in enumerate(disjoint_cells):
-            self.gather_graph_edges_on_physical_tags(
-                physical_tags, dimension - co_dimension, cell_i, tuple_id_list[i]
-            )
+            self.gather_graph_edges(dimension - co_dimension, cell_i, tuple_id_list[i])
         tuple_id_list = list(itertools.chain(*tuple_id_list))
 
         graph = nx.from_edgelist(tuple_id_list, create_using=nx.DiGraph)
