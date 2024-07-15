@@ -246,12 +246,12 @@ class DiffusionWeakForm(WeakForm):
                 cp_r = f_cp_r(xv[0], xv[1], xv[2])
 
                 # mobilities and fractional flows
-                lambda_H2O_l = (x_H2O_l_h_n * rho_l * (1.0 - sv_h_n) / mu_l)
-                lambda_H2O_v = (x_H2O_v_h_n * rho_v * sv_h_n / mu_v)
-                lambda_NaCl_l = (x_NaCl_l_h_n * rho_l * (1.0 - sv_h_n) / mu_l)
-                lambda_NaCl_v = (x_NaCl_v_h_n * rho_v * sv_h_n / mu_v)
-                lambda_H2O = (lambda_H2O_l + lambda_H2O_v)
-                lambda_NaCl = (lambda_NaCl_l + lambda_NaCl_v)
+                lambda_H2O_l = x_H2O_l_h_n * rho_l * (1.0 - sv_h_n) / mu_l
+                lambda_H2O_v = x_H2O_v_h_n * rho_v * sv_h_n / mu_v
+                lambda_NaCl_l = x_NaCl_l_h_n * rho_l * (1.0 - sv_h_n) / mu_l
+                lambda_NaCl_v = x_NaCl_v_h_n * rho_v * sv_h_n / mu_v
+                lambda_H2O = lambda_H2O_l + lambda_H2O_v
+                lambda_NaCl = lambda_NaCl_l + lambda_NaCl_v
                 lambda_m = lambda_H2O + lambda_NaCl
 
                 md_h_n *= 1.0 / (lambda_m * f_kappa(xv[0], xv[1], xv[2]))
@@ -263,13 +263,12 @@ class DiffusionWeakForm(WeakForm):
                 div_qd_h = a_qd_n @ div_dv_h.T
                 div_qa_h = a_qa_n @ div_dv_h.T
 
-
                 # accumulation terms
-                overall_mass = (1.0/dt) * phi_v * (rho_n - rho)
-                mass_z = (1.0/dt) * phi_v * (rho_n * z_h_n - rho * z_h)
+                overall_mass = (1.0 / dt) * phi_v * (rho_n - rho)
+                mass_z = (1.0 / dt) * phi_v * (rho_n * z_h_n - rho * z_h)
 
-                p_work = phi_v * (p_h_n-p_h)
-                solid_energy = (1.0-phi_v) * rho_r * cp_r *(t_h_n - t_h)
+                p_work = phi_v * (p_h_n - p_h)
+                solid_energy = (1.0 - phi_v) * rho_r * cp_r * (t_h_n - t_h)
                 fluid_energy = phi_v * (rho_n * h_h_n - rho * h_h)
                 energy = (1.0 / dt) * (fluid_energy + solid_energy - p_work)
 
@@ -390,12 +389,14 @@ class DiffusionWeakFormBCRobin(WeakForm):
                 qa_h_n = alpha_qa @ dqa_h
 
                 equ_1_integrand = (
-                    (1.0 / beta_md_v) * (md_h_n + beta_md_v * p_v - gamma_md_v)
+                    (1.0 / beta_md_v)
+                    * (md_h_n + beta_md_v * p_v - gamma_md_v)
                     * dmd_h.T
                 )
 
                 equ_2_integrand = (
-                    (1.0 / beta_qd_v) * (qd_h_n + qa_h_n + beta_qd_v * t_v - gamma_qd_v)
+                    (1.0 / beta_qd_v)
+                    * (qd_h_n + qa_h_n + beta_qd_v * t_v - gamma_qd_v)
                     * dqd_h.T
                 )
 

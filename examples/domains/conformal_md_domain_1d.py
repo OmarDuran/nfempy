@@ -1,4 +1,3 @@
-
 import numpy as np
 from topology.operations.domain_operations import create_domain
 from topology.operations.domain_operations import domain_difference
@@ -26,17 +25,19 @@ v4: Vertex = Vertex(4, np.array([0.0, 1.0, 0.0]))
 v5: Vertex = Vertex(5, np.array([0.0, 0.0, 0.0]))
 e2: Edge = Edge(2, np.array([v4, v5]))
 
-v0.physical_tag = 2 # physical tag for BC of pdes on c0
-v1.physical_tag = 2 # physical tag for BC of pdes on c0
-v2.physical_tag = 2 # physical tag for BC of pdes on c0
-v3.physical_tag = 2 # physical tag for BC of pdes on c0
-v4.physical_tag = 2 # physical tag for BC of pdes on c0
-v5.physical_tag = 2 # physical tag for BC of pdes on c0
-e0.physical_tag = 1 # physical tag for pdes on c0
-e1.physical_tag = 1 # physical tag for pdes on c0
-e2.physical_tag = 1 # physical tag for pdes on c0
+v0.physical_tag = 2  # physical tag for BC of pdes on c0
+v1.physical_tag = 2  # physical tag for BC of pdes on c0
+v2.physical_tag = 2  # physical tag for BC of pdes on c0
+v3.physical_tag = 2  # physical tag for BC of pdes on c0
+v4.physical_tag = 2  # physical tag for BC of pdes on c0
+v5.physical_tag = 2  # physical tag for BC of pdes on c0
+e0.physical_tag = 1  # physical tag for pdes on c0
+e1.physical_tag = 1  # physical tag for pdes on c0
+e2.physical_tag = 1  # physical tag for pdes on c0
 
-domain = create_domain(dimension=max_dim, shapes=np.array([v0, v1, v2, v3, v4, v5, e0, e1, e2]))
+domain = create_domain(
+    dimension=max_dim, shapes=np.array([v0, v1, v2, v3, v4, v5, e0, e1, e2])
+)
 # domain.build_grahp()
 # domain.draw_grahp()
 
@@ -76,4 +77,3 @@ domain_h.write_mesh("gmesh.msh")
 gmesh = Mesh(dimension=md_brep_domain.dimension, file_name="gmesh.msh")
 gmesh.build_conformal_mesh()
 gmesh.write_vtk()
-

@@ -42,16 +42,18 @@ class DiscreteSpace:
         self.discontinuous = True
 
     def build_structures(self, physical_tags=[None]):
-        self._build_dof_map()
+        self._build_dof_map(physical_tags)
         self._build_elements(physical_tags)
 
     def build_boundary_structures(self, bc_physical_tags=[None]):
+        if len(bc_physical_tags) == 0:
+            return
         self._build_bc_elements(bc_physical_tags)
 
-    def _build_dof_map(self, timing_q=False):
+    def _build_dof_map(self, physical_tags=[], timing_q=False):
         if timing_q:
             st = time.time()
-        self.mesh_topology.build_data()
+        self.mesh_topology.build_data_on_pysical_tags(physical_tags)
         self.element_type = type_by_dimension(self.dimension)
         basis_family = self.family
         if self.dimension == 0:
@@ -84,17 +86,11 @@ class DiscreteSpace:
                 "seconds",
             )
 
-    def _build_elements(self, physical_tags, timing_q=False, parallel_run_q=False):
+    def _build_elements(self, timing_q=False, parallel_run_q=False):
         if timing_q:
             st = time.time()
 
         self.element_ids = self.mesh_topology.entities_by_dimension(self.dimension)
-        # if self.physical_tag_filter:
-        mesh = self.mesh_topology.mesh
-        self.element_ids = [
-            id for id in self.element_ids if mesh.cells[id].material_id in physical_tags
-        ]
-
         if parallel_run_q:
             num_cores = multiprocessing.cpu_count()
             # batch_size = round(len(self.element_ids) / num_cores)

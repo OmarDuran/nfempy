@@ -13,6 +13,9 @@ class ProductSpace:
         self._define_integration_order_and_quadrature(discrete_spaces_data)
         self._define_discrete_spaces(discrete_spaces_data)
 
+    def _define_fields_physical_tags(self, fields_physical_tags):
+        self.fields_physical_tags = fields_physical_tags
+
     def _define_fields_names(self, discrete_spaces_data):
         self.names = list(discrete_spaces_data.keys())
 
@@ -74,6 +77,14 @@ class ProductSpace:
             name, dofs = item
             self.n_dof += dofs
 
+    def dimension(self):
+        dims = []
+        for item in self.discrete_spaces.items():
+            _, space = item
+            dims.append(space.dimension)
+        product_space_dim = np.max(dims)
+        return product_space_dim
+
     def make_subspaces_discontinuous(self, discrete_space_disc):
         for name in self.names:
             disc_Q = discrete_space_disc.get(name, False)
@@ -81,10 +92,11 @@ class ProductSpace:
                 self.discrete_spaces[name].make_discontinuous()
 
     def build_structures(self, physical_tags, b_physical_tags):
+        self._define_fields_physical_tags(physical_tags)
         for item in self.discrete_spaces.items():
             name, space = item
             list_physical_tags = physical_tags.get(name, [None])
-            list_b_physical_tags = b_physical_tags.get(name, [None])
+            list_b_physical_tags = b_physical_tags.get(name, [])
             space.build_structures(list_physical_tags)
             space.build_boundary_structures(list_b_physical_tags)
 

@@ -123,7 +123,7 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
     # Constant material properties
     m_K_thermal = 1.8
     m_mu = 1.0e-3
-    m_kappa = 5.0e-14 # approx 50 [mD]
+    m_kappa = 5.0e-14  # approx 50 [mD]
     m_porosity = 0.1
     m_rho_r = 2650.0
     m_cp_r = 1000.0
@@ -149,7 +149,7 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
     m_functions = {
         "K_thermal": f_K_thermal,
         "kappa": f_kappa,
-        "mu" : f_mu,
+        "mu": f_mu,
         "porosity": f_porosity,
         "rho_r": f_rho_r,
         "cp_r": f_cp_r,
@@ -187,14 +187,18 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
     eps = 1.0e16
     eps_inv = 1.0e-13
     f_p = partial(xi_eta_map, m_west=11.0e6, m_east=1.0e6, m_south=0.0, m_north=0.0)
-    f_beta_md = partial(xi_eta_map, m_west=eps, m_east=eps, m_south=eps_inv, m_north=eps_inv)
-    f_gamma_md = partial(xi_map, m_west=0.0, m_east=0.0, m_other= 0.0)
+    f_beta_md = partial(
+        xi_eta_map, m_west=eps, m_east=eps, m_south=eps_inv, m_north=eps_inv
+    )
+    f_gamma_md = partial(xi_map, m_west=0.0, m_east=0.0, m_other=0.0)
 
     f_t = partial(xi_eta_map, m_west=523.15, m_east=473.15, m_south=0.0, m_north=0.0)
-    f_beta_qd = partial(xi_eta_map, m_west=eps, m_east=eps, m_south=eps_inv, m_north=eps_inv)
-    f_gamma_qd = partial(xi_map, m_west=0.0, m_east=0.0, m_other= 0.0)
-    f_z = partial(xi_map, m_west=1.0, m_east=0.0, m_other= 0.0)
-    f_h = partial(xi_map, m_west=2000.0, m_east=0.0, m_other= 0.0)
+    f_beta_qd = partial(
+        xi_eta_map, m_west=eps, m_east=eps, m_south=eps_inv, m_north=eps_inv
+    )
+    f_gamma_qd = partial(xi_map, m_west=0.0, m_east=0.0, m_other=0.0)
+    f_z = partial(xi_map, m_west=1.0, m_east=0.0, m_other=0.0)
+    f_h = partial(xi_map, m_west=2000.0, m_east=0.0, m_other=0.0)
 
     m_bc_functions = {
         "p_D": f_p,
@@ -241,10 +245,18 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
     sequence_c1_epairs = [(pair[0], gidx_midx[pair[1]]) for pair in c1_epairs]
 
     # Initial condition
-    def nu_ini(x,y,z, m_val):
-        return np.array([[m_val * np.ones_like(x), m_val * np.ones_like(y), m_val * np.ones_like(z)]])
+    def nu_ini(x, y, z, m_val):
+        return np.array(
+            [
+                [
+                    m_val * np.ones_like(x),
+                    m_val * np.ones_like(y),
+                    m_val * np.ones_like(z),
+                ]
+            ]
+        )
 
-    def xi_ini(x,y,z, m_val):
+    def xi_ini(x, y, z, m_val):
         return np.array([m_val * np.ones_like(x)])
 
     f_md = partial(nu_ini, m_val=0.0)
@@ -253,7 +265,7 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
     f_qa = partial(nu_ini, m_val=0.0)
     f_p = partial(xi_ini, m_val=1.0e6)
     f_z = partial(xi_ini, m_val=0.0)
-    f_h = partial(xi_ini, m_val=473.15*4)
+    f_h = partial(xi_ini, m_val=473.15 * 4)
     f_t = partial(xi_ini, m_val=473.15)
     f_sv = partial(xi_ini, m_val=0.0)
     f_x_H2O_l = partial(xi_ini, m_val=1.0)
@@ -276,7 +288,7 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
         "x_NaCl_l": f_x_NaCl_l,
         "x_NaCl_v": f_x_NaCl_v,
     }
-    alpha = l2_projector(fe_space,ic_functions)
+    alpha = l2_projector(fe_space, ic_functions)
     if write_vtk_q:
         # post-process solution
         time_idx = 0
@@ -450,12 +462,14 @@ def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
         gmesh.write_vtk()
     return gmesh
 
+
 def create_mesh_from_file(file_name, dim, write_vtk_q=False):
     gmesh = Mesh(dimension=dim, file_name=file_name)
     gmesh.build_conformal_mesh()
     if write_vtk_q:
         gmesh.write_vtk()
     return gmesh
+
 
 def main():
     h = 0.25

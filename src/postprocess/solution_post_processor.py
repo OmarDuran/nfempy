@@ -5,7 +5,7 @@ import numpy as np
 from mesh.mesh_metrics import cell_centroid
 from basis.element_family import family_by_name
 from geometry.mapping import evaluate_linear_shapes, evaluate_mapping
-from spaces.product_space import ProductSpace
+from mesh.mesh_topology import MeshTopology
 
 
 def node_average_quatity(node_idx, cell_idxs, fe_space, name, alpha):
@@ -19,6 +19,8 @@ def node_average_quatity(node_idx, cell_idxs, fe_space, name, alpha):
 
     f_h_values = []
     for cell in cells:
+        if cell.material_id not in fe_space.fields_physical_tags[name]:
+            continue
         element_idx = space.id_to_element[cell.id]
         element = space.elements[element_idx]
 
@@ -173,6 +175,14 @@ def write_vtk_file_with_exact_solution(
     p_data_dict = {}
     c_data_dict = {}
 
+    # dims = []
+    # for item in fe_space.discrete_spaces.items():
+    #     _, space = item
+    #     dims.append(space.dimension)
+    # product_space_dim = np.max(dims)
+    # mesh_topology: MeshTopology = MeshTopology(gmesh, product_space_dim)
+    # mesh_topology.build_data()
+
     for item in fe_space.discrete_spaces.items():
         name, space = item
         n_comp = space.n_comp
@@ -219,10 +229,14 @@ def write_vtk_file_with_exact_solution(
             p_data_dict[name + "_e"] = fe_data
 
     mesh_points = gmesh.points
-    cells = [cell for cell in gmesh.cells if cell.dimension == gmesh.dimension]
+    cells = [
+        cell
+        for cell in gmesh.cells
+        if cell.material_id in fe_space.fields_physical_tags[name]
+    ]
     con_d = np.array([cell.node_tags for cell in cells])
     meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
-    cells_dict = {meshio_cell_types[gmesh.dimension]: con_d}
+    cells_dict = {meshio_cell_types[fe_space.dimension()]: con_d}
 
     mesh = meshio.Mesh(
         points=mesh_points,

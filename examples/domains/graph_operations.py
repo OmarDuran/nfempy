@@ -1,6 +1,7 @@
 import networkx as nx
 import matplotlib.pyplot as plt
 
+
 def plot_grahp(G):
     # Draw the graph
     # nx.draw(G, with_labels=True, node_color='skyblue', node_size=700, font_size=16, font_color='black')
@@ -18,21 +19,20 @@ def md_sequence():
     G = nx.Graph()
 
     # Add edges
-    G.add_edge((0,1), (0,2))
-    G.add_edge((0,1), (0,3))
-    G.add_edge((0,2), (1,1))
-    G.add_edge((0,2), (1,4))
-    G.add_edge((0,3), (1,5))
-    G.add_edge((0,3), (1,2))
-    G.add_edge((1,4), (1,3))
-    G.add_edge((1,5), (1,3))
-
+    G.add_edge((0, 1), (0, 2))
+    G.add_edge((0, 1), (0, 3))
+    G.add_edge((0, 2), (1, 1))
+    G.add_edge((0, 2), (1, 4))
+    G.add_edge((0, 3), (1, 5))
+    G.add_edge((0, 3), (1, 2))
+    G.add_edge((1, 4), (1, 3))
+    G.add_edge((1, 5), (1, 3))
 
     H = nx.Graph()
-    H.add_node((1,3))
+    H.add_node((1, 3))
 
     # intersection
-    I = nx.intersection(G,H)
+    I = nx.intersection(G, H)
 
     # difference
     D = G.copy()
@@ -40,9 +40,8 @@ def md_sequence():
 
     # same co_dimension coupling
     C = nx.Graph()
-    C.add_edge((1,3), (1,4))
-    C.add_edge((1,3), (1,5))
-
+    C.add_edge((1, 3), (1, 4))
+    C.add_edge((1, 3), (1, 5))
 
     # union
     U = D.copy()
@@ -51,29 +50,30 @@ def md_sequence():
     equal = nx.utils.graphs_equal(U, G)
     plot_grahp(G)
 
+
 def md_conformal_to_no_conformal():
     # Create a graph object
     G = nx.DiGraph()
-    G.add_edge((0,1), (0,2))
-    G.add_edge((0,1), (0,3))
-    G.add_edge((0,2), (1,1))
-    G.add_edge((0,2), (1,3))
-    G.add_edge((0,3), (1,3))
-    G.add_edge((0,3), (1,2))
+    G.add_edge((0, 1), (0, 2))
+    G.add_edge((0, 1), (0, 3))
+    G.add_edge((0, 2), (1, 1))
+    G.add_edge((0, 2), (1, 3))
+    G.add_edge((0, 3), (1, 3))
+    G.add_edge((0, 3), (1, 2))
 
     # disjoint subdomain
     H = nx.DiGraph()
-    H.add_node((1,3))
+    H.add_node((1, 3))
 
     # 1) Compute intersection
-    I = nx.intersection(G,H)
+    I = nx.intersection(G, H)
     # 2) same co_dimension coupling
     C = nx.DiGraph()
-    C.add_edge((1,3), (1,4))
-    C.add_edge((1,3), (1,5))
+    C.add_edge((1, 3), (1, 4))
+    C.add_edge((1, 3), (1, 5))
     # 3) add extra duplicates
-    G.add_edge((0,2), (1,4))
-    G.add_edge((0,3), (1,5))
+    G.add_edge((0, 2), (1, 4))
+    G.add_edge((0, 3), (1, 5))
 
     # Difference cut conformity contained in I
     D = G.copy()
@@ -85,6 +85,7 @@ def md_conformal_to_no_conformal():
 
     cycles = list(nx.chordless_cycles(U))
     plot_grahp(U)
+
 
 # md_sequence()
 
