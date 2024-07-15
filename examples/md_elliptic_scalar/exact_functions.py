@@ -45,20 +45,18 @@ def u_exact(x, y, z, m_c, m_kappa, m_delta):
 
 def f_c0_rhs(x, y, z, m_c, m_kappa, m_delta):
     return np.array(
-        [[4 * (np.pi**2) * (m_c * x + f_delta(x, y, z, m_delta)) * p_f_exact(x, y, z)]]
+        [4 * (np.pi**2) * (m_c * x + f_delta(x, y, z, m_delta)) * p_f_exact(x, y, z)]
     )
 
 
 def f_c1_rhs(x, y, z, m_c, m_kappa, m_delta):
     return np.array(
         [
-            [
-                4
-                * (np.pi**2)
-                * f_kappa(x, y, z, m_kappa)
-                * f_delta(x, y, z, m_delta)
-                * np.sin(2 * np.pi * y)
-            ]
+            4
+            * (np.pi**2)
+            * f_kappa(x, y, z, m_kappa)
+            * f_delta(x, y, z, m_delta)
+            * np.sin(2 * np.pi * y)
         ]
     )
 
@@ -80,3 +78,18 @@ def get_exact_functions_by_co_dimension(
         raise ValueError("Case not available.")
 
     return exact_functions
+
+
+def get_rhs_by_co_dimension(co_dimension, rhs_name, m_c, m_kappa, m_delta):
+    if co_dimension == 0:
+        rhs_functions = {
+            rhs_name: partial(f_c0_rhs, m_c=m_c, m_kappa=m_kappa, m_delta=m_delta),
+        }
+    elif co_dimension == 1:
+        rhs_functions = {
+            rhs_name: partial(f_c1_rhs, m_c=m_c, m_kappa=m_kappa, m_delta=m_delta),
+        }
+    else:
+        raise ValueError("Case not available.")
+
+    return rhs_functions

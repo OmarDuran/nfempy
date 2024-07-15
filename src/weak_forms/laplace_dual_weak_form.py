@@ -26,8 +26,8 @@ class LaplaceDualWeakForm(WeakForm):
         p_data: ElementData = p_space.elements[iel].data
 
         cell = q_data.cell
-        dim = q_cell.dimension
-        points, weights = self.space.quadrature
+        dim = cell.dimension
+        points, weights = self.space.quadrature[dim]
         x, jac, det_jac, inv_jac = q_space.elements[iel].evaluate_mapping(points)
 
         # basis
@@ -48,10 +48,6 @@ class LaplaceDualWeakForm(WeakForm):
         f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
         phi_s_star = det_jac * weights * p_phi_tab[0, :, :, 0].T
 
-        # constant directors
-        e1 = np.array([1, 0, 0])
-        e2 = np.array([0, 1, 0])
-        e3 = np.array([0, 0, 1])
         with ad.AutoDiff(alpha) as alpha:
             el_form = np.zeros(n_dof)
             for c in range(p_components):
@@ -61,12 +57,6 @@ class LaplaceDualWeakForm(WeakForm):
 
             for i, omega in enumerate(weights):
                 xv = x[i]
-                if dim == 2:
-                    inv_jac_m = np.vstack((inv_jac[i] @ e1, inv_jac[i] @ e2))
-                else:
-                    inv_jac_m = np.vstack(
-                        (inv_jac[i] @ e1, inv_jac[i] @ e2, inv_jac[i] @ e3)
-                    )
                 qh = alpha[:, 0:n_q_dof:1] @ q_phi_tab[0, i, :, 0:dim]
                 qh *= 1.0 / f_kappa(xv[0], xv[1], xv[2])
                 ph = alpha[:, n_q_dof:n_dof:1] @ p_phi_tab[0, i, :, 0:dim]
@@ -98,8 +88,8 @@ class LaplaceDualWeakFormBCDirichlet(WeakForm):
         q_data: ElementData = q_space.bc_elements[iel].data
 
         cell = q_data.cell
-        points, weights = self.space.bc_quadrature
-        dim = q_cell.dimension
+        dim = cell.dimension
+        points, weights = self.space.bc_quadrature[dim]
         x, jac, det_jac, inv_jac = q_space.bc_elements[iel].evaluate_mapping(points)
 
         q_phi_tab = q_space.bc_elements[iel].evaluate_basis(

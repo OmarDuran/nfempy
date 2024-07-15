@@ -1,7 +1,9 @@
 import numpy as np
+from petsc4py import PETSc
 import time
 
 from exact_functions import get_exact_functions_by_co_dimension
+from exact_functions import get_rhs_by_co_dimension
 from postprocess.projectors import l2_projector
 from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
 from spaces.product_space import ProductSpace
@@ -10,6 +12,9 @@ from mesh.mesh import Mesh
 from topology.domain_market import create_md_box_2D
 from mesh.discrete_domain import DiscreteDomain
 from mesh.mesh_operations import cut_conformity_along_c1_lines
+
+# simple weak form
+from weak_forms.laplace_dual_weak_form import LaplaceDualWeakForm as MixedWeakForm
 
 
 def method_definition(dimension, k_order, flux_name, potential_name):
@@ -56,7 +61,7 @@ def create_product_space(dimension, method, gmesh, flux_name, potential_name):
 
     if gmesh.dimension == 2:
         md_field_physical_tags = [[], [10], [1]]
-        mp_field_bc_physical_tags = [[], [20], [2, 3, 4, 5]]
+        mp_field_bc_physical_tags = [[], [2, 4], [2, 3, 4, 5, 50]]
     else:
         raise ValueError("Case not available.")
 
@@ -76,7 +81,7 @@ def create_product_space(dimension, method, gmesh, flux_name, potential_name):
 
 
 def fracture_disjoint_set():
-    fracture_1 = np.array([[0.5, 0.2, 0.0], [0.5, 0.8, 0.0]])
+    fracture_1 = np.array([[0.5, 0.0, 0.0], [0.5, 1.0, 0.0]])
     fractures = [fracture_1]
     return np.array(fractures)
 
@@ -84,7 +89,7 @@ def fracture_disjoint_set():
 def generate_conformal_mesh(md_domain, h_val, fracture_physical_tags):
 
     physical_tags = [fracture_physical_tags["line"]]
-    transfinite_agruments = {"n_points": 20, "meshType": "Bump", "coef": 1.0}
+    transfinite_agruments = {"n_points": 10, "meshType": "Bump", "coef": 1.0}
     mesh_arguments = {
         "lc": h_val,
         "n_refinements": 0,
@@ -122,7 +127,7 @@ md_domain = create_md_box_2D(
 )
 
 # Conformal gmsh discrete representation
-h_val = 0.1
+h_val = 0.25
 gmesh = generate_conformal_mesh(md_domain, h_val, fracture_physical_tags)
 
 physical_tags = {"c1": 10, "c1_clones": 50}
@@ -130,14 +135,13 @@ physical_tags = fracture_physical_tags
 physical_tags["line_clones"] = 50
 physical_tags["point_clones"] = 100
 # cut_conformity_along_c1_lines(lines, physical_tags, gmesh)
-# gmesh.write_vtk()
+gmesh.write_vtk()
 
 
 k_order = 1
-co_dim = 1
 write_vtk_q = True
 case_name = "md_elliptic_"
-flux_name = "u"
+flux_name = "q"
 potential_name = "p"
 
 md_produc_space = []
@@ -156,15 +160,119 @@ exact_functions_c1 = get_exact_functions_by_co_dimension(
 )
 exact_functions = [exact_functions_c0, exact_functions_c1]
 
+rhs_c0 = get_rhs_by_co_dimension(0, "rhs", m_c, m_kappa, m_delta)
+rhs_c1 = get_rhs_by_co_dimension(1, "rhs", m_c, m_kappa, m_delta)
 
-alpha = l2_projector(md_produc_space[co_dim], exact_functions[co_dim])
-if write_vtk_q:
-    # post-process solution
-    st = time.time()
-    file_name = "md_elliptic_two_fields_c" + str(co_dim) + ".vtk"
-    write_vtk_file_with_exact_solution(
-        file_name, gmesh, md_produc_space[co_dim], exact_functions[co_dim], alpha
-    )
-    et = time.time()
-    elapsed_time = et - st
-    print("Post-processing time:", elapsed_time, "seconds")
+print("Surface: Number of dof: ", md_produc_space[0].n_dof)
+print("Line: Number of dof: ", md_produc_space[1].n_dof)
+
+
+def f_kappa(x, y, z):
+    return m_kappa
+
+
+# First assembly trial
+
+dof_seq = np.array([0, md_produc_space[0].n_dof, md_produc_space[1].n_dof])
+global_dof = np.add.accumulate(dof_seq)
+n_dof_g = np.sum(dof_seq)
+rg = np.zeros(n_dof_g)
+alpha = np.zeros(n_dof_g)
+print("n_dof: ", n_dof_g)
+
+# Assembler
+st = time.time()
+A = PETSc.Mat()
+A.createAIJ([n_dof_g, n_dof_g])
+
+m_functions_c0 = {
+    "rhs": rhs_c0["rhs"],
+    "kappa": f_kappa,
+}
+
+m_functions_c1 = {
+    "rhs": rhs_c1["rhs"],
+    "kappa": f_kappa,
+}
+
+weak_form_c0 = MixedWeakForm(md_produc_space[0])
+weak_form_c0.functions = m_functions_c0
+
+weak_form_c1 = MixedWeakForm(md_produc_space[1])
+weak_form_c1.functions = m_functions_c1
+
+
+def scatter_form_data(A, i, weak_form, dof_shift=0):
+    # destination indexes
+    dest = weak_form.space.destination_indexes(i) + dof_shift
+    alpha_l = alpha[dest]
+    r_el, j_el = weak_form.evaluate_form(i, alpha_l)
+
+    # contribute rhs
+    rg[dest] += r_el
+
+    # contribute lhs
+    data = j_el.ravel()
+    row = np.repeat(dest, len(dest))
+    col = np.tile(dest, len(dest))
+    nnz = data.shape[0]
+    for k in range(nnz):
+        A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
+
+
+n_els_c0 = len(md_produc_space[0].discrete_spaces["q"].elements)
+n_els_c1 = len(md_produc_space[1].discrete_spaces["q"].elements)
+[scatter_form_data(A, i, weak_form_c0, global_dof[0]) for i in range(n_els_c0)]
+[scatter_form_data(A, i, weak_form_c1, global_dof[1]) for i in range(n_els_c1)]
+
+A.assemble()
+
+et = time.time()
+elapsed_time = et - st
+print("Assembly time:", elapsed_time, "seconds")
+
+# solving ls
+st = time.time()
+ksp = PETSc.KSP().create()
+ksp.setOperators(A)
+b = A.createVecLeft()
+b.array[:] = -rg
+x = A.createVecRight()
+
+ksp.setType("preonly")
+ksp.getPC().setType("lu")
+ksp.getPC().setFactorSolverType("mumps")
+ksp.setConvergenceHistory()
+
+ksp.solve(b, x)
+alpha = x.array
+
+et = time.time()
+elapsed_time = et - st
+print("Linear solver time:", elapsed_time, "seconds")
+
+for co_dim in [0, 1]:
+    if write_vtk_q:
+        # post-process solution
+        st = time.time()
+        file_name = "md_elliptic_two_fields_c" + str(co_dim) + ".vtk"
+        write_vtk_file_with_exact_solution(
+            file_name, gmesh, md_produc_space[co_dim], exact_functions[co_dim], alpha
+        )
+        et = time.time()
+        elapsed_time = et - st
+        print("Post-processing time:", elapsed_time, "seconds")
+
+# post-process projection
+for co_dim in [0, 1]:
+    alpha = l2_projector(md_produc_space[co_dim], exact_functions[co_dim])
+    if write_vtk_q:
+        # post-process solution
+        st = time.time()
+        file_name = "projection_md_elliptic_two_fields_c" + str(co_dim) + ".vtk"
+        write_vtk_file_with_exact_solution(
+            file_name, gmesh, md_produc_space[co_dim], exact_functions[co_dim], alpha
+        )
+        et = time.time()
+        elapsed_time = et - st
+        print("Post-processing time:", elapsed_time, "seconds")

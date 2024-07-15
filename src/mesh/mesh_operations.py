@@ -73,6 +73,7 @@ def cut_conformity_along_c1_line(line: np.array, physical_tags, mesh: Mesh):
 
     if c2_cells.shape[0] == 0:  # no internal points to process
         return
+    return
 
     # operate only on graph
     cell_id = mesh.max_cell_id() + 1
@@ -145,7 +146,8 @@ def cut_conformity_along_c1_line(line: np.array, physical_tags, mesh: Mesh):
                 if idx is None:
                     continue
                 sub_cell.sub_cells_ids[c2_idx[0]][idx] = c2_idx[1]
-
+                if d == 1:
+                    sub_cell.set_sub_cells_ids(0, np.sort(sub_cell.sub_cells_ids[0]))
                 idx = sub_cell.node_tag_index(o_node_tag)
                 if idx is None:
                     continue
