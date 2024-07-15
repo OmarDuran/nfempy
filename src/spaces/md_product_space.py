@@ -1,20 +1,19 @@
 import numpy as np
 
-from spaces.discrete_space import DiscreteSpace
 import basix
-from basis.element_family import basis_variant, family_by_name
+from spaces.product_space import ProductSpace
 from basis.element_type import type_by_dimension
 
 
-class ProductSpace:
-    # The discrete product space representation
-    def __init__(self, discrete_spaces_data):
-        self._define_fields_names(discrete_spaces_data)
-        self._define_integration_order_and_quadrature(discrete_spaces_data)
-        self._define_discrete_spaces(discrete_spaces_data)
+class MDProductSpace:
+    # The discrete mixed-dimensional product space representation
+    def __init__(self, product_spaces):
+        self._define_product_spaces_by_dimension(product_spaces)
 
-    def _define_fields_names(self, discrete_spaces_data):
-        self.names = list(discrete_spaces_data.keys())
+    def _define_product_spaces_by_dimension(self, product_spaces):
+        if len(product_spaces) > 3:
+            raise ValueError('Mixed dimensional problems supported up to dimension 3.')
+        self.product_spaces_by_dim = product_spaces
 
     def _define_integration_order_and_quadrature(self, discrete_spaces_data):
         k_orders = []
@@ -25,8 +24,9 @@ class ProductSpace:
             dims.append(data[0])
 
         self.integration_order = 2 * np.max(k_orders) + 1
+        dims = np.unique(dims)
         self.quadrature = [None, None, None, None]
-        for dim in range(np.max(dims)+1):
+        for dim in dims:
             if dim == 0:
                 self.quadrature[dim] = (np.array([1.0]), np.array([1.0]))
             else:
@@ -71,22 +71,6 @@ class ProductSpace:
             name, dofs = item
             self.n_dof += dofs
 
-    def make_subspaces_discontinuous(self, discrete_space_disc):
-        for name in self.names:
-            disc_Q = discrete_space_disc.get(name, False)
-            if disc_Q:
-                self.discrete_spaces[name].make_discontinuous()
-
-    def build_structures(self, physical_tags, b_physical_tags):
-        for item in self.discrete_spaces.items():
-            name, space = item
-            list_physical_tags = physical_tags.get(name, [None])
-            list_b_physical_tags = b_physical_tags.get(name, [None])
-            space.build_structures(list_physical_tags)
-            space.build_boundary_structures(list_b_physical_tags)
-
-        self._define_discrete_spaces_dof()
-        self._define_n_dof()
 
     @staticmethod
     def _retrieve_space_destination_indexes(space, cell_index):

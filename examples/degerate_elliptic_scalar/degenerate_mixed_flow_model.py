@@ -54,13 +54,18 @@ def create_product_space(method, gmesh, flux_name, potential_name):
     else:
         raise ValueError("Case not available.")
 
-    discrete_spaces_bc_physical_tags = {
+    physical_tags = {
+        flux_name: [1, 2],
+        potential_name: [1, 2],
+    }
+
+    b_physical_tags = {
         flux_name: mp_field_bc_physical_tags,
     }
 
     space = ProductSpace(discrete_spaces_data)
     space.make_subspaces_discontinuous(discrete_spaces_disc)
-    space.build_structures(discrete_spaces_bc_physical_tags)
+    space.build_structures(physical_tags, b_physical_tags)
     return space
 
 

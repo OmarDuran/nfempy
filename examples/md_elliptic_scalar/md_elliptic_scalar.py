@@ -12,34 +12,31 @@ from mesh.discrete_domain import DiscreteDomain
 from mesh.mesh_operations import cut_conformity_along_c1_lines
 
 
-def method_definition(k_order, flux_names, potential_names):
+def method_definition(dimension, k_order, flux_name, potential_name):
 
     # lower order convention
-    method_1 = {
-        flux_names[0]: ("RT", k_order + 1),
-        potential_names[0]: ("Lagrange", k_order),
-        flux_names[1]: ("RT", k_order + 1),
-        potential_names[1]: ("Lagrange", k_order),
-    }
+    if dimension in [1,2,3]:
+        method_1 = {
+            flux_name: ("RT", k_order + 1),
+            potential_name: ("Lagrange", k_order),
+        }
+    else:
+        method_1 = {
+            potential_name: ("Lagrange", k_order),
+        }
 
     methods = [method_1]
     method_names = ["mixed_rt"]
     return zip(method_names, methods)
 
-def create_product_space(method, gmesh, flux_names, potential_names):
-
-    assert method[1][flux_names[0]][1] == method[1][flux_names[1]][1]
-    assert method[1][potential_names[0]][1] == method[1][potential_names[1]][1]
+def create_product_space(dimension, method, gmesh, flux_name, potential_name):
 
     # FESpace: data
-    mp_k_order = method[1][flux_names[0]][1]
-    p_k_order = method[1][potential_names[0]][1]
+    mp_k_order = method[1][flux_name[0]]
+    p_k_order = method[1][potential_name[0]]
 
     mp_components = 1
     p_components = 1
-
-    assert method[1][flux_names[0]][0] == method[1][flux_names[1]][0]
-    assert method[1][potential_names[0]][0] == method[1][potential_names[1]][0]
 
     mp_family = method[1][flux_names[1]][0]
     p_family = method[1][potential_names[1]][0]

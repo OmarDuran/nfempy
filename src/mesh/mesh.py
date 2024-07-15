@@ -629,23 +629,15 @@ class Mesh:
             meshio.write("geometric_mesh_0d.vtk", mesh_0d)
 
     def gather_graph_edges(self, dimension, mesh_cell, tuple_id_list):
-        if mesh_cell.id is None:
+        if mesh_cell.id is None and mesh_cell.dimension != dimension:
             return
 
-        mesh_cell_list = None
-        if dimension == 0:
-            mesh_cell_list = mesh_cell.sub_cells_ids[0]
-        elif dimension == 1:
-            mesh_cell_list = mesh_cell.sub_cells_ids[1]
-        elif dimension == 2:
-            mesh_cell_list = mesh_cell.sub_cells_ids[2]
-        elif dimension == 3:
-            mesh_cell_list = mesh_cell.sub_cells_ids[3]
+        if dimension in [0,1,2,3]:
+            mesh_cell_list = mesh_cell.sub_cells_ids[dimension]
         else:
             raise ValueError("Dimension not available: ", dimension)
 
         for id in mesh_cell_list:
-            # tuple_id_list.append((mesh_cell.id, id))
             b_mesh_cell_index = mesh_cell.index()
             e_mesh_cell_index = self.cells[id].index()
             tuple_id_list.append((b_mesh_cell_index, e_mesh_cell_index))
@@ -719,13 +711,21 @@ class Mesh:
 
         tuple_id_list = [[] for i in range(len(disjoint_cells))]
         for i, cell_i in enumerate(disjoint_cells):
-            self.gather_graph_edges_on_physical_tags(
-                physical_tags, dimension - co_dimension, cell_i, tuple_id_list[i]
-            )
+            self.gather_graph_edges(dimension - co_dimension, cell_i, tuple_id_list[i])
         tuple_id_list = list(itertools.chain(*tuple_id_list))
 
         graph = nx.from_edgelist(tuple_id_list, create_using=nx.DiGraph)
         return graph
+
+        # tuple_id_list = [[] for i in range(len(disjoint_cells))]
+        # for i, cell_i in enumerate(disjoint_cells):
+        #     self.gather_graph_edges_on_physical_tags(
+        #         physical_tags, dimension - co_dimension, cell_i, tuple_id_list[i]
+        #     )
+        # tuple_id_list = list(itertools.chain(*tuple_id_list))
+        #
+        # graph = nx.from_edgelist(tuple_id_list, create_using=nx.DiGraph)
+        # return graph
 
     def build_graph_on_index(self, index, dimension, co_dimension):
         disjoint_cells = [

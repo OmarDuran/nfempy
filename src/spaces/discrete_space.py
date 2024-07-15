@@ -43,16 +43,16 @@ class DiscreteSpace:
     def make_discontinuous(self):
         self.discontinuous = True
 
-    def build_structures(self, bc_physical_tags=[], only_on_physical_tags=True):
-        self._build_dof_map(only_on_physical_tags)
-        self._build_elements()
-        if len(bc_physical_tags) != 0:
-            # self._build_bc_dof_map(only_on_physical_tags)
-            self._build_bc_elements(bc_physical_tags)
-
-    def build_structures_on_physical_tags(self, physical_tags=[]):
+    def build_structures(self, physical_tags=[None]):
         self._build_dof_map_on_physical_tags(physical_tags)
         self._build_elements()
+
+    def build_boundary_structures(self, bc_physical_tags=[None]):
+        self._build_bc_elements(bc_physical_tags)
+
+    # def build_structures_on_physical_tags(self, physical_tags=[]):
+    #     self._build_dof_map_on_physical_tags(physical_tags)
+    #     self._build_elements()
 
     def _build_dof_map(self, only_on_physical_tags=True, timing_q=False):
         if timing_q:
@@ -96,15 +96,10 @@ class DiscreteSpace:
                 "seconds",
             )
 
-    def _build_dof_map_on_physical_tags(self, physical_tags=[], timing_q=False):
+    def _build_dof_map_on_physical_tags(self, physical_tags=[None], timing_q=False):
         if timing_q:
             st = time.time()
-        if len(physical_tags) != 0:
-            self.mesh_topology.build_data_on_physical_tags(physical_tags)
-        else:
-            self.physical_tag_filter = False
-            self.mesh_topology.build_data()
-
+        self.mesh_topology.build_data(physical_tags)
         self.element_type = type_by_dimension(self.dimension)
         basis_family = self.family
         if self.dimension == 0:
@@ -142,11 +137,11 @@ class DiscreteSpace:
             st = time.time()
 
         self.element_ids = self.mesh_topology.entities_by_dimension(self.dimension)
-        if self.physical_tag_filter:
-            mesh = self.mesh_topology.mesh
-            self.element_ids = [
-                id for id in self.element_ids if mesh.cells[id].material_id is not None
-            ]
+        # if self.physical_tag_filter:
+        #     mesh = self.mesh_topology.mesh
+        #     self.element_ids = [
+        #         id for id in self.element_ids if mesh.cells[id].material_id is not None
+        #     ]
 
         if parallel_run_q:
             num_cores = multiprocessing.cpu_count()
