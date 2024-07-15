@@ -15,7 +15,7 @@ def node_average_quatity(node_idx, cell_idxs, fe_space, name, alpha):
     gmesh = space.mesh_topology.mesh
     dim = gmesh.dimension
 
-    cells = [gmesh.cells[id] for id in cell_idxs if gmesh.cells[id].dimension == dim]
+    cells = [gmesh.cells[dim_id[1]] for dim_id in cell_idxs]
 
     f_h_values = []
     for cell in cells:
@@ -132,11 +132,13 @@ def write_vtk_file(file_name, gmesh, fe_space, alpha, cell_centered=[]):
             fh_data = np.zeros((len(gmesh.points), n_data))
             vertices = space.mesh_topology.entities_by_dimension(0)
             cell_vertex_map = space.mesh_topology.entity_map_by_dimension(0)
-            for node_idx in vertices:
-                if not cell_vertex_map.has_node(node_idx):
+            for vertex_idx in vertices:
+                vertex_g_index = (0, vertex_idx)
+                if not cell_vertex_map.has_node(vertex_g_index):
                     continue
+                node_idx = gmesh.cells[vertex_idx].node_tags[0]
+                cell_idxs = list(cell_vertex_map.predecessors(vertex_g_index))
 
-                cell_idxs = list(cell_vertex_map.predecessors(node_idx))
                 f_h = node_average_quatity(node_idx, cell_idxs, fe_space, name, alpha)
                 fh_data[node_idx] = f_h.ravel()
 
@@ -200,11 +202,12 @@ def write_vtk_file_with_exact_solution(
 
             vertices = space.mesh_topology.entities_by_dimension(0)
             cell_vertex_map = space.mesh_topology.entity_map_by_dimension(0)
-            for node_idx in vertices:
-                if not cell_vertex_map.has_node(node_idx):
+            for vertex_idx in vertices:
+                vertex_g_index = (0, vertex_idx)
+                if not cell_vertex_map.has_node(vertex_g_index):
                     continue
-
-                cell_idxs = list(cell_vertex_map.predecessors(node_idx))
+                node_idx = gmesh.cells[vertex_idx].node_tags[0]
+                cell_idxs = list(cell_vertex_map.predecessors(vertex_g_index))
 
                 x = gmesh.points[node_idx]
                 f_e = f_exact(x[0], x[1], x[2])
@@ -266,11 +269,12 @@ def write_vtk_file_pointwise_l2_error(
 
             vertices = space.mesh_topology.entities_by_dimension(0)
             cell_vertex_map = space.mesh_topology.entity_map_by_dimension(0)
-            for node_idx in vertices:
-                if not cell_vertex_map.has_node(node_idx):
+            for vertex_idx in vertices:
+                vertex_g_index = (0, vertex_idx)
+                if not cell_vertex_map.has_node(vertex_g_index):
                     continue
-
-                cell_idxs = list(cell_vertex_map.predecessors(node_idx))
+                node_idx = gmesh.cells[vertex_idx].node_tags[0]
+                cell_idxs = list(cell_vertex_map.predecessors(vertex_g_index))
 
                 x = gmesh.points[node_idx]
                 f_e = f_exact(x[0], x[1], x[2])

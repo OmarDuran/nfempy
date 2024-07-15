@@ -42,16 +42,16 @@ class DiscreteSpace:
         self.discontinuous = True
 
     def build_structures(self, physical_tags=[None]):
-        self._build_dof_map_on_physical_tags(physical_tags)
+        self._build_dof_map()
         self._build_elements(physical_tags)
 
     def build_boundary_structures(self, bc_physical_tags=[None]):
         self._build_bc_elements(bc_physical_tags)
 
-    def _build_dof_map_on_physical_tags(self, physical_tags=[None], timing_q=False):
+    def _build_dof_map(self, timing_q=False):
         if timing_q:
             st = time.time()
-        self.mesh_topology.build_data(physical_tags)
+        self.mesh_topology.build_data()
         self.element_type = type_by_dimension(self.dimension)
         basis_family = self.family
         if self.dimension == 0:

@@ -38,13 +38,13 @@ def f_c1_rhs(x, y, z, m_c, m_kappa, m_delta):
 def get_exact_functions_by_co_dimension(co_dimension, flux_name, potential_name, m_c, m_kappa, m_delta):
     if co_dimension == 0:
         exact_functions = {
-            flux_name[co_dimension]: partial(u_exact, m_c=m_c, m_kappa=m_kappa, m_delta=m_delta),
-            potential_name[co_dimension]: partial(p_exact, m_c=m_c, m_kappa=m_kappa, m_delta=m_delta),
+            flux_name: partial(u_exact, m_c=m_c, m_kappa=m_kappa, m_delta=m_delta),
+            potential_name: partial(p_exact, m_c=m_c, m_kappa=m_kappa, m_delta=m_delta),
         }
     elif co_dimension == 1:
         exact_functions = {
-            flux_name[co_dimension]: partial(u_f_exact, m_c=m_c, m_kappa=m_kappa, m_delta=m_delta),
-            potential_name[co_dimension]: p_f_exact,
+            flux_name: partial(u_f_exact, m_c=m_c, m_kappa=m_kappa, m_delta=m_delta),
+            potential_name: p_f_exact,
         }
     else:
         raise ValueError("Case not available.")

@@ -542,7 +542,7 @@ def main():
     k_order = 1
     h = 0.25
     n_ref = 4  # no. of refinement
-    dimension = 2
+    dimension = 1
     ref_l = 0
 
     n_data = 3
