@@ -112,7 +112,7 @@ def generate_conformal_mesh(md_domain, h_val, fracture_physical_tags):
 # Material data as scalars
 m_c = 1.0
 m_kappa = 1.0
-m_delta = 10**-3
+m_delta = 1.0e-3
 
 # rock domain
 lx = 1.0

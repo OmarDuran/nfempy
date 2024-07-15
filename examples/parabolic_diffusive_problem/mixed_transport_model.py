@@ -69,9 +69,21 @@ def create_product_space(method, gmesh):
         "mc": mc_field_bc_physical_tags,
     }
 
+    physical_tags = {
+        "mp": [1],
+        "mc": [1],
+        "p": [1],
+        "c": [1],
+    }
+
+    b_physical_tags = {
+        "mp": mp_field_bc_physical_tags,
+        "mc": mc_field_bc_physical_tags,
+    }
+
     space = ProductSpace(discrete_spaces_data)
     space.make_subspaces_discontinuous(discrete_spaces_disc)
-    space.build_structures(discrete_spaces_bc_physical_tags)
+    space.build_structures(physical_tags, b_physical_tags)
     return space
 
 
@@ -429,7 +441,7 @@ def main():
 
     h = 0.5
     n_ref = 4
-    dimension = 1
+    dimension = 2
 
     domain = create_domain(dimension)
     error_data = np.empty((0, 2), float)
