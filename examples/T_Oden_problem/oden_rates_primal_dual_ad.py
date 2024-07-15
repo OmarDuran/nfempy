@@ -272,13 +272,19 @@ def hdiv_model_problem(k_order, gmesh, write_vtk_q=False):
     q_field_bc_physical_tags = [2, 3, 4, 5]
     if dim == 3:
         q_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
-    discrete_spaces_bc_physical_tags = {
+
+    physical_tags = {
+        "q": [1],
+        "u": [1],
+    }
+
+    b_physical_tags = {
         "q": q_field_bc_physical_tags,
     }
 
     fe_space = ProductSpace(discrete_spaces_data)
     fe_space.make_subspaces_discontinuous(discrete_spaces_disc)
-    fe_space.build_structures(discrete_spaces_bc_physical_tags)
+    fe_space.build_structures(physical_tags, b_physical_tags)
 
     n_dof_g = fe_space.n_dof
     rg = np.zeros(n_dof_g)
