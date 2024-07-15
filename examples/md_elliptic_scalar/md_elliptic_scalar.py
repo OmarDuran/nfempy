@@ -168,13 +168,18 @@ print("Surface: Number of dof: ", md_produc_space[0].n_dof)
 print("Line: Number of dof: ", md_produc_space[1].n_dof)
 
 
-def f_kappa(x, y, z):
+def f_kappa_c0(x, y, z):
     return m_kappa
+
+def f_kappa_c1(x, y, z):
+    return m_kappa * m_delta
 
 
 # First assembly trial
 
-dof_seq = np.array([0, md_produc_space[0].n_dof, md_produc_space[1].n_dof])
+# dof_seq = np.array([0, md_produc_space[0].n_dof, md_produc_space[1].n_dof])
+dof_seq = np.array([0, md_produc_space[1].n_dof])
+
 global_dof = np.add.accumulate(dof_seq)
 n_dof_g = np.sum(dof_seq)
 rg = np.zeros(n_dof_g)
@@ -188,12 +193,12 @@ A.createAIJ([n_dof_g, n_dof_g])
 
 m_functions_c0 = {
     "rhs": rhs_c0["rhs"],
-    "kappa": f_kappa,
+    "kappa": f_kappa_c0,
 }
 
 m_functions_c1 = {
     "rhs": rhs_c1["rhs"],
-    "kappa": f_kappa,
+    "kappa": f_kappa_c1,
 }
 
 weak_form_c0 = MixedWeakForm(md_produc_space[0])
@@ -245,13 +250,13 @@ def scatter_bc_form(A, i, bc_weak_form, dof_shift=0):
 
 n_els_c0 = len(md_produc_space[0].discrete_spaces["q"].elements)
 n_els_c1 = len(md_produc_space[1].discrete_spaces["q"].elements)
-[scatter_form_data(A, i, weak_form_c0, global_dof[0]) for i in range(n_els_c0)]
-[scatter_form_data(A, i, weak_form_c1, global_dof[1]) for i in range(n_els_c1)]
+# [scatter_form_data(A, i, weak_form_c0, global_dof[0]) for i in range(n_els_c0)]
+[scatter_form_data(A, i, weak_form_c1, global_dof[0]) for i in range(n_els_c1)]
 
 n_bc_els_c0 = len(md_produc_space[0].discrete_spaces["q"].bc_elements)
 n_bc_els_c1 = len(md_produc_space[1].discrete_spaces["q"].bc_elements)
-[scatter_bc_form(A, i, bc_weak_form_c0, global_dof[0]) for i in range(n_bc_els_c0)]
-[scatter_bc_form(A, i, bc_weak_form_c1, global_dof[1]) for i in range(n_bc_els_c1)]
+# [scatter_bc_form(A, i, bc_weak_form_c0, global_dof[0]) for i in range(n_bc_els_c0)]
+[scatter_bc_form(A, i, bc_weak_form_c1, global_dof[0]) for i in range(n_bc_els_c1)]
 
 A.assemble()
 
@@ -279,7 +284,7 @@ et = time.time()
 elapsed_time = et - st
 print("Linear solver time:", elapsed_time, "seconds")
 
-for co_dim in [0, 1]:
+for co_dim in [1]:
     if write_vtk_q:
         # post-process solution
         st = time.time()

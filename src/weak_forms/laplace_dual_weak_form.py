@@ -14,6 +14,7 @@ class LaplaceDualWeakForm(WeakForm):
         if self.space is None or self.functions is None:
             raise ValueError
 
+        # TODO: rename (q) to (u)
         q_space = self.space.discrete_spaces["q"]
         p_space = self.space.discrete_spaces["p"]
 
@@ -39,10 +40,13 @@ class LaplaceDualWeakForm(WeakForm):
         n_q_dof = n_q_phi * q_components
         n_p_dof = n_p_phi * p_components
         n_dof = n_q_dof + n_p_dof
-        js = (n_dof, n_dof)
-        rs = n_dof
-        j_el = np.zeros(js)
-        r_el = np.zeros(rs)
+
+        idx_dof = {
+            "q": slice(0, n_q_dof),
+            "p": slice(n_q_dof, n_q_dof + n_p_dof),
+        }
+
+
         alpha = np.zeros(n_dof)
         # Partial local vectorization
         f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
@@ -57,16 +61,23 @@ class LaplaceDualWeakForm(WeakForm):
 
             for i, omega in enumerate(weights):
                 xv = x[i]
-                qh = alpha[:, 0:n_q_dof:1] @ q_phi_tab[0, i, :, 0:dim]
-                qh *= 1.0 / f_kappa(xv[0], xv[1], xv[2])
-                ph = alpha[:, n_q_dof:n_dof:1] @ p_phi_tab[0, i, :, 0:dim]
-                grad_qh = q_phi_tab[1 : q_phi_tab.shape[0] + 1, i, :, 0:dim]
-                div_vh = np.array(
-                    [[np.trace(grad_qh[:, j, :]) / det_jac[i] for j in range(n_q_dof)]]
-                )
-                div_qh = alpha[:, 0:n_q_dof:1] @ div_vh.T
-                equ_1_integrand = (qh @ q_phi_tab[0, i, :, 0:dim].T) - (ph @ div_vh)
-                equ_2_integrand = div_qh @ p_phi_tab[0, i, :, 0:dim].T
+
+                # Functions and derivatives at integration point i
+                psi_h = q_phi_tab[0, i, :, 0:dim]
+                w_h = p_phi_tab[0, i, :, 0:dim]
+
+                grad_psi_h = q_phi_tab[1 : q_phi_tab.shape[0] + 1, i, :, 0:dim]
+                div_psi_h = np.array([np.trace(grad_psi_h, axis1=0, axis2=2) / det_jac[i]])
+
+                q_h = alpha[:, idx_dof["q"]] @ psi_h
+                q_h *= 1.0 / f_kappa(xv[0], xv[1], xv[2])
+
+                p_h = alpha[:, idx_dof["p"]] @ w_h
+                div_qh = alpha[:, idx_dof["q"]] @ div_psi_h.T
+
+                equ_1_integrand = (q_h @ psi_h.T) - (p_h @ div_psi_h)
+                equ_2_integrand = div_qh @ w_h.T
+
                 multiphysic_integrand = np.zeros((1, n_dof))
                 multiphysic_integrand[:, 0:n_q_dof:1] = equ_1_integrand
                 multiphysic_integrand[:, n_q_dof:n_dof:1] = equ_2_integrand
