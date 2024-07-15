@@ -109,7 +109,7 @@ class LaplaceDualWeakFormBCDirichlet(WeakForm):
         neigh_list = find_higher_dimension_neighs(cell, q_space.dof_map.mesh_topology)
         neigh_check_q = len(neigh_list) > 0
         assert neigh_check_q
-        neigh_cell_id = neigh_list[0]
+        neigh_cell_id = neigh_list[0][1]
         neigh_cell_index = q_space.id_to_element[neigh_cell_id]
         neigh_element = q_space.elements[neigh_cell_index]
         neigh_cell = neigh_element.data.cell
