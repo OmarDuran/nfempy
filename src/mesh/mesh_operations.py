@@ -170,17 +170,17 @@ def __duplicate_cells(cell_id, cells, physical_tag_map={}):
     return new_cells, cell_id
 
 
-def duplicate_mesh_points_from_0d_cells(cells_0d, mesh, bump_args = None):
+def duplicate_mesh_points_from_0d_cells(cells_0d, mesh, bump_args=None):
     node_tags = np.concatenate([cell.node_tags for cell in cells_0d])
     new_points = mesh.points[node_tags].copy()
     if bump_args is not None:
-        a, b = bump_args['line']
-        normal = bump_args['normal']
-        side = bump_args['side']
-        scale = bump_args.get('scale',0.1)
-        idx = points_line_argsort(new_points,a,b)
-        sv = np.linalg.norm(new_points[idx] - a,axis = 1)
-        nv = side * scale * (sv[0]) * (1.0-sv)
+        a, b = bump_args["line"]
+        normal = bump_args["normal"]
+        side = bump_args["side"]
+        scale = bump_args.get("scale", 0.1)
+        idx = points_line_argsort(new_points, a, b)
+        sv = np.linalg.norm(new_points[idx] - a, axis=1)
+        nv = side * scale * (sv * (1.0 - sv) + 1.0e-1)
         new_points[idx] += (np.tile(normal, (nv.shape[0], 1)).T * nv).T
 
     node_tag = mesh.max_node_tag()
@@ -240,7 +240,6 @@ def update_cells_with_cell_pairs(cells, cell_pairs, mesh):
     for d in range(0, max_dim):
         co_dim = max_dim - d
         local_graph = mesh.build_graph_from_cell_ids(cells_ids, max_dim, co_dim)
-        # replace_nodes_in_grahp(pairs, local_graph)
         patch_g.add_edges_from(local_graph.edges())
         pairs = [
             (o_cell.index(), t_cell.index()) for o_cell, t_cell in cell_pairs[co_dim]
@@ -272,7 +271,9 @@ def update_cells_with_cell_pairs(cells, cell_pairs, mesh):
                     cell.node_tags[tag_pos] = new_cell.node_tags[0]
 
 
-def cut_conformity_along_c1_line(line: np.array, physical_tags, mesh: Mesh, visual_frac_q = False):
+def cut_conformity_along_c1_line(
+    line: np.array, physical_tags, mesh: Mesh, visual_frac_q=False
+):
 
     assert mesh.dimension == 2
 
@@ -282,12 +283,12 @@ def cut_conformity_along_c1_line(line: np.array, physical_tags, mesh: Mesh, visu
     normal_dir[0] *= -1.0
 
     bump_args = {}
-    bump_args['line'] = (a, b)
-    bump_args['normal'] = normal_dir
+    bump_args["line"] = (a, b)
+    bump_args["normal"] = normal_dir
     if not visual_frac_q:
-        bump_args['scale'] = 0.0
+        bump_args["scale"] = 0.0
     else:
-        bump_args['scale'] = 0.1
+        bump_args["scale"] = 0.1
 
     # cut conformity on c1 objects
     raw_c1_cells = np.array(
@@ -300,6 +301,7 @@ def cut_conformity_along_c1_line(line: np.array, physical_tags, mesh: Mesh, visu
 
     # classify associated c0 cells
     g_d_0d = mesh.build_graph(mesh.dimension, mesh.dimension)
+    g_d1_0d = mesh.build_graph(mesh.dimension - 1, mesh.dimension - 1)
 
     # collect c2 cells
     c2_cells_ids = np.unique(
@@ -331,8 +333,10 @@ def cut_conformity_along_c1_line(line: np.array, physical_tags, mesh: Mesh, visu
     mesh.append_cells(np.array(positive_c1_cells))
     assert cell_id == mesh.max_cell_id()
     positive_c2_cells, cell_id = __duplicate_cells(cell_id, c2_cells, physical_tag_map)
-    bump_args['side'] = +1.0
-    duplicate_mesh_points_from_0d_cells(positive_c2_cells, mesh, bump_args=bump_args)  # update node_tags
+    bump_args["side"] = +1.0
+    duplicate_mesh_points_from_0d_cells(
+        positive_c2_cells, mesh, bump_args=bump_args
+    )  # update node_tags
     mesh.append_cells(np.array(positive_c2_cells))
     assert cell_id == mesh.max_cell_id()
     positive_cell_pairs = [
@@ -346,8 +350,10 @@ def cut_conformity_along_c1_line(line: np.array, physical_tags, mesh: Mesh, visu
     mesh.append_cells(np.array(negative_c1_cells))
     assert cell_id == mesh.max_cell_id()
     negative_c2_cells, cell_id = __duplicate_cells(cell_id, c2_cells, physical_tag_map)
-    bump_args['side'] = -1.0
-    duplicate_mesh_points_from_0d_cells(negative_c2_cells, mesh, bump_args=bump_args)  # update node_tags
+    bump_args["side"] = -1.0
+    duplicate_mesh_points_from_0d_cells(
+        negative_c2_cells, mesh, bump_args=bump_args
+    )  # update node_tags
     mesh.append_cells(np.array(negative_c2_cells))
     assert cell_id == mesh.max_cell_id()
     negative_cell_pairs = [
@@ -367,8 +373,8 @@ def cut_conformity_along_c1_line(line: np.array, physical_tags, mesh: Mesh, visu
     update_cells_with_cell_pairs(negative_c1_cells, negative_cell_pairs, mesh)
 
     # update c1 cells
-    # classify associated c1 cells
-    g_d1_0d = mesh.build_graph(mesh.dimension - 1, mesh.dimension - 1)
+    # # classify associated c1 cells
+    # g_d1_0d = mesh.build_graph(mesh.dimension - 1, mesh.dimension - 1)
 
     c1_cells_data = [list(g_d1_0d.predecessors(cell.index())) for cell in c2_cells]
     c1_cells_idx = np.array(list(itertools.chain(*c1_cells_data)))
@@ -387,8 +393,13 @@ def cut_conformity_along_c1_line(line: np.array, physical_tags, mesh: Mesh, visu
     update_cells_with_cell_pairs(negative_c1_cells, negative_cell_pairs, mesh)
 
 
-def cut_conformity_along_c1_lines(lines: np.array, physical_tags, mesh: Mesh, visual_frac_q = False):
+def cut_conformity_along_c1_lines(
+    lines: np.array, physical_tags, mesh: Mesh, visual_frac_q=False
+):
     cut_conformity = partial(
-        cut_conformity_along_c1_line, physical_tags=physical_tags, mesh=mesh, visual_frac_q=visual_frac_q
+        cut_conformity_along_c1_line,
+        physical_tags=physical_tags,
+        mesh=mesh,
+        visual_frac_q=visual_frac_q,
     )
     list(map(cut_conformity, lines))

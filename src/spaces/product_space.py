@@ -12,6 +12,7 @@ class ProductSpace:
         self._define_fields_names(discrete_spaces_data)
         self._define_integration_order_and_quadrature(discrete_spaces_data)
         self._define_discrete_spaces(discrete_spaces_data)
+        self._define_dof_shift()
 
     def _define_fields_physical_tags(self, fields_physical_tags):
         self.fields_physical_tags = fields_physical_tags
@@ -77,6 +78,9 @@ class ProductSpace:
             name, dofs = item
             self.n_dof += dofs
 
+    def _define_dof_shift(self):
+        self.dof_shift = 0
+
     def dimension(self):
         dims = []
         for item in self.discrete_spaces.items():
@@ -138,6 +142,7 @@ class ProductSpace:
             field_dest = (
                 self._retrieve_space_destination_indexes(space, cell_index) + stride
             )
+            field_dest += self.dof_shift
             discrete_spaces_dest.__setitem__(name, field_dest)
 
         return discrete_spaces_dest

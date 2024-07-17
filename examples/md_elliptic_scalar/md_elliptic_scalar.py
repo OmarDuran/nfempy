@@ -15,7 +15,9 @@ from mesh.mesh_operations import cut_conformity_along_c1_lines
 
 # simple weak form
 from weak_forms.laplace_dual_weak_form import LaplaceDualWeakForm as MixedWeakForm
-from weak_forms.laplace_dual_weak_form import LaplaceDualWeakFormBCDirichlet as WeakFormBCDir
+from weak_forms.laplace_dual_weak_form import (
+    LaplaceDualWeakFormBCDirichlet as WeakFormBCDir,
+)
 
 
 def method_definition(dimension, k_order, flux_name, potential_name):
@@ -82,17 +84,18 @@ def create_product_space(dimension, method, gmesh, flux_name, potential_name):
 
 
 def fracture_disjoint_set():
-    fracture_0 = np.array([[0.5, 0.2, 0.0], [0.5, 0.8, 0.0]])
+    fracture_0 = np.array([[0.5, 0.0, 0.0], [0.5, 1.0, 0.0]])
     fracture_1 = np.array([[0.2, 0.5, 0.0], [0.8, 0.5, 0.0]])
-    fracture_2 = np.array([[0.2, 0.7, 0.0], [0.8, 0.7, 0.0]])
+    fracture_2 = np.array([[0.2, 0.8, 0.0], [0.8, 0.4, 0.0]])
     fractures = [fracture_0, fracture_1, fracture_2]
+    fractures = [fracture_0]
     return np.array(fractures)
 
 
 def generate_conformal_mesh(md_domain, h_val, fracture_physical_tags):
 
     physical_tags = [fracture_physical_tags["line"]]
-    transfinite_agruments = {"n_points": 5, "meshType": "Bump", "coef": 1.0}
+    transfinite_agruments = {"n_points": 15, "meshType": "Bump", "coef": 1.0}
     mesh_arguments = {
         "lc": h_val,
         "n_refinements": 0,
@@ -130,14 +133,14 @@ md_domain = create_md_box_2D(
 )
 
 # Conformal gmsh discrete representation
-h_val = 0.1
+h_val = 0.075
 gmesh = generate_conformal_mesh(md_domain, h_val, fracture_physical_tags)
 
 physical_tags = {"c1": 10, "c1_clones": 50}
 physical_tags = fracture_physical_tags
 physical_tags["line_clones"] = 50
 physical_tags["point_clones"] = 100
-cut_conformity_along_c1_lines(lines, physical_tags, gmesh, True)
+cut_conformity_along_c1_lines(lines, physical_tags, gmesh, False)
 gmesh.write_vtk()
 
 
@@ -153,7 +156,6 @@ for d in [2, 1]:
     for method in methods:
         fe_space = create_product_space(d, method, gmesh, flux_name, potential_name)
         md_produc_space.append(fe_space)
-
 
 exact_functions_c0 = get_exact_functions_by_co_dimension(
     0, flux_name, potential_name, m_c, m_kappa, m_delta
@@ -173,6 +175,7 @@ print("Line: Number of dof: ", md_produc_space[1].n_dof)
 def f_kappa_c0(x, y, z):
     return m_kappa
 
+
 def f_kappa_c1(x, y, z):
     return m_kappa * m_delta
 
@@ -180,9 +183,9 @@ def f_kappa_c1(x, y, z):
 # First assembly trial
 
 dof_seq = np.array([0, md_produc_space[0].n_dof, md_produc_space[1].n_dof])
-# dof_seq = np.array([0, md_produc_space[0].n_dof])
-
 global_dof = np.add.accumulate(dof_seq)
+md_produc_space[0].dof_shift = global_dof[0]
+md_produc_space[1].dof_shift = global_dof[1]
 n_dof_g = np.sum(dof_seq)
 rg = np.zeros(n_dof_g)
 alpha = np.zeros(n_dof_g)
@@ -216,9 +219,10 @@ bc_weak_form_c0.functions = exact_functions_c0
 bc_weak_form_c1 = WeakFormBCDir(md_produc_space[1])
 bc_weak_form_c1.functions = exact_functions_c1
 
-def scatter_form_data(A, i, weak_form, dof_shift=0):
+
+def scatter_form_data(A, i, weak_form):
     # destination indexes
-    dest = weak_form.space.destination_indexes(i) + dof_shift
+    dest = weak_form.space.destination_indexes(i)
     alpha_l = alpha[dest]
     r_el, j_el = weak_form.evaluate_form(i, alpha_l)
 
@@ -233,9 +237,10 @@ def scatter_form_data(A, i, weak_form, dof_shift=0):
     for k in range(nnz):
         A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
-def scatter_bc_form(A, i, bc_weak_form, dof_shift=0):
 
-    dest = bc_weak_form.space.bc_destination_indexes(i) + dof_shift
+def scatter_bc_form(A, i, bc_weak_form):
+
+    dest = bc_weak_form.space.bc_destination_indexes(i)
     alpha_l = alpha[dest]
     r_el, j_el = bc_weak_form.evaluate_form(i, alpha_l)
 
@@ -250,15 +255,16 @@ def scatter_bc_form(A, i, bc_weak_form, dof_shift=0):
     for k in range(nnz):
         A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
+
 n_els_c0 = len(md_produc_space[0].discrete_spaces["q"].elements)
 n_els_c1 = len(md_produc_space[1].discrete_spaces["q"].elements)
-[scatter_form_data(A, i, weak_form_c0, global_dof[0]) for i in range(n_els_c0)]
-[scatter_form_data(A, i, weak_form_c1, global_dof[1]) for i in range(n_els_c1)]
+[scatter_form_data(A, i, weak_form_c0) for i in range(n_els_c0)]
+[scatter_form_data(A, i, weak_form_c1) for i in range(n_els_c1)]
 
 n_bc_els_c0 = len(md_produc_space[0].discrete_spaces["q"].bc_elements)
 n_bc_els_c1 = len(md_produc_space[1].discrete_spaces["q"].bc_elements)
-[scatter_bc_form(A, i, bc_weak_form_c0, global_dof[0]) for i in range(n_bc_els_c0)]
-[scatter_bc_form(A, i, bc_weak_form_c1, global_dof[1]) for i in range(n_bc_els_c1)]
+[scatter_bc_form(A, i, bc_weak_form_c0) for i in range(n_bc_els_c0)]
+[scatter_bc_form(A, i, bc_weak_form_c1) for i in range(n_bc_els_c1)]
 
 A.assemble()
 
@@ -300,6 +306,8 @@ for co_dim in [0, 1]:
 
 # post-process projection
 for co_dim in [0, 1]:
+    md_produc_space[0].dof_shift = 0
+    md_produc_space[1].dof_shift = 0
     alpha = l2_projector(md_produc_space[co_dim], exact_functions[co_dim])
     if write_vtk_q:
         # post-process solution

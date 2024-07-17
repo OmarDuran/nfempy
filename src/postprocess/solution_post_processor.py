@@ -175,14 +175,6 @@ def write_vtk_file_with_exact_solution(
     p_data_dict = {}
     c_data_dict = {}
 
-    # dims = []
-    # for item in fe_space.discrete_spaces.items():
-    #     _, space = item
-    #     dims.append(space.dimension)
-    # product_space_dim = np.max(dims)
-    # mesh_topology: MeshTopology = MeshTopology(gmesh, product_space_dim)
-    # mesh_topology.build_data()
-
     for item in fe_space.discrete_spaces.items():
         name, space = item
         n_comp = space.n_comp

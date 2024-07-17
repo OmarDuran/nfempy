@@ -325,7 +325,9 @@ def three_fields_formulation(method, gmesh, write_vtk_q=False):
     ]
     c1_itriplets = [triplet for triplet in c1_triplets if len(triplet[1]) == 2]
     c1_epairs = [
-        (triplet[0], triplet[1][0][1]) for triplet in c1_triplets if len(triplet[1]) == 1
+        (triplet[0], triplet[1][0][1])
+        for triplet in c1_triplets
+        if len(triplet[1]) == 1
     ]
     gidx_midx = fe_space.discrete_spaces["q"].id_to_element
 
