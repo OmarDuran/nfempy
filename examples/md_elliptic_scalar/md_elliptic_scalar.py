@@ -62,7 +62,7 @@ def create_product_space(dimension, method, gmesh, flux_name, potential_name):
 
     if gmesh.dimension == 2:
         md_field_physical_tags = [[], [10], [1]]
-        mp_field_bc_physical_tags = [[], [2, 4], [2, 3, 4, 5]]
+        mp_field_bc_physical_tags = [[], [20], [2, 3, 4, 5, 50]]
     else:
         raise ValueError("Case not available.")
 
@@ -82,15 +82,17 @@ def create_product_space(dimension, method, gmesh, flux_name, potential_name):
 
 
 def fracture_disjoint_set():
-    fracture_1 = np.array([[0.5, 0.0, 0.0], [0.5, 1.0, 0.0]])
-    fractures = [fracture_1]
+    fracture_0 = np.array([[0.5, 0.2, 0.0], [0.5, 0.8, 0.0]])
+    fracture_1 = np.array([[0.2, 0.5, 0.0], [0.8, 0.5, 0.0]])
+    fracture_2 = np.array([[0.2, 0.7, 0.0], [0.8, 0.7, 0.0]])
+    fractures = [fracture_0, fracture_1, fracture_2]
     return np.array(fractures)
 
 
 def generate_conformal_mesh(md_domain, h_val, fracture_physical_tags):
 
     physical_tags = [fracture_physical_tags["line"]]
-    transfinite_agruments = {"n_points": 3, "meshType": "Bump", "coef": 1.0}
+    transfinite_agruments = {"n_points": 5, "meshType": "Bump", "coef": 1.0}
     mesh_arguments = {
         "lc": h_val,
         "n_refinements": 0,
@@ -128,14 +130,14 @@ md_domain = create_md_box_2D(
 )
 
 # Conformal gmsh discrete representation
-h_val = 0.5
+h_val = 0.1
 gmesh = generate_conformal_mesh(md_domain, h_val, fracture_physical_tags)
 
 physical_tags = {"c1": 10, "c1_clones": 50}
 physical_tags = fracture_physical_tags
 physical_tags["line_clones"] = 50
 physical_tags["point_clones"] = 100
-cut_conformity_along_c1_lines(lines, physical_tags, gmesh)
+cut_conformity_along_c1_lines(lines, physical_tags, gmesh, True)
 gmesh.write_vtk()
 
 
