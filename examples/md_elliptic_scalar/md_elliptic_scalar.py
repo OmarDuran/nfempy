@@ -62,7 +62,7 @@ def create_product_space(dimension, method, gmesh, flux_name, potential_name):
 
     if gmesh.dimension == 2:
         md_field_physical_tags = [[], [10], [1]]
-        mp_field_bc_physical_tags = [[], [2, 4], [2, 3, 4, 5, 50]]
+        mp_field_bc_physical_tags = [[], [2, 4], [2, 3, 4, 5]]
     else:
         raise ValueError("Case not available.")
 
@@ -90,7 +90,7 @@ def fracture_disjoint_set():
 def generate_conformal_mesh(md_domain, h_val, fracture_physical_tags):
 
     physical_tags = [fracture_physical_tags["line"]]
-    transfinite_agruments = {"n_points": 20, "meshType": "Bump", "coef": 1.0}
+    transfinite_agruments = {"n_points": 3, "meshType": "Bump", "coef": 1.0}
     mesh_arguments = {
         "lc": h_val,
         "n_refinements": 0,
@@ -128,14 +128,14 @@ md_domain = create_md_box_2D(
 )
 
 # Conformal gmsh discrete representation
-h_val = 0.1
+h_val = 0.5
 gmesh = generate_conformal_mesh(md_domain, h_val, fracture_physical_tags)
 
 physical_tags = {"c1": 10, "c1_clones": 50}
 physical_tags = fracture_physical_tags
 physical_tags["line_clones"] = 50
 physical_tags["point_clones"] = 100
-# cut_conformity_along_c1_lines(lines, physical_tags, gmesh)
+cut_conformity_along_c1_lines(lines, physical_tags, gmesh)
 gmesh.write_vtk()
 
 
@@ -177,8 +177,8 @@ def f_kappa_c1(x, y, z):
 
 # First assembly trial
 
-# dof_seq = np.array([0, md_produc_space[0].n_dof, md_produc_space[1].n_dof])
-dof_seq = np.array([0, md_produc_space[0].n_dof])
+dof_seq = np.array([0, md_produc_space[0].n_dof, md_produc_space[1].n_dof])
+# dof_seq = np.array([0, md_produc_space[0].n_dof])
 
 global_dof = np.add.accumulate(dof_seq)
 n_dof_g = np.sum(dof_seq)
@@ -251,12 +251,12 @@ def scatter_bc_form(A, i, bc_weak_form, dof_shift=0):
 n_els_c0 = len(md_produc_space[0].discrete_spaces["q"].elements)
 n_els_c1 = len(md_produc_space[1].discrete_spaces["q"].elements)
 [scatter_form_data(A, i, weak_form_c0, global_dof[0]) for i in range(n_els_c0)]
-# [scatter_form_data(A, i, weak_form_c1, global_dof[0]) for i in range(n_els_c1)]
+[scatter_form_data(A, i, weak_form_c1, global_dof[1]) for i in range(n_els_c1)]
 
 n_bc_els_c0 = len(md_produc_space[0].discrete_spaces["q"].bc_elements)
 n_bc_els_c1 = len(md_produc_space[1].discrete_spaces["q"].bc_elements)
 [scatter_bc_form(A, i, bc_weak_form_c0, global_dof[0]) for i in range(n_bc_els_c0)]
-# [scatter_bc_form(A, i, bc_weak_form_c1, global_dof[0]) for i in range(n_bc_els_c1)]
+[scatter_bc_form(A, i, bc_weak_form_c1, global_dof[1]) for i in range(n_bc_els_c1)]
 
 A.assemble()
 
@@ -284,7 +284,7 @@ et = time.time()
 elapsed_time = et - st
 print("Linear solver time:", elapsed_time, "seconds")
 
-for co_dim in [0]:
+for co_dim in [0, 1]:
     if write_vtk_q:
         # post-process solution
         st = time.time()

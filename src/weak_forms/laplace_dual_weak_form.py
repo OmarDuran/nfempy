@@ -46,7 +46,6 @@ class LaplaceDualWeakForm(WeakForm):
             "p": slice(n_q_dof, n_q_dof + n_p_dof),
         }
 
-
         alpha = np.zeros(n_dof)
         # Partial local vectorization
         f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
@@ -67,7 +66,9 @@ class LaplaceDualWeakForm(WeakForm):
                 w_h = p_phi_tab[0, i, :, 0:dim]
 
                 grad_psi_h = q_phi_tab[1 : q_phi_tab.shape[0] + 1, i, :, 0:dim]
-                div_psi_h = np.array([np.trace(grad_psi_h, axis1=0, axis2=2) / det_jac[i]])
+                div_psi_h = np.array(
+                    [np.trace(grad_psi_h, axis1=0, axis2=2) / det_jac[i]]
+                )
 
                 q_h = alpha[:, idx_dof["q"]] @ psi_h
                 q_h *= 1.0 / f_kappa(xv[0], xv[1], xv[2])

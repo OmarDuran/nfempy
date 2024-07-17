@@ -74,14 +74,20 @@ def create_product_space(method, gmesh):
     else:
         raise ValueError("Case not available.")
 
-    discrete_spaces_bc_physical_tags = {
+    physical_tags = {
+        "q": [1],
+        "m": [1],
+        "u": [1],
+    }
+
+    b_physical_tags = {
         "q": q_field_bc_physical_tags,
         "m": m_field_bc_physical_tags,
     }
 
     space = ProductSpace(discrete_spaces_data)
     space.make_subspaces_discontinuous(discrete_spaces_disc)
-    space.build_structures(discrete_spaces_bc_physical_tags)
+    space.build_structures(physical_tags, b_physical_tags)
     return space
 
 
@@ -315,11 +321,11 @@ def three_fields_formulation(method, gmesh, write_vtk_q=False):
     c1_entities = [cell for cell in gmesh.cells if cell.dimension == dim - 1]
     gc0_c1 = gmesh.build_graph(dim, 1)
     c1_triplets = [
-        (cell.id, list(gc0_c1.predecessors(cell.id))) for cell in c1_entities
+        (cell.id, list(gc0_c1.predecessors(cell.index()))) for cell in c1_entities
     ]
     c1_itriplets = [triplet for triplet in c1_triplets if len(triplet[1]) == 2]
     c1_epairs = [
-        (triplet[0], triplet[1][0]) for triplet in c1_triplets if len(triplet[1]) == 1
+        (triplet[0], triplet[1][0][1]) for triplet in c1_triplets if len(triplet[1]) == 1
     ]
     gidx_midx = fe_space.discrete_spaces["q"].id_to_element
 

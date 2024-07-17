@@ -105,19 +105,20 @@ class Mesh:
         return mesh_cell
 
     def max_node_tag(self):
-        return self.points.shape[0] - 1
+        return self.points.shape[0]
 
     def append_points(self, points: np.array):
         self.points = np.append(self.points, points, axis=0)
 
     def max_cell_id(self):
-        return self.cells.shape[0] - 1
+        return self.cells.shape[0]
 
     def append_cells(self, cells: np.array):
         min_cell_id = np.min(np.array([cell.id for cell in cells]))
-        if self.max_cell_id() >= min_cell_id:
+        if self.max_cell_id() - 1 >= min_cell_id:
             raise ValueError(
-                "cell identifier already used, max cell id: ", self.max_cell_id()
+                "cell identifier already used, next cell id available: ",
+                self.max_cell_id() - 1,
             )
         self.cells = np.append(self.cells, cells, axis=0)
 
@@ -674,11 +675,11 @@ class Mesh:
         graph = nx.from_edgelist(tuple_id_list, create_using=nx.DiGraph)
         return graph
 
-    def build_graph_on_index(self, index, dimension, co_dimension):
+    def build_graph_from_cell_ids(self, cell_ids, dimension, co_dimension):
+        if not isinstance(cell_ids, np.ndarray):
+            raise ValueError("Provide cell_ids as a np.ndarray.")
         disjoint_cells = [
-            cell_i
-            for cell_i in self.cells
-            if cell_i.dimension == dimension and cell_i.id == index
+            cell_i for cell_i in self.cells[cell_ids] if cell_i.dimension == dimension
         ]
 
         tuple_id_list = []
