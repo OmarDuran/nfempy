@@ -94,8 +94,9 @@ def fracture_disjoint_set():
 
 def generate_conformal_mesh(md_domain, h_val, n_ref, fracture_physical_tags):
 
-    # For simplicity use same mesh size
-    n_points = int(1/h_val) + 1
+    # For simplicity use h_val to control fracture refinement
+    n_points = int(1.5/h_val) + 1
+
     physical_tags = [fracture_physical_tags["line"]]
     transfinite_agruments = {"n_points": n_points, "meshType": "Bump", "coef": 1.0}
     mesh_arguments = {
@@ -411,7 +412,7 @@ def main():
 
     # function space data
     config["n_ref"] = 0
-    config["k_order"] = 0
+    config["k_order"] = 1
     config["var_names"] = ("q", "p")
 
     errors_data = []
