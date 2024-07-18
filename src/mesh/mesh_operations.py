@@ -372,10 +372,13 @@ def cut_conformity_along_c1_line(
     update_cells_with_cell_pairs(positive_c1_cells, positive_cell_pairs, mesh)
     update_cells_with_cell_pairs(negative_c1_cells, negative_cell_pairs, mesh)
 
+    interface = {}
+    interface['c1'] = ([c1_cells, positive_c1_cells, negative_c1_cells])
+    interface['c2'] = ([c2_cells, positive_c2_cells, negative_c2_cells])
+
     # update c1 cells
     # # classify associated c1 cells
     # g_d1_0d = mesh.build_graph(mesh.dimension - 1, mesh.dimension - 1)
-
     c1_cells_data = [list(g_d1_0d.predecessors(cell.index())) for cell in c2_cells]
     c1_cells_idx = np.array(list(itertools.chain(*c1_cells_data)))
     c1_cell_ids = np.unique([cell_idx[1] for cell_idx in c1_cells_idx])
@@ -393,6 +396,9 @@ def cut_conformity_along_c1_line(
     update_cells_with_cell_pairs(negative_c1_cells, negative_cell_pairs, mesh)
 
 
+    return interface
+
+
 def cut_conformity_along_c1_lines(
     lines: np.array, physical_tags, mesh: Mesh, visual_frac_q=False
 ):
@@ -402,4 +408,5 @@ def cut_conformity_along_c1_lines(
         mesh=mesh,
         visual_frac_q=visual_frac_q,
     )
-    list(map(cut_conformity, lines))
+    interfaces = list(map(cut_conformity, lines))
+    return interfaces

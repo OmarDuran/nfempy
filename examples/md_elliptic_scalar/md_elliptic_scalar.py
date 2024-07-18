@@ -18,6 +18,7 @@ from weak_forms.laplace_dual_weak_form import LaplaceDualWeakForm as MixedWeakFo
 from weak_forms.laplace_dual_weak_form import (
     LaplaceDualWeakFormBCDirichlet as WeakFormBCDir,
 )
+from RobinCouplingWeakForm import RobinCouplingWeakForm
 
 
 def method_definition(dimension, k_order, flux_name, potential_name):
@@ -117,6 +118,7 @@ def generate_conformal_mesh(md_domain, h_val, fracture_physical_tags):
 # Material data as scalars
 m_c = 1.0
 m_kappa = 1.0
+m_kappa_normal = 1.0e14
 m_delta = 1.0e-3
 
 # rock domain
@@ -140,7 +142,7 @@ physical_tags = {"c1": 10, "c1_clones": 50}
 physical_tags = fracture_physical_tags
 physical_tags["line_clones"] = 50
 physical_tags["point_clones"] = 100
-cut_conformity_along_c1_lines(lines, physical_tags, gmesh, False)
+interfaces = cut_conformity_along_c1_lines(lines, physical_tags, gmesh, False)
 gmesh.write_vtk()
 
 
@@ -175,13 +177,17 @@ print("Line: Number of dof: ", md_produc_space[1].n_dof)
 def f_kappa_c0(x, y, z):
     return m_kappa
 
-
 def f_kappa_c1(x, y, z):
     return m_kappa * m_delta
 
+def f_kappa_normal_c1(x, y, z):
+    return m_kappa_normal
+
+def f_delta(x, y, z):
+    return m_delta
+
 
 # First assembly trial
-
 dof_seq = np.array([0, md_produc_space[0].n_dof, md_produc_space[1].n_dof])
 global_dof = np.add.accumulate(dof_seq)
 md_produc_space[0].dof_shift = global_dof[0]
@@ -212,13 +218,19 @@ weak_form_c0.functions = m_functions_c0
 weak_form_c1 = MixedWeakForm(md_produc_space[1])
 weak_form_c1.functions = m_functions_c1
 
-
 bc_weak_form_c0 = WeakFormBCDir(md_produc_space[0])
 bc_weak_form_c0.functions = exact_functions_c0
 
 bc_weak_form_c1 = WeakFormBCDir(md_produc_space[1])
 bc_weak_form_c1.functions = exact_functions_c1
 
+m_functions_int_robin = {
+    "delta": f_delta,
+    "kappa_normal": f_kappa_normal_c1,
+}
+
+int_robin_weak_form = RobinCouplingWeakForm(md_produc_space)
+int_robin_weak_form.functions = m_functions_int_robin
 
 def scatter_form_data(A, i, weak_form):
     # destination indexes
@@ -255,6 +267,25 @@ def scatter_bc_form(A, i, bc_weak_form):
     for k in range(nnz):
         A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
+def scatter_robin_form_data(A, c0_idx, c1_idx, int_weak_form):
+
+    dest_c0 = int_weak_form.space[0].bc_destination_indexes(c0_idx, 'q')
+    dest_c1 = int_weak_form.space[1].destination_indexes(c1_idx, 'p')
+    dest = np.concatenate([dest_c0, dest_c1])
+    alpha_l = alpha[dest]
+    r_el, j_el = int_weak_form.evaluate_form(c0_idx, c1_idx, alpha_l)
+    
+    # contribute rhs
+    rg[dest] += r_el
+
+    # contribute lhs
+    data = j_el.ravel()
+    row = np.repeat(dest, len(dest))
+    col = np.tile(dest, len(dest))
+    nnz = data.shape[0]
+    for k in range(nnz):
+        A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
+
 
 n_els_c0 = len(md_produc_space[0].discrete_spaces["q"].elements)
 n_els_c1 = len(md_produc_space[1].discrete_spaces["q"].elements)
@@ -265,6 +296,16 @@ n_bc_els_c0 = len(md_produc_space[0].discrete_spaces["q"].bc_elements)
 n_bc_els_c1 = len(md_produc_space[1].discrete_spaces["q"].bc_elements)
 [scatter_bc_form(A, i, bc_weak_form_c0) for i in range(n_bc_els_c0)]
 [scatter_bc_form(A, i, bc_weak_form_c1) for i in range(n_bc_els_c1)]
+
+# Interface weak forms
+for interface in interfaces:
+    c1_data = interface['c1']
+    c1_el_idx = [md_produc_space[1].discrete_spaces["q"].id_to_element[cell.id] for cell in c1_data[0]]
+    c0_pel_idx = [md_produc_space[0].discrete_spaces["q"].id_to_bc_element[cell.id] for cell in c1_data[1]]
+    c0_nel_idx = [md_produc_space[0].discrete_spaces["q"].id_to_bc_element[cell.id] for cell in c1_data[2]]
+    for c1_idx, p_c0_idx, n_c0_idx in zip(c1_el_idx, c0_pel_idx, c0_nel_idx):
+        scatter_robin_form_data(A, p_c0_idx, c1_idx, int_robin_weak_form) # positive side
+        scatter_robin_form_data(A, n_c0_idx, c1_idx, int_robin_weak_form) # negative side
 
 A.assemble()
 
