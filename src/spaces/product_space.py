@@ -152,7 +152,7 @@ class ProductSpace:
             dest = list(self.discrete_spaces_destination_indexes(cell_index).values())
             dest = np.concatenate(dest)
         else:
-            dest  = self.discrete_spaces_destination_indexes(cell_index)[field_name]
+            dest = self.discrete_spaces_destination_indexes(cell_index)[field_name]
         return dest
 
     def discrete_spaces_bc_destination_indexes(self, cell_index):
@@ -177,7 +177,9 @@ class ProductSpace:
 
     def bc_destination_indexes(self, cell_index, field_name: str = None):
         if field_name is None:
-            dest = list(self.discrete_spaces_bc_destination_indexes(cell_index).values())
+            dest = list(
+                self.discrete_spaces_bc_destination_indexes(cell_index).values()
+            )
             dest = np.concatenate(dest)
         else:
             dest = self.discrete_spaces_bc_destination_indexes(cell_index)[field_name]

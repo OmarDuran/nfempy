@@ -288,7 +288,7 @@ def cut_conformity_along_c1_line(
     if not visual_frac_q:
         bump_args["scale"] = 0.0
     else:
-        bump_args["scale"] = 0.1
+        bump_args["scale"] = 0.05
 
     # cut conformity on c1 objects
     raw_c1_cells = np.array(
@@ -373,8 +373,8 @@ def cut_conformity_along_c1_line(
     update_cells_with_cell_pairs(negative_c1_cells, negative_cell_pairs, mesh)
 
     interface = {}
-    interface['c1'] = ([c1_cells, positive_c1_cells, negative_c1_cells])
-    interface['c2'] = ([c2_cells, positive_c2_cells, negative_c2_cells])
+    interface["c1"] = [c1_cells, positive_c1_cells, negative_c1_cells]
+    interface["c2"] = [c2_cells, positive_c2_cells, negative_c2_cells]
 
     # update c1 cells
     # # classify associated c1 cells
@@ -394,7 +394,6 @@ def cut_conformity_along_c1_line(
     negative_cell_pairs = [None, zip(c2_cells, negative_c2_cells)]
     update_cells_with_cell_pairs(positive_c1_cells, positive_cell_pairs, mesh)
     update_cells_with_cell_pairs(negative_c1_cells, negative_cell_pairs, mesh)
-
 
     return interface
 

@@ -6,9 +6,9 @@ from basis.parametric_transformation import transform_lower_to_higher
 from geometry.compute_normal import normal
 from mesh.topological_queries import find_higher_dimension_neighs
 from weak_forms.weak_from import WeakForm
-from spaces.product_space import ProductSpace
 
-class RobinCouplingWeakForm(WeakForm):
+
+class CouplingWeakForm(WeakForm):
 
     def evaluate_form(self, index_c0, index_c1, alpha):
         iel_c0, iel_c1 = index_c0, index_c1
@@ -17,26 +17,26 @@ class RobinCouplingWeakForm(WeakForm):
         f_delta = self.functions["delta"]
 
         q_c0_space = self.space[0].discrete_spaces["q"]
-        p_c0_space = self.space[0].discrete_spaces["p"]
-
-        q_c1_space = self.space[1].discrete_spaces["q"]
         p_c1_space = self.space[1].discrete_spaces["p"]
 
         q_c0_components = q_c0_space.n_comp
         q_c0_data: ElementData = q_c0_space.bc_elements[iel_c0].data
 
         p_c1_components = p_c1_space.n_comp
-        p_c1_data: ElementData = p_c1_space.elements[iel_c1].data
 
         cell = q_c0_data.cell
-        dim  = cell.dimension
+        dim = cell.dimension
         points, weights = self.space[0].bc_quadrature[dim]
         dim = cell.dimension
-        x, jac, det_jac, inv_jac = q_c0_space.bc_elements[iel_c0].evaluate_mapping(points)
+        x, jac, det_jac, inv_jac = q_c0_space.bc_elements[iel_c0].evaluate_mapping(
+            points
+        )
 
         # Diffusive flux
         # find high-dimension neigh q space
-        neigh_list = find_higher_dimension_neighs(cell, q_c0_space.dof_map.mesh_topology)
+        neigh_list = find_higher_dimension_neighs(
+            cell, q_c0_space.dof_map.mesh_topology
+        )
         neigh_check_mp = len(neigh_list) > 0
         assert neigh_check_mp
         neigh_cell_id = neigh_list[0][1]
@@ -55,11 +55,13 @@ class RobinCouplingWeakForm(WeakForm):
         dq_facet_index = (
             neigh_cell.sub_cells_ids[cell.dimension].tolist().index(cell.id)
         )
-        dq_dof_n_index = np.array(neigh_element.data.dof.entity_dofs[cell.dimension][
-            dq_facet_index
-        ])
+        dq_dof_n_index = np.array(
+            neigh_element.data.dof.entity_dofs[cell.dimension][dq_facet_index]
+        )
 
-        p_phi_tab = p_c1_space.elements[iel_c1].evaluate_basis(points, jac, det_jac, inv_jac)
+        p_phi_tab = p_c1_space.elements[iel_c1].evaluate_basis(
+            points, jac, det_jac, inv_jac
+        )
         n_dq_phi = dq_tr_phi_tab[0, :, dq_dof_n_index, 0:dim].shape[0]
 
         n_q_phi = n_dq_phi
@@ -86,15 +88,19 @@ class RobinCouplingWeakForm(WeakForm):
                 kappa_n_v = f_kappa(x[i, 0], x[i, 1], x[i, 2])
                 delta_v = f_delta(x[i, 0], x[i, 1], x[i, 2])
 
-                dq_h = (dq_tr_phi_tab[0, i, dq_dof_n_index, 0:dim] @ n[0:dim]).reshape(1,1)
+                dq_h = (dq_tr_phi_tab[0, i, dq_dof_n_index, 0:dim] @ n[0:dim]).reshape(
+                    n_dq_phi, 1
+                )
                 dp_h = p_phi_tab[0, i, :, 0:dim]
                 q_h_n = alpha_q @ dq_h
                 p_h_c1 = alpha_p @ dp_h
 
-                beta_v = (2.0 / delta_v) * kappa_n_v
+                beta_v = kappa_n_v * (2.0 / delta_v)
 
-                equ_1_integrand = ((1.0 / beta_v) * q_h_n + p_h_c1) @ dq_h.T
-                equ_2_integrand = q_h_n @ dp_h.T # Robin coupling is a self-adjoint operator of c1 mass conservation
+                equ_1_integrand = ((1.0 / beta_v) * q_h_n + 0.5 * p_h_c1) @ dq_h.T
+                # Robin coupling is a self-adjoint operator of c1 mass conservation
+                equ_2_integrand = q_h_n @ dp_h.T
+
                 multiphysic_integrand = np.zeros((1, n_dof))
                 multiphysic_integrand[:, idx_dof["q"]] = equ_1_integrand
                 multiphysic_integrand[:, idx_dof["p"]] = equ_2_integrand
