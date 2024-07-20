@@ -6,7 +6,6 @@ from petsc4py import PETSc
 
 from topology.domain import Domain
 from mesh.discrete_domain import DiscreteDomain
-from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
 from postprocess.solution_post_processor import write_vtk_file
 from spaces.product_space import ProductSpace

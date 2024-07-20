@@ -4,7 +4,7 @@ from functools import partial
 import numpy as np
 import pytest
 from geometry.geometry_builder import GeometryBuilder
-from mesh.conformal_mesher import ConformalMesher
+from mesh.discrete_domain import DiscreteDomain
 from mesh.mesh import Mesh
 from spaces.product_space import ProductSpace
 from postprocess.l2_error_post_processor import l2_error

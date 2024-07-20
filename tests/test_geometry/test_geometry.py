@@ -9,7 +9,7 @@ from topology.domain_market import (
 from topology.domain_market import build_box_2D_with_lines
 from topology.shape_manipulation import ShapeManipulation
 
-from mesh.conformal_mesher import ConformalMesher
+from mesh.discrete_domain import DiscreteDomain
 
 
 def generate_domain_1d():
@@ -434,7 +434,7 @@ def test_domain_2d_18_shapes_in_face():
     assert len(wire_4.immersed_shapes) == 4
     assert len(wire_4.orientation) == 4
 
-    mesher = ConformalMesher(dimension=domain.dimension)
+    mesher = DiscreteDomain(dimension=domain.dimension)
     mesher.domain = domain
     mesher.generate_from_domain(0.05)
     mesher.write_mesh("gmesh.msh")

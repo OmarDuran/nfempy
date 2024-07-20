@@ -7,7 +7,7 @@ from petsc4py import PETSc
 
 from topology.domain import Domain
 from topology.domain_market import build_box_1D, build_box_2D, build_box_3D
-from mesh.conformal_mesher import ConformalMesher
+from mesh.discrete_domain import DiscreteDomain
 from mesh.mesh import Mesh
 from mesh.mesh_metrics import mesh_size
 from postprocess.l2_error_post_processor import div_error, l2_error, l2_error_projected
@@ -519,16 +519,15 @@ def create_domain(dimension):
 
 
 def create_conformal_mesher(domain: Domain, h, ref_l=0):
-    mesher = ConformalMesher(dimension=domain.dimension)
+    mesher = DiscreteDomain(dimension=domain.dimension)
     mesher.domain = domain
     mesher.generate_from_domain(h, ref_l)
     mesher.write_mesh("gmesh.msh")
     return mesher
 
 
-def create_mesh(dimension, mesher: ConformalMesher, write_vtk_q=False):
+def create_mesh(dimension, write_vtk_q=False):
     gmesh = Mesh(dimension=dimension, file_name="gmesh.msh")
-    gmesh.set_conformal_mesher(mesher)
     gmesh.build_conformal_mesh()
     if write_vtk_q:
         gmesh.write_vtk()

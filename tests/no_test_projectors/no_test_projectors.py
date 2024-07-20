@@ -10,7 +10,7 @@ from basis.element_family import basis_variant, family_by_name
 from basis.element_type import type_by_dimension
 from basis.finite_element import FiniteElement
 from geometry.geometry_builder import GeometryBuilder
-from mesh.conformal_mesher import ConformalMesher
+from mesh.discrete_domain import DiscreteDomain
 from mesh.mesh import Mesh
 from basis.element_data import ElementData
 from spaces.discrete_space import DiscreteSpace
@@ -79,14 +79,13 @@ def generate_mesh(h_cell, dim):
     elif dim == 3:
         g_builder = generate_geometry_3d()
 
-    conformal_mesher = ConformalMesher(dimension=dim)
-    conformal_mesher.set_geometry_builder(g_builder)
-    conformal_mesher.set_points()
-    conformal_mesher.generate(h_cell)
+    conformal_mesher = DiscreteDomain(dimension=dim)
+    # conformal_mesher.set_geometry_builder(g_builder)
+    # conformal_mesher.set_points()
+    conformal_mesher.generate(h_cell, 0)
     conformal_mesher.write_mesh("gmesh.msh")
 
     gmesh = Mesh(dimension=dim, file_name="gmesh.msh")
-    gmesh.set_conformal_mesher(conformal_mesher)
     gmesh.build_conformal_mesh()
     # gmesh.write_vtk()
     return gmesh

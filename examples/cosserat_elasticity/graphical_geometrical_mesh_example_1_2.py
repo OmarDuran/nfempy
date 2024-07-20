@@ -8,7 +8,7 @@ if platform == "linux" or platform == "linux2":
 
 from topology.domain import Domain
 from topology.domain_market import build_box_1D, build_box_2D, build_box_3D
-from mesh.conformal_mesher import ConformalMesher
+from mesh.discrete_domain import DiscreteDomain
 from mesh.mesh import Mesh
 from mesh.mesh_metrics import mesh_size
 
@@ -40,7 +40,7 @@ def create_domain(dimension):
 
 
 def create_conformal_mesher_from_file(file_name, dim):
-    mesher = ConformalMesher(dimension=dim)
+    mesher = DiscreteDomain(dimension=dim)
     mesher.write_mesh(file_name)
     return mesher
 
