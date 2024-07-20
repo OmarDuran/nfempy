@@ -25,31 +25,22 @@ class LCEPrimalWeakForm(WeakForm):
         t_components = t_space.n_comp
 
         u_data: ElementData = u_space.elements[iel].data
-        t_data: ElementData = t_space.elements[iel].data
+        # t_data: ElementData = t_space.elements[iel].data
 
         cell = u_data.cell
         dim = cell.dimension
-        points = u_data.quadrature.points
-        weights = u_data.quadrature.weights
-        x = u_data.mapping.x
-        det_jac = u_data.mapping.det_jac
-        inv_jac = u_data.mapping.inv_jac
+        points, weights = self.space.quadrature[dim]
+        x, jac, det_jac, inv_jac = u_space.elements[iel].evaluate_mapping(points)
 
-        u_phi_tab = u_data.basis.phi
-        t_phi_tab = t_data.basis.phi
+        u_phi_tab = u_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+        t_phi_tab = t_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
 
         n_u_phi = u_phi_tab.shape[2]
         n_t_phi = t_phi_tab.shape[2]
 
         n_u_dof = n_u_phi * u_components
         n_t_dof = n_t_phi * t_components
-
         n_dof = n_u_dof + n_t_dof
-        js = (n_dof, n_dof)
-        rs = n_dof
-        j_el = np.zeros(js)
-        r_el = np.zeros(rs)
-        alpha = np.zeros(n_dof)
 
         # Partial local vectorization
         f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
@@ -244,14 +235,14 @@ class LCEPrimalWeakFormBCDirichlet(WeakForm):
         t_data: ElementData = t_space.bc_elements[iel].data
 
         cell = u_data.cell
-        points = u_data.quadrature.points
-        weights = u_data.quadrature.weights
-        x = u_data.mapping.x
-        det_jac = u_data.mapping.det_jac
-        inv_jac = u_data.mapping.inv_jac
+        dim = cell.dimension
+        points, weights = self.space.bc_quadrature[dim]
+        x, jac, det_jac, inv_jac = u_space.bc_elements[iel].evaluate_mapping(
+            points
+        )
 
-        u_phi_tab = u_data.basis.phi
-        t_phi_tab = t_data.basis.phi
+        u_phi_tab = u_space.bc_elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+        t_phi_tab = t_space.bc_elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
 
         n_u_phi = u_phi_tab.shape[2]
         n_t_phi = t_phi_tab.shape[2]
