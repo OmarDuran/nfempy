@@ -419,8 +419,8 @@ def test_lines_triangle_intersection():
     out = lines_triangle_intersection(lines, a, b, c)
     ref_data = np.array(
         [
-            [[[1.0, 2.0, 3.0]], [[1.0, 2.5, 3.5]]],
-            [[[1.3, 2.28786797, 3.71213203]], [[1.375, 2.10983496, 3.64016504]]],
+            [[1.0, 2.0, 3.0], [1.0, 2.5, 3.5]],
+            [[1.3, 2.28786797, 3.71213203], [1.375, 2.10983496, 3.64016504]],
         ]
     )
     assert np.all(np.isclose(out[0], ref_data))
