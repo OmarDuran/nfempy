@@ -283,6 +283,9 @@ def test_line_triangle_intersection():
             [1.0 / 3.0, 1.0 / 3.0, 0.5],
             [0.5, 0.5, -0.5],
             [0.5, 0.5, 0.5],
+            [0.3, 0.3, 0.0],
+            [0.0, 0.0, 0.0],
+            [0.1, 0.1, 0.0],
         ]
     )
     points = points_base.copy()
@@ -324,16 +327,22 @@ def test_line_triangle_intersection():
     )
     assert np.all(np.isclose(ref_data, intx_data))
 
-    line_intersection_lines_idxs = np.array([[3, 4], [3, 5]])
-    intx_data = np.empty((0, 2, 3), float)
+    line_intersection_lines_idxs = np.array([[3, 4], [3, 5], [12, 13], [12, 14]])
+    intx_data = np.empty((0, 3), float)
     for lines_idx in line_intersection_lines_idxs:
         line = points[lines_idx]
         out = line_triangle_intersection(line, a, b, c)
-        intx_data = np.append(intx_data, np.array([out[:, 0, :]]), axis=0)
+        intx_data = np.append(intx_data, out, axis=0)
     ref_data = np.array(
         [
-            [[1.0, 2.0, 3.0], [1.0, 2.5, 3.5]],
-            [[1.3, 2.28786797, 3.71213203], [1.375, 2.10983496, 3.64016504]],
+            [1.0, 2.0, 3.0],
+            [1.0, 2.5, 3.5],
+            [1.3, 2.28786797, 3.71213203],
+            [1.375, 2.10983496, 3.64016504],
+            [1.0, 2.3, 3.3],
+            [1.0, 2.0, 3.0],
+            [1.0, 2.3, 3.3],
+            [1.0, 2.1, 3.1],
         ]
     )
     assert np.all(np.isclose(ref_data, intx_data))

@@ -1,13 +1,7 @@
 import pytest
 import numpy as np
-from functools import partial
-from geometry.operations.polygon_geometry_operations import polygon_normal
-from geometry.operations.polygon_geometry_operations import convex_q
-from geometry.operations.polygon_geometry_operations import triangulate_convex_polygon
-from geometry.operations.polygon_geometry_operations import triangulate_polygon
 from geometry.operations.polygon_geometry_operations import (
-    __projection_directions,
-    winding_number,
+    triangle_triangle_intersection,
 )
 
 
@@ -48,162 +42,78 @@ def __transform_points(points, transformation_matrix):
     return transformed_points
 
 
-def test_polygon_normal():
+def test_triangle_triangle_intersection():
 
-    ref_normal = np.array([-0.70710678, -0.5, 0.5])
-    theta = np.pi / 4
-    tx, ty, tz = 1, 2, 3
-    trans_matrix = __transformation_matrix(theta, tx, ty, tz)
-
-    points = np.array(
+    triangle_object = np.array(
         [
-            [-0.809017, -0.587785, 0.0],
-            [-0.809017, 0.587785, 0.0],
-            [0.309017, -0.951057, 0.0],
-            [0.309017, 0.951057, 0.0],
+            [0.0, 0.0, 0.0],
             [1.0, 0.0, 0.0],
-        ]
-    )
-    points = __transform_points(points, trans_matrix)
-    assert np.all(np.isclose(polygon_normal(points), ref_normal))
-
-    points = np.array(
-        [
-            [-0.809017, -0.587785, 0.0],
-            [-0.809017, 0.587785, 0.0],
-            [0.309017, 0.951057, 0.0],
-            [1.0, 0.0, 0.0],
-            [0.309017, -0.951057, 0.0],
-        ]
-    )
-    points = __transform_points(points, trans_matrix)
-    assert np.all(np.isclose(polygon_normal(points), ref_normal))
-
-    points = np.array(
-        [
-            [-0.809017, -0.587785, 0.0],
-            [-0.809017, 0.587785, 0.0],
-            [0.309017, 0.951057, 0.0],
-        ]
-    )
-    points = __transform_points(points, trans_matrix)
-    assert np.all(np.isclose(polygon_normal(points), -ref_normal))
-
-
-def test_convex_q():
-    theta = np.pi / 4
-    tx, ty, tz = 1, 2, 3
-    trans_matrix = __transformation_matrix(theta, tx, ty, tz)
-
-    points = np.array(
-        [
-            [-0.809017, -0.587785, 0.0],
-            [-0.809017, 0.587785, 0.0],
-            [0.309017, -0.951057, 0.0],
-            [0.309017, 0.951057, 0.0],
-            [1.0, 0.0, 0.0],
-        ]
-    )
-    points = __transform_points(points, trans_matrix)
-    assert not convex_q(points)
-
-    points = np.array(
-        [
-            [-0.809017, -0.587785, 0.0],
-            [-0.809017, 0.587785, 0.0],
-            [0.309017, 0.951057, 0.0],
-            [1.0, 0.0, 0.0],
-            [0.309017, -0.951057, 0.0],
-        ]
-    )
-    points = __transform_points(points, trans_matrix)
-    assert convex_q(points)
-
-    points = np.array(
-        [
-            [-0.809017, -0.587785, 0.0],
-            [-0.809017, 0.587785, 0.0],
-            [0.309017, 0.951057, 0.0],
-        ]
-    )
-    points = __transform_points(points, trans_matrix)
-    assert convex_q(points)
-
-
-def test_triangulate_convex_polygon():
-    theta = np.pi / 4
-    tx, ty, tz = 1, 2, 3
-    trans_matrix = __transformation_matrix(theta, tx, ty, tz)
-
-    points = np.array(
-        [
-            [-0.809017, -0.587785, 0.0],
-            [-0.809017, 0.587785, 0.0],
-            [0.309017, 0.951057, 0.0],
-            [1.0, 0.0, 0.0],
-            [0.309017, -0.951057, 0.0],
-        ]
-    )
-    points = __transform_points(points, trans_matrix)
-    triangles = triangulate_convex_polygon(points)
-    assert triangles.shape == (len(points), 3, 3)
-
-    points = np.array(
-        [
-            [-0.809017, -0.587785, 0.0],
-            [-0.809017, 0.587785, 0.0],
-            [0.309017, 0.951057, 0.0],
-        ]
-    )
-    points = __transform_points(points, trans_matrix)
-    triangles = triangulate_convex_polygon(points)
-    assert triangles.shape == (len(points), 3, 3)
-
-
-def test_triangulate_polygon():
-    theta = np.pi / 4
-    tx, ty, tz = 1, 2, 3
-    trans_matrix = __transformation_matrix(theta, tx, ty, tz)
-
-    points = np.array(
-        [
-            [2.0, -2.0, 0.0],
-            [2.0, 2.0, 0.0],
             [0.0, 1.0, 0.0],
-            [-2.0, 2.0, 0.0],
-            [-2.0, -2.0, 0.0],
-            [0.0, -1.0, 0.0],
         ]
     )
-    points = __transform_points(points, trans_matrix)
-    triangles = triangulate_polygon(points)
-    assert triangles.shape == (4, 3, 3)
-    dir_idx = __projection_directions(points)
-    triangle_xc = np.mean(triangles[:, :, dir_idx], axis=1)
-    polygon_winding = partial(winding_number, polygon_points=points[:, dir_idx])
-    valid_triangles = np.argwhere(list(map(polygon_winding, triangle_xc))).ravel()
-    assert len(valid_triangles) == 4
 
-    points = np.array(
+    triangle_tool = np.array(
         [
-            [-0.809017, -0.587785, 0.0],
-            [-0.809017, 0.587785, 0.0],
-            [0.309017, 0.951057, 0.0],
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 1.0],
+            [0.0, 1.0, 1.0],
+        ]
+    )
+
+    # out = triangle_triangle_intersection(triangle_object, triangle_tool)
+    # assert np.all(np.isclose(out,np.array([[[0., 0., 0.]]])))
+
+    triangle_tool = np.array(
+        [
+            [0.0, 0.0, 0.0],
             [1.0, 0.0, 0.0],
-            [0.309017, -0.951057, 0.0],
+            [0.0, 1.0, 1.0],
         ]
     )
-    points = __transform_points(points, trans_matrix)
-    triangles = triangulate_polygon(points)
-    assert triangles.shape == (len(points), 3, 3)
 
-    points = np.array(
+    out = triangle_triangle_intersection(triangle_object, triangle_tool)
+    assert np.all(np.isclose(out, np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])))
+
+    triangle_tool = np.array(
         [
-            [-0.809017, -0.587785, 0.0],
-            [-0.809017, 0.587785, 0.0],
-            [0.309017, 0.951057, 0.0],
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 1.0],
+            [0.0, 1.0, 0.0],
         ]
     )
-    points = __transform_points(points, trans_matrix)
-    triangles = triangulate_polygon(points)
-    assert triangles.shape == (len(points), 3, 3)
+
+    out = triangle_triangle_intersection(triangle_object, triangle_tool)
+    assert np.all(np.isclose(out, np.array([[0.0, 0.0, 0.0], [0.0, 1.0, 0.0]])))
+
+    triangle_tool = np.array(
+        [
+            [0.0, 0.0, 1.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+        ]
+    )
+
+    out = triangle_triangle_intersection(triangle_object, triangle_tool)
+    assert np.all(np.isclose(out, np.array([[0.0, 1.0, 0.0], [1.0, 0.0, 0.0]])))
+
+    triangle_tool = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [0.5, 0.5, 0.0],
+            [0.0, 1.0, 1.0],
+        ]
+    )
+
+    out = triangle_triangle_intersection(triangle_object, triangle_tool)
+    assert np.all(np.isclose(out, np.array([[0.0, 0.0, 0.0], [0.5, 0.5, 0.0]])))
+
+    triangle_tool = np.array(
+        [
+            [0.3, 0.3, 0.0],
+            [0.0, 0.0, 0.0],
+            [0.0, 1.0, 1.0],
+        ]
+    )
+
+    out = triangle_triangle_intersection(triangle_object, triangle_tool)
+    assert np.all(np.isclose(out, np.array([[0.0, 0.0, 0.0], [0.5, 0.5, 0.5]])))

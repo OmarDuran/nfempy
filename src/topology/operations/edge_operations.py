@@ -3,6 +3,7 @@ from topology.vertex import Vertex
 from topology.edge import Edge
 
 from globals import geometry_collapse_tol as collapse_tol
+from globals import topology_tag_shape_info as tag_info
 from globals import geometry_point_line_incidence_tol as p_incidence_tol
 from globals import geometry_line_line_incidence_tol as l_incidence_tol
 from topology.operations.vertex_operations import vertex_with_same_geometry_q
@@ -38,7 +39,7 @@ def collapse_edge(e_tool: Edge, e_object: Edge, eps: float = collapse_tol) -> Ve
 
 
 def edge_edge_boundary_intersection(
-    e_tool: Edge, e_object: Edge, tag: int = -1, eps: float = p_incidence_tol
+    e_tool: Edge, e_object: Edge, tag: int = tag_info.min, eps: float = p_incidence_tol
 ) -> Union[None, Vertex]:
 
     tv0, tv1 = e_tool.boundary_shapes
@@ -73,7 +74,7 @@ def edge_edge_boundary_intersection(
 def edge_edge_intersection(
     e_tool: Edge,
     e_object: Edge,
-    tag: int = -1,
+    tag: int = tag_info.min,
     p_eps: float = p_incidence_tol,
     l_eps: float = l_incidence_tol,
 ) -> Union[None, Vertex]:

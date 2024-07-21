@@ -53,10 +53,13 @@ def __transform_points(points, transformation_matrix):
 
 def __mesh_md_domain(md_domain):
     # Conformal gmsh discrete representation
-    h_val = 0.1
     domain_h = DiscreteDomain(dimension=md_domain.dimension)
     domain_h.domain = md_domain
-    domain_h.generate_mesh(h_val, 0)
+    mesh_arguments = {
+        "lc": 0.1,
+        "n_refinements": 0,
+    }
+    domain_h.generate_mesh(mesh_arguments)
     domain_h.write_mesh("gmesh.msh")
 
     # Mesh representation

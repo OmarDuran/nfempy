@@ -3,7 +3,7 @@ from functools import partial
 from globals import geometry_collapse_tol as collapse_tol
 from globals import geometry_point_line_incidence_tol as l_incidence_tol
 from globals import geometry_point_polygon_incidence_tol as incidence_tol
-from geometry.operations.polygon_geometry_operations import triangulate_polygon
+from geometry.operations.polygon_operations import triangulate_polygon
 
 
 def colinear_measurement(p: np.array, a: np.array, b: np.array) -> float:

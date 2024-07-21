@@ -1,5 +1,4 @@
 from functools import partial
-from geometry.operations.point_geometry_operations import points_line_argsort
 from globals import geometry_collapse_precision as collapse_precision
 from globals import geometry_point_line_incidence_tol as p_incidence_tol
 from globals import geometry_line_line_incidence_tol as l_incidence_tol
@@ -7,9 +6,10 @@ from globals import geometry_line_polygon_incidence_tol as s_incidence_tol
 
 import numpy as np
 import matplotlib.pyplot as plt
+from geometry.operations.point_geometry_operations import points_line_argsort
 from geometry.operations.point_geometry_operations import points_line_intersection
 from geometry.operations.point_geometry_operations import point_triangle_intersection
-from geometry.operations.polygon_geometry_operations import triangulate_polygon
+from geometry.operations.polygon_operations import triangulate_polygon
 
 
 def line_line_intersection(
@@ -194,7 +194,7 @@ def line_triangle_intersection(
         if out.shape[0] == 1:
             return out[0]
         else:
-            return out
+            return out[:,0,:]
     else:
         if p_intersection is not None:
             return np.array([p])
@@ -246,7 +246,11 @@ def lines_triangle_intersection(
     intx_q = np.array([data_type(data) for data in result])
 
     # filter points outside segment
-    result = np.array(list(filter(lambda x: x is not None, result)))
+    try:
+        result = np.array(list(filter(lambda x: x is not None, result)))
+    except:
+        result = np.concatenate(list(filter(lambda x: x is not None, result)))
+
     return result, intx_q
 
 
