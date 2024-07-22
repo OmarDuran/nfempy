@@ -6,6 +6,7 @@ from globals import geometry_collapse_precision as collapse_precision
 from globals import geometry_line_polygon_incidence_tol as s_incidence_tol
 from geometry.operations.point_geometry_operations import coplanar_measurement
 from geometry.operations.line_geometry_operations import lines_triangle_intersection
+from geometry.operations.polygon_operations import triangulate_polygon
 
 def triangle_triangle_intersection(
     triangle_tool: np.array, triangle_object: np.array, eps: float = s_incidence_tol
@@ -38,4 +39,31 @@ def triangle_triangle_intersection(
     intx_data = intx_data[idx]
     if len(intx_data.shape) == 3:
         intx_data = intx_data[:,0,:]
+    return intx_data
+
+def triangle_polygon_intersection(
+    triangle_tool: np.array, polygon_object: np.array, eps: float = s_incidence_tol
+) -> np.array:
+
+    triangles_obj = triangulate_polygon(polygon_object)
+    intx_data = []
+    for triangle_obj in triangles_obj:
+        out = triangle_triangle_intersection(triangle_tool, triangle_obj, eps)
+        if out is None:
+            continue
+        intx_data.append(out)
+    if len(intx_data) == 0:
+        return None
+    intx_data = np.concatenate(intx_data)
+    intx_data_rounded = np.round(intx_data, decimals=collapse_precision)
+    _, idx = np.unique(intx_data_rounded, axis=0, return_index=True)
+    intx_data = intx_data[idx]
+    if len(intx_data) <= 2:
+        return intx_data
+
+    xc = np.mean(intx_data,axis=0)
+    dirs = intx_data - xc
+    v = intx_data[0] - xc
+    idx = np.argsort(np.dot(dirs, v))
+    intx_data = intx_data[idx[np.array([0, -1])]]
     return intx_data

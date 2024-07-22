@@ -218,7 +218,7 @@ def line_triangle_intersection(
     # Calculate the distance from line_start to the plane of the triangle
     d = np.dot(normal, a - p) / denom
     if d < 0 or d > 1:
-        return False
+        return None
 
     # Calculate the intersection point on the line
     intx_point = p + d * line_dir
