@@ -1,11 +1,11 @@
 import pytest
 import numpy as np
 from functools import partial
-from geometry.operations.polygon_geometry_operations import polygon_normal
-from geometry.operations.polygon_geometry_operations import convex_q
-from geometry.operations.polygon_geometry_operations import triangulate_convex_polygon
-from geometry.operations.polygon_geometry_operations import triangulate_polygon
-from geometry.operations.polygon_geometry_operations import (
+from geometry.operations.polygon_operations import polygon_normal
+from geometry.operations.polygon_operations import convex_q
+from geometry.operations.polygon_operations import triangulate_convex_polygon
+from geometry.operations.polygon_operations import triangulate_polygon
+from geometry.operations.polygon_operations import (
     __projection_directions,
     winding_number,
 )

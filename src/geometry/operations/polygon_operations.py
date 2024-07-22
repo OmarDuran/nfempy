@@ -3,7 +3,9 @@ from scipy.spatial import Delaunay
 from functools import partial
 
 from globals import geometry_line_polygon_incidence_tol as s_incidence_tol
+
 # from geometry.operations.line_geometry_operations import coplanar_measurements
+
 
 def __normalize(v):
     norm = np.linalg.norm(v)

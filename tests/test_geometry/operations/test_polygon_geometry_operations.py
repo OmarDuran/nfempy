@@ -1,7 +1,12 @@
 import pytest
 import numpy as np
-from geometry.operations.polygon_geometry_operations import triangle_triangle_intersection
-from geometry.operations.polygon_geometry_operations import triangle_polygon_intersection
+from geometry.operations.polygon_geometry_operations import (
+    triangle_triangle_intersection,
+)
+from geometry.operations.polygon_geometry_operations import (
+    triangle_polygon_intersection,
+)
+from geometry.operations.polygon_geometry_operations import polygon_polygon_intersection
 
 
 def __transformation_matrix(theta, tx, ty, tz):
@@ -140,6 +145,30 @@ def test_triangle_triangle_intersection():
         )
     )
 
+    # extra cases
+    triangle_tool = np.array(
+        [
+            [1.0, 0.2, 0.3],
+            [1.64358, -0.565271, 0.287226],
+            [0.647756, -0.489469, -0.332895],
+        ]
+    )
+    triangle_object = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.309017, -0.951057, 0.0],
+        ]
+    )
+    out = triangle_triangle_intersection(triangle_tool, triangle_object)
+    assert np.all(
+        np.isclose(
+            out,
+            np.array([[0.83303202, -0.12681677, 0.0], [0.87372402, -0.17380407, 0.0]]),
+        )
+    )
+
+
 def test_triangle_polygon_intersection():
 
     theta = -np.pi / 6
@@ -167,7 +196,7 @@ def test_triangle_polygon_intersection():
     )
     triangle_tool = __transform_points(triangle_tool, trans_matrix)
     out = triangle_polygon_intersection(triangle_tool, polygon_points)
-    assert np.all(np.isclose(out, np.array([[0.49820508, 0.25514428, 0.00269238]]) ))
+    assert np.all(np.isclose(out, np.array([[0.49820508, 0.25514428, 0.00269238]])))
 
     triangle_tool = np.array(
         [
@@ -177,9 +206,18 @@ def test_triangle_polygon_intersection():
         ]
     )
     triangle_tool = __transform_points(triangle_tool, trans_matrix)
-    out = triangle_polygon_intersection(triangle_tool,polygon_points)
-    assert np.all(np.isclose(out, np.array([[ 0.49820508,  0.25514428,  0.00269238],
-       [ 0.58480762,  0.38014428, -0.12721143]]) ))
+    out = triangle_polygon_intersection(triangle_tool, polygon_points)
+    assert np.all(
+        np.isclose(
+            out,
+            np.array(
+                [
+                    [0.49820508, 0.25514428, 0.00269238],
+                    [0.58480762, 0.38014428, -0.12721143],
+                ]
+            ),
+        )
+    )
 
     triangle_tool = np.array(
         [
@@ -189,9 +227,18 @@ def test_triangle_polygon_intersection():
         ]
     )
     triangle_tool = __transform_points(triangle_tool, trans_matrix)
-    out = triangle_polygon_intersection(triangle_tool,polygon_points)
-    assert np.all(np.isclose(out, np.array([[ 0.58480762,  0.38014428, -0.12721143],
-       [-0.08555112, -0.58743521,  0.87832668]]) ))
+    out = triangle_polygon_intersection(triangle_tool, polygon_points)
+    assert np.all(
+        np.isclose(
+            out,
+            np.array(
+                [
+                    [0.58480762, 0.38014428, -0.12721143],
+                    [-0.08555112, -0.58743521, 0.87832668],
+                ]
+            ),
+        )
+    )
 
     triangle_tool = np.array(
         [
@@ -201,9 +248,15 @@ def test_triangle_polygon_intersection():
         ]
     )
     triangle_tool = __transform_points(triangle_tool, trans_matrix)
-    out = triangle_polygon_intersection(triangle_tool,polygon_points)
-    assert np.all(np.isclose(out, np.array([[ 0.85      , -0.44951905,  0.175     ],
-       [-0.76128112,  0.35810633,  0.78290468]]) ))
+    out = triangle_polygon_intersection(triangle_tool, polygon_points)
+    assert np.all(
+        np.isclose(
+            out,
+            np.array(
+                [[0.85, -0.44951905, 0.175], [-0.76128112, 0.35810633, 0.78290468]]
+            ),
+        )
+    )
 
     triangle_tool = np.array(
         [
@@ -213,10 +266,18 @@ def test_triangle_polygon_intersection():
         ]
     )
     triangle_tool = __transform_points(triangle_tool, trans_matrix)
-    out = triangle_polygon_intersection(triangle_tool,polygon_points)
-    assert np.all(np.isclose(out, np.array([[-0.54556548,  0.43592194,  0.59416739],
-       [ 0.79716878, -0.23709921,  0.08758016]]) ))
-
+    out = triangle_polygon_intersection(triangle_tool, polygon_points)
+    assert np.all(
+        np.isclose(
+            out,
+            np.array(
+                [
+                    [0.79716878, -0.23709921, 0.08758016],
+                    [-0.54556548, 0.43592194, 0.59416739],
+                ]
+            ),
+        )
+    )
 
     triangle_tool = np.array(
         [
@@ -226,5 +287,60 @@ def test_triangle_polygon_intersection():
         ]
     )
     triangle_tool = __transform_points(triangle_tool, trans_matrix)
-    out = triangle_polygon_intersection(triangle_tool,polygon_points)
+    out = triangle_polygon_intersection(triangle_tool, polygon_points)
+    assert out is None
+
+
+def test_polygon_polygon_intersection():
+
+    polygon_points_base = np.array(
+        [
+            [-0.809017, -0.587785, 0.0],
+            [-0.809017, 0.587785, 0.0],
+            [0.309017, 0.951057, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.309017, -0.951057, 0.0],
+        ]
+    )
+
+    theta = -np.pi / 6
+    tx, ty, tz = 0.1, 0.2, 0.3
+    trans_matrix = __transformation_matrix(theta, tx, ty, tz)
+    polygon_points = polygon_points_base.copy()
+    polygon_points = __transform_points(polygon_points, trans_matrix)
+    out = polygon_polygon_intersection(polygon_points, polygon_points_base)
+    assert np.all(
+        np.isclose(
+            out,
+            np.array([[0.81495187, -0.10594007, 0.0], [-0.01052012, 0.84723289, 0.0]]),
+        )
+    )
+
+    theta = -np.pi / 6
+    tx, ty, tz = 0.1, 0.2, 0.3
+    trans_matrix = __transformation_matrix(theta, tx, ty, tz)
+    polygon_points = polygon_points_base.copy()
+    polygon_points = __transform_points(polygon_points, trans_matrix)
+    out = polygon_polygon_intersection(polygon_points, polygon_points_base)
+    assert np.all(
+        np.isclose(
+            out,
+            np.array([[0.81495187, -0.10594007, 0.0], [-0.01052012, 0.84723289, 0.0]]),
+        )
+    )
+
+    theta = np.pi / 2
+    tx, ty, tz = 1.0, 0.2, 0.3
+    trans_matrix = __transformation_matrix(theta, tx, ty, tz)
+    polygon_points = polygon_points_base.copy()
+    polygon_points = __transform_points(polygon_points, trans_matrix)
+    out = polygon_polygon_intersection(polygon_points, polygon_points_base)
+    assert np.all(np.isclose(out, np.array([[1.0, 0.0, 0.0]])))
+
+    theta = np.pi / 4
+    tx, ty, tz = 1.0, 2.0, 3.0
+    trans_matrix = __transformation_matrix(theta, tx, ty, tz)
+    polygon_points = polygon_points_base.copy()
+    polygon_points = __transform_points(polygon_points, trans_matrix)
+    out = polygon_polygon_intersection(polygon_points, polygon_points_base)
     assert out is None

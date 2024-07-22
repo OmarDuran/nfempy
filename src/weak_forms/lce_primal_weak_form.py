@@ -237,12 +237,14 @@ class LCEPrimalWeakFormBCDirichlet(WeakForm):
         cell = u_data.cell
         dim = cell.dimension
         points, weights = self.space.bc_quadrature[dim]
-        x, jac, det_jac, inv_jac = u_space.bc_elements[iel].evaluate_mapping(
-            points
-        )
+        x, jac, det_jac, inv_jac = u_space.bc_elements[iel].evaluate_mapping(points)
 
-        u_phi_tab = u_space.bc_elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
-        t_phi_tab = t_space.bc_elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+        u_phi_tab = u_space.bc_elements[iel].evaluate_basis(
+            points, jac, det_jac, inv_jac
+        )
+        t_phi_tab = t_space.bc_elements[iel].evaluate_basis(
+            points, jac, det_jac, inv_jac
+        )
 
         n_u_phi = u_phi_tab.shape[2]
         n_t_phi = t_phi_tab.shape[2]

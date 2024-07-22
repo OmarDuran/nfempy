@@ -194,7 +194,7 @@ def line_triangle_intersection(
         if out.shape[0] == 1:
             return out[0]
         else:
-            return out[:,0,:]
+            return out[:, 0, :]
     else:
         if p_intersection is not None:
             return np.array([p])
