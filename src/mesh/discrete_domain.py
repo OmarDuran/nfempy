@@ -59,22 +59,6 @@ class DiscreteDomain:
         gmsh.model.occ.synchronize()
 
     def __transfer_surfaces(self):
-        # for curve in self.domain.shapes[1]:
-        #     if curve.composite:
-        #         continue
-        #     shapes_with_same_dimension = [
-        #         shape
-        #         for shape in curve.immersed_shapes
-        #         if shape.dimension == curve.dimension
-        #     ]
-        #     if len(shapes_with_same_dimension) > 0:
-        #         continue
-        #     tag = self.stride_tag(1, curve.tag)
-        #     b = self.stride_tag(0, curve.boundary_shapes[0].tag)
-        #     e = self.stride_tag(0, curve.boundary_shapes[1].tag)
-        #     gmsh.model.occ.addLine(b, e, tag)
-        # gmsh.model.occ.synchronize()
-
         for surface in self.domain.shapes[2]:
             tag = self.stride_tag(2, surface.tag)
             if not surface.composite:
@@ -89,6 +73,38 @@ class DiscreteDomain:
                 ]
                 gmsh.model.occ.addCurveLoop(loop_tags, tag)
                 gmsh.model.occ.addPlaneSurface([tag], tag)
+        gmsh.model.occ.synchronize()
+
+    def __transfer_volumes(self):
+
+        # for surface in self.domain.shapes[2]:
+        #     tag = self.stride_tag(2, surface.tag)
+        #     if not surface.composite:
+        #         # print("creating surface tag: ", surface.tag)
+        #         wire = surface.boundary_shapes[0]
+        #         wire.orient_immersed_edges()
+        #         loop_tags = [
+        #             self.stride_tag(1, shape.tag) for shape in wire.immersed_shapes
+        #         ]
+        #         loop_tags = [
+        #             loop_tags[i] * sign for i, sign in enumerate(wire.orientation)
+        #         ]
+        #         gmsh.model.occ.addCurveLoop(loop_tags, tag)
+        #         gmsh.model.occ.addPlaneSurface([tag], tag)
+        # gmsh.model.occ.synchronize()
+
+        for volume in self.domain.shapes[3]:
+            tag = self.stride_tag(3, volume.tag)
+            if not volume.composite:
+                # print("creating surface tag: ", surface.tag)
+                shell = volume.boundary_shapes[0]
+                loop_tags = [
+                    self.stride_tag(shape.dimension, shape.tag)
+                    for shape in shell.immersed_shapes
+                ]
+                gmsh.model.occ.addSurfaceLoop(loop_tags, tag)
+                gmsh.model.occ.addVolume([tag], tag)
+
         gmsh.model.occ.synchronize()
 
     def stride_tag(self, dim, tag):
@@ -180,6 +196,26 @@ class DiscreteDomain:
             gmsh.model.addPhysicalGroup(2, surface_tags, physical_tag)
         gmsh.model.occ.synchronize()
 
+    def __physical_group_volumes(self):
+        physical_tags_3d = np.unique(
+            [
+                shape.physical_tag
+                for shape in self.domain.shapes[3]
+                if shape.physical_tag is not None
+            ]
+        )
+        for physical_tag in physical_tags_3d:
+            filtered_shapes = [
+                shape
+                for shape in self.domain.shapes[3]
+                if shape.physical_tag == physical_tag
+            ]
+            volumes_tags = []
+            for volume in filtered_shapes:
+                volumes_tags.append(self.stride_tag(3, volume.tag))
+            gmsh.model.addPhysicalGroup(3, volumes_tags, physical_tag)
+        gmsh.model.occ.synchronize()
+
     def __embed_vertices_in_curves(self):
         for curve in self.domain.shapes[1]:
             if curve.composite:
@@ -199,7 +235,6 @@ class DiscreteDomain:
             gmsh.model.mesh.embed(0, tags_0d, 1, self.stride_tag(1, curve.tag))
 
     def __embed_curves_in_surfaces(self):
-        # tags_2d = [shape.tag for shape in self.domain.shapes[2]]
         for surface in self.domain.shapes[2]:
             if surface.composite:
                 continue
@@ -225,6 +260,18 @@ class DiscreteDomain:
             gmsh.model.mesh.embed(0, tags_0d, 2, self.stride_tag(2, surface.tag))
             gmsh.model.mesh.embed(1, tags_1d, 2, self.stride_tag(2, surface.tag))
 
+    def __embed_surfaces_in_volumes(self):
+        for volume in self.domain.shapes[3]:
+            if volume.composite:
+                continue
+            tags_2d = []
+            shapes_c1 = [shape for shape in volume.immersed_shapes]
+            for shape_c1 in shapes_c1:
+                tags_2d = tags_2d + [self.stride_tag(2, shape_c1.tag)]
+
+            tags_2d = list(np.unique(tags_2d))
+            gmsh.model.mesh.embed(2, tags_2d, 3, self.stride_tag(3, volume.tag))
+
     def convert_domain_to_occ_description(self):
         self.__compute_entities_strides()
         dimension = 0
@@ -245,20 +292,7 @@ class DiscreteDomain:
 
         # transfer volumes
         if dimension > 2:
-            volume_stride = surface_stride + len(self.domain.shapes[2])
-            for volume in self.domain.shapes[3]:
-                tag = volume_stride + volume.tag + 1
-                if not volume.composite:
-                    # print("creating surface tag: ", surface.tag)
-                    shell = volume.boundary_shapes[0]
-                    loop_tags = [
-                        surface_stride + shape.tag + 1
-                        for shape in shell.immersed_shapes
-                    ]
-                    gmsh.model.occ.addSurfaceLoop(loop_tags, tag)
-                    gmsh.model.occ.addVolume([tag], tag)
-
-        gmsh.model.occ.synchronize()
+            self.__transfer_volumes()
 
         # add physical tags
         self.__physical_group_vertices()
@@ -269,13 +303,7 @@ class DiscreteDomain:
             self.__physical_group_surfaces()
 
         if dimension > 2:
-            for volume in self.domain.shapes[3]:
-                if volume.physical_tag is not None:
-                    gmsh.model.addPhysicalGroup(
-                        3, [volume_stride + volume.tag + 1], volume.physical_tag
-                    )
-
-        gmsh.model.occ.synchronize()
+            self.__physical_group_volumes()
 
         # embed entities
         if dimension > 0:
@@ -287,38 +315,7 @@ class DiscreteDomain:
 
         # embed entities
         if dimension > 2:
-            tags_3d = [shape.tag for shape in self.domain.shapes[3]]
-            for volume in self.domain.shapes[3]:
-                if volume.composite:
-                    continue
-                # print("volume tag: ", volume.tag)
-                tags_1d = []
-                tags_2d = []
-                shapes_c1 = [shape for shape in volume.immersed_shapes]
-                for shape_c1 in shapes_c1:
-                    if len(shape_c1.immersed_shapes) > 0:
-                        tags_1d = tags_1d + [
-                            curve_stride + curve.tag + 1
-                            for curve in shape_c1.immersed_shapes
-                        ]
-                    else:
-                        tags_2d = tags_2d + [surface_stride + shape_c1.tag + 1]
-                    for shape_c2 in shape_c1.boundary_shapes:
-                        tags_1d = tags_1d + [
-                            curve_stride + curve.tag + 1
-                            for curve in shape_c2.immersed_shapes
-                        ]
-
-                tags_1d = list(np.unique(tags_1d))
-                tags_2d = list(np.unique(tags_2d))
-                gmsh.model.mesh.embed(1, tags_1d, 3, volume_stride + volume.tag + 1)
-                gmsh.model.mesh.embed(2, tags_2d, 3, volume_stride + volume.tag + 1)
-
-                numNodes = 2
-                for tag_1d in tags_1d:
-                    gmsh.model.mesh.setTransfiniteCurve(
-                        tag_1d, numNodes, "Bump", coef=0.25
-                    )
+            self.__embed_surfaces_in_volumes()
 
     def generate_mesh(self, mesh_arguments: dict = {}):
         gmsh.initialize()
