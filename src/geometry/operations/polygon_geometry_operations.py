@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.spatial import Delaunay
+import warnings
 from functools import partial
 
 from globals import geometry_collapse_precision as collapse_precision
@@ -29,7 +29,9 @@ def triangle_triangle_intersection(
 
     t_are_coplanar_q = np.all([p_coplanar_q, q_coplanar_q, r_coplanar_q])
     if t_are_coplanar_q and np.count_nonzero(intx_q) > 1:
-        raise ValueError("Intersection of coplanar triangles forms an area.")
+        # Case for triangle intersection rendering an area it will be ignored.
+        warnings.warn("Warning:: Intersection of coplanar triangles forms an area.")
+        return None
 
     if np.count_nonzero(intx_q) == 0:
 
@@ -140,3 +142,54 @@ def polygon_polygon_intersection(
     idx = np.argsort(np.dot(dirs, v))
     intx_data = intx_data[idx[np.array([0, -1])]]
     return intx_data
+
+
+def polygons_polygon_intersection(
+    polygons_tool: np.array, polygon_object: np.array, eps: float = s_incidence_tol
+) -> np.array:
+    # compute intersections
+    polygon_polygon_intx = partial(polygon_polygon_intersection, polygon_object=polygon_object, eps=eps)
+    result = list(map(polygon_polygon_intx,polygons_tool))
+
+    # filter lines outside segment
+    result = np.array(list(filter(lambda x: x is not None, result)))
+    return result
+
+def polygons_polygons_intersection(
+    polygons_tools: np.array,
+    polygons_objects: np.array,
+    deduplicate_lines_q: bool = False,
+    eps: float = s_incidence_tol,
+) -> float:
+    # compute intersections
+
+    output = [None for _ in range(polygons_objects.shape[0])]
+    for i, polygon_obj in enumerate(polygons_objects):
+        polygon_equality = [
+            np.all(np.isclose(polygon_tool, polygon_obj)) for polygon_tool in polygons_tools if polygon_tool.shape == polygon_obj.shape
+        ]
+        tuple_idx = np.where(polygon_equality)
+        if len(tuple_idx) > 0:
+            idx = tuple_idx[0]
+            filtered_polygons_tools = np.delete(polygons_tools, idx, axis=0)
+            output[i] = polygons_polygon_intersection(
+                filtered_polygons_tools, polygon_obj, eps
+            )
+        else:
+            output[i] = polygons_polygon_intersection(
+                polygons_tools, polygon_obj, eps
+            )
+
+    if deduplicate_lines_q:
+        assert False # not implemented yet
+        lines = np.empty((0, 2, 3), dtype=float)
+        for lines_in_polygon in output:
+            for line in lines_in_polygon:
+                lines = np.append(lines, np.array([line]), axis=0)
+        # Define domains to be subtracted
+        lines_rounded = np.round(lines, decimals=collapse_precision)
+        _, idx = np.unique(lines_rounded, axis=0, return_index=True)
+        unique_lines = lines[idx]
+        return unique_lines
+    else:
+        return output

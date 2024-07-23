@@ -48,8 +48,14 @@ def polygon_normal(points: np.array):
         pa = points[np.argmax(dxc)]
         points_red = np.delete(points, np.argmax(dxc), axis=0)
         dxc_red = np.delete(dxc, np.argmax(dxc), axis=0)
-        pb = points_red[np.argmax(dxc_red)]
-        pc = points_red[np.argmin(dxc_red)]
+        if np.isclose(np.max(dxc_red), np.min(dxc_red)):
+            pb = points_red[0]
+            pc = points_red[1]
+        else:
+            pb = points[np.argmax(dxc_red)]
+            points_red = np.delete(points_red, np.argmax(dxc_red), axis=0)
+            dxc_red = np.delete(dxc, np.argmax(dxc), axis=0)
+            pc = points_red[np.argmin(dxc_red)]
 
     # normal vector of the polygon
     normal = __normalize(np.cross(pb - pa, pc - pa))

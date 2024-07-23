@@ -325,7 +325,8 @@ class DiscreteDomain:
         n_refinements = self.mesh_arguments.get("n_refinements", 0)
 
         self.convert_domain_to_occ_description()
-        for d in range(self.dimension + 1):
+        for d in range(self.dimension):
+        # for d in range(self.dimension + 1):
             gmsh.model.mesh.generate(d)
         for _ in range(n_refinements):
             gmsh.model.mesh.refine()
