@@ -36,8 +36,8 @@ class LCEDualWeakForm(WeakForm):
         u_data: ElementData = u_space.elements[iel].data
         t_data: ElementData = t_space.elements[iel].data
 
-        points, weights = self.space.quadrature
         dim = s_data.cell.dimension
+        points, weights = self.space.quadrature[dim]
         x, jac, det_jac, inv_jac = s_space.elements[iel].evaluate_mapping(points)
 
         # basis
@@ -424,8 +424,8 @@ class LCEDualWeakForm(WeakForm):
         u_data: ElementData = u_space.elements[iel].data
         t_data: ElementData = t_space.elements[iel].data
 
-        points, weights = self.space.quadrature
         dim = s_data.cell.dimension
+        points, weights = self.space.quadrature[dim]
         x, jac, det_jac, inv_jac = s_space.elements[iel].evaluate_mapping(points)
 
         # basis
@@ -644,8 +644,8 @@ class LCEDualWeakFormBCDirichlet(WeakForm):
         s_data: ElementData = s_space.bc_elements[iel].data
         m_data: ElementData = m_space.bc_elements[iel].data
 
-        points, weights = self.space.bc_quadrature
         dim = s_data.cell.dimension
+        points, weights = self.space.bc_quadrature[dim]
         x, jac, det_jac, inv_jac = s_space.bc_elements[iel].evaluate_mapping(points)
         cell = s_data.cell
 
@@ -672,7 +672,7 @@ class LCEDualWeakFormBCDirichlet(WeakForm):
         neigh_list = find_higher_dimension_neighs(cell, s_space.dof_map.mesh_topology)
         neigh_check_q = len(neigh_list) > 0
         assert neigh_check_q
-        neigh_cell_id = neigh_list[0]
+        neigh_cell_id = neigh_list[0][1]
         neigh_cell_index = s_space.id_to_element[neigh_cell_id]
         neigh_element = s_space.elements[neigh_cell_index]
         neigh_cell = neigh_element.data.cell
@@ -695,7 +695,7 @@ class LCEDualWeakFormBCDirichlet(WeakForm):
         neigh_list = find_higher_dimension_neighs(cell, m_space.dof_map.mesh_topology)
         neigh_check_q = len(neigh_list) > 0
         assert neigh_check_q
-        neigh_cell_id = neigh_list[0]
+        neigh_cell_id = neigh_list[0][1]
         neigh_cell_index = m_space.id_to_element[neigh_cell_id]
         neigh_element = m_space.elements[neigh_cell_index]
         neigh_cell = neigh_element.data.cell

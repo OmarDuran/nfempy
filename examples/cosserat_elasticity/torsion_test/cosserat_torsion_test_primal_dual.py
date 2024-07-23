@@ -197,8 +197,8 @@ def torsion_h1_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
     ]
 
     [scatter_bc_form(A, i, bc_weak_form_top) for i in top_bc_els]
-    [scatter_bc_form(A, i, bc_weak_form_bot) for i in bot_bc_els]
-    # [scatter_bc_form(A, i, bc_weak_form_top) for i in lat_bc_els]
+    [scatter_bc_form(A, i, bc_weak_form_top) for i in bot_bc_els]
+    [scatter_bc_form(A, i, bc_weak_form_top) for i in lat_bc_els]
 
     A.assemble()
 
@@ -277,16 +277,23 @@ def torsion_hdiv_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
         "t": t_disc_Q,
     }
 
+    physical_tags = {
+        "s": [1],
+        "m": [1],
+        "u": [1],
+        "t": [1],
+    }
+
     s_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
     m_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
-    discrete_spaces_bc_physical_tags = {
+    b_physical_tags = {
         "s": s_field_bc_physical_tags,
         "m": m_field_bc_physical_tags,
     }
 
     fe_space = ProductSpace(discrete_spaces_data)
     fe_space.make_subspaces_discontinuous(discrete_spaces_disc)
-    fe_space.build_structures(discrete_spaces_bc_physical_tags)
+    fe_space.build_structures(physical_tags, b_physical_tags)
 
     n_dof_g = fe_space.n_dof
     rg = np.zeros(n_dof_g)
@@ -389,7 +396,7 @@ def torsion_hdiv_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
-        r_el, j_el = weak_form.evaluate_form(i, alpha_l)
+        r_el, j_el = weak_form.evaluate_form_vectorized(i, alpha_l)
 
         # contribute rhs
         rg[dest] += r_el
@@ -672,7 +679,7 @@ def create_mesh(dimension, write_vtk_q=False):
 
 
 def main():
-    k_order = 1
+    k_order = 2
     write_geometry_vtk = True
     write_vtk = True
     mesh_file = "gmsh_files/cylinder.msh"
@@ -682,8 +689,8 @@ def main():
     l_cvalues = [1.0e-5]
     m_t_values = []
     for L_c in l_cvalues:
-        m_t_val = torsion_h1_cosserat_elasticity(L_c, k_order, gmesh, write_vtk)
-        # m_t_val = torsion_hdiv_cosserat_elasticity(L_c, k_order, gmesh, write_vtk)
+        # m_t_val = torsion_h1_cosserat_elasticity(L_c, k_order, gmesh, write_vtk)
+        m_t_val = torsion_hdiv_cosserat_elasticity(L_c, k_order, gmesh, write_vtk)
         m_t_values.append(m_t_val)
     scatter_data = np.insert(np.array(m_t_values), 0, np.array(l_cvalues), axis=1)
     np.savetxt(
