@@ -21,6 +21,9 @@ from weak_forms.lce_primal_weak_form import (
 )
 
 import scipy as sp
+from basis.parametric_transformation import transform_lower_to_higher
+from mesh.topological_queries import find_higher_dimension_neighs
+from geometry.compute_normal import normal
 
 
 def torsion_h1_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
@@ -307,6 +310,8 @@ def torsion_hdiv_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
     A.createAIJ([n_dof_g, n_dof_g])
 
     # Material data
+    # E 1 [MPa])
+    # nu 0.3
     m_lambda = 0.5769
     m_mu = 0.3846
     m_kappa = m_mu
@@ -445,8 +450,8 @@ def torsion_hdiv_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
     ]
 
     [scatter_bc_form(A, i, bc_weak_form_top) for i in top_bc_els]
-    [scatter_bc_form(A, i, bc_weak_form_top) for i in bot_bc_els]
-    [scatter_bc_form(A, i, bc_weak_form_top) for i in lat_bc_els]
+    [scatter_bc_form(A, i, bc_weak_form_bot) for i in bot_bc_els]
+    [scatter_bc_form(A, i, bc_weak_form_lat) for i in lat_bc_els]
 
     A.assemble()
 
@@ -463,180 +468,144 @@ def torsion_hdiv_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
     b.array[:] = -rg
     x = A.createVecRight()
 
-    ksp = PETSc.KSP().create()
-    ksp.create(PETSc.COMM_WORLD)
-    ksp.setOperators(A)
-    ksp.setType("fgmres")
-    ksp.setTolerances(rtol=1e-10, atol=1e-10, divtol=500, max_it=2000)
+    ksp.setType("preonly")
+    ksp.getPC().setType("lu")
+    ksp.getPC().setFactorSolverType("mumps")
     ksp.setConvergenceHistory()
-    ksp.getPC().setType("ilu")
     ksp.solve(b, x)
     alpha = x.array
 
-    ai, aj, av = A.getValuesCSR()
-    Asp = sp.sparse.csr_matrix((av, aj, ai))
-    alpha = sp.sparse.linalg.spsolve(Asp, -rg)
+    # ai, aj, av = A.getValuesCSR()
+    # Asp = sp.sparse.csr_matrix((av, aj, ai))
+    # alpha = sp.sparse.linalg.spsolve(Asp, -rg)
 
     et = time.time()
     elapsed_time = et - st
     print("Linear solver time:", elapsed_time, "seconds")
 
-    # def integrate_M_t_strain(i, s_space):
-    #     n_components = s_space.n_comp
-    #     el_data: ElementData = s_space.bc_elements[i].data
-    #
-    #     cell = el_data.cell
-    #     points = el_data.quadrature.points
-    #     weights = el_data.quadrature.weights
-    #     phi_tab = el_data.basis.phi
-    #
-    #     x = el_data.mapping.x
-    #     det_jac = el_data.mapping.det_jac
-    #     inv_jac = el_data.mapping.inv_jac
-    #
-    #     # find high-dimension neigh
-    #     entity_map = s_space.dof_map.mesh_topology.entity_map_by_dimension(
-    #         cell.dimension
-    #     )
-    #     neigh_list = list(entity_map.predecessors(cell.id))
-    #     neigh_check_q = len(neigh_list) > 0
-    #     assert neigh_check_q
-    #
-    #     neigh_cell_id = neigh_list[0]
-    #     neigh_cell_index = s_space.id_to_element[neigh_cell_id]
-    #     neigh_element = s_space.elements[neigh_cell_index]
-    #     neigh_cell = neigh_element.data.cell
-    #
-    #     # destination indexes
-    #     dest_neigh = s_space.dof_map.destination_indices(neigh_cell_id)
-    #     dest = s_space.dof_map.bc_destination_indices(neigh_cell_id, cell.id)
-    #
-    #     n_phi = phi_tab.shape[2]
-    #     n_dof = n_phi * n_components
-    #     js = (n_dof, n_dof)
-    #     j_el = np.zeros(js)
-    #     r_el = np.zeros(n_dof)
-    #
-    #     # compute trace space
-    #     facet_index = neigh_cell.sub_cells_ids[2].tolist().index(cell.id)
-    #     vertices = basix.geometry(CellType.tetrahedron)
-    #     facet = basix.cell.sub_entity_connectivity(CellType.tetrahedron)[
-    #         cell.dimension
-    #     ][facet_index][0]
-    #     mapped_points = np.array(
-    #         [
-    #             vertices[facet[0]] * (1 - x - y)
-    #             + vertices[facet[1]] * x
-    #             + vertices[facet[2]] * y
-    #             for x, y in points
-    #         ]
-    #     )
-    #     dof_n_index = neigh_element.data.dof.entity_dofs[cell.dimension][facet_index]
-    #     sn_phi_tab = neigh_element.evaluate_basis(mapped_points, False)
-    #     n_phi = sn_phi_tab.shape[2]
-    #     M_t = 0.0
-    #     if cell.material_id in [7]:
-    #         alpha_l = alpha[dest_neigh]
-    #         alpha_star = np.array(np.split(alpha_l, n_phi))
-    #         for i, omega in enumerate(weights):
-    #             xv = x[i, 0], x[i, 1], x[i, 2]
-    #             s_h = np.vstack(
-    #                 tuple(
-    #                     [
-    #                         sn_phi_tab[0, i, :, 0:dim].T @ alpha_star[:, d]
-    #                         for d in range(dim)
-    #                     ]
-    #                 )
-    #             )
-    #             M_t += det_jac[i] * omega * (xv[0] * s_h[2, 1] - xv[1] * s_h[2, 0])
-    #
-    #     return M_t
-    #
-    # def integrate_M_t_curvature(i, m_space):
-    #     n_components = m_space.n_comp
-    #     el_data: ElementData = m_space.bc_elements[i].data
-    #
-    #     cell = el_data.cell
-    #     points = el_data.quadrature.points
-    #     weights = el_data.quadrature.weights
-    #     phi_tab = el_data.basis.phi
-    #
-    #     x = el_data.mapping.x
-    #     det_jac = el_data.mapping.det_jac
-    #     inv_jac = el_data.mapping.inv_jac
-    #
-    #     # find high-dimension neigh
-    #     entity_map = m_space.dof_map.mesh_topology.entity_map_by_dimension(
-    #         cell.dimension
-    #     )
-    #     neigh_list = list(entity_map.predecessors(cell.id))
-    #     neigh_check_q = len(neigh_list) > 0
-    #     assert neigh_check_q
-    #
-    #     neigh_cell_id = neigh_list[0]
-    #     neigh_cell_index = m_space.id_to_element[neigh_cell_id]
-    #     neigh_element = m_space.elements[neigh_cell_index]
-    #     neigh_cell = neigh_element.data.cell
-    #
-    #     # destination indexes
-    #     dest_neigh = m_space.dof_map.destination_indices(neigh_cell_id) + s_n_dof_g
-    #     dest = (
-    #         m_space.dof_map.bc_destination_indices(neigh_cell_id, cell.id) + s_n_dof_g
-    #     )
-    #
-    #     n_phi = phi_tab.shape[2]
-    #     n_dof = n_phi * n_components
-    #     js = (n_dof, n_dof)
-    #     j_el = np.zeros(js)
-    #     r_el = np.zeros(n_dof)
-    #
-    #     # compute trace space
-    #     facet_index = neigh_cell.sub_cells_ids[2].tolist().index(cell.id)
-    #     vertices = basix.geometry(CellType.tetrahedron)
-    #     facet = basix.cell.sub_entity_connectivity(CellType.tetrahedron)[
-    #         cell.dimension
-    #     ][facet_index][0]
-    #     mapped_points = np.array(
-    #         [
-    #             vertices[facet[0]] * (1 - x - y)
-    #             + vertices[facet[1]] * x
-    #             + vertices[facet[2]] * y
-    #             for x, y in points
-    #         ]
-    #     )
-    #     dof_n_index = neigh_element.data.dof.entity_dofs[cell.dimension][facet_index]
-    #     mn_phi_tab = neigh_element.evaluate_basis(mapped_points, False)
-    #     n_phi = mn_phi_tab.shape[2]
-    #     M_t = 0.0
-    #     if cell.material_id in [7]:
-    #         alpha_l = alpha[dest_neigh]
-    #         alpha_star = np.array(np.split(alpha_l, n_phi))
-    #         for i, omega in enumerate(weights):
-    #             xv = x[i, 0], x[i, 1], x[i, 2]
-    #             m_h = np.vstack(
-    #                 tuple(
-    #                     [
-    #                         mn_phi_tab[0, i, :, 0:dim].T @ alpha_star[:, d]
-    #                         for d in range(dim)
-    #                     ]
-    #                 )
-    #             )
-    #             M_t += det_jac[i] * omega * (m_h[2, 2])
-    #
-    #     return M_t
-    #
-    # st = time.time()
-    # M_t_strain_vec = [
-    #     integrate_M_t_strain(i, s_space) for i in range(len(m_space.bc_elements))
-    # ]
-    # M_t_curvature_vec = [
-    #     integrate_M_t_curvature(i, m_space) for i in range(len(m_space.bc_elements))
-    # ]
-    # et = time.time()
-    # elapsed_time = et - st
-    # print("Integrate M_t time:", elapsed_time, "seconds")
-    M_t_strain = 0.0  # functools.reduce(lambda x, y: x + y, M_t_strain_vec)
-    M_t_curvature = 0.0  # functools.reduce(lambda x, y: x + y, M_t_curvature_vec)
+    def integrate_M_t_strain(i, fe_space):
+
+        s_space = fe_space.discrete_spaces["s"]
+        s_data = s_space.bc_elements[i].data
+
+        cell = s_data.cell
+        dim = cell.dimension
+        points, weights = fe_space.bc_quadrature[dim]
+        x, jac, det_jac, inv_jac = s_space.bc_elements[i].evaluate_mapping(points)
+
+        # find high-dimension neigh
+        neigh_list = find_higher_dimension_neighs(cell, s_space.dof_map.mesh_topology)
+        neigh_check_q = len(neigh_list) > 0
+        assert neigh_check_q
+        neigh_cell_id = neigh_list[0][1]
+        neigh_cell_index = s_space.id_to_element[neigh_cell_id]
+        neigh_element = s_space.elements[neigh_cell_index]
+        neigh_cell = neigh_element.data.cell
+
+        # compute S trace space
+        mapped_points = transform_lower_to_higher(points, s_data, neigh_element.data)
+        _, jac_c0, det_jac_c0, inv_jac_c0 = neigh_element.evaluate_mapping(
+            mapped_points
+        )
+        s_tr_phi_tab = neigh_element.evaluate_basis(
+            mapped_points, jac_c0, det_jac_c0, inv_jac_c0
+        )
+        facet_index = neigh_cell.sub_cells_ids[cell.dimension].tolist().index(cell.id)
+        dof_s_n_index = neigh_element.data.dof.entity_dofs[cell.dimension][facet_index]
+
+        # compute normal
+        n = normal(s_data.mesh, neigh_cell, cell)
+
+        # destination indexes
+        dest = fe_space.bc_destination_indexes(i, 's')
+        h_dim = neigh_cell.dimension
+
+        n_phi = len(dof_s_n_index)
+        M_t = 0.0
+        if cell.material_id in [7]:
+            alpha_l = alpha[dest]
+            alpha_star = np.array(np.split(alpha_l, n_phi))
+            for i, omega in enumerate(weights):
+                phi = s_tr_phi_tab[0, i, dof_s_n_index, 0:h_dim]
+                xv = x[i, 0], x[i, 1], x[i, 2]
+                s_h = np.vstack(
+                    tuple(
+                        [
+                            phi.T @ alpha_star[:, d]
+                            for d in range(h_dim)
+                        ]
+                    )
+                )
+                M_t += det_jac[i] * omega * (xv[0] * s_h[2, 1] - xv[1] * s_h[2, 0])
+        return M_t
+
+    def integrate_M_t_curvature(i, fe_space):
+
+        m_space = fe_space.discrete_spaces["m"]
+        m_data = m_space.bc_elements[i].data
+
+        cell = m_data.cell
+        dim = cell.dimension
+        points, weights = fe_space.bc_quadrature[dim]
+        x, jac, det_jac, inv_jac = m_space.bc_elements[i].evaluate_mapping(points)
+
+        # find high-dimension neigh
+        neigh_list = find_higher_dimension_neighs(cell, m_space.dof_map.mesh_topology)
+        neigh_check_q = len(neigh_list) > 0
+        assert neigh_check_q
+        neigh_cell_id = neigh_list[0][1]
+        neigh_cell_index = m_space.id_to_element[neigh_cell_id]
+        neigh_element = m_space.elements[neigh_cell_index]
+        neigh_cell = neigh_element.data.cell
+
+        # compute S trace space
+        mapped_points = transform_lower_to_higher(points, m_data, neigh_element.data)
+        _, jac_c0, det_jac_c0, inv_jac_c0 = neigh_element.evaluate_mapping(
+            mapped_points
+        )
+        m_tr_phi_tab = neigh_element.evaluate_basis(
+            mapped_points, jac_c0, det_jac_c0, inv_jac_c0
+        )
+        facet_index = neigh_cell.sub_cells_ids[cell.dimension].tolist().index(cell.id)
+        dof_m_n_index = neigh_element.data.dof.entity_dofs[cell.dimension][facet_index]
+
+        # compute normal
+        n = normal(m_data.mesh, neigh_cell, cell)
+
+        # destination indexes
+        dest = fe_space.bc_destination_indexes(i, 'm')
+        h_dim = neigh_cell.dimension
+
+        n_phi = len(dof_m_n_index)
+        M_t = 0.0
+        if cell.material_id in [7]:
+            alpha_l = alpha[dest]
+            alpha_star = np.array(np.split(alpha_l, n_phi))
+            for i, omega in enumerate(weights):
+                phi = m_tr_phi_tab[0, i, dof_m_n_index, 0:h_dim]
+                m_h = np.vstack(
+                    tuple(
+                        [
+                            phi.T @ alpha_star[:, d]
+                            for d in range(h_dim)
+                        ]
+                    )
+                )
+                M_t += det_jac[i] * omega * (m_h[2, 2])
+        return M_t
+
+    st = time.time()
+    M_t_strain_vec = [
+        integrate_M_t_strain(i, fe_space) for i in range(len(fe_space.discrete_spaces['s'].bc_elements))
+    ]
+    M_t_curvature_vec = [
+        integrate_M_t_curvature(i, fe_space) for i in range(len(fe_space.discrete_spaces['m'].bc_elements))
+    ]
+    et = time.time()
+    elapsed_time = et - st
+    print("Integrate M_t time:", elapsed_time, "seconds")
+    M_t_strain = functools.reduce(lambda x, y: x + y, M_t_strain_vec)
+    M_t_curvature = functools.reduce(lambda x, y: x + y, M_t_curvature_vec)
 
     if write_vtk_q:
         st = time.time()
@@ -679,14 +648,14 @@ def create_mesh(dimension, write_vtk_q=False):
 
 
 def main():
-    k_order = 2
+    k_order = 1
     write_geometry_vtk = True
     write_vtk = True
     mesh_file = "gmsh_files/cylinder.msh"
     gmesh = create_mesh_from_file(mesh_file, 3, write_geometry_vtk)
 
-    l_cvalues = np.logspace(-5, 5, num=20, endpoint=True)
-    l_cvalues = [1.0e-5]
+    l_cvalues = np.logspace(-4, 4, num=20, endpoint=True)
+    # l_cvalues = [1.0e-4]
     m_t_values = []
     for L_c in l_cvalues:
         # m_t_val = torsion_h1_cosserat_elasticity(L_c, k_order, gmesh, write_vtk)
