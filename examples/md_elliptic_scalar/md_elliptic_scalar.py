@@ -363,17 +363,17 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     for co_dim in [0, 1]:
         print("Computing L2-error for co-dimension: ", co_dim)
         st = time.time()
-        q_l2_error, p_l2_error = l2_error(
+        u_l2_error, p_l2_error = l2_error(
             gmesh.dimension - co_dim,
             md_produc_space[co_dim],
             exact_functions[co_dim],
             alpha,
         )
-        errors_by_co_dim.append((q_l2_error, p_l2_error))
+        errors_by_co_dim.append((u_l2_error, p_l2_error))
         et = time.time()
         elapsed_time = et - st
         print("L2-error time:", elapsed_time, "seconds")
-        print("L2-error in q: ", q_l2_error)
+        print("L2-error in u: ", u_l2_error)
         print("L2-error in p: ", p_l2_error)
         print("")
 
@@ -428,16 +428,16 @@ def main():
         x = np.array(h_sizes)
         y = np.hstack(
             (
-                errors_data[:, 0:2:2, 0], # q_c0
+                errors_data[:, 0:2:2, 0], # u_c0
                 errors_data[:, 0:2:2, 1], # p_c0
-                errors_data[:, 1:2:2, 0], # q_c1
+                errors_data[:, 1:2:2, 0], # u_c1
                 errors_data[:, 1:2:2, 1], # p_c1
             )
         )
         lineObjects = plt.loglog(x, y)
         plt.legend(
             iter(lineObjects),
-            ("q_c0", "p_c0", "q_c1", "p_c1"),
+            ("u_c0", "p_c0", "u_c1", "p_c1"),
         )
         plt.title("")
         plt.xlabel("Element size")

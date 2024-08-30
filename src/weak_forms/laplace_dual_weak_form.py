@@ -39,7 +39,7 @@ class LaplaceDualWeakForm(WeakForm):
         n_dof = n_q_dof + n_p_dof
 
         idx_dof = {
-            "q": slice(0, n_q_dof),
+            "u": slice(0, n_q_dof),
             "p": slice(n_q_dof, n_q_dof + n_p_dof),
         }
 
@@ -67,11 +67,11 @@ class LaplaceDualWeakForm(WeakForm):
                     [np.trace(grad_psi_h, axis1=0, axis2=2) / det_jac[i]]
                 )
 
-                u_h = alpha[:, idx_dof["q"]] @ psi_h
+                u_h = alpha[:, idx_dof["u"]] @ psi_h
                 u_h *= 1.0 / f_kappa(xv[0], xv[1], xv[2])
 
                 p_h = alpha[:, idx_dof["p"]] @ w_h
-                div_uh = alpha[:, idx_dof["q"]] @ div_psi_h.T
+                div_uh = alpha[:, idx_dof["u"]] @ div_psi_h.T
 
                 equ_1_integrand = (u_h @ psi_h.T) - (p_h @ div_psi_h)
                 equ_2_integrand = div_uh @ w_h.T
