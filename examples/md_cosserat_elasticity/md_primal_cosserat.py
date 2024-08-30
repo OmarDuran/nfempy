@@ -15,69 +15,64 @@ from mesh.discrete_domain import DiscreteDomain
 from mesh.mesh_operations import cut_conformity_along_c1_lines
 
 # simple weak form
-from weak_forms.laplace_dual_weak_form import LaplaceDualWeakForm as MixedWeakForm
-from weak_forms.laplace_dual_weak_form import (
-    LaplaceDualWeakFormBCDirichlet as WeakFormBCDir,
-)
-from CouplingWeakForm import CouplingWeakForm
+from weak_forms.lce_primal_weak_form import LCEPrimalWeakForm as PrimalWeakForm
+from weak_forms.lce_primal_weak_form import LCEPrimalWeakFormBCDirichlet as WeakFormBCDir
+from ContactWeakForm import ContactWeakForm
 import matplotlib.pyplot as plt
 
 
-def method_definition(dimension, k_order, flux_name, potential_name):
+def method_definition(dimension, k_order, displacement_name, rotation_name):
 
-    # lower order convention
-    if dimension in [1, 2, 3]:
-        method_1 = {
-            flux_name: ("RT", k_order + 1),
-            potential_name: ("Lagrange", k_order),
-        }
-    else:
-        method_1 = {
-            potential_name: ("Lagrange", k_order),
-        }
+    method_1 = {
+        displacement_name: ("Lagrange", k_order),
+        rotation_name: ("Lagrange", k_order),
+    }
 
     methods = [method_1]
-    method_names = ["mixed_rt"]
+    method_names = ["primal"]
     return zip(method_names, methods)
 
 
-def create_product_space(dimension, method, gmesh, flux_name, potential_name):
+def create_product_space(dimension, method, gmesh, displacement_name, rotation_name):
 
     # FESpace: data
-    mp_k_order = method[1][flux_name][1]
-    p_k_order = method[1][potential_name][1]
+    u_k_order = method[1][displacement_name][1]
+    r_k_order = method[1][rotation_name][1]
 
-    mp_components = 1
-    p_components = 1
+    u_components = 2
+    r_components = 1
 
-    mp_family = method[1][flux_name][0]
-    p_family = method[1][potential_name][0]
+    u_family = method[1][displacement_name][0]
+    p_family = method[1][rotation_name][0]
 
     discrete_spaces_data = {
-        flux_name: (dimension, mp_components, mp_family, mp_k_order, gmesh),
-        potential_name: (dimension, p_components, p_family, p_k_order, gmesh),
+        displacement_name: (dimension, u_components, u_family, u_k_order, gmesh),
+        rotation_name: (dimension, r_components, p_family, r_k_order, gmesh),
     }
 
-    mp_disc_Q = False
-    p_disc_Q = True
+    u_disc_Q = False
+    p_disc_Q = False
     discrete_spaces_disc = {
-        flux_name: mp_disc_Q,
-        potential_name: p_disc_Q,
+        displacement_name: u_disc_Q,
+        rotation_name: p_disc_Q,
     }
 
     if gmesh.dimension == 2:
-        md_field_physical_tags = [[], [10], [1]]
-        mp_field_bc_physical_tags = [[], [2, 4], [2, 3, 4, 5, 50]]
+        u_field_physical_tags = [[], [50], [1]]
+        r_field_physical_tags = [[], [50], [1]]
+        u_field_bc_physical_tags = [[], [2, 4], [2, 3, 4, 5]]
+        r_field_bc_physical_tags = [[], [2, 4], [2, 3, 4, 5]]
     else:
         raise ValueError("Case not available.")
 
     physical_tags = {
-        flux_name: md_field_physical_tags[dimension],
-        potential_name: md_field_physical_tags[dimension],
+        displacement_name: u_field_physical_tags[dimension],
+        rotation_name: r_field_physical_tags[dimension],
     }
 
     b_physical_tags = {
-        flux_name: mp_field_bc_physical_tags[dimension],
+        displacement_name: u_field_bc_physical_tags[dimension],
+        rotation_name: r_field_bc_physical_tags[dimension],
     }
 
     space = ProductSpace(discrete_spaces_data)
@@ -120,12 +115,22 @@ def generate_conformal_mesh(md_domain, h_val, n_ref, fracture_physical_tags):
 def md_two_fields_approximation(config, write_vtk_q=False):
 
     k_order = config["k_order"]
-    flux_name, potential_name = config["var_names"]
+    displacement_name, rotation_name = config["var_names"]
 
-    m_c = config["m_c"]
+    m_lambda = config["m_lambda"]
+    m_mu = config["m_mu"]
     m_kappa = config["m_kappa"]
-    m_kappa_normal = config["m_kappa_normal"]
-    m_delta = config["m_delta"]
+    m_gamma = config["m_gamma"]
+
+    m_lambda_c1 = config["m_lambda_c1"]
+    m_mu_c1 = config["m_mu_c1"]
+    m_kappa_c1 = config["m_kappa_c1"]
+    m_gamma_c1 = config["m_gamma_c1"]
+
+    m_cu_normal = config["m_cu_normal"]
+    m_cu_tangential = config["m_cu_tangential"]
+    m_cr_normal = config["m_cr_normal"]
+    m_cr_tangential = config["m_cr_tangential"]
 
     domain_physical_tags = {"area": 1, "bc_0": 2, "bc_1": 3, "bc_2": 4, "bc_3": 5}
     box_points = np.array(
@@ -157,36 +162,54 @@ def md_two_fields_approximation(config, write_vtk_q=False):
 
     md_produc_space = []
     for d in [2, 1]:
-        methods = method_definition(d, k_order, flux_name, potential_name)
+        methods = method_definition(d, k_order, displacement_name, rotation_name)
         for method in methods:
-            fe_space = create_product_space(d, method, gmesh, flux_name, potential_name)
+            fe_space = create_product_space(d, method, gmesh, displacement_name, rotation_name)
             md_produc_space.append(fe_space)
-
-    exact_functions_c0 = get_exact_functions_by_co_dimension(
-        0, flux_name, potential_name, m_c, m_kappa, m_delta
-    )
-    exact_functions_c1 = get_exact_functions_by_co_dimension(
-        1, flux_name, potential_name, m_c, m_kappa, m_delta
-    )
-    exact_functions = [exact_functions_c0, exact_functions_c1]
-
-    rhs_c0 = get_rhs_by_co_dimension(0, "rhs", m_c, m_kappa, m_delta)
-    rhs_c1 = get_rhs_by_co_dimension(1, "rhs", m_c, m_kappa, m_delta)
 
     print("Surface: Number of dof: ", md_produc_space[0].n_dof)
     print("Line: Number of dof: ", md_produc_space[1].n_dof)
 
+    m_lambda = config["m_lambda"]
+    m_mu = config["m_mu"]
+    m_kappa = config["m_kappa"]
+    m_gamma = config["m_gamma"]
+
+    m_lambda_c1 = config["m_lambda_c1"]
+    m_mu_c1 = config["m_mu_c1"]
+    m_kappa_c1 = config["m_kappa_c1"]
+    m_gamma_c1 = config["m_gamma_c1"]
+
+    def f_lambda_c0(x, y, z):
+        return m_lambda
+    def f_mu_c0(x, y, z):
+        return m_mu
     def f_kappa_c0(x, y, z):
         return m_kappa
+    def f_gamma_c0(x, y, z):
+        return m_gamma
+    def f_rhs_c0(x, y, z):
+        return np.ones_like([x,x,x,x])
 
+    def f_lambda_c1(x, y, z):
+        return m_lambda_c1
+    def f_mu_c1(x, y, z):
+        return m_mu_c1
     def f_kappa_c1(x, y, z):
-        return m_kappa * m_delta
+        return m_kappa_c1
+    def f_gamma_c1(x, y, z):
+        return m_gamma_c1
+    def f_rhs_c1(x, y, z):
+        return np.ones_like([x,x,x,x])
 
-    def f_kappa_normal_c1(x, y, z):
-        return m_kappa_normal
-
-    def f_delta(x, y, z):
-        return m_delta
+    def f_cu_normal(x, y, z):
+        return m_cu_normal
+    def f_cu_tangential(x, y, z):
+        return m_cu_tangential
+    def f_cr_normal(x, y, z):
+        return m_cr_normal
+    def f_cr_tangential(x, y, z):
+        return m_cr_tangential
 
     # primitive assembly
     dof_seq = np.array([0, md_produc_space[0].n_dof, md_produc_space[1].n_dof])
@@ -204,34 +227,62 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     A.createAIJ([n_dof_g, n_dof_g])
 
     m_functions_c0 = {
-        "rhs": rhs_c0["rhs"],
+        "rhs": f_rhs_c0,
+        "lambda": f_lambda_c0,
+        "mu": f_mu_c0,
         "kappa": f_kappa_c0,
+        "gamma": f_gamma_c0,
     }
 
     m_functions_c1 = {
-        "rhs": rhs_c1["rhs"],
+        "rhs": f_rhs_c1,
+        "lambda": f_lambda_c1,
+        "mu": f_mu_c1,
         "kappa": f_kappa_c1,
+        "gamma": f_gamma_c1,
     }
 
-    m_functions_coupling = {
-        "delta": f_delta,
-        "kappa_normal": f_kappa_normal_c1,
+    def uD_c0(x, y, z):
+        return np.zeros_like([x,x])
+    def rD_c0(x, y, z):
+        return np.zeros_like([x,x])
+
+    def uD_c1(x, y, z):
+        return np.zeros_like([x, x])
+    def rD_c1(x, y, z):
+        return np.zeros_like([x, x])
+
+    bc_functions_c0 = {
+        "u": uD_c0,
+        "r": rD_c0,
     }
 
-    weak_form_c0 = MixedWeakForm(md_produc_space[0])
+    bc_functions_c1 = {
+        "u": uD_c1,
+        "r": rD_c1,
+    }
+
+    m_functions_contact = {
+        "cu_normal": f_cu_normal,
+        "cu_tangential": f_cu_tangential,
+        "cr_normal": f_cr_normal,
+        "cr_tangential": f_cr_tangential,
+    }
+
+    weak_form_c0 = PrimalWeakForm(md_produc_space[0])
     weak_form_c0.functions = m_functions_c0
 
-    weak_form_c1 = MixedWeakForm(md_produc_space[1])
+    weak_form_c1 = PrimalWeakForm(md_produc_space[1])
     weak_form_c1.functions = m_functions_c1
 
     bc_weak_form_c0 = WeakFormBCDir(md_produc_space[0])
-    bc_weak_form_c0.functions = exact_functions_c0
+    bc_weak_form_c0.functions = bc_functions_c0
 
     bc_weak_form_c1 = WeakFormBCDir(md_produc_space[1])
-    bc_weak_form_c1.functions = exact_functions_c1
+    bc_weak_form_c1.functions = bc_functions_c1
 
-    int_coupling_weak_form = CouplingWeakForm(md_produc_space)
-    int_coupling_weak_form.functions = m_functions_coupling
+    int_contact_weak_form = ContactWeakForm(md_produc_space)
+    int_contact_weak_form.functions = m_functions_contact
 
     def scatter_form_data(A, i, weak_form):
         # destination indexes
@@ -267,13 +318,13 @@ def md_two_fields_approximation(config, write_vtk_q=False):
         for k in range(nnz):
             A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
-    def scatter_coupling_form_data(A, c0_idx, c1_idx, int_weak_form):
+    def scatter_contact_form_data(A, c0_idx_p, c0_idx_n, int_weak_form):
 
-        dest_c0 = int_weak_form.space[0].bc_destination_indexes(c0_idx, "u")
-        dest_c1 = int_weak_form.space[1].destination_indexes(c1_idx, "p")
-        dest = np.concatenate([dest_c0, dest_c1])
+        dest_p = int_weak_form.space[0].bc_destination_indexes(c0_idx_p)
+        dest_n = int_weak_form.space[0].bc_destination_indexes(c0_idx_n)
+        dest = np.concatenate([dest_p, dest_n])
         alpha_l = alpha[dest]
-        r_el, j_el = int_weak_form.evaluate_form(c0_idx, c1_idx, alpha_l)
+        r_el, j_el = int_weak_form.evaluate_form(c0_idx_p, c0_idx_n, alpha_l)
 
         # contribute rhs
         rg[dest] += r_el
@@ -291,42 +342,39 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     [scatter_form_data(A, i, weak_form_c0) for i in range(n_els_c0)]
     [scatter_form_data(A, i, weak_form_c1) for i in range(n_els_c1)]
 
-    all_b_cell_c0_ids = md_produc_space[0].discrete_spaces["u"].bc_element_ids
+    all_b_cell_c0_ids = md_produc_space[0].discrete_spaces["q"].bc_element_ids
     eb_c0_ids = [
         id
         for id in all_b_cell_c0_ids
         if gmesh.cells[id].material_id != physical_tags["line_clones"]
     ]
     eb_c0_el_idx = [
-        md_produc_space[0].discrete_spaces["u"].id_to_bc_element[id] for id in eb_c0_ids
+        md_produc_space[0].discrete_spaces["q"].id_to_bc_element[id] for id in eb_c0_ids
     ]
     [scatter_bc_form(A, i, bc_weak_form_c0) for i in eb_c0_el_idx]
 
-    n_bc_els_c1 = len(md_produc_space[1].discrete_spaces["u"].bc_elements)
+    n_bc_els_c1 = len(md_produc_space[1].discrete_spaces["q"].bc_elements)
     [scatter_bc_form(A, i, bc_weak_form_c1) for i in range(n_bc_els_c1)]
 
     # Interface weak forms
     for interface in interfaces:
         c1_data = interface["c1"]
         c1_el_idx = [
-            md_produc_space[1].discrete_spaces["u"].id_to_element[cell.id]
+            md_produc_space[1].discrete_spaces["q"].id_to_element[cell.id]
             for cell in c1_data[0]
         ]
         c0_pel_idx = [
-            md_produc_space[0].discrete_spaces["u"].id_to_bc_element[cell.id]
+            md_produc_space[0].discrete_spaces["q"].id_to_bc_element[cell.id]
             for cell in c1_data[1]
         ]
         c0_nel_idx = [
-            md_produc_space[0].discrete_spaces["u"].id_to_bc_element[cell.id]
+            md_produc_space[0].discrete_spaces["q"].id_to_bc_element[cell.id]
             for cell in c1_data[2]
         ]
         for c1_idx, p_c0_idx, n_c0_idx in zip(c1_el_idx, c0_pel_idx, c0_nel_idx):
-            scatter_coupling_form_data(
-                A, p_c0_idx, c1_idx, int_coupling_weak_form
-            )  # positive side
-            scatter_coupling_form_data(
-                A, n_c0_idx, c1_idx, int_coupling_weak_form
-            )  # negative side
+            scatter_contact_form_data(
+                A, p_c0_idx, c1_idx, int_contact_weak_form
+            )  # positive - negative side
 
     A.assemble()
 
@@ -363,17 +411,17 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     for co_dim in [0, 1]:
         print("Computing L2-error for co-dimension: ", co_dim)
         st = time.time()
-        u_l2_error, p_l2_error = l2_error(
+        q_l2_error, p_l2_error = l2_error(
             gmesh.dimension - co_dim,
             md_produc_space[co_dim],
             exact_functions[co_dim],
             alpha,
         )
-        errors_by_co_dim.append((u_l2_error, p_l2_error))
+        errors_by_co_dim.append((q_l2_error, p_l2_error))
         et = time.time()
         elapsed_time = et - st
         print("L2-error time:", elapsed_time, "seconds")
-        print("L2-error in u: ", u_l2_error)
+        print("L2-error in q: ", q_l2_error)
         print("L2-error in p: ", p_l2_error)
         print("")
 
@@ -398,51 +446,62 @@ def md_two_fields_approximation(config, write_vtk_q=False):
 
 
 def main():
-    plot_rates_q = True
+
+    # plot_rates_q = True
     config = {}
     # domain and discrete domain data
     config["lx"] = 1.0
     config["ly"] = 1.0
 
     # Material data
-    config["m_c"] = 1.0
+    config["m_lambda"] = 1.0
+    config["m_mu"] = 1.0
     config["m_kappa"] = 1.0
-    config["m_kappa_normal"] = 1.0
-    config["m_delta"] = 1.0e-3
+    config["m_gamma"] = 1.0
+
+    config["m_lambda_c1"] = 1.0
+    config["m_mu_c1"] = 1.0
+    config["m_kappa_c1"] = 1.0
+    config["m_gamma_c1"] = 1.0
+
+    config["m_cu_normal"] = 1.0
+    config["m_cu_tangential"] = 1.0
+    config["m_cr_normal"] = 1.0
+    config["m_cr_tangential"] = 1.0
 
     # function space data
     config["n_ref"] = 0
     config["k_order"] = 1
-    config["var_names"] = ("u", "p")
+    config["var_names"] = ("u", "t")
 
-    errors_data = []
-    h_sizes = []
-    for h_size in [0.5, 0.25, 0.125, 0.0625, 0.03125]:
+    # errors_data = []
+    # h_sizes = []
+    for h_size in [0.5]:
         config["mesh_size"] = h_size
-        h_sizes.append(h_size)
+        # h_sizes.append(h_size)
         error_data = md_two_fields_approximation(config, True)
-        errors_data.append(np.array(error_data))
-    errors_data = np.array(errors_data)
+        # errors_data.append(np.array(error_data))
+    # errors_data = np.array(errors_data)
 
-    if plot_rates_q:
-        x = np.array(h_sizes)
-        y = np.hstack(
-            (
-                errors_data[:, 0:2:2, 0], # u_c0
-                errors_data[:, 0:2:2, 1], # p_c0
-                errors_data[:, 1:2:2, 0], # u_c1
-                errors_data[:, 1:2:2, 1], # p_c1
-            )
-        )
-        lineObjects = plt.loglog(x, y)
-        plt.legend(
-            iter(lineObjects),
-            ("u_c0", "p_c0", "u_c1", "p_c1"),
-        )
-        plt.title("")
-        plt.xlabel("Element size")
-        plt.ylabel("L2-error")
-        plt.show()
+    # if plot_rates_q:
+    #     x = np.array(h_sizes)
+    #     y = np.hstack(
+    #         (
+    #             errors_data[:, 0:2:2, 0], # q_c0
+    #             errors_data[:, 0:2:2, 1], # p_c0
+    #             errors_data[:, 1:2:2, 0], # q_c1
+    #             errors_data[:, 1:2:2, 1], # p_c1
+    #         )
+    #     )
+    #     lineObjects = plt.loglog(x, y)
+    #     plt.legend(
+    #         iter(lineObjects),
+    #         ("q_c0", "p_c0", "q_c1", "p_c1"),
+    #     )
+    #     plt.title("")
+    #     plt.xlabel("Element size")
+    #     plt.ylabel("L2-error")
+    #     plt.show()
 
 
 if __name__ == "__main__":

@@ -7,42 +7,39 @@ from geometry.compute_normal import normal
 from mesh.topological_queries import find_higher_dimension_neighs
 from weak_forms.weak_from import WeakForm
 
-
 class LaplaceDualWeakForm(WeakForm):
     def evaluate_form(self, element_index, alpha):
         iel = element_index
         if self.space is None or self.functions is None:
             raise ValueError
 
-        # TODO: rename (q) to (u)
-        q_space = self.space.discrete_spaces["q"]
+        u_space = self.space.discrete_spaces["u"]
         p_space = self.space.discrete_spaces["p"]
 
         f_rhs = self.functions["rhs"]
         f_kappa = self.functions["kappa"]
 
-        q_components = q_space.n_comp
+        u_components = u_space.n_comp
         p_components = p_space.n_comp
-        q_data: ElementData = q_space.elements[iel].data
-        p_data: ElementData = p_space.elements[iel].data
+        q_data: ElementData = u_space.elements[iel].data
 
         cell = q_data.cell
         dim = cell.dimension
         points, weights = self.space.quadrature[dim]
-        x, jac, det_jac, inv_jac = q_space.elements[iel].evaluate_mapping(points)
+        x, jac, det_jac, inv_jac = u_space.elements[iel].evaluate_mapping(points)
 
         # basis
-        q_phi_tab = q_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+        u_phi_tab = u_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
         p_phi_tab = p_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
 
-        n_q_phi = q_phi_tab.shape[2]
+        n_u_phi = u_phi_tab.shape[2]
         n_p_phi = p_phi_tab.shape[2]
-        n_q_dof = n_q_phi * q_components
+        n_q_dof = n_u_phi * u_components
         n_p_dof = n_p_phi * p_components
         n_dof = n_q_dof + n_p_dof
 
         idx_dof = {
-            "q": slice(0, n_q_dof),
+            "u": slice(0, n_q_dof),
             "p": slice(n_q_dof, n_q_dof + n_p_dof),
         }
 
@@ -62,22 +59,22 @@ class LaplaceDualWeakForm(WeakForm):
                 xv = x[i]
 
                 # Functions and derivatives at integration point i
-                psi_h = q_phi_tab[0, i, :, 0:dim]
+                psi_h = u_phi_tab[0, i, :, 0:dim]
                 w_h = p_phi_tab[0, i, :, 0:dim]
 
-                grad_psi_h = q_phi_tab[1 : q_phi_tab.shape[0] + 1, i, :, 0:dim]
+                grad_psi_h = u_phi_tab[1 : u_phi_tab.shape[0] + 1, i, :, 0:dim]
                 div_psi_h = np.array(
                     [np.trace(grad_psi_h, axis1=0, axis2=2) / det_jac[i]]
                 )
 
-                q_h = alpha[:, idx_dof["q"]] @ psi_h
-                q_h *= 1.0 / f_kappa(xv[0], xv[1], xv[2])
+                u_h = alpha[:, idx_dof["u"]] @ psi_h
+                u_h *= 1.0 / f_kappa(xv[0], xv[1], xv[2])
 
                 p_h = alpha[:, idx_dof["p"]] @ w_h
-                div_qh = alpha[:, idx_dof["q"]] @ div_psi_h.T
+                div_uh = alpha[:, idx_dof["u"]] @ div_psi_h.T
 
-                equ_1_integrand = (q_h @ psi_h.T) - (p_h @ div_psi_h)
-                equ_2_integrand = div_qh @ w_h.T
+                equ_1_integrand = (u_h @ psi_h.T) - (p_h @ div_psi_h)
+                equ_2_integrand = div_uh @ w_h.T
 
                 multiphysic_integrand = np.zeros((1, n_dof))
                 multiphysic_integrand[:, 0:n_q_dof:1] = equ_1_integrand
@@ -95,21 +92,21 @@ class LaplaceDualWeakFormBCDirichlet(WeakForm):
         iel = element_index
         p_D = self.functions["p"]
 
-        q_space = self.space.discrete_spaces["q"]
-        q_components = q_space.n_comp
-        q_data: ElementData = q_space.bc_elements[iel].data
+        u_space = self.space.discrete_spaces["u"]
+        u_components = u_space.n_comp
+        u_data: ElementData = u_space.bc_elements[iel].data
 
-        cell = q_data.cell
+        cell = u_data.cell
         dim = cell.dimension
         points, weights = self.space.bc_quadrature[dim]
-        x, jac, det_jac, inv_jac = q_space.bc_elements[iel].evaluate_mapping(points)
+        x, jac, det_jac, inv_jac = u_space.bc_elements[iel].evaluate_mapping(points)
 
-        q_phi_tab = q_space.bc_elements[iel].evaluate_basis(
+        q_phi_tab = u_space.bc_elements[iel].evaluate_basis(
             points, jac, det_jac, inv_jac
         )
 
         n_q_phi = q_phi_tab.shape[2]
-        n_q_dof = n_q_phi * q_components
+        n_q_dof = n_q_phi * u_components
 
         n_dof = n_q_dof
         js = (n_dof, n_dof)
@@ -118,16 +115,16 @@ class LaplaceDualWeakFormBCDirichlet(WeakForm):
         r_el = np.zeros(rs)
 
         # find high-dimension neigh
-        neigh_list = find_higher_dimension_neighs(cell, q_space.dof_map.mesh_topology)
+        neigh_list = find_higher_dimension_neighs(cell, u_space.dof_map.mesh_topology)
         neigh_check_q = len(neigh_list) > 0
         assert neigh_check_q
         neigh_cell_id = neigh_list[0][1]
-        neigh_cell_index = q_space.id_to_element[neigh_cell_id]
-        neigh_element = q_space.elements[neigh_cell_index]
+        neigh_cell_index = u_space.id_to_element[neigh_cell_id]
+        neigh_element = u_space.elements[neigh_cell_index]
         neigh_cell = neigh_element.data.cell
 
         # compute trace space
-        mapped_points = transform_lower_to_higher(points, q_data, neigh_element.data)
+        mapped_points = transform_lower_to_higher(points, u_data, neigh_element.data)
         _, jac_c0, det_jac_c0, inv_jac_c0 = neigh_element.evaluate_mapping(
             mapped_points
         )
@@ -138,8 +135,8 @@ class LaplaceDualWeakFormBCDirichlet(WeakForm):
         dof_n_index = neigh_element.data.dof.entity_dofs[cell.dimension][facet_index]
 
         # compute normal
-        n = normal(q_data.mesh, neigh_cell, cell)
-        for c in range(q_components):
+        n = normal(u_data.mesh, neigh_cell, cell)
+        for c in range(u_components):
             b = c
             e = b + n_q_dof
 
@@ -153,6 +150,6 @@ class LaplaceDualWeakFormBCDirichlet(WeakForm):
                     phi = q_tr_phi_tab[0, i, dof_n_index, 0:dim] @ n[0:dim]
                 res_block_q += det_jac[i] * omega * p_D_v[c] * phi
 
-            r_el[b:e:q_components] += res_block_q
+            r_el[b:e:u_components] += res_block_q
 
         return r_el, j_el
