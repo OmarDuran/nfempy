@@ -4,12 +4,6 @@ import numpy as np
 def f_porosity(x, y, z, m_par, dim):
     if dim == 1:
         val = np.array(x**2)
-    elif dim == 2:
-        gamma = m_par
-        mask = np.logical_or(x <= -3 / 4, y <= -3 / 4)
-        val = np.empty_like(x)
-        val[~mask] = ((0.75 + x[~mask]) ** gamma) * ((0.75 + y[~mask]) ** (2 * gamma))
-        val[mask] = np.zeros_like(x[mask])
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")
     return val
@@ -262,6 +256,36 @@ def f_rhs(x, y, z, m_par, dim):
         raise ValueError("Only 1D and 2D settings are supported by this script.")
     return val
 
+def grad_p_exact(x, y, z, m_par, dim):
+    if dim == 1:
+        beta = m_par
+        return np.where(
+            x < 0.0,
+            np.array([x * 0.0]),
+            np.array(
+                [
+                    (((x ** (np.sqrt(13) / 2.0)) - (x ** (1.5 + beta))) * beta) / (
+                            (x ** 2.5) * (-1 + beta * (3 + beta))),
+                ]
+            ),
+        )
+    else:
+        raise ValueError("Only 1D and 2D settings are supported by this script.")
+
+def laplacian_p_exact(x, y, z, m_par, dim):
+    if dim == 1:
+        beta = m_par
+        return np.where(
+            x < 0.0,
+            np.array([x * 0.0]),
+            np.array(
+                [
+                    (((-5 + np.sqrt(13))*(x**(np.sqrt(13)/2.0)) - 2*(x**(1.5 + beta))*(-1 + beta))*beta)/ (2.*(x**3.5)*(-1 + beta*(3 + beta))),
+                ]
+            ),
+        )
+    else:
+        raise ValueError("Only 1D and 2D settings are supported by this script.")
 
 def test_degeneracy(m_par, m_mu, dim):
     x = np.random.uniform(-1.0, +1.0, (10, 3))
@@ -278,6 +302,10 @@ def test_degeneracy(m_par, m_mu, dim):
         v = v_exact(x[:, 0], x[:, 1], x[:, 2], m_par, m_mu, dim)
         q = q_exact(x[:, 0], x[:, 1], x[:, 2], m_par, dim)
         rhs = f_rhs(x[:, 0], x[:, 1], x[:, 2], m_par, dim)
+
+        # exact functions for md cases
+        grad_p = grad_p_exact(x[:, 0], x[:, 1], x[:, 2], m_par, dim)
+        laplacian_p = laplacian_p_exact(x[:, 0], x[:, 1], x[:, 2], m_par, dim)
     except Exception:
         return False
 
