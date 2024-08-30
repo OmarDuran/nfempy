@@ -269,7 +269,7 @@ def md_two_fields_approximation(config, write_vtk_q=False):
 
     def scatter_coupling_form_data(A, c0_idx, c1_idx, int_weak_form):
 
-        dest_c0 = int_weak_form.space[0].bc_destination_indexes(c0_idx, "q")
+        dest_c0 = int_weak_form.space[0].bc_destination_indexes(c0_idx, "u")
         dest_c1 = int_weak_form.space[1].destination_indexes(c1_idx, "p")
         dest = np.concatenate([dest_c0, dest_c1])
         alpha_l = alpha[dest]
@@ -286,38 +286,38 @@ def md_two_fields_approximation(config, write_vtk_q=False):
         for k in range(nnz):
             A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
-    n_els_c0 = len(md_produc_space[0].discrete_spaces["q"].elements)
-    n_els_c1 = len(md_produc_space[1].discrete_spaces["q"].elements)
+    n_els_c0 = len(md_produc_space[0].discrete_spaces["u"].elements)
+    n_els_c1 = len(md_produc_space[1].discrete_spaces["u"].elements)
     [scatter_form_data(A, i, weak_form_c0) for i in range(n_els_c0)]
     [scatter_form_data(A, i, weak_form_c1) for i in range(n_els_c1)]
 
-    all_b_cell_c0_ids = md_produc_space[0].discrete_spaces["q"].bc_element_ids
+    all_b_cell_c0_ids = md_produc_space[0].discrete_spaces["u"].bc_element_ids
     eb_c0_ids = [
         id
         for id in all_b_cell_c0_ids
         if gmesh.cells[id].material_id != physical_tags["line_clones"]
     ]
     eb_c0_el_idx = [
-        md_produc_space[0].discrete_spaces["q"].id_to_bc_element[id] for id in eb_c0_ids
+        md_produc_space[0].discrete_spaces["u"].id_to_bc_element[id] for id in eb_c0_ids
     ]
     [scatter_bc_form(A, i, bc_weak_form_c0) for i in eb_c0_el_idx]
 
-    n_bc_els_c1 = len(md_produc_space[1].discrete_spaces["q"].bc_elements)
+    n_bc_els_c1 = len(md_produc_space[1].discrete_spaces["u"].bc_elements)
     [scatter_bc_form(A, i, bc_weak_form_c1) for i in range(n_bc_els_c1)]
 
     # Interface weak forms
     for interface in interfaces:
         c1_data = interface["c1"]
         c1_el_idx = [
-            md_produc_space[1].discrete_spaces["q"].id_to_element[cell.id]
+            md_produc_space[1].discrete_spaces["u"].id_to_element[cell.id]
             for cell in c1_data[0]
         ]
         c0_pel_idx = [
-            md_produc_space[0].discrete_spaces["q"].id_to_bc_element[cell.id]
+            md_produc_space[0].discrete_spaces["u"].id_to_bc_element[cell.id]
             for cell in c1_data[1]
         ]
         c0_nel_idx = [
-            md_produc_space[0].discrete_spaces["q"].id_to_bc_element[cell.id]
+            md_produc_space[0].discrete_spaces["u"].id_to_bc_element[cell.id]
             for cell in c1_data[2]
         ]
         for c1_idx, p_c0_idx, n_c0_idx in zip(c1_el_idx, c0_pel_idx, c0_nel_idx):
@@ -413,7 +413,7 @@ def main():
     # function space data
     config["n_ref"] = 0
     config["k_order"] = 1
-    config["var_names"] = ("q", "p")
+    config["var_names"] = ("u", "p")
 
     errors_data = []
     h_sizes = []
