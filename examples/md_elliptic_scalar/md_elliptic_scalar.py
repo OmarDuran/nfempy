@@ -5,11 +5,12 @@ import time
 
 from exact_functions import get_exact_functions_by_co_dimension
 from exact_functions import get_rhs_by_co_dimension
-from postprocess.l2_error_post_processor import l2_error
+from postprocess.projectors import l2_projector
+from postprocess.l2_error_post_processor import l2_error, l2_error_projected
 from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
 from spaces.product_space import ProductSpace
-from spaces.md_product_space import MDProductSpace
 from mesh.mesh import Mesh
+from mesh.mesh_metrics import mesh_size
 from topology.domain_market import create_md_box_2D
 from mesh.discrete_domain import DiscreteDomain
 from mesh.mesh_operations import cut_conformity_along_c1_lines
@@ -148,6 +149,14 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     gmesh = generate_conformal_mesh(
         md_domain, config["mesh_size"], config["n_ref"], fracture_physical_tags
     )
+
+    # compute mesh sizes per codimension
+    h_sizes = []
+    physical_tags = [1, 10] # 1 for triangles and 10 for lines
+    for co_dim in [0, 1]:
+        dim = gmesh.dimension - co_dim
+        _, _, h_max = mesh_size(gmesh, dim=dim, physical_tag=physical_tags[co_dim])
+        h_sizes.append(h_max)
 
     physical_tags = fracture_physical_tags
     physical_tags["line_clones"] = 50
@@ -361,6 +370,7 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     # L2 error for mixed-dimensional solution
     errors_by_co_dim = []
     for co_dim in [0, 1]:
+        dim = gmesh.dimension - co_dim
         print("Computing L2-error for co-dimension: ", co_dim)
         st = time.time()
         u_l2_error, p_l2_error = l2_error(
@@ -369,12 +379,19 @@ def md_two_fields_approximation(config, write_vtk_q=False):
             exact_functions[co_dim],
             alpha,
         )
-        errors_by_co_dim.append((u_l2_error, p_l2_error))
+        dof_shift = md_produc_space[co_dim].dof_shift
+        n_dof = md_produc_space[co_dim].n_dof
+        alpha_proj = l2_projector(md_produc_space[co_dim], exact_functions[co_dim], -dof_shift)
+        alpha_e = alpha[0+dof_shift:n_dof+dof_shift:1] - alpha_proj
+        p_proj_l2_error = l2_error_projected(dim, md_produc_space[co_dim], alpha_e, ["u"], -dof_shift)[0]
+
+        errors_by_co_dim.append((u_l2_error, p_l2_error, p_proj_l2_error))
         et = time.time()
         elapsed_time = et - st
         print("L2-error time:", elapsed_time, "seconds")
         print("L2-error in u: ", u_l2_error)
         print("L2-error in p: ", p_l2_error)
+        print("L2-error in p projected: ", p_proj_l2_error)
         print("")
 
     for co_dim in [0, 1]:
@@ -394,7 +411,11 @@ def md_two_fields_approximation(config, write_vtk_q=False):
             print("Post-processing time:", elapsed_time, "seconds")
             print("")
 
-    return errors_by_co_dim
+    h_size_and_error_data_by_co_dim = {
+        0: (h_sizes[0], errors_by_co_dim[0]),
+        1: (h_sizes[1], errors_by_co_dim[1]),
+    }
+    return h_size_and_error_data_by_co_dim
 
 
 def main():
@@ -417,32 +438,36 @@ def main():
 
     errors_data = []
     h_sizes = []
-    for h_size in [0.5, 0.25, 0.125, 0.0625, 0.03125]:
+    # for h_size in [0.5, 0.25, 0.125, 0.0625, 0.03125]:
+    for h_size in [0.5, 0.25, 0.125]:
         config["mesh_size"] = h_size
-        h_sizes.append(h_size)
-        error_data = md_two_fields_approximation(config, True)
-        errors_data.append(np.array(error_data))
+        h_size_and_error_data_by_co_dim = md_two_fields_approximation(config, True)
+        h_sizes.append(np.array([h_size_and_error_data_by_co_dim[0][0], h_size_and_error_data_by_co_dim[1][0]]))
+        errors_chunk = np.array([np.array(h_size_and_error_data_by_co_dim[0][1]),
+                                      np.array(h_size_and_error_data_by_co_dim[1][1])])
+        errors_data.append(errors_chunk)
+    h_sizes = np.array(h_sizes)
     errors_data = np.array(errors_data)
 
     if plot_rates_q:
-        x = np.array(h_sizes)
-        y = np.hstack(
-            (
-                errors_data[:, 0:2:2, 0], # u_c0
-                errors_data[:, 0:2:2, 1], # p_c0
-                errors_data[:, 1:2:2, 0], # u_c1
-                errors_data[:, 1:2:2, 1], # p_c1
+        for co_dim in [0, 1]:
+            x = np.array(h_sizes[:, co_dim])
+            y = np.hstack(
+                (
+                    errors_data[:, 0:2:2, 0], # u
+                    errors_data[:, 0:2:2, 1], # p
+                    errors_data[:, 1:2:2, 0], # p_proj
+                )
             )
-        )
-        lineObjects = plt.loglog(x, y)
-        plt.legend(
-            iter(lineObjects),
-            ("u_c0", "p_c0", "u_c1", "p_c1"),
-        )
-        plt.title("")
-        plt.xlabel("Element size")
-        plt.ylabel("L2-error")
-        plt.show()
+            lineObjects = plt.loglog(x, y)
+            plt.legend(
+                iter(lineObjects),
+                ("u", "p", "p_projected"),
+            )
+            plt.title("Omega with codimension: " + str(co_dim))
+            plt.xlabel("Element size")
+            plt.ylabel("L2-error")
+            plt.show()
 
 
 if __name__ == "__main__":
