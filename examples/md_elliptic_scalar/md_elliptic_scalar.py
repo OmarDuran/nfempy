@@ -88,7 +88,7 @@ def create_product_space(dimension, method, gmesh, flux_name, potential_name):
 
 
 def fracture_disjoint_set():
-    fracture_0 = np.array([[0.5, 0.0, 0.0], [0.5, 1.0, 0.0]])
+    fracture_0 = np.array([[0.0, 0.5, 0.0], [1.0, 0.5, 0.0]])
     fractures = [fracture_0]
     return np.array(fractures)
 
@@ -123,7 +123,8 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     k_order = config["k_order"]
     flux_name, potential_name = config["var_names"]
 
-    m_c = config["m_c"]
+    m_c1 = config["m_c1"]
+    m_c2 = config["m_c2"]
     m_kappa = config["m_kappa"]
     m_kappa_normal = config["m_kappa_normal"]
     m_delta = config["m_delta"]
@@ -172,15 +173,15 @@ def md_two_fields_approximation(config, write_vtk_q=False):
             md_produc_space.append(fe_space)
 
     exact_functions_c0 = get_exact_functions_by_co_dimension(
-        0, flux_name, potential_name, m_c, m_kappa, m_delta
+        0, flux_name, potential_name, m_c1, m_c2, m_kappa, m_delta
     )
     exact_functions_c1 = get_exact_functions_by_co_dimension(
-        1, flux_name, potential_name, m_c, m_kappa, m_delta
+        1, flux_name, potential_name, m_c1, m_c2, m_kappa, m_delta
     )
     exact_functions = [exact_functions_c0, exact_functions_c1]
 
-    rhs_c0 = get_rhs_by_co_dimension(0, "rhs", m_c, m_kappa, m_delta)
-    rhs_c1 = get_rhs_by_co_dimension(1, "rhs", m_c, m_kappa, m_delta)
+    rhs_c0 = get_rhs_by_co_dimension(0, "rhs", m_c1, m_c2, m_kappa, m_delta)
+    rhs_c1 = get_rhs_by_co_dimension(1, "rhs", m_c1, m_c2, m_kappa, m_delta)
 
     print("Surface: Number of dof: ", md_produc_space[0].n_dof)
     print("Line: Number of dof: ", md_produc_space[1].n_dof)
@@ -494,7 +495,8 @@ def main():
     config["ly"] = 1.0
 
     # Material data
-    config["m_c"] = 1.0
+    config["m_c1"] = 1.0
+    config["m_c2"] = 10.0
     config["m_kappa"] = 1.0
     config["m_kappa_normal"] = 1.0
     config["m_delta"] = 1.0e-3
@@ -502,7 +504,8 @@ def main():
     # function space data
     config["n_ref"] = 0
     config["k_order"] = 0
-    config['mesh_sizes'] = [0.5, 0.25, 0.125, 0.0625, 0.03125]
+    # config['mesh_sizes'] = [0.5, 0.25, 0.125, 0.0625, 0.03125]
+    config['mesh_sizes'] = [0.5, 0.25, 0.125, 0.0625]
 
     # output data
     config["folder_name"] = "output"
