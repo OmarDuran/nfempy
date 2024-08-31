@@ -152,7 +152,7 @@ def md_two_fields_approximation(config, write_vtk_q=False):
 
     # compute mesh sizes per codimension
     h_sizes = []
-    physical_tags = [1, 10] # 1 for triangles and 10 for lines
+    physical_tags = [1, 10] # 1 for triangles (Rock) and 10 for lines (Fractures)
     for co_dim in [0, 1]:
         dim = gmesh.dimension - co_dim
         _, _, h_max = mesh_size(gmesh, dim=dim, physical_tag=physical_tags[co_dim])
@@ -360,6 +360,7 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     jac_sp = sp.csr_matrix((av, aj, ai))
     alpha = sp.linalg.spsolve(jac_sp, -rg)
 
+    # Some issue with PETSC solver
     # ksp.solve(b, x)
     # alpha = x.array
 
@@ -379,10 +380,14 @@ def md_two_fields_approximation(config, write_vtk_q=False):
             exact_functions[co_dim],
             alpha,
         )
+
+        # l2_error for projected pressure
         dof_shift = md_produc_space[co_dim].dof_shift
         n_dof = md_produc_space[co_dim].n_dof
+        # compute projection on co-dimension co_dim
         alpha_proj = l2_projector(md_produc_space[co_dim], exact_functions[co_dim], -dof_shift)
         alpha_e = alpha[0+dof_shift:n_dof+dof_shift:1] - alpha_proj
+        # compute l2_error of projected exact solution on co-dimension co_dim
         p_proj_l2_error = l2_error_projected(dim, md_produc_space[co_dim], alpha_e, ["u"], -dof_shift)[0]
 
         errors_by_co_dim.append((u_l2_error, p_l2_error, p_proj_l2_error))
@@ -417,9 +422,72 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     }
     return h_size_and_error_data_by_co_dim
 
+def compose_case_name(method, dimension, material, folder_name=None):
+    if folder_name is None:
+        case_name = (
+            method[0]
+            + "_"
+            + str(dimension)
+            + "d_"
+            + "material_parameter_"
+            + str(material["m_par"])
+            + "_"
+        )
+    else:
+        import os
+        if not os.path.exists(folder_name):
+            os.makedirs(folder_name)
+        case_name = (
+            folder_name
+            + "/"
+            + method[0]
+            + "_"
+            + str(dimension)
+            + "d_"
+            + "material_parameter_"
+            + str(material["m_par"])
+            + "_"
+        )
+    return case_name
+
+def compute_approximations(config):
+
+    # for a given k_order ...
+
+    # Variable naming implemented in weakform
+    config["var_names"] = ("u", "p")
+
+    save_plot_rates_q = config['save_plot_rates_q']
+    errors_data = []
+    h_sizes = []
+    for h_size in config['mesh_sizes']:
+        config["mesh_size"] = h_size
+        h_size_and_error_data_by_co_dim = md_two_fields_approximation(config, True)
+        h_sizes.append(np.array([h_size_and_error_data_by_co_dim[0][0],
+                                 h_size_and_error_data_by_co_dim[1][0]]))
+        errors_chunk = np.array([np.array(h_size_and_error_data_by_co_dim[0][1]),
+                                 np.array(h_size_and_error_data_by_co_dim[1][1])])
+        errors_data.append(errors_chunk)
+    h_sizes = np.array(h_sizes)
+    errors_data = np.array(errors_data)
+
+    if save_plot_rates_q:
+        for co_dim in [0, 1]:
+            x = np.array(h_sizes[:, co_dim])
+            y = errors_data[:, co_dim]  # u, p, p_proj
+            lineObjects = plt.loglog(x, y)
+            plt.legend(
+                iter(lineObjects),
+                ("u", "p", "p_projected"),
+            )
+            plt.title("Errors on omega with co-dimension: " + str(co_dim))
+            plt.xlabel("Element size")
+            plt.ylabel("L2-error")
+            plt.savefig('errors_co_dim_' + str(co_dim) + '.png')
+            plt.clf()
 
 def main():
-    plot_rates_q = True
+
     config = {}
     # domain and discrete domain data
     config["lx"] = 1.0
@@ -434,34 +502,13 @@ def main():
     # function space data
     config["n_ref"] = 0
     config["k_order"] = 0
-    config["var_names"] = ("u", "p")
+    config['mesh_sizes'] = [0.5, 0.25, 0.125, 0.0625, 0.03125]
 
-    errors_data = []
-    h_sizes = []
-    for h_size in [0.5, 0.25, 0.125, 0.0625, 0.03125]:
-        config["mesh_size"] = h_size
-        h_size_and_error_data_by_co_dim = md_two_fields_approximation(config, True)
-        h_sizes.append(np.array([h_size_and_error_data_by_co_dim[0][0], h_size_and_error_data_by_co_dim[1][0]]))
-        errors_chunk = np.array([np.array(h_size_and_error_data_by_co_dim[0][1]),
-                                      np.array(h_size_and_error_data_by_co_dim[1][1])])
-        errors_data.append(errors_chunk)
-    h_sizes = np.array(h_sizes)
-    errors_data = np.array(errors_data)
+    # output data
+    config["folder_name"] = "output"
+    config["save_plot_rates_q"] = True
 
-    if plot_rates_q:
-        for co_dim in [0, 1]:
-            x = np.array(h_sizes[:, co_dim])
-            y = errors_data[:,co_dim] # u, p, p_proj
-            lineObjects = plt.loglog(x, y)
-            plt.legend(
-                iter(lineObjects),
-                ("u", "p", "p_projected"),
-            )
-            plt.title("Errors on omega with co-dimension: " + str(co_dim))
-            plt.xlabel("Element size")
-            plt.ylabel("L2-error")
-            plt.show()
-            plt.clf()
+    compute_approximations(config)
 
 
 if __name__ == "__main__":
