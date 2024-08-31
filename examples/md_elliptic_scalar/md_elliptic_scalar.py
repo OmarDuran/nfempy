@@ -438,8 +438,7 @@ def main():
 
     errors_data = []
     h_sizes = []
-    # for h_size in [0.5, 0.25, 0.125, 0.0625, 0.03125]:
-    for h_size in [0.5, 0.25, 0.125]:
+    for h_size in [0.5, 0.25, 0.125, 0.0625, 0.03125]:
         config["mesh_size"] = h_size
         h_size_and_error_data_by_co_dim = md_two_fields_approximation(config, True)
         h_sizes.append(np.array([h_size_and_error_data_by_co_dim[0][0], h_size_and_error_data_by_co_dim[1][0]]))
@@ -452,22 +451,17 @@ def main():
     if plot_rates_q:
         for co_dim in [0, 1]:
             x = np.array(h_sizes[:, co_dim])
-            y = np.hstack(
-                (
-                    errors_data[:, 0:2:2, 0], # u
-                    errors_data[:, 0:2:2, 1], # p
-                    errors_data[:, 1:2:2, 0], # p_proj
-                )
-            )
+            y = errors_data[:,co_dim] # u, p, p_proj
             lineObjects = plt.loglog(x, y)
             plt.legend(
                 iter(lineObjects),
                 ("u", "p", "p_projected"),
             )
-            plt.title("Omega with codimension: " + str(co_dim))
+            plt.title("Errors on omega with co-dimension: " + str(co_dim))
             plt.xlabel("Element size")
             plt.ylabel("L2-error")
             plt.show()
+            plt.clf()
 
 
 if __name__ == "__main__":
