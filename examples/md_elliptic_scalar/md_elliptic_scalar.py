@@ -412,7 +412,7 @@ def main():
 
     # function space data
     config["n_ref"] = 0
-    config["k_order"] = 1
+    config["k_order"] = 0
     config["var_names"] = ("u", "p")
 
     errors_data = []
