@@ -18,7 +18,7 @@ class DiscreteSpace:
     ):
         self.dimension = dimension
         self.n_comp = n_components
-        self.family = family_by_name(family)
+        self.generator_family = family_by_name(family)
         self.element_type = None
         self.bc_element_type = None
         self.k_order = k_order
@@ -34,6 +34,19 @@ class DiscreteSpace:
         self.bc_elements = []
         self.bc_element_ids = []
         self.id_to_bc_element = {}
+
+    @property
+    def family(self):
+        vector_basis_q = self.generator_family in [
+            family_by_name("RT"),
+            family_by_name("BDM"),
+            family_by_name("N1E"),
+            family_by_name("N2E"),
+        ]
+        if (self.dimension == 1 and vector_basis_q) or (self.dimension == 0):
+            return family_by_name("Lagrange")
+        else:
+            return self.generator_family
 
     def set_name(self, name):
         self.name = name
@@ -55,20 +68,20 @@ class DiscreteSpace:
             st = time.time()
         self.mesh_topology.build_data_on_pysical_tags(physical_tags)
         self.element_type = type_by_dimension(self.dimension)
-        basis_family = self.family
-        if self.dimension == 0:
-            self.family = basis_family = family_by_name("Lagrange")
-            self.k_order = 0
-        if self.dimension == 1 and self.family in [
-            family_by_name("RT"),
-            family_by_name("BDM"),
-            family_by_name("N1E"),
-            family_by_name("N2E"),
-        ]:
-            self.family = basis_family = family_by_name("Lagrange")
+        # basis_family = self.family
+        # if self.dimension == 0:
+        #     self.family = basis_family = family_by_name("Lagrange")
+        #     self.k_order = 0
+        # if self.dimension == 1 and self.family in [
+        #     family_by_name("RT"),
+        #     family_by_name("BDM"),
+        #     family_by_name("N1E"),
+        #     family_by_name("N2E"),
+        # ]:
+        #     basis_family = family_by_name("Lagrange")
         self.dof_map = DoFMap(
             self.mesh_topology,
-            basis_family,
+            self.family,
             self.element_type,
             self.k_order,
             basis_variant(),
@@ -101,7 +114,7 @@ class DiscreteSpace:
             ):
                 return FiniteElement(
                     cell_id=cell_id,
-                    family=self.family,
+                    family=self.generator_family,
                     k_order=self.k_order,
                     mesh=self.mesh_topology.mesh,
                     discontinuous=self.discontinuous,
@@ -113,7 +126,7 @@ class DiscreteSpace:
             )(
                 delayed(task_create_element)(
                     cell_id=id,
-                    family=self.family,
+                    family=self.generator_family,
                     k_order=self.k_order,
                     mesh=self.mesh_topology.mesh,
                     discontinuous=self.discontinuous,
@@ -126,7 +139,7 @@ class DiscreteSpace:
                 map(
                     partial(
                         FiniteElement,
-                        family=self.family,
+                        family=self.generator_family,
                         k_order=self.k_order,
                         mesh=self.mesh_topology.mesh,
                         discontinuous=self.discontinuous,
@@ -164,6 +177,7 @@ class DiscreteSpace:
         bc_discontinuous = self.discontinuous
         bc_k_order = self.k_order
         bc_familiy = self.family
+
         if self.dimension - 1 < 2:  # it implies traces of H(div) and H(curl) elements
             bc_familiy = family_by_name("Lagrange")
 

@@ -21,10 +21,13 @@ def cell_diam(mesh_cell, mesh):
     return cell_diameter
 
 
-def mesh_size(mesh, dim=None):
+def mesh_size(mesh, dim=None, physical_tag=None):
     if dim is None:
         dim = mesh.dimension
-    cells_with_dim = [cell for cell in mesh.cells if cell.dimension == dim]
+    if physical_tag is None:
+        cells_with_dim = [cell for cell in mesh.cells if cell.dimension == dim]
+    else:
+        cells_with_dim = [cell for cell in mesh.cells if cell.dimension == dim and cell.material_id == physical_tag]
     cell_sizes = list(map(functools.partial(cell_diam, mesh=mesh), cells_with_dim))
     min_mesh_size_v = np.min(cell_sizes)
     mean_mesh_size_v = np.mean(cell_sizes)

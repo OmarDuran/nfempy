@@ -63,7 +63,7 @@ def l2_error(dim, fe_space, functions, alpha, skip_fields=[]):
     return l2_errors
 
 
-def l2_error_projected(dim, fe_space, alpha, skip_fields=[]):
+def l2_error_projected(dim, fe_space, alpha, skip_fields=[], dof_shift=0):
     l2_errors = []
     points, weights = fe_space.quadrature[dim]
     for item in fe_space.discrete_spaces.items():
@@ -79,12 +79,12 @@ def l2_error_projected(dim, fe_space, alpha, skip_fields=[]):
         for i in indexes:
             n_components = space.n_comp
             el_data = space.elements[i].data
-            cell = el_data.cell
             x, jac, det_jac, inv_jac = space.elements[i].evaluate_mapping(points)
             phi_tab = space.elements[i].evaluate_basis(points, jac, det_jac, inv_jac)
 
             # scattering dof
             dest = fe_space.discrete_spaces_destination_indexes(i)[name]
+            dest += dof_shift
             alpha_l = alpha[dest]
 
             # vectorization

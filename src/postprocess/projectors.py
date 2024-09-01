@@ -6,7 +6,7 @@ from petsc4py import PETSc
 from weak_forms.l2_projector_weak_form import L2ProjectorWeakForm
 
 
-def l2_projector(fe_space, functions, symmetric_solver_q=True):
+def l2_projector(fe_space, functions, dof_shift=0, symmetric_solver_q=True):
     n_dof_g = fe_space.n_dof
     rg = np.zeros(n_dof_g)
     alpha = np.zeros(n_dof_g)
@@ -26,6 +26,7 @@ def l2_projector(fe_space, functions, symmetric_solver_q=True):
     def scatter_form_data(A, i, weak_form):
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
+        dest += dof_shift
         alpha_l = alpha[dest]
         r_el, j_el = weak_form.evaluate_form(i, alpha_l)
 

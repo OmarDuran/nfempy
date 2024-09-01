@@ -12,7 +12,7 @@ class FiniteElement:
     def __init__(
         self, cell_id, family, k_order, mesh, discontinuous=False, integration_order=0
     ):
-        self.family = family
+        self.generator_family = family
         self.k_order = k_order
         self.mesh = mesh
         self.discontinuous = discontinuous
@@ -21,6 +21,19 @@ class FiniteElement:
         self.data = ElementData(cell=mesh.cells[cell_id], mesh=mesh)
         self._build_structures()
 
+    @property
+    def family(self):
+        vector_basis_q = self.generator_family in [
+            family_by_name("RT"),
+            family_by_name("BDM"),
+            family_by_name("N1E"),
+            family_by_name("N2E"),
+        ]
+        if (self.data.cell.dimension == 1 and vector_basis_q) or (self.data.cell.dimension == 0):
+            return family_by_name("Lagrange")
+        else:
+            return self.generator_family
+
     def _build_structures(self):
         # fetch information from static methods
         family = self.family
@@ -28,42 +41,54 @@ class FiniteElement:
         variant = basis_variant()
         self._set_integration_order()
 
-        # create generator
-        quadrature = np.empty(0)
-        if self.data.cell.dimension == 0:
-            # Can only create order 0 Lagrange on a point
-            self.k_order = 0
-            self.family = "Lagrange"
-            family = family_by_name(self.family)
-            self.basis_generator = basix.create_element(
-                family=family,
-                celltype=cell_type,
-                degree=self.k_order,
-                lagrange_variant=variant,
-                discontinuous=self.discontinuous,
-            )
-        else:
-            if self.data.cell.dimension == 1 and self.family in ["RT", "BDM"]:
-                self.family = "Lagrange"
-                family = family_by_name(self.family)
-                self.basis_generator = basix.create_element(
-                    family_name=family,
-                    cell_name=cell_type,
-                    degree=self.k_order,
-                    lagrange_variant=variant,
-                    discontinuous=self.discontinuous,
-                )
-            else:
-                self.basis_generator = basix.create_element(
-                    family=family,
-                    celltype=cell_type,
-                    degree=self.k_order,
-                    lagrange_variant=variant,
-                    discontinuous=self.discontinuous,
-                )
-            # quadrature = basix.make_quadrature(
-            #     basix.QuadratureType.gauss_jacobi, cell_type, self.integration_order
-            # )
+        # # create generator
+        # quadrature = np.empty(0)
+        # if self.data.cell.dimension == 0:
+        #     # Can only create order 0 Lagrange on a point
+        #     self.k_order = 0
+        #     self.family = "Lagrange"
+        #     family = family_by_name(self.family)
+        #     self.basis_generator = basix.create_element(
+        #         family=family,
+        #         celltype=cell_type,
+        #         degree=self.k_order,
+        #         lagrange_variant=variant,
+        #         discontinuous=self.discontinuous,
+        #     )
+        # else:
+        #     if self.data.cell.dimension == 1 and self.family_on_1d in [
+        #         family_by_name("RT"),
+        #         family_by_name("BDM"),
+        #         family_by_name("N1E"),
+        #         family_by_name("N2E"),
+        #     ]:
+        #         self.family = family_by_name("Lagrange")
+        #         self.basis_generator = basix.create_element(
+        #             family=family_by_name("Lagrange"),
+        #             celltype=cell_type,
+        #             degree=self.k_order,
+        #             lagrange_variant=variant,
+        #             discontinuous=self.discontinuous,
+        #         )
+        #     else:
+        #         self.basis_generator = basix.create_element(
+        #             family=family,
+        #             celltype=cell_type,
+        #             degree=self.k_order,
+        #             lagrange_variant=variant,
+        #             discontinuous=self.discontinuous,
+        #         )
+        #     # quadrature = basix.make_quadrature(
+        #     #     basix.QuadratureType.gauss_jacobi, cell_type, self.integration_order
+        #     # )
+
+        self.basis_generator = basix.create_element(
+            family=family,
+            celltype=cell_type,
+            degree=self.k_order,
+            lagrange_variant=variant,
+            discontinuous=self.discontinuous,
+        )
         # Partially fill element data
         self._fill_element_dof_data()
         self._fill_element_bc_entity_data()
@@ -143,6 +168,14 @@ class FiniteElement:
         else:
             phi_tab = np.insert(phi_tab, 2, 0, axis=3)
             phi_tab[0] = phi_mapped
+
+        if self.data.cell.dimension == 1 and self.generator_family in [
+            family_by_name("RT"),
+            family_by_name("BDM"),
+            family_by_name("N1E"),
+            family_by_name("N2E"),
+        ]:
+            phi_tab[0] *= -1.0
 
         phi_tab = permute_and_transform(phi_tab, self.data)
         return phi_tab
