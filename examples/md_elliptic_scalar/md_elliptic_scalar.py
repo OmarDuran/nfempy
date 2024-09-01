@@ -277,13 +277,14 @@ def md_two_fields_approximation(config, write_vtk_q=False):
         for k in range(nnz):
             A.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
-    def scatter_coupling_form_data(A, c0_idx, c1_idx, int_weak_form):
+    def scatter_coupling_form_data(A, c1_idx, c0_p_idx, c0_n_idx, int_weak_form):
 
-        dest_c0 = int_weak_form.space[0].bc_destination_indexes(c0_idx, "u")
+        dest_c0_p = int_weak_form.space[0].bc_destination_indexes(c0_p_idx, "u")
+        dest_c0_n = int_weak_form.space[0].bc_destination_indexes(c0_n_idx, "u")
         dest_c1 = int_weak_form.space[1].destination_indexes(c1_idx, "p")
-        dest = np.concatenate([dest_c0, dest_c1])
+        dest = np.concatenate([dest_c0_p, dest_c0_n, dest_c1])
         alpha_l = alpha[dest]
-        r_el, j_el = int_weak_form.evaluate_form(c0_idx, c1_idx, alpha_l)
+        r_el, j_el = int_weak_form.evaluate_form(c1_idx, c0_p_idx, c0_n_idx, alpha_l)
 
         # contribute rhs
         rg[dest] += r_el
@@ -330,13 +331,10 @@ def md_two_fields_approximation(config, write_vtk_q=False):
             md_produc_space[0].discrete_spaces["u"].id_to_bc_element[cell.id]
             for cell in c1_data[2]
         ]
-        for c1_idx, p_c0_idx, n_c0_idx in zip(c1_el_idx, c0_pel_idx, c0_nel_idx):
+        for c1_idx, c0_p_idx, c0_n_idx in zip(c1_el_idx, c0_pel_idx, c0_nel_idx):
             scatter_coupling_form_data(
-                A, p_c0_idx, c1_idx, int_coupling_weak_form
-            )  # positive side
-            scatter_coupling_form_data(
-                A, n_c0_idx, c1_idx, int_coupling_weak_form
-            )  # negative side
+                A, c1_idx, c0_p_idx, c0_n_idx, int_coupling_weak_form
+            )  # positive and negative at once
 
     A.assemble()
 
@@ -368,6 +366,26 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     et = time.time()
     elapsed_time = et - st
     print("Linear solver time:", elapsed_time, "seconds")
+
+    # Interface weak forms
+    for interface in interfaces:
+        c1_data = interface["c1"]
+        c1_el_idx = [
+            md_produc_space[1].discrete_spaces["u"].id_to_element[cell.id]
+            for cell in c1_data[0]
+        ]
+        c0_pel_idx = [
+            md_produc_space[0].discrete_spaces["u"].id_to_bc_element[cell.id]
+            for cell in c1_data[1]
+        ]
+        c0_nel_idx = [
+            md_produc_space[0].discrete_spaces["u"].id_to_bc_element[cell.id]
+            for cell in c1_data[2]
+        ]
+        for c1_idx, c0_p_idx, c0_n_idx in zip(c1_el_idx, c0_pel_idx, c0_nel_idx):
+            scatter_coupling_form_data(
+                A, c1_idx, c0_p_idx, c0_n_idx, int_coupling_weak_form
+            )  # positive and negative at once
 
     # L2 error for mixed-dimensional solution
     errors_by_co_dim = []
@@ -504,8 +522,7 @@ def main():
     # function space data
     config["n_ref"] = 0
     config["k_order"] = 0
-    # config['mesh_sizes'] = [0.5, 0.25, 0.125, 0.0625, 0.03125]
-    config['mesh_sizes'] = [0.5, 0.25, 0.125, 0.0625]
+    config['mesh_sizes'] = [0.5, 0.25, 0.125, 0.0625, 0.03125]
 
     # output data
     config["folder_name"] = "output"
