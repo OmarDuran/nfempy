@@ -96,7 +96,7 @@ def fracture_disjoint_set():
 def generate_conformal_mesh(md_domain, h_val, n_ref, fracture_physical_tags):
 
     # For simplicity use h_val to control fracture refinement
-    n_points = int(1.5/h_val) + 1
+    n_points = int(1.5 / h_val) + 1
 
     physical_tags = [fracture_physical_tags["line"]]
     transfinite_agruments = {"n_points": n_points, "meshType": "Bump", "coef": 1.0}
@@ -154,7 +154,7 @@ def md_two_fields_approximation(config, write_vtk_q=False):
 
     # compute mesh sizes per codimension
     h_sizes = []
-    physical_tags = [1, 10] # 1 for triangles (Rock) and 10 for lines (Fractures)
+    physical_tags = [1, 10]  # 1 for triangles (Rock) and 10 for lines (Fractures)
     for co_dim in [0, 1]:
         dim = gmesh.dimension - co_dim
         _, _, h_max = mesh_size(gmesh, dim=dim, physical_tag=physical_tags[co_dim])
@@ -181,8 +181,12 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     )
     exact_functions = [exact_functions_c0, exact_functions_c1]
 
-    rhs_c0 = get_rhs_by_co_dimension(0, "rhs", m_c1, m_c2, m_kappa_c0, m_kappa_c1, m_delta)
-    rhs_c1 = get_rhs_by_co_dimension(1, "rhs", m_c1, m_c2, m_kappa_c0, m_kappa_c1, m_delta)
+    rhs_c0 = get_rhs_by_co_dimension(
+        0, "rhs", m_c1, m_c2, m_kappa_c0, m_kappa_c1, m_delta
+    )
+    rhs_c1 = get_rhs_by_co_dimension(
+        1, "rhs", m_c1, m_c2, m_kappa_c0, m_kappa_c1, m_delta
+    )
 
     print("Surface: Number of dof: ", md_produc_space[0].n_dof)
     print("Line: Number of dof: ", md_produc_space[1].n_dof)
@@ -368,26 +372,6 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     elapsed_time = et - st
     print("Linear solver time:", elapsed_time, "seconds")
 
-    # Interface weak forms
-    for interface in interfaces:
-        c1_data = interface["c1"]
-        c1_el_idx = [
-            md_produc_space[1].discrete_spaces["u"].id_to_element[cell.id]
-            for cell in c1_data[0]
-        ]
-        c0_pel_idx = [
-            md_produc_space[0].discrete_spaces["u"].id_to_bc_element[cell.id]
-            for cell in c1_data[1]
-        ]
-        c0_nel_idx = [
-            md_produc_space[0].discrete_spaces["u"].id_to_bc_element[cell.id]
-            for cell in c1_data[2]
-        ]
-        for c1_idx, c0_p_idx, c0_n_idx in zip(c1_el_idx, c0_pel_idx, c0_nel_idx):
-            scatter_coupling_form_data(
-                A, c1_idx, c0_p_idx, c0_n_idx, int_coupling_weak_form
-            )  # positive and negative at once
-
     # L2 error for mixed-dimensional solution
     errors_by_co_dim = []
     for co_dim in [0, 1]:
@@ -405,10 +389,14 @@ def md_two_fields_approximation(config, write_vtk_q=False):
         dof_shift = md_produc_space[co_dim].dof_shift
         n_dof = md_produc_space[co_dim].n_dof
         # compute projection on co-dimension co_dim
-        alpha_proj = l2_projector(md_produc_space[co_dim], exact_functions[co_dim], -dof_shift)
-        alpha_e = alpha[0+dof_shift:n_dof+dof_shift:1] - alpha_proj
+        alpha_proj = l2_projector(
+            md_produc_space[co_dim], exact_functions[co_dim], -dof_shift
+        )
+        alpha_e = alpha[0 + dof_shift : n_dof + dof_shift : 1] - alpha_proj
         # compute l2_error of projected exact solution on co-dimension co_dim
-        p_proj_l2_error = l2_error_projected(dim, md_produc_space[co_dim], alpha_e, ["u"], -dof_shift)[0]
+        p_proj_l2_error = l2_error_projected(
+            dim, md_produc_space[co_dim], alpha_e, ["u"], -dof_shift
+        )[0]
 
         errors_by_co_dim.append((u_l2_error, p_l2_error, p_proj_l2_error))
         et = time.time()
@@ -419,11 +407,18 @@ def md_two_fields_approximation(config, write_vtk_q=False):
         print("L2-error in p projected: ", p_proj_l2_error)
         print("")
 
+    case_names_by_co_dim = compose_case_name(config)
     for co_dim in [0, 1]:
         if write_vtk_q:
             print("Post-processing solution for co-dimension: ", co_dim)
             st = time.time()
-            file_name = "md_elliptic_two_fields_c" + str(co_dim) + ".vtk"
+            prefix = case_names_by_co_dim[co_dim]
+            file_name = (
+                prefix
+                + "mesh_size_"
+                + str(config["mesh_size"])
+                + "_md_elliptic_two_fields.vtk"
+            )
             write_vtk_file_with_exact_solution(
                 file_name,
                 gmesh,
@@ -442,54 +437,140 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     }
     return h_size_and_error_data_by_co_dim
 
-def compose_case_name(method, dimension, material, folder_name=None):
-    if folder_name is None:
-        case_name = (
-            method[0]
-            + "_"
-            + str(dimension)
-            + "d_"
-            + "material_parameter_"
-            + str(material["m_par"])
-            + "_"
-        )
-    else:
-        import os
-        if not os.path.exists(folder_name):
-            os.makedirs(folder_name)
-        case_name = (
-            folder_name
-            + "/"
-            + method[0]
-            + "_"
-            + str(dimension)
-            + "d_"
-            + "material_parameter_"
-            + str(material["m_par"])
-            + "_"
-        )
-    return case_name
+
+def compose_case_name(config):
+
+    max_dim = 2
+    case_names_by_co_dim = []
+
+    k_order = config["k_order"]
+    flux_name, potential_name = config["var_names"]
+    m_c1 = config["m_c1"]
+    m_c2 = config["m_c2"]
+    m_kappa_c0 = config["m_kappa_c0"]
+    m_kappa_c1 = config["m_kappa_c1"]
+    m_kappa_normal = config["m_kappa_normal"]
+    m_delta = config["m_delta"]
+    folder_name = config.get("folder_name", None)
+    for co_dim in [0, 1]:
+        d = max_dim - co_dim
+        methods = method_definition(d, k_order, flux_name, potential_name)
+        for method in methods:
+            case_name = (
+                method[0]
+                + "_"
+                + "c_"
+                + str(co_dim)
+                + "_material_parameters_"
+                + str(m_c1)
+                + "_"
+                + str(m_c2)
+                + "_"
+                + str(m_kappa_c0)
+                + "_"
+                + str(m_kappa_c1)
+                + "_"
+                + str(m_kappa_normal)
+                + "_"
+                + str(m_delta)
+                + "_"
+            )
+            if folder_name is not None:
+                import os
+
+                if not os.path.exists(folder_name):
+                    os.makedirs(folder_name)
+                case_name = folder_name + "/" + case_name
+            case_names_by_co_dim.append(case_name)
+    return case_names_by_co_dim
+
 
 def compute_approximations(config):
-
-    # for a given k_order ...
 
     # Variable naming implemented in weakform
     config["var_names"] = ("u", "p")
 
-    save_plot_rates_q = config['save_plot_rates_q']
+    save_plot_rates_q = config["save_plot_rates_q"]
     errors_data = []
     h_sizes = []
-    for h_size in config['mesh_sizes']:
+    for h_size in config["mesh_sizes"]:
         config["mesh_size"] = h_size
         h_size_and_error_data_by_co_dim = md_two_fields_approximation(config, True)
-        h_sizes.append(np.array([h_size_and_error_data_by_co_dim[0][0],
-                                 h_size_and_error_data_by_co_dim[1][0]]))
-        errors_chunk = np.array([np.array(h_size_and_error_data_by_co_dim[0][1]),
-                                 np.array(h_size_and_error_data_by_co_dim[1][1])])
+        h_sizes.append(
+            np.array(
+                [
+                    h_size_and_error_data_by_co_dim[0][0],
+                    h_size_and_error_data_by_co_dim[1][0],
+                ]
+            )
+        )
+        errors_chunk = np.array(
+            [
+                np.array(h_size_and_error_data_by_co_dim[0][1]),
+                np.array(h_size_and_error_data_by_co_dim[1][1]),
+            ]
+        )
         errors_data.append(errors_chunk)
     h_sizes = np.array(h_sizes)
     errors_data = np.array(errors_data)
+
+    case_names_by_co_dim = compose_case_name(config)
+
+    n_data = 4
+    for co_dim in [0, 1]:
+        case_name = case_names_by_co_dim[co_dim]
+        h_data = np.array(h_sizes[:, co_dim])
+        error_data = np.vstack([h_data, errors_data[:, co_dim].T]).T
+        rates_data = np.empty((0, n_data - 1), float)
+        for i in range(error_data.shape[0] - 1):
+            chunk_b = np.log(error_data[i])
+            chunk_e = np.log(error_data[i + 1])
+            h_step = chunk_e[0] - chunk_b[0]
+            partial = (chunk_e - chunk_b) / h_step
+            rates_data = np.append(
+                rates_data, np.array([list(partial[1:n_data])]), axis=0
+            )
+
+        rates_data = np.vstack((np.array([np.nan] * rates_data.shape[1]), rates_data))
+
+        assert error_data.shape[0] == rates_data.shape[0]
+        raw_data = np.zeros(
+            (
+                error_data.shape[0],
+                error_data.shape[1] + rates_data.shape[1],
+            ),
+            dtype=error_data.dtype,
+        )
+        raw_data[:, 0] = error_data[:, 0]
+        raw_data[:, 1::2] = error_data[:, 1 : error_data.shape[1]]
+        raw_data[:, 2::2] = rates_data
+
+        normal_conv_data = raw_data[:, 0 : raw_data.shape[1] - 2]
+        enhanced_conv_data = raw_data[
+            :,
+            np.insert(np.arange(raw_data.shape[1] - 2, raw_data.shape[1]), 0, 0),
+        ]
+
+        np.set_printoptions(precision=5)
+        print("normal convergence data: ", normal_conv_data)
+        print("enhanced convergence data: ", enhanced_conv_data)
+
+        normal_header = "h, u,  rate,   p,  rate"
+        enhanced_header = "h,   proj p, rate"
+        np.savetxt(
+            case_name + "normal_conv_data.txt",
+            normal_conv_data,
+            delimiter=",",
+            fmt="%1.6f",
+            header=normal_header,
+        )
+        np.savetxt(
+            case_name + "enhanced_conv_data.txt",
+            enhanced_conv_data,
+            delimiter=",",
+            fmt="%1.6f",
+            header=enhanced_header,
+        )
 
     if save_plot_rates_q:
         for co_dim in [0, 1]:
@@ -503,8 +584,10 @@ def compute_approximations(config):
             plt.title("Errors on omega with co-dimension: " + str(co_dim))
             plt.xlabel("Element size")
             plt.ylabel("L2-error")
-            plt.savefig('errors_co_dim_' + str(co_dim) + '.png')
+            figure_name = case_names_by_co_dim[co_dim] + "l2_error_plot.png"
+            plt.savefig(figure_name)
             plt.clf()
+
 
 def main():
 
@@ -524,7 +607,7 @@ def main():
     # function space data
     config["n_ref"] = 0
     config["k_order"] = 0
-    config['mesh_sizes'] = [0.5, 0.25, 0.125, 0.0625, 0.03125, 0.015625]
+    config["mesh_sizes"] = [0.5, 0.25, 0.125, 0.0625, 0.03125, 0.015625]
 
     # output data
     config["folder_name"] = "output"

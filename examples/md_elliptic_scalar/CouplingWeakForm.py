@@ -45,7 +45,9 @@ class CouplingWeakForm(WeakForm):
             neigh_cell = neigh_element.data.cell
 
             # compute trace q space
-            mapped_points = transform_lower_to_higher(points, f_data_c0, neigh_element.data)
+            mapped_points = transform_lower_to_higher(
+                points, f_data_c0, neigh_element.data
+            )
             _, jac_c0, det_jac_c0, inv_jac_c0 = neigh_element.evaluate_mapping(
                 mapped_points
             )
@@ -65,19 +67,22 @@ class CouplingWeakForm(WeakForm):
             map_data = (x, weights, det_jac)
             return dphi_tr_phi_tab, dphi_dof_n_index, n, p_phi_tab, map_data
 
-        du_tr_phi_tab_p, du_dof_n_index_p, n_p, p_phi_tab_p, map_data_p = compute_trace_space((iel_c0p, iel_c1), ('u', 'p'), self.space)
-        du_tr_phi_tab_n, du_dof_n_index_n, n_n, p_phi_tab_n, map_data_n = compute_trace_space((iel_c0n, iel_c1), ('u', 'p'), self.space)
-        assert np.all(np.isclose(p_phi_tab_p,p_phi_tab_n))
+        du_tr_phi_tab_p, du_dof_n_index_p, n_p, p_phi_tab_p, map_data_p = (
+            compute_trace_space((iel_c0p, iel_c1), ("u", "p"), self.space)
+        )
+        du_tr_phi_tab_n, du_dof_n_index_n, n_n, p_phi_tab_n, map_data_n = (
+            compute_trace_space((iel_c0n, iel_c1), ("u", "p"), self.space)
+        )
+        assert np.all(np.isclose(p_phi_tab_p, p_phi_tab_n))
         assert np.all(np.isclose(map_data_p[0], map_data_n[0]))
         assert np.all(np.isclose(map_data_p[1], map_data_n[1]))
         assert np.all(np.isclose(map_data_p[2], map_data_n[2]))
         p_phi_tab = p_phi_tab_p = p_phi_tab_n
         x, weights, det_jac = map_data_p = map_data_n
 
-
-        dim = self.space[0].discrete_spaces['u'].dimension
-        u_c0_components = self.space[0].discrete_spaces['u'].n_comp
-        p_c1_components = self.space[1].discrete_spaces['p'].n_comp
+        dim = self.space[0].discrete_spaces["u"].dimension
+        u_c0_components = self.space[0].discrete_spaces["u"].n_comp
+        p_c1_components = self.space[1].discrete_spaces["p"].n_comp
 
         n_du_phi_p = du_tr_phi_tab_p[0, :, du_dof_n_index_p, 0:dim].shape[0]
         n_du_phi_n = du_tr_phi_tab_n[0, :, du_dof_n_index_n, 0:dim].shape[0]
@@ -106,8 +111,12 @@ class CouplingWeakForm(WeakForm):
                 kappa_n_v = f_kappa(x[i, 0], x[i, 1], x[i, 2])
                 delta_v = f_delta(x[i, 0], x[i, 1], x[i, 2])
 
-                du_h_p = (du_tr_phi_tab_p[0:1, i, du_dof_n_index_p, 0:dim] @ n_p[0:dim]).T
-                du_h_n = (du_tr_phi_tab_n[0:1, i, du_dof_n_index_n, 0:dim] @ n_n[0:dim]).T
+                du_h_p = (
+                    du_tr_phi_tab_p[0:1, i, du_dof_n_index_p, 0:dim] @ n_p[0:dim]
+                ).T
+                du_h_n = (
+                    du_tr_phi_tab_n[0:1, i, du_dof_n_index_n, 0:dim] @ n_n[0:dim]
+                ).T
 
                 dp_h = p_phi_tab[0, i, :, 0:dim]
                 u_h_p = alpha_u_p @ du_h_p
