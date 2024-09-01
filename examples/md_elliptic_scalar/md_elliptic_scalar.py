@@ -600,9 +600,9 @@ def main():
     config["m_c1"] = 1.0
     config["m_c2"] = 1.0
     config["m_kappa_c0"] = 1.0
-    config["m_kappa_c1"] = 1.0
+    config["m_kappa_c1"] = 1000.0
     config["m_kappa_normal"] = 1.0
-    config["m_delta"] = 1.0e-3
+    config["m_delta"] = 1.0e-4
 
     # function space data
     config["n_ref"] = 0
