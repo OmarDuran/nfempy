@@ -125,7 +125,8 @@ def md_two_fields_approximation(config, write_vtk_q=False):
 
     m_c1 = config["m_c1"]
     m_c2 = config["m_c2"]
-    m_kappa = config["m_kappa"]
+    m_kappa_c0 = config["m_kappa_c0"]
+    m_kappa_c1 = config["m_kappa_c1"]
     m_kappa_normal = config["m_kappa_normal"]
     m_delta = config["m_delta"]
 
@@ -173,24 +174,24 @@ def md_two_fields_approximation(config, write_vtk_q=False):
             md_produc_space.append(fe_space)
 
     exact_functions_c0 = get_exact_functions_by_co_dimension(
-        0, flux_name, potential_name, m_c1, m_c2, m_kappa, m_delta
+        0, flux_name, potential_name, m_c1, m_c2, m_kappa_c0, m_kappa_c1, m_delta
     )
     exact_functions_c1 = get_exact_functions_by_co_dimension(
-        1, flux_name, potential_name, m_c1, m_c2, m_kappa, m_delta
+        1, flux_name, potential_name, m_c1, m_c2, m_kappa_c0, m_kappa_c1, m_delta
     )
     exact_functions = [exact_functions_c0, exact_functions_c1]
 
-    rhs_c0 = get_rhs_by_co_dimension(0, "rhs", m_c1, m_c2, m_kappa, m_delta)
-    rhs_c1 = get_rhs_by_co_dimension(1, "rhs", m_c1, m_c2, m_kappa, m_delta)
+    rhs_c0 = get_rhs_by_co_dimension(0, "rhs", m_c1, m_c2, m_kappa_c0, m_kappa_c1, m_delta)
+    rhs_c1 = get_rhs_by_co_dimension(1, "rhs", m_c1, m_c2, m_kappa_c0, m_kappa_c1, m_delta)
 
     print("Surface: Number of dof: ", md_produc_space[0].n_dof)
     print("Line: Number of dof: ", md_produc_space[1].n_dof)
 
     def f_kappa_c0(x, y, z):
-        return m_kappa
+        return m_kappa_c0
 
     def f_kappa_c1(x, y, z):
-        return m_kappa * m_delta
+        return m_kappa_c1 * m_delta
 
     def f_kappa_normal_c1(x, y, z):
         return m_kappa_normal
@@ -514,15 +515,16 @@ def main():
 
     # Material data
     config["m_c1"] = 1.0
-    config["m_c2"] = 10.0
-    config["m_kappa"] = 1.0
+    config["m_c2"] = 1.0
+    config["m_kappa_c0"] = 1.0
+    config["m_kappa_c1"] = 1.0
     config["m_kappa_normal"] = 1.0
     config["m_delta"] = 1.0e-3
 
     # function space data
     config["n_ref"] = 0
     config["k_order"] = 0
-    config['mesh_sizes'] = [0.5, 0.25, 0.125, 0.0625, 0.03125]
+    config['mesh_sizes'] = [0.5, 0.25, 0.125, 0.0625, 0.03125, 0.015625]
 
     # output data
     config["folder_name"] = "output"
