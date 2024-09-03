@@ -102,11 +102,11 @@ def paint_on_canvas_plane():
         title="Numeric potential norm",
     )
     p_h_data = hdiv_solution.point_data["p_h"]
-    p_h_norm = np.array([np.linalg.norm(p_h) for p_h in p_h_data])
+
 
     plotter.add_mesh(
         hdiv_solution,
-        scalars=p_h_norm,
+        scalars=p_h_data,
         cmap="gist_earth",
         show_edges=False,
         scalar_bar_args=ph_sargs,
@@ -129,11 +129,11 @@ def paint_on_canvas_plane():
         title="Exact potential norm",
     )
     p_h_data = hdiv_solution.point_data["p_e"]
-    p_h_norm = np.array([np.linalg.norm(p_h) for p_h in p_h_data])
+
 
     plotter.add_mesh(
         hdiv_solution,
-        scalars=p_h_norm,
+        scalars=p_h_data,
         cmap="gist_earth",
         show_edges=False,
         scalar_bar_args=ph_sargs,
@@ -207,8 +207,8 @@ figure_format = "pdf"
 
 def plot_over_line(figure_file_name):
     # Make two points to construct the line between
-    a = [0.25, 0.25, 0.0]
-    b = [0.75, 0.75, 0.0]
+    a = [0.0, 0.5, 0.0]
+    b = [1.0, 0.5, 0.0]
     file_name_geo = "geometric_mesh_1d.vtk"
     file_name = "mixed_rt_c_1_material_parameters_1.0_1.0_1.0_1000.0_1.0_0.0001_mesh_size_0.015625_md_elliptic_two_fields.vtk"
     # load data
@@ -216,18 +216,18 @@ def plot_over_line(figure_file_name):
 
     sampled = hdiv_solution.sample_over_line(a, b, resolution=1000)
 
-    # p_h_norm = np.array([np.linalg.norm(p_h) for p_h in sampled.point_data["p_h"]])
-    # p_e_norm = np.array([np.linalg.norm(p_e) for p_e in sampled.point_data["p_e"]])
-    u_h_norm = np.array([np.linalg.norm(u_h) for u_h in sampled.point_data["u_h"]])
-    u_e_norm = np.array([np.linalg.norm(u_e) for u_e in sampled.point_data["u_e"]])
+    p_h_vals = sampled.point_data["p_h"]
+    p_e_vals = sampled.point_data["p_e"]
+    # u_h_norm = np.array([np.linalg.norm(u_h) for u_h in sampled.point_data["u_h"]])
+    # u_e_norm = np.array([np.linalg.norm(u_e) for u_e in sampled.point_data["u_e"]])
 
     x = sampled["Distance"]
-    # p_e = p_e_norm
-    # p_data = np.vstack((p_e_norm, p_h_norm)).T
-    u_e = u_e_norm
-    u_data = np.vstack((u_e_norm, u_h_norm)).T
+    p_e = p_e_vals
+    p_data = np.vstack((p_e_vals, p_h_vals)).T
+    #u_e = u_e_norm
+    #u_data = np.vstack((u_e_norm, u_h_norm)).T
     # lineObjects = plt.plot(x, p_data)
-    lineObjects = plt.plot(x, u_data)
+    lineObjects = plt.plot(x, p_data)
     styles = ["solid", "--"]
     linewidths = [2.0, 2.0]
     for i, line in enumerate(lineObjects):

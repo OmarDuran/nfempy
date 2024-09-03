@@ -590,30 +590,32 @@ def compute_approximations(config):
 
 
 def main():
+    deltas_frac = [1.0e-1, 1.0e-2, 1.0e-3, 1.0e-4, 1.0e-5]
+    for delta_frac in deltas_frac:
+        config = {}
+        # domain and discrete domain data
+        config["lx"] = 1.0
+        config["ly"] = 1.0
 
-    config = {}
-    # domain and discrete domain data
-    config["lx"] = 1.0
-    config["ly"] = 1.0
+        # Material data
+        config["m_c1"] = 1.0
+        config["m_c2"] = 1.0
+        config["m_kappa_c0"] = 1.0
+        config["m_kappa_c1"] = 1/delta_frac
+        config["m_kappa_normal"] = 1.0
+        config["m_delta"] = delta_frac
 
-    # Material data
-    config["m_c1"] = 1.0
-    config["m_c2"] = 1.0
-    config["m_kappa_c0"] = 1.0
-    config["m_kappa_c1"] = 1000.0
-    config["m_kappa_normal"] = 1.0
-    config["m_delta"] = 1.0e-4
+        # function space data
+        config["n_ref"] = 0
+        config["k_order"] = 0
+        config["mesh_sizes"] = [0.5, 0.25, 0.125, 0.0625, 0.03125, 0.015625, 7.8125e-3]
 
-    # function space data
-    config["n_ref"] = 0
-    config["k_order"] = 0
-    config["mesh_sizes"] = [0.5, 0.25, 0.125, 0.0625, 0.03125, 0.015625]
 
-    # output data
-    config["folder_name"] = "output"
-    config["save_plot_rates_q"] = True
+        # output data
+        config["folder_name"] = "output"
+        config["save_plot_rates_q"] = True
 
-    compute_approximations(config)
+        compute_approximations(config)
 
 
 if __name__ == "__main__":
