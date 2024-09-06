@@ -576,7 +576,7 @@ def compute_approximations(config):
         for co_dim in [0, 1]:
             x = np.array(h_sizes[:, co_dim])
             y = errors_data[:, co_dim]  # u, p, p_proj
-            lineObjects = plt.loglog(x, y)
+            lineObjects = plt.loglog(x, y, marker="o")
             plt.legend(
                 iter(lineObjects),
                 ("u", "p", "p_projected"),
@@ -601,15 +601,23 @@ def main():
         config["m_c1"] = 1.0
         config["m_c2"] = 1.0
         config["m_kappa_c0"] = 1.0
-        config["m_kappa_c1"] = 1/delta_frac
+        config["m_kappa_c1"] = 1 / delta_frac
         config["m_kappa_normal"] = 1.0
         config["m_delta"] = delta_frac
 
         # function space data
         config["n_ref"] = 0
         config["k_order"] = 0
-        config["mesh_sizes"] = [0.5, 0.25, 0.125, 0.0625, 0.03125, 0.015625, 7.8125e-3]
-
+        config["mesh_sizes"] = [
+            0.5,
+            0.25,
+            0.125,
+            0.0625,
+            0.03125,
+            0.015625,
+            0.0078125,
+            0.00390625,
+        ]
 
         # output data
         config["folder_name"] = "output"
