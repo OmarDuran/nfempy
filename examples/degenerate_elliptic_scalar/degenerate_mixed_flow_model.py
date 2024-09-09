@@ -125,7 +125,7 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
     f_rhs = partial(exact_funcs.f_rhs, m_par=m_par, dim=dim)
 
     m_functions = {
-        "rhs_f": f_rhs,
+        "rhs": f_rhs,
         "kappa": f_kappa,
         "porosity": f_porosity,
         "d_phi": f_d_phi,

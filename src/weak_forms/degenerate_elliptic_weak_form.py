@@ -47,7 +47,7 @@ class DegenerateEllipticWeakForm(WeakForm):
         v_space = self.space.discrete_spaces["v"]
         q_space = self.space.discrete_spaces["q"]
 
-        f_rhs_f = self.functions["rhs_f"]
+        f_rhs_f = self.functions["rhs"]
         f_kappa = self.functions["kappa"]
         f_porosity = self.functions["porosity"]
         f_d_phi = self.functions["d_phi"]
