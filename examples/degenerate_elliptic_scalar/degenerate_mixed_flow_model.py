@@ -14,7 +14,7 @@ from postprocess.solution_post_processor import (
     write_vtk_file_pointwise_l2_error,
 )
 from spaces.product_space import ProductSpace
-from DegenerateEllipticWeakForm import (
+from weak_forms.degenerate_elliptic_weak_form import (
     DegenerateEllipticWeakForm,
     DegenerateEllipticWeakFormBCDirichlet,
 )

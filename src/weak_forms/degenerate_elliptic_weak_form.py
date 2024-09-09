@@ -1,3 +1,33 @@
+"""
+Degenerate Elliptic Weak Form for Two-Phase Mixtures
+
+This module implements the evaluation of the weak form of a degenerate elliptic
+equation, which arises in models for two-phase mixtures presented in [1].
+
+[1] Arbogast, T., Taicher, A.L. A cell-centered finite difference method for a degenerate
+elliptic equation arising from two-phase mixtures. Comput Geosci 21, 701–712 (2017).
+https://doi.org/10.1007/s10596-017-9649-9
+
+Key concepts and components:
+- **Element-level evaluation**: The weak form is evaluated on individual elements
+  of the finite element mesh.
+- **Auto-differentiation**: The solution vector `alpha` is differentiated using
+  automatic differentiation (from the `auto_diff` module) to compute the Jacobian
+  and residuals.
+- **Porosity and Phase Transition**: Functions related to porosity and phase transition
+  are included, ensuring the degenerate nature of the equation is accounted for.
+- **Boundary Conditions**: Dirichlet boundary conditions are applied to the weak form
+  through a separate class, ensuring proper handling of boundary elements.
+
+
+Classes:
+- `DegenerateEllipticWeakForm`: Main class for evaluating the weak form on
+  each element of the mesh.
+- `DegenerateEllipticWeakFormBCDirichlet`: Class for applying Dirichlet
+  boundary conditions on the weak form.
+
+"""
+
 import auto_diff as ad
 import numpy as np
 

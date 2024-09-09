@@ -180,6 +180,8 @@ class DiscreteSpace:
 
         if self.dimension - 1 < 2:  # it implies traces of H(div) and H(curl) elements
             bc_familiy = family_by_name("Lagrange")
+            if self.dimension - 1 < 1:
+                bc_k_order = 0
 
         if family_by_name("BDM") == self.family:
             bc_k_order = self.k_order
