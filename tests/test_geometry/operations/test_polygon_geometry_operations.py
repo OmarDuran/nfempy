@@ -65,6 +65,19 @@ def test_polygon_normal():
         ]
     )
     points = __transform_points(points, trans_matrix)
+    assert np.all(np.isclose(polygon_normal(points), -ref_normal))
+
+    points = np.array(
+        [
+            [-1.0, -1.0, 0],
+            [0.0, -1.0, 0],
+            [+1.0, -1.0, 0],
+            [+1.0, +1.0, 0],
+            [0.0, +1.0, 0],
+            [-1.0, +1.0, 0],
+        ]
+    )
+    points = __transform_points(points, trans_matrix)
     assert np.all(np.isclose(polygon_normal(points), ref_normal))
 
     points = np.array(
@@ -77,7 +90,7 @@ def test_polygon_normal():
         ]
     )
     points = __transform_points(points, trans_matrix)
-    assert np.all(np.isclose(polygon_normal(points), ref_normal))
+    assert np.all(np.isclose(polygon_normal(points), -ref_normal))
 
     points = np.array(
         [

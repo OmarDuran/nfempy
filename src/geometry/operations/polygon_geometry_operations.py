@@ -43,7 +43,10 @@ def polygon_normal(points: np.array):
     else:
         pa = points[np.argmax(dxc)]
         points_red = np.delete(points, np.argmax(dxc), axis=0)
+        points_red = np.vstack((points_red, np.mean(points_red, axis=0)))
         dxc_red = np.delete(dxc, np.argmax(dxc), axis=0)
+        overall_dxc_red = np.linalg.norm(np.mean(points_red, axis=0) - xc)
+        dxc_red = np.append(dxc_red, overall_dxc_red)
         pb = points_red[np.argmax(dxc_red)]
         pc = points_red[np.argmin(dxc_red)]
 

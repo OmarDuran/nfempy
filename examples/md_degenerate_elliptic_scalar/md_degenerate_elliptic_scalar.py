@@ -3,6 +3,7 @@ import scipy.sparse as sp
 from petsc4py import PETSc
 import time
 
+from domain_builder import create_md_box_2D
 from exact_functions import get_exact_functions_by_co_dimension
 from exact_functions import get_rhs_by_co_dimension
 from postprocess.projectors import l2_projector
@@ -11,7 +12,6 @@ from postprocess.solution_post_processor import write_vtk_file_with_exact_soluti
 from spaces.product_space import ProductSpace
 from mesh.mesh import Mesh
 from mesh.mesh_metrics import mesh_size
-from topology.domain_market import create_md_box_2D
 from mesh.discrete_domain import DiscreteDomain
 from mesh.mesh_operations import cut_conformity_along_c1_lines
 
@@ -92,7 +92,6 @@ def fracture_disjoint_set():
     fractures = [fracture_0]
     return np.array(fractures)
 
-
 def generate_conformal_mesh(md_domain, h_val, n_ref, fracture_physical_tags):
 
     # For simplicity use h_val to control fracture refinement
@@ -131,7 +130,7 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     m_kappa_normal = config["m_kappa_normal"]
     m_delta = config["m_delta"]
 
-    domain_physical_tags = {"area": 1, "bc_0": 2, "bc_1": 3, "bc_2": 4, "bc_3": 5}
+    domain_physical_tags = {"area_0": 1, "area_1": 2, "bc_0": 3, "bc_1": 4, "bc_2": 5, "bc_3": 6}
     box_points = np.array(
         [
             [config["min_xc"], config["min_yc"], 0],
@@ -144,8 +143,9 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     # fracture data
     lines = fracture_disjoint_set()
     fracture_physical_tags = {"line": 10, "internal_bc": 20, "point": 30}
+    make_fitted_q = False
     md_domain = create_md_box_2D(
-        box_points, domain_physical_tags, lines, fracture_physical_tags
+        box_points, domain_physical_tags, lines, fracture_physical_tags, make_fitted_q
     )
 
     # Conformal gmsh discrete representation
@@ -631,6 +631,7 @@ def main():
             # 0.015625,
             # 0.0078125,
             # 0.00390625,
+            # 0.001953125,
         ]
 
         # output data

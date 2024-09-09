@@ -177,7 +177,7 @@ def create_md_box_2D(
 ):
     # processing
     if domain_physical_tags is None:
-        physical_tags = {"area": 1, "bc_0": 2, "bc_1": 3, "bc_2": 4, "bc_3": 5}
+        domain_physical_tags = {"area": 1, "bc_0": 2, "bc_1": 3, "bc_2": 4, "bc_3": 5}
     rock_domain = build_box_2D(box_points, domain_physical_tags)
     if lines is None:
         return rock_domain
