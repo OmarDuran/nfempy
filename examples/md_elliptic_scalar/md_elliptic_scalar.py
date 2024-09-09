@@ -581,9 +581,9 @@ def compute_approximations(config):
                 iter(lineObjects),
                 ("u", "p", "p_projected"),
             )
-            plt.title("Errors on omega with co-dimension: " + str(co_dim))
-            plt.xlabel("Element size")
-            plt.ylabel("L2-error")
+            plt.title("Errors on omega with co-dimension: " + str(co_dim), fontsize=14)
+            plt.xlabel("Element size", fontsize=14)
+            plt.ylabel("L2-error", fontsize=14)
             figure_name = case_names_by_co_dim[co_dim] + "l2_error_plot.png"
             plt.savefig(figure_name)
             plt.clf()
