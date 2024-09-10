@@ -143,7 +143,7 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     # fracture data
     lines = fracture_disjoint_set()
     fracture_physical_tags = {"line": 10, "internal_bc": 20, "point": 30}
-    make_fitted_q = False
+    make_fitted_q = True
     md_domain = create_md_box_2D(
         box_points, domain_physical_tags, lines, fracture_physical_tags, make_fitted_q
     )
@@ -623,7 +623,8 @@ def main():
         config["n_ref"] = 0
         config["k_order"] = 0
         config["mesh_sizes"] = [
-            0.5,
+            0.1,
+            # 0.5,
             # 0.25,
             # 0.125,
             # 0.0625,
