@@ -69,8 +69,8 @@ def create_product_space(dimension, method, gmesh, flux_name, potential_name):
     }
 
     if gmesh.dimension == 2:
-        md_field_physical_tags = [[], [10], [1]]
-        mp_field_bc_physical_tags = [[], [2, 4], [2, 3, 4, 5, 50]]
+        md_field_physical_tags = [[], [10], [1, 2]]
+        md_field_bc_physical_tags = [[], [4, 6], [3, 4, 5, 6, 50]]
     else:
         raise ValueError("Case not available.")
 
@@ -80,7 +80,7 @@ def create_product_space(dimension, method, gmesh, flux_name, potential_name):
     }
 
     b_physical_tags = {
-        flux_name: mp_field_bc_physical_tags[dimension],
+        flux_name: md_field_bc_physical_tags[dimension],
     }
 
     space = ProductSpace(discrete_spaces_data)
@@ -146,7 +146,7 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     # fracture data
     lines = fracture_disjoint_set()
     fracture_physical_tags = {"line": 10, "internal_bc": 20, "point": 30}
-    make_fitted_q = True
+    make_fitted_q = config["make_fitted_q"]
     md_domain = create_md_box_2D(
         box_points, domain_physical_tags, lines, fracture_physical_tags, make_fitted_q
     )
@@ -189,8 +189,8 @@ def md_two_fields_approximation(config, write_vtk_q=False):
             physical_md_produc_space.append(fe_space)
 
     m_data = config["m_data"]
-    assert e_functions.test_evaluation(m_data, 0)
     assert e_functions.test_evaluation(m_data, 1)
+    assert e_functions.test_evaluation(m_data, 0)
 
     exact_functions_c0 = e_functions.get_exact_functions_by_co_dimension(
         0, flux_name, potential_name, m_data
@@ -599,6 +599,7 @@ def main():
         config["min_yc"] = -1.0
         config["max_xc"] = +1.0
         config["max_yc"] = +1.0
+        config["make_fitted_q"] = True
 
         # Material data
         material_data = {
@@ -615,7 +616,7 @@ def main():
         config["n_ref"] = 0
         config["k_order"] = 0
         config["mesh_sizes"] = [
-            0.5,
+            0.125,
             # 0.5,
             # 0.25,
             # 0.125,

@@ -117,7 +117,7 @@ def f_grad_d_phi(x, y, z, m_data, co_dim):
 # The pressure in the fracture;
 def pf(x, y, z, m_data):
     bubble = 0.5 * (np.ones_like(x) - x) * 0.5 * (np.ones_like(x) + x)
-    return bubble * (x**2) * np.sin(2.0 * np.pi * x)
+    return bubble - (x**2) * np.sin(2.0 * np.pi * x)
 
 
 # The pressure gradient;
@@ -158,13 +158,11 @@ def u_exact(x, y, z, m_data, co_dim):
                 ]
             ]
         )
-        val *= f_d_phi(x, y, z, m_data, co_dim) ** 2
     elif co_dim == 1:
-        val = -dpfdx(x, y, z, m_data)
-        val *= f_d_phi(x, y, z, m_data, co_dim) ** 2
-        val = np.array([val])
+        val = -np.array([dpfdx(x, y, z, m_data)])
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")
+    val *= f_d_phi(x, y, z, m_data, co_dim) ** 2
     return val
 
 
@@ -214,8 +212,7 @@ def f_rhs(x, y, z, m_data, co_dim):
             -2.0
             * f_d_phi(x, y, z, m_data, co_dim)
             * dpfdx(x, y, z, m_data)
-            * f_grad_d_phi(x, y, z, m_data, co_dim)
-            * f_grad_porosity(x, y, z, m_data, co_dim)
+            * f_grad_d_phi(x, y, z, m_data, co_dim)[0]
         )
         div_u += -(f_d_phi(x, y, z, m_data, co_dim) ** 2) * dpfdx2(x, y, z, m_data)
     else:
