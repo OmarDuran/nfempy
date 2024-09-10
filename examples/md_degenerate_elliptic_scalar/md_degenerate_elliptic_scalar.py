@@ -4,8 +4,8 @@ from petsc4py import PETSc
 import time
 
 from domain_builder import create_md_box_2D
-from exact_functions import get_exact_functions_by_co_dimension
-from exact_functions import get_rhs_by_co_dimension
+import exact_functions as e_functions
+
 from postprocess.projectors import l2_projector
 from postprocess.l2_error_post_processor import l2_error, l2_error_projected
 from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
@@ -126,13 +126,6 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     flux_name, potential_name = config["var_names"]
     phy_flux_name, phy_potential_name = config["physical_var_names"]
 
-    m_c1 = config["m_c1"]
-    m_c2 = config["m_c2"]
-    m_kappa_c0 = config["m_kappa_c0"]
-    m_kappa_c1 = config["m_kappa_c1"]
-    m_kappa_normal = config["m_kappa_normal"]
-    m_delta = config["m_delta"]
-
     domain_physical_tags = {
         "area_0": 1,
         "area_1": 2,
@@ -195,35 +188,33 @@ def md_two_fields_approximation(config, write_vtk_q=False):
             )
             physical_md_produc_space.append(fe_space)
 
-    exact_functions_c0 = get_exact_functions_by_co_dimension(
-        0, flux_name, potential_name, m_c1, m_c2, m_kappa_c0, m_kappa_c1, m_delta
+    m_data = config["m_data"]
+    assert e_functions.test_evaluation(m_data, 0)
+    assert e_functions.test_evaluation(m_data, 1)
+
+    exact_functions_c0 = e_functions.get_exact_functions_by_co_dimension(
+        0, flux_name, potential_name, m_data
     )
-    exact_functions_c1 = get_exact_functions_by_co_dimension(
-        1, flux_name, potential_name, m_c1, m_c2, m_kappa_c0, m_kappa_c1, m_delta
+    exact_functions_c1 = e_functions.get_exact_functions_by_co_dimension(
+        1, flux_name, potential_name, m_data
     )
     exact_functions = [exact_functions_c0, exact_functions_c1]
 
-    rhs_c0 = get_rhs_by_co_dimension(
-        0, "rhs", m_c1, m_c2, m_kappa_c0, m_kappa_c1, m_delta
+    m_functions_c0 = e_functions.get_problem_functions_by_co_dimension(
+        0, "rhs", "porosity", "d_phi", "grad_d_phi", m_data
     )
-    rhs_c1 = get_rhs_by_co_dimension(
-        1, "rhs", m_c1, m_c2, m_kappa_c0, m_kappa_c1, m_delta
+    m_functions_c1 = e_functions.get_problem_functions_by_co_dimension(
+        1, "rhs", "porosity", "d_phi", "grad_d_phi", m_data
     )
 
     print("Surface: Number of dof: ", md_produc_space[0].n_dof)
     print("Line: Number of dof: ", md_produc_space[1].n_dof)
 
-    def f_kappa_c0(x, y, z):
-        return m_kappa_c0
-
-    def f_kappa_c1(x, y, z):
-        return m_kappa_c1 * m_delta
-
     def f_kappa_normal_c1(x, y, z):
-        return m_kappa_normal
+        return 1.0
 
     def f_delta(x, y, z):
-        return m_delta
+        return 1.0
 
     # primitive assembly
     dof_seq = np.array([0, md_produc_space[0].n_dof, md_produc_space[1].n_dof])
@@ -240,16 +231,6 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     A = PETSc.Mat()
     A.createAIJ([n_dof_g, n_dof_g])
 
-    m_functions_c0 = {
-        "rhs": rhs_c0["rhs"],
-        "kappa": f_kappa_c0,
-    }
-
-    m_functions_c1 = {
-        "rhs": rhs_c1["rhs"],
-        "kappa": f_kappa_c1,
-    }
-
     m_functions_coupling = {
         "delta": f_delta,
         "kappa_normal": f_kappa_normal_c1,
@@ -262,10 +243,10 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     weak_form_c1.functions = m_functions_c1
 
     bc_weak_form_c0 = WeakFormBCDir(md_produc_space[0])
-    bc_weak_form_c0.functions = exact_functions_c0
+    bc_weak_form_c0.functions = {**exact_functions_c0, **m_functions_c0}
 
     bc_weak_form_c1 = WeakFormBCDir(md_produc_space[1])
-    bc_weak_form_c1.functions = exact_functions_c1
+    bc_weak_form_c1.functions = {**exact_functions_c1, **m_functions_c1}
 
     int_coupling_weak_form = CouplingWeakForm(md_produc_space)
     int_coupling_weak_form.functions = m_functions_coupling
@@ -467,12 +448,8 @@ def compose_case_name(config):
 
     k_order = config["k_order"]
     flux_name, potential_name = config["var_names"]
-    m_c1 = config["m_c1"]
-    m_c2 = config["m_c2"]
-    m_kappa_c0 = config["m_kappa_c0"]
-    m_kappa_c1 = config["m_kappa_c1"]
-    m_kappa_normal = config["m_kappa_normal"]
-    m_delta = config["m_delta"]
+    m_data = config["m_data"]
+    rho_1, rho_2, kappa, mu, kappa_normal, delta = list(m_data.values())
     folder_name = config.get("folder_name", None)
     for co_dim in [0, 1]:
         d = max_dim - co_dim
@@ -484,17 +461,17 @@ def compose_case_name(config):
                 + "c_"
                 + str(co_dim)
                 + "_material_parameters_"
-                + str(m_c1)
+                + str(rho_1)
                 + "_"
-                + str(m_c2)
+                + str(rho_2)
                 + "_"
-                + str(m_kappa_c0)
+                + str(kappa)
                 + "_"
-                + str(m_kappa_c1)
+                + str(mu)
                 + "_"
-                + str(m_kappa_normal)
+                + str(kappa_normal)
                 + "_"
-                + str(m_delta)
+                + str(delta)
                 + "_"
             )
             if folder_name is not None:
@@ -624,18 +601,21 @@ def main():
         config["max_yc"] = +1.0
 
         # Material data
-        config["m_c1"] = 1.0
-        config["m_c2"] = 1.0
-        config["m_kappa_c0"] = 1.0
-        config["m_kappa_c1"] = 1 / delta_frac
-        config["m_kappa_normal"] = 1.0
-        config["m_delta"] = delta_frac
+        material_data = {
+            "rho_1": 1.0 / 10.0,
+            "rho_2": 1.0 / 50.0,
+            "kappa": 1.0,
+            "mu": 1.0,
+            "kappa_normal": 1.0,
+            "delta": 1.0,
+        }
+        config["m_data"] = material_data
 
         # function space data
         config["n_ref"] = 0
         config["k_order"] = 0
         config["mesh_sizes"] = [
-            0.1,
+            0.5,
             # 0.5,
             # 0.25,
             # 0.125,
