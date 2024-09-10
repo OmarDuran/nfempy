@@ -105,181 +105,45 @@ def u_exact(x, y, z, m_data, co_dim):
         raise ValueError("Only 1D and 2D settings are supported by this script.")
     return val
 
-
-def q_exact(x, y, z, m_par, dim):
-    if dim == 1:
-        mask = x < 0.0
-        val = np.empty_like([x * 0.0])
-        val[:, mask] = np.zeros_like([x[mask] * 0.0])
-        val[:, ~mask] = np.sqrt(
-            f_porosity(x[~mask], y[~mask], z[~mask], m_par, dim)
-        ) * p_exact(x[~mask], y[~mask], z[~mask], m_par, dim)
-    elif dim == 2:
-        gamma = m_par
-        mask = np.logical_or(x <= -3 / 4, y <= -3 / 4)
-        val = np.empty_like([x * 0.0])
-        val[:, mask] = np.zeros_like([x[mask] * 0.0])
-        val[:, ~mask] = np.array(
-            [
-                np.sqrt(
-                    ((0.75 + x[~mask]) ** gamma) * ((0.75 + y[~mask]) ** (2 * gamma))
-                )
-                * np.cos(6 * x[~mask] * (y[~mask] ** 2))
-            ]
-        )
-    else:
-        raise ValueError("Only 1D and 2D settings are supported by this script.")
+def q_exact(x, y, z, m_data, co_dim):
+    val =np.sqrt(f_porosity(x, y, z, m_data, co_dim)) * p_exact(x, y, z, m_data, co_dim)
     return val
 
-
-def v_exact(x, y, z, m_par, m_mu, dim):
-    if dim == 1:
-        mask = x < 0.0
-        val = np.empty_like([x * 0.0])
-        val[:, mask] = np.zeros_like([x[mask] * 0.0])
-        val[:, ~mask] = u_exact(x[~mask], y[~mask], z[~mask], m_par, dim) / f_d_phi(
-            x[~mask], y[~mask], z[~mask], m_par, m_mu, dim
-        )
-    elif dim == 2:
-        gamma = m_par
-        mask = np.logical_or(x <= -3 / 4, y <= -3 / 4)
-        val = np.empty_like([[x * 0.0, y * 0.0]])
-        val[:, :, mask] = np.zeros_like([[x[mask] * 0.0, y[mask] * 0.0]])
-        val[:, :, ~mask] = np.array(
-            [
-                [
-                    6
-                    * (y[~mask] ** 2)
-                    * np.sqrt(
-                        ((0.75 + x[~mask]) ** (2 * gamma))
-                        * ((0.75 + y[~mask]) ** (4 * gamma))
-                    )
-                    * np.sin(6 * x[~mask] * (y[~mask] ** 2)),
-                    12
-                    * x[~mask]
-                    * y[~mask]
-                    * np.sqrt(
-                        ((0.75 + x[~mask]) ** (2 * gamma))
-                        * ((0.75 + y[~mask]) ** (4 * gamma))
-                    )
-                    * np.sin(6 * x[~mask] * (y[~mask] ** 2)),
-                ]
-            ]
-        )
-    else:
-        raise ValueError("Only 1D and 2D settings are supported by this script.")
+def v_exact(x, y, z, m_data, co_dim):
+    val = (1.0/f_d_phi(x, y, z, m_data, co_dim)) * u_exact(x, y, z, m_data, co_dim)
     return val
 
-
-def f_rhs(x, y, z, m_par, dim):
-    if dim == 1:
-        beta = m_par
-        mask = x < 0.0
-        val = np.empty_like([[x * 0.0]])
-        val[:, :, mask] = np.zeros_like([x[mask] * 0.0])
-        val[:, :, ~mask] = np.array(
-            [
-                [
-                    (x[~mask] ** beta)
-                    * np.sqrt(f_porosity(x[~mask], y[~mask], z[~mask], m_par, dim))
-                ]
-            ]
-        )
-    elif dim == 2:
-        gamma = m_par
-        mask = np.logical_or(x <= -3 / 4, y <= -3 / 4)
-        val = np.empty_like([[x * 0.0]])
-        val[:, :, mask] = np.zeros_like([x[mask] * 0.0])
-
-        val[:, :, ~mask] = np.array(
-            [
-                [
-                    np.sqrt(f_porosity(x[~mask], y[~mask], z[~mask], m_par, dim))
-                    * (
-                        (
-                            1
-                            + 36
-                            * ((0.75 + x[~mask]) ** gamma)
-                            * (y[~mask] ** 2)
-                            * ((0.75 + y[~mask]) ** (2 * gamma))
-                            * (4 * (x[~mask] ** 2) + (y[~mask] ** 2))
-                        )
-                        * np.cos(6 * x[~mask] * (y[~mask] ** 2))
-                        + (
-                            12
-                            * ((0.75 + x[~mask]) ** gamma)
-                            * ((0.75 + y[~mask]) ** (2 * gamma))
-                            * (
-                                x[~mask] * (3 + 4 * x[~mask]) * (3 + 4 * y[~mask])
-                                + 4
-                                * y[~mask]
-                                * (
-                                    4 * x[~mask] * (3 + 4 * x[~mask])
-                                    + y[~mask] * (3 + 4 * y[~mask])
-                                )
-                                * gamma
-                            )
-                            * np.sin(6 * x[~mask] * (y[~mask] ** 2))
-                        )
-                        / ((3 + 4 * x[~mask]) * (3 + 4 * y[~mask]))
-                    )
-                ]
-            ]
-        )
+def f_rhs(x, y, z, m_data, co_dim):
+    if co_dim == 0:
+        term_1 = -(f_d_phi(x, y, z, m_data, co_dim)**2) * (2.0 * _ys(x,y,z) * dpfdx(x,y,z,m_data) * _dxsdx(x,y,z) + _xs(x,y,z) * _ys(x,y,z) *dpfdx2(x,y,z,m_data) + _dxsdx2(x,y,z) * _ys(x,y,z) * pf(x,y,z,m_data))
+        term_2 = -(f_d_phi(x, y, z, m_data, co_dim)**2) * _xs(x,y,z) * _dysdy2(x,y,z) * pf(x,y,z,m_data) - 2.0 * pf(x,y,z,m_data) * _xs(x,y,z) * f_d_phi(x, y, z, m_data, co_dim) * _dysdy(x,y,z) * f_grad_d_phi(x, y, z, m_data, co_dim)[1]
+        term_3 = -2.0 * f_d_phi(x, y, z, m_data, co_dim) * (_xs(x,y,z) * _ys(x,y,z) * dpfdx(x,y,z,m_data) + _dxsdx(x,y,z) * _ys(x,y,z) * pf(x,y,z,m_data)) * f_grad_d_phi(x, y, z, m_data, co_dim)[1]
+        div_u = term_1 + term_2 + term_3
+    elif co_dim == 1:
+        div_u = -2.0 * f_d_phi(x, y, z, m_data, co_dim) * dpfdx(x, y, z, m_data) * f_grad_d_phi(x, y, z, m_data, co_dim) * f_grad_porosity(x, y, z, m_data, co_dim)
+        div_u += - (f_d_phi(x, y, z, m_data, co_dim) ** 2) * dpfdx2(x, y, z, m_data)
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")
+    val = (div_u + f_porosity(x, y, z, m_data, co_dim) * pf(x, y, z, m_data))
+    val *= 1.0 / np.sqrt(f_porosity(x, y, z, m_data, co_dim))
     return val
 
-def grad_p_exact(x, y, z, m_par, dim):
-    if dim == 1:
-        beta = m_par
-        return np.where(
-            x < 0.0,
-            np.array([x * 0.0]),
-            np.array(
-                [
-                    (((x ** (np.sqrt(13) / 2.0)) - (x ** (1.5 + beta))) * beta) / (
-                            (x ** 2.5) * (-1 + beta * (3 + beta))),
-                ]
-            ),
-        )
-    else:
-        raise ValueError("Only 1D and 2D settings are supported by this script.")
-
-def laplacian_p_exact(x, y, z, m_par, dim):
-    if dim == 1:
-        beta = m_par
-        return np.where(
-            x < 0.0,
-            np.array([x * 0.0]),
-            np.array(
-                [
-                    (((-5 + np.sqrt(13))*(x**(np.sqrt(13)/2.0)) - 2*(x**(1.5 + beta))*(-1 + beta))*beta)/ (2.*(x**3.5)*(-1 + beta*(3 + beta))),
-                ]
-            ),
-        )
-    else:
-        raise ValueError("Only 1D and 2D settings are supported by this script.")
-
-def test_degeneracy(m_par, m_mu, dim):
+def test_evaluation(m_data, co_dim):
     x = np.random.uniform(-1.0, +1.0, (10, 3))
     try:
-        phi = f_porosity(x[:, 0], x[:, 1], x[:, 2], m_par, dim)
-        grad_phi = f_grad_porosity(x[:, 0], x[:, 1], x[:, 2], m_par, dim)
-        d_phi = f_d_phi(x[:, 0], x[:, 1], x[:, 2], m_par, m_mu, dim)
-        grad_d_phi = f_grad_d_phi(x[:, 0], x[:, 1], x[:, 2], m_par, m_mu, dim)
-        kappa = f_kappa(x[:, 0], x[:, 1], x[:, 2], m_par, dim)
+        phi = f_porosity(x[:, 0], x[:, 1], x[:, 2], m_data, co_dim)
+        grad_phi = f_grad_porosity(x[:, 0], x[:, 1], x[:, 2], m_data, co_dim)
+        d_phi = f_d_phi(x[:, 0], x[:, 1], x[:, 2], m_data, co_dim)
+        grad_d_phi = f_grad_d_phi(x[:, 0], x[:, 1], x[:, 2], m_data, co_dim)
+        kappa = f_kappa(x[:, 0], x[:, 1], x[:, 2], m_data, co_dim)
 
         # exact functions
-        u = u_exact(x[:, 0], x[:, 1], x[:, 2], m_par, dim)
-        p = p_exact(x[:, 0], x[:, 1], x[:, 2], m_par, dim)
-        v = v_exact(x[:, 0], x[:, 1], x[:, 2], m_par, m_mu, dim)
-        q = q_exact(x[:, 0], x[:, 1], x[:, 2], m_par, dim)
-        rhs = f_rhs(x[:, 0], x[:, 1], x[:, 2], m_par, dim)
+        u = u_exact(x[:, 0], x[:, 1], x[:, 2], m_data, co_dim)
+        p = p_exact(x[:, 0], x[:, 1], x[:, 2], m_data, co_dim)
+        v = v_exact(x[:, 0], x[:, 1], x[:, 2], m_data, co_dim)
+        q = q_exact(x[:, 0], x[:, 1], x[:, 2], m_data, co_dim)
+        rhs = f_rhs(x[:, 0], x[:, 1], x[:, 2], m_data, co_dim)
 
-        # exact functions for md cases
-        grad_p = grad_p_exact(x[:, 0], x[:, 1], x[:, 2], m_par, dim)
-        laplacian_p = laplacian_p_exact(x[:, 0], x[:, 1], x[:, 2], m_par, dim)
     except Exception:
         return False
 

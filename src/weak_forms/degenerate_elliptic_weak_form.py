@@ -48,7 +48,6 @@ class DegenerateEllipticWeakForm(WeakForm):
         q_space = self.space.discrete_spaces["q"]
 
         f_rhs_f = self.functions["rhs"]
-        f_kappa = self.functions["kappa"]
         f_porosity = self.functions["porosity"]
         f_d_phi = self.functions["d_phi"]
         f_grad_d_phi = self.functions["grad_d_phi"]
@@ -57,7 +56,6 @@ class DegenerateEllipticWeakForm(WeakForm):
         q_components = q_space.n_comp
 
         v_data: ElementData = v_space.elements[iel].data
-        q_data: ElementData = q_space.elements[iel].data
 
         cell = v_data.cell
         dim = cell.dimension
@@ -80,26 +78,17 @@ class DegenerateEllipticWeakForm(WeakForm):
         }
 
         n_dof = n_v_dof + n_q_dof
-        js = (n_dof, n_dof)
-        rs = n_dof
-        j_el = np.zeros(js)
-        r_el = np.zeros(rs)
 
         # Partial local vectorization
-
         phi_star = f_porosity(x[:, 0], x[:, 1], x[:, 2])
 
-        # nick name for d_phi
+        # alternative name for d_phi
         delta_star = f_d_phi(x[:, 0], x[:, 1], x[:, 2])
         grad_delta_star = f_grad_d_phi(x[:, 0], x[:, 1], x[:, 2])
 
         f_f_val_star = f_rhs_f(x[:, 0], x[:, 1], x[:, 2])
         phi_q_star = det_jac * weights * q_phi_tab[0, :, :, 0].T
 
-        # constant directors
-        e1 = np.array([1, 0, 0])
-        e2 = np.array([0, 1, 0])
-        e3 = np.array([0, 0, 1])
         with ad.AutoDiff(alpha) as alpha:
             el_form = np.zeros(n_dof)
             for c in range(q_components):
@@ -108,7 +97,6 @@ class DegenerateEllipticWeakForm(WeakForm):
                 el_form[b:e:q_components] -= phi_q_star @ f_f_val_star[c].T
 
             for i, omega in enumerate(weights):
-                xv = x[i]
 
                 phi = phi_star[i]
                 delta = delta_star[i]
