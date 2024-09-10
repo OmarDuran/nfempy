@@ -617,7 +617,7 @@ def main():
             "rho_1": 1.0 / 10.0,
             "rho_2": 1.0 / 50.0,
             "kappa_c0": 1.0,
-            "kappa_c1": 1.0,
+            "kappa_c1": 1.0/delta_frac,
             "mu": 1.0,
             "kappa_normal": 1.0,
             "delta": delta_frac,
