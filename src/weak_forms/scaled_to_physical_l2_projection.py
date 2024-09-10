@@ -1,3 +1,22 @@
+"""
+
+Scaled to physical L2-projection map
+
+This class implements the inverse of the mapping described in equations 9 and 10 in [1].
+
+[1] Arbogast, T., Taicher, A.L. A cell-centered finite difference method for a degenerate
+elliptic equation arising from two-phase mixtures. Comput Geosci 21, 701–712 (2017).
+https://doi.org/10.1007/s10596-017-9649-9
+
+The purpose of this class is to project variables from a scaled representation back to
+their physical counterparts using a weak L2 projection.
+
+Methods:
+    - evaluate_form: Computes the residual vector and Jacobian matrix for the weak L2
+    projection, based on scaled input variables.
+
+"""
+
 import auto_diff as ad
 import numpy as np
 
@@ -5,7 +24,7 @@ from basis.element_data import ElementData
 from weak_forms.weak_from import WeakForm
 
 
-class ToPhysicalProjectionWeakForm(WeakForm):
+class ScaledToPhysicalL2Projection(WeakForm):
     def evaluate_form(self, element_index, alpha, alpha_scaled):
         iel = element_index
         if self.space is None or self.functions is None:
@@ -21,7 +40,6 @@ class ToPhysicalProjectionWeakForm(WeakForm):
         q_components = q_space.n_comp
 
         v_data: ElementData = v_space.elements[iel].data
-        q_data: ElementData = q_space.elements[iel].data
 
         cell = v_data.cell
         dim = cell.dimension
@@ -44,22 +62,12 @@ class ToPhysicalProjectionWeakForm(WeakForm):
         }
 
         n_dof = n_v_dof + n_q_dof
-        js = (n_dof, n_dof)
-        rs = n_dof
-        j_el = np.zeros(js)
-        r_el = np.zeros(rs)
 
         # Partial local vectorization
-
         phi_star = f_porosity(x[:, 0], x[:, 1], x[:, 2])
-        # nick name for d_phi
+        # alternative name for d_phi
         delta_star = f_d_phi(x[:, 0], x[:, 1], x[:, 2])
-        phi_q_star = det_jac * weights * q_phi_tab[0, :, :, 0].T
 
-        # constant directors
-        e1 = np.array([1, 0, 0])
-        e2 = np.array([0, 1, 0])
-        e3 = np.array([0, 0, 1])
         with ad.AutoDiff(alpha) as alpha:
             el_form = np.zeros(n_dof)
 

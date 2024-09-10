@@ -18,7 +18,7 @@ from weak_forms.degenerate_elliptic_weak_form import (
     DegenerateEllipticWeakForm,
     DegenerateEllipticWeakFormBCDirichlet,
 )
-from ToPhysicalProjectionWeakForm import ToPhysicalProjectionWeakForm
+from weak_forms.scaled_to_physical_l2_projection import ScaledToPhysicalL2Projection
 import strong_solutions_TArbogast as exact_funcs
 from functools import partial
 import matplotlib.pyplot as plt
@@ -149,8 +149,8 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
     bc_weak_form = DegenerateEllipticWeakFormBCDirichlet(fe_space)
     bc_weak_form.functions = bc_functions
 
-    to_physical_weak_form = ToPhysicalProjectionWeakForm(fe_space)
-    to_physical_weak_form.functions = m_functions
+    scale_to_physical_weak_form = ScaledToPhysicalL2Projection(fe_space)
+    scale_to_physical_weak_form.functions = m_functions
 
     def scatter_form_data(jac_g, res_g, i, weak_form):
         # destination indexes
@@ -282,7 +282,7 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
     n_els = len(fe_space.discrete_spaces["v"].elements)
     [
         scatter_form_data_mapping(
-            operator_lhs_g, operator_rhs_g, i, to_physical_weak_form
+            operator_lhs_g, operator_rhs_g, i, scale_to_physical_weak_form
         )
         for i in range(n_els)
     ]
