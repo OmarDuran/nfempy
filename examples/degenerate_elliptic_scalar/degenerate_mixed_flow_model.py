@@ -569,7 +569,7 @@ def main():
                     if plot_rates_q:
                         x = error_data[:, 0]
                         y = error_data[:, 1:n_data]
-                        lineObjects = plt.loglog(x, y)
+                        lineObjects = plt.loglog(x, y, marker="o")
                         plt.legend(
                             iter(lineObjects),
                             ("q", "v", "p", "u", "projected q", "projected p"),
