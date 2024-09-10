@@ -82,7 +82,7 @@ def f_grad_porosity(x, y, z, m_data, co_dim):
         val = np.array(
             [
                 2.0 * x * m_rho_2 * _ys(x, y, z),
-                f_porosity(x, y, z, m_data, co_dim) * _dysdy(x, y, z),
+                f_porosity(x, y, z, m_data, co_dim=1) * _dysdy(x, y, z),
                 z * 0.0,
             ]
         )
@@ -149,7 +149,7 @@ def p_exact(x, y, z, m_data, co_dim):
 
 def u_exact(x, y, z, m_data, co_dim):
     if co_dim == 0:
-        val = -np.array(
+        val = -(f_d_phi(x, y, z, m_data, co_dim) ** 2) * np.array(
             [
                 [
                     _xs(x, y, z) * _ys(x, y, z) * dpfdx(x, y, z, m_data)
@@ -159,10 +159,11 @@ def u_exact(x, y, z, m_data, co_dim):
             ]
         )
     elif co_dim == 1:
-        val = -np.array([dpfdx(x, y, z, m_data)])
+        val = -(f_d_phi(x, y, z, m_data, co_dim) ** 2) * np.array(
+            [dpfdx(x, y, z, m_data)]
+        )
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")
-    val *= f_d_phi(x, y, z, m_data, co_dim) ** 2
     return val
 
 
@@ -204,7 +205,7 @@ def f_rhs(x, y, z, m_data, co_dim):
                 _xs(x, y, z) * _ys(x, y, z) * dpfdx(x, y, z, m_data)
                 + _dxsdx(x, y, z) * _ys(x, y, z) * pf(x, y, z, m_data)
             )
-            * f_grad_d_phi(x, y, z, m_data, co_dim)[1]
+            * f_grad_d_phi(x, y, z, m_data, co_dim)[0]
         )
         div_u = term_1 + term_2 + term_3
     elif co_dim == 1:
@@ -217,7 +218,7 @@ def f_rhs(x, y, z, m_data, co_dim):
         div_u += -(f_d_phi(x, y, z, m_data, co_dim) ** 2) * dpfdx2(x, y, z, m_data)
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")
-    val = div_u + f_porosity(x, y, z, m_data, co_dim) * pf(x, y, z, m_data)
+    val = div_u + f_porosity(x, y, z, m_data, co_dim) * p_exact(x, y, z, m_data, co_dim)
     val *= 1.0 / np.sqrt(f_porosity(x, y, z, m_data, co_dim))
     return np.array([val])
 
@@ -255,6 +256,26 @@ def get_exact_functions_by_co_dimension(co_dim, flux_name, potential_name, m_dat
         ),
         potential_name: partial(
             p_exact,
+            m_data=m_data,
+            co_dim=co_dim,
+        ),
+    }
+    return exact_functions
+
+
+def get_scaled_exact_functions_by_co_dimension(
+    co_dim, flux_name, potential_name, m_data
+):
+    if co_dim not in [0, 1]:
+        raise ValueError("Case not available.")
+    exact_functions = {
+        flux_name: partial(
+            v_exact,
+            m_data=m_data,
+            co_dim=co_dim,
+        ),
+        potential_name: partial(
+            q_exact,
             m_data=m_data,
             co_dim=co_dim,
         ),

@@ -3,7 +3,7 @@ import scipy.sparse as sp
 from petsc4py import PETSc
 import time
 
-from domain_builder import create_md_box_2D
+from topology.domain_market import create_md_box_2D
 import exact_functions as e_functions
 
 from postprocess.projectors import l2_projector
@@ -69,8 +69,8 @@ def create_product_space(dimension, method, gmesh, flux_name, potential_name):
     }
 
     if gmesh.dimension == 2:
-        md_field_physical_tags = [[], [10], [1, 2]]
-        md_field_bc_physical_tags = [[], [4, 6], [3, 4, 5, 6, 50]]
+        md_field_physical_tags = [[], [10], [1]]
+        md_field_bc_physical_tags = [[], [3, 5], [2, 3, 4, 5, 50]]
     else:
         raise ValueError("Case not available.")
 
@@ -127,12 +127,11 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     phy_flux_name, phy_potential_name = config["physical_var_names"]
 
     domain_physical_tags = {
-        "area_0": 1,
-        "area_1": 2,
-        "bc_0": 3,
-        "bc_1": 4,
-        "bc_2": 5,
-        "bc_3": 6,
+        "area": 1,
+        "bc_0": 2,
+        "bc_1": 3,
+        "bc_2": 4,
+        "bc_3": 5,
     }
     box_points = np.array(
         [
@@ -146,9 +145,8 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     # fracture data
     lines = fracture_disjoint_set()
     fracture_physical_tags = {"line": 10, "internal_bc": 20, "point": 30}
-    make_fitted_q = config["make_fitted_q"]
     md_domain = create_md_box_2D(
-        box_points, domain_physical_tags, lines, fracture_physical_tags, make_fitted_q
+        box_points, domain_physical_tags, lines, fracture_physical_tags
     )
 
     # Conformal gmsh discrete representation
@@ -189,13 +187,13 @@ def md_two_fields_approximation(config, write_vtk_q=False):
             physical_md_produc_space.append(fe_space)
 
     m_data = config["m_data"]
-    assert e_functions.test_evaluation(m_data, 1)
     assert e_functions.test_evaluation(m_data, 0)
+    assert e_functions.test_evaluation(m_data, 1)
 
-    exact_functions_c0 = e_functions.get_exact_functions_by_co_dimension(
+    exact_functions_c0 = e_functions.get_scaled_exact_functions_by_co_dimension(
         0, flux_name, potential_name, m_data
     )
-    exact_functions_c1 = e_functions.get_exact_functions_by_co_dimension(
+    exact_functions_c1 = e_functions.get_scaled_exact_functions_by_co_dimension(
         1, flux_name, potential_name, m_data
     )
     exact_functions = [exact_functions_c0, exact_functions_c1]
@@ -314,7 +312,7 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     eb_c0_ids = [
         id
         for id in all_b_cell_c0_ids
-        if gmesh.cells[id].material_id != physical_tags["line_clones"]
+        # if gmesh.cells[id].material_id != physical_tags["line_clones"]
     ]
     eb_c0_el_idx = [
         md_produc_space[0].discrete_spaces["v"].id_to_bc_element[id] for id in eb_c0_ids
@@ -616,12 +614,11 @@ def main():
         config["n_ref"] = 0
         config["k_order"] = 0
         config["mesh_sizes"] = [
+            0.5,
+            0.25,
             0.125,
-            # 0.5,
-            # 0.25,
-            # 0.125,
-            # 0.0625,
-            # 0.03125,
+            0.0625,
+            0.03125,
             # 0.015625,
             # 0.0078125,
             # 0.00390625,
