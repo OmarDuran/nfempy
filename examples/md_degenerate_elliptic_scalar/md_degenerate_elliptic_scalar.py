@@ -210,12 +210,6 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     print("Surface: Number of dof: ", md_produc_space[0].n_dof)
     print("Line: Number of dof: ", md_produc_space[1].n_dof)
 
-    def f_kappa_normal_c1(x, y, z):
-        return 1.0
-
-    def f_delta(x, y, z):
-        return 1.0
-
     # primitive assembly
     dof_seq = np.array([0, md_produc_space[0].n_dof, md_produc_space[1].n_dof])
     global_dof = np.add.accumulate(dof_seq)
@@ -231,10 +225,7 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     A = PETSc.Mat()
     A.createAIJ([n_dof_g, n_dof_g])
 
-    m_functions_coupling = {
-        "delta": f_delta,
-        "kappa_normal": f_kappa_normal_c1,
-    }
+
 
     weak_form_c0 = MixedWeakForm(md_produc_space[0])
     weak_form_c0.functions = m_functions_c0
@@ -247,6 +238,24 @@ def md_two_fields_approximation(config, write_vtk_q=False):
 
     bc_weak_form_c1 = WeakFormBCDir(md_produc_space[1])
     bc_weak_form_c1.functions = {**exact_functions_c1, **m_functions_c1}
+
+    # Interface coupling data
+    def f_kappa_normal(x, y, z):
+        return m_data['kappa_normal'] * np.ones_like(x)
+
+    def f_delta(x, y, z):
+        return m_data['delta'] * np.ones_like(x)
+
+    def f_mu(x, y, z):
+        return m_data['mu'] * np.ones_like(x)
+
+    m_functions_coupling = {
+        "delta": f_delta,
+        "kappa_normal": f_kappa_normal,
+        "mu": f_mu,
+        "d_phi_c0": m_functions_c0['d_phi'],
+        "porosity_c1": m_functions_c1['porosity']
+    }
 
     int_coupling_weak_form = InterfaceCouplingWeakForm(md_produc_space)
     int_coupling_weak_form.functions = m_functions_coupling
@@ -287,9 +296,9 @@ def md_two_fields_approximation(config, write_vtk_q=False):
 
     def scatter_coupling_form_data(A, c1_idx, c0_p_idx, c0_n_idx, int_weak_form):
 
-        dest_c0_p = int_weak_form.space[0].bc_destination_indexes(c0_p_idx, "u")
-        dest_c0_n = int_weak_form.space[0].bc_destination_indexes(c0_n_idx, "u")
-        dest_c1 = int_weak_form.space[1].destination_indexes(c1_idx, "p")
+        dest_c0_p = int_weak_form.space[0].bc_destination_indexes(c0_p_idx, "v")
+        dest_c0_n = int_weak_form.space[0].bc_destination_indexes(c0_n_idx, "v")
+        dest_c1 = int_weak_form.space[1].destination_indexes(c1_idx, "q")
         dest = np.concatenate([dest_c0_p, dest_c0_n, dest_c1])
         alpha_l = alpha[dest]
         r_el, j_el = int_weak_form.evaluate_form(c1_idx, c0_p_idx, c0_n_idx, alpha_l)
@@ -325,24 +334,24 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     [scatter_bc_form(A, i, bc_weak_form_c1) for i in range(n_bc_els_c1)]
 
     # Interface weak forms
-    # for interface in interfaces:
-    #     c1_data = interface["c1"]
-    #     c1_el_idx = [
-    #         md_produc_space[1].discrete_spaces["v"].id_to_element[cell.id]
-    #         for cell in c1_data[0]
-    #     ]
-    #     c0_pel_idx = [
-    #         md_produc_space[0].discrete_spaces["v"].id_to_bc_element[cell.id]
-    #         for cell in c1_data[1]
-    #     ]
-    #     c0_nel_idx = [
-    #         md_produc_space[0].discrete_spaces["v"].id_to_bc_element[cell.id]
-    #         for cell in c1_data[2]
-    #     ]
-    #     for c1_idx, c0_p_idx, c0_n_idx in zip(c1_el_idx, c0_pel_idx, c0_nel_idx):
-    #         scatter_coupling_form_data(
-    #             A, c1_idx, c0_p_idx, c0_n_idx, int_coupling_weak_form
-    #         )  # positive and negative at once
+    for interface in interfaces:
+        c1_data = interface["c1"]
+        c1_el_idx = [
+            md_produc_space[1].discrete_spaces["v"].id_to_element[cell.id]
+            for cell in c1_data[0]
+        ]
+        c0_pel_idx = [
+            md_produc_space[0].discrete_spaces["v"].id_to_bc_element[cell.id]
+            for cell in c1_data[1]
+        ]
+        c0_nel_idx = [
+            md_produc_space[0].discrete_spaces["v"].id_to_bc_element[cell.id]
+            for cell in c1_data[2]
+        ]
+        for c1_idx, c0_p_idx, c0_n_idx in zip(c1_el_idx, c0_pel_idx, c0_nel_idx):
+            scatter_coupling_form_data(
+                A, c1_idx, c0_p_idx, c0_n_idx, int_coupling_weak_form
+            )  # positive and negative at once
 
     A.assemble()
 

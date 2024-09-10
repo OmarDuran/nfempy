@@ -17,11 +17,13 @@ class InterfaceCouplingWeakForm(WeakForm):
         f_kappa = self.functions["kappa_normal"]
         f_delta = self.functions["delta"]
 
-        # from c1 object
-        f_porosity = self.functions["porosity"]
-
         # from c0 object
-        f_d_phi = self.functions["d_phi"]
+        f_d_phi = self.functions["d_phi_c0"]
+
+        # from c1 object
+        f_porosity = self.functions["porosity_c1"]
+
+
 
         def compute_trace_space(iel_pair, field_pair, md_space):
 
@@ -107,6 +109,13 @@ class InterfaceCouplingWeakForm(WeakForm):
         }
         n_dof = n_v_dof_p + n_v_dof_n + n_q_dof
 
+        # partial vectorization
+        mu_star = f_mu(x[:, 0], x[:, 1], x[:, 2])
+        kappa_star = f_kappa(x[:, 0], x[:, 1], x[:, 2])
+        delta_star = f_delta(x[:, 0], x[:, 1], x[:, 2])
+        porosity_star = f_porosity(x[:, 0], x[:, 1], x[:, 2])
+        d_phi_star = f_d_phi(x[:, 0], x[:, 1], x[:, 2])
+
         # compute normal
         with ad.AutoDiff(alpha) as alpha:
             el_form = np.zeros(n_dof)
@@ -115,11 +124,12 @@ class InterfaceCouplingWeakForm(WeakForm):
             alpha_q = alpha[:, idx_dof["q"]]
 
             for i, omega in enumerate(weights):
-                kappa_n_v = f_kappa(x[i, 0], x[i, 1], x[i, 2])
-                delta_v = f_delta(x[i, 0], x[i, 1], x[i, 2])
+                mu_v = mu_star[i]
+                kappa_n_v = kappa_star[i]
+                delta_v = delta_star[i]
 
-                porosity_v = f_porosity(x[i, 0], x[i, 1], x[i, 2])
-                d_phi_v = f_d_phi(x[i, 0], x[i, 1], x[i, 2])
+                porosity_v = porosity_star[i]
+                d_phi_v = d_phi_star[i]
 
                 dv_h_p = (
                     dv_tr_phi_tab_p[0:1, i, dv_dof_n_index_p, 0:dim] @ n_p[0:dim]
@@ -128,19 +138,23 @@ class InterfaceCouplingWeakForm(WeakForm):
                     dv_tr_phi_tab_n[0:1, i, dv_dof_n_index_n, 0:dim] @ n_n[0:dim]
                 ).T
 
+                dv_h_p *= d_phi_v
+                dv_h_n *= d_phi_v
+
                 dq_h = q_phi_tab[0, i, :, 0:dim]
                 v_h_p = alpha_v_p @ dv_h_p
                 v_h_n = alpha_v_n @ dv_h_n
                 q_h_c1 = alpha_q @ dq_h
 
-                beta_v = kappa_n_v / (delta_v / 2.0)
+                d_phi_normal = np.sqrt(kappa_n_v * (porosity_v ** 2) / mu_v)
+                alpha_f_v = (d_phi_normal**2) / (delta_v / 2.0)
 
                 # Robin coupling
-                equ_1_integrand = ((1.0 / beta_v) * v_h_p + q_h_c1) @ dv_h_p.T
-                equ_2_integrand = ((1.0 / beta_v) * v_h_n + q_h_c1) @ dv_h_n.T
+                equ_1_integrand = ((1.0 / alpha_f_v) * v_h_p + (1.0 / np.sqrt(porosity_v)) * q_h_c1) @ dv_h_p.T
+                equ_2_integrand = ((1.0 / alpha_f_v) * v_h_n + (1.0 / np.sqrt(porosity_v)) * q_h_c1) @ dv_h_n.T
 
                 # Robin coupling is a self-adjoint operator of c1 mass conservation
-                equ_3_integrand = v_h_p @ dq_h.T + v_h_n @ dq_h.T
+                equ_3_integrand = (1.0 / np.sqrt(porosity_v)) * (v_h_p @ dq_h.T + v_h_n @ dq_h.T)
 
                 multiphysic_integrand = np.zeros((1, n_dof))
                 multiphysic_integrand[:, idx_dof["v_p"]] = equ_1_integrand
