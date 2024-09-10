@@ -19,6 +19,7 @@ from geometry.operations.point_geometry_operations import points_line_argsort
 from geometry.operations.point_geometry_operations import points_polygon_intersection
 from geometry.operations.line_geometry_operations import lines_lines_intersection
 
+
 def build_surface_2D(surface_points, physical_tags=None):
 
     domain = Domain(dimension=2)
@@ -75,6 +76,7 @@ def build_surface_2D(surface_points, physical_tags=None):
     domain.build_grahp()
     return domain
 
+
 def create_md_box_2D(
     box_points: np.array,
     domain_physical_tags: dict,
@@ -84,16 +86,27 @@ def create_md_box_2D(
 ):
     # processing
     if domain_physical_tags is None:
-        domain_physical_tags = {"area_0": 1, "area_1": 2, "bc_0": 3, "bc_1": 4, "bc_2": 5, "bc_3": 6}
-    offset = 1.0/6.0
+        domain_physical_tags = {
+            "area_0": 1,
+            "area_1": 2,
+            "bc_0": 3,
+            "bc_1": 4,
+            "bc_2": 5,
+            "bc_3": 6,
+        }
+    offset = 1.0 / 6.0
     if make_fitted_q:
         offset = 0.0
     base_domain_points = np.insert(box_points, 1, np.array([offset, -1.0, 0]), axis=0)
-    base_domain_points = np.insert(base_domain_points, 4, np.array([offset, +1.0, 0]), axis=0)
+    base_domain_points = np.insert(
+        base_domain_points, 4, np.array([offset, +1.0, 0]), axis=0
+    )
 
     rock_domain = build_surface_2D(base_domain_points, domain_physical_tags)
     if rock_domain.dimension != 2:
-        raise ValueError("Only 2D with 1D fractures settings are supported by this script.")
+        raise ValueError(
+            "Only 2D with 1D fractures settings are supported by this script."
+        )
 
     if lines is None:
         return rock_domain
@@ -190,15 +203,17 @@ def create_md_box_2D(
     vertices = vertices[v_intx_q]
     edges = edges[e_intx_q]
 
-
-
     faces = []
     wires = []
-    fracture_edges = np.array([edge for edge in edges if edge.physical_tag == fracture_physical_tags["line"]])
-    fracture_edges_xcs = np.array([np.mean(edge.boundary_points(), axis=0) for edge in fracture_edges])
+    fracture_edges = np.array(
+        [edge for edge in edges if edge.physical_tag == fracture_physical_tags["line"]]
+    )
+    fracture_edges_xcs = np.array(
+        [np.mean(edge.boundary_points(), axis=0) for edge in fracture_edges]
+    )
     name_to_base_points = {
-        'area_0': np.array([0, 1, 4, 5]),
-        'area_1': np.array([1, 2, 3, 4]),
+        "area_0": np.array([0, 1, 4, 5]),
+        "area_1": np.array([1, 2, 3, 4]),
     }
     face_idx = 0
     for domain_face in rock_domain_faces:
@@ -207,7 +222,14 @@ def create_md_box_2D(
         for boundary_edge in domain_face.boundary_shapes[0].immersed_shapes:
             a, b = boundary_edge.boundary_points()
             sub_edges = np.array(
-                [edge for edge in edges if point_line_intersection(np.mean(edge.boundary_points(),axis=0), a, b) is not None]
+                [
+                    edge
+                    for edge in edges
+                    if point_line_intersection(
+                        np.mean(edge.boundary_points(), axis=0), a, b
+                    )
+                    is not None
+                ]
             )
             sub_edges_xcs = np.array(
                 [np.mean(sub_edge.boundary_points(), axis=0) for sub_edge in sub_edges]
@@ -229,7 +251,7 @@ def create_md_box_2D(
 
         wires.append(wire_i)
         faces.append(face_i)
-        face_idx +=1
+        face_idx += 1
 
     md_domain = create_domain(dimension=2, shapes=[])
     md_domain.append_shapes(vertices)

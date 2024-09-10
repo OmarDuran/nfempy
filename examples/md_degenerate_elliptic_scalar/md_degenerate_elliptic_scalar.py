@@ -16,7 +16,9 @@ from mesh.discrete_domain import DiscreteDomain
 from mesh.mesh_operations import cut_conformity_along_c1_lines
 
 # simple weak form
-from weak_forms.degenerate_elliptic_weak_form import DegenerateEllipticWeakForm as MixedWeakForm
+from weak_forms.degenerate_elliptic_weak_form import (
+    DegenerateEllipticWeakForm as MixedWeakForm,
+)
 from weak_forms.degenerate_elliptic_weak_form import (
     DegenerateEllipticWeakFormBCDirichlet as WeakFormBCDir,
 )
@@ -92,6 +94,7 @@ def fracture_disjoint_set():
     fractures = [fracture_0]
     return np.array(fractures)
 
+
 def generate_conformal_mesh(md_domain, h_val, n_ref, fracture_physical_tags):
 
     # For simplicity use h_val to control fracture refinement
@@ -130,7 +133,14 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     m_kappa_normal = config["m_kappa_normal"]
     m_delta = config["m_delta"]
 
-    domain_physical_tags = {"area_0": 1, "area_1": 2, "bc_0": 3, "bc_1": 4, "bc_2": 5, "bc_3": 6}
+    domain_physical_tags = {
+        "area_0": 1,
+        "area_1": 2,
+        "bc_0": 3,
+        "bc_1": 4,
+        "bc_2": 5,
+        "bc_3": 6,
+    }
     box_points = np.array(
         [
             [config["min_xc"], config["min_yc"], 0],
@@ -180,7 +190,9 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     for d in [2, 1]:
         methods = method_definition(d, k_order, phy_flux_name, phy_potential_name)
         for method in methods:
-            fe_space = create_product_space(d, method, gmesh, phy_flux_name, phy_potential_name)
+            fe_space = create_product_space(
+                d, method, gmesh, phy_flux_name, phy_potential_name
+            )
             physical_md_produc_space.append(fe_space)
 
     exact_functions_c0 = get_exact_functions_by_co_dimension(
