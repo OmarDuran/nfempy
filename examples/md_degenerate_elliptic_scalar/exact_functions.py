@@ -94,22 +94,47 @@ def f_grad_porosity(x, y, z, m_data, co_dim):
 
 
 def f_kappa(x, y, z, m_data, co_dim):
-    m_kappa = m_data["kappa"]
-    val = m_kappa * f_porosity(x, y, z, m_data, co_dim) ** 2
+    if co_dim == 0:
+        m_kappa_c0 = m_data["kappa_c0"]
+        val = m_kappa_c0 * f_porosity(x, y, z, m_data, co_dim) ** 2
+    elif co_dim == 1:
+        m_kappa_c1 = m_data["kappa_c1"]
+        val = m_kappa_c1 * f_porosity(x, y, z, m_data, co_dim) ** 2
+    else:
+        raise ValueError("Only 1D and 2D settings are supported by this script.")
     return val
 
 
 def f_d_phi(x, y, z, m_data, co_dim):
     m_mu = m_data["mu"]
-    return np.sqrt(f_kappa(x, y, z, m_data, co_dim) / m_mu)
+    if co_dim == 0:
+        val = np.sqrt(f_kappa(x, y, z, m_data, co_dim) / m_mu)
+    elif co_dim == 1:
+        m_delta = m_data["delta"]
+        val = np.sqrt(m_delta * f_kappa(x, y, z, m_data, co_dim) / m_mu)
+    else:
+        raise ValueError("Only 1D and 2D settings are supported by this script.")
+
+    return val
 
 
 def f_grad_d_phi(x, y, z, m_data, co_dim):
     m_mu = m_data["mu"]
-    scalar_part = f_porosity(x, y, z, m_data, co_dim) / (
-        m_mu * f_d_phi(x, y, z, m_data, co_dim)
-    )
-    vector_part = f_grad_porosity(x, y, z, m_data, co_dim)
+    if co_dim == 0:
+        m_kappa_c0 = m_data["kappa_c0"]
+        scalar_part = m_kappa_c0 * f_porosity(x, y, z, m_data, co_dim) / (
+                m_mu * f_d_phi(x, y, z, m_data, co_dim)
+        )
+        vector_part = f_grad_porosity(x, y, z, m_data, co_dim)
+    elif co_dim == 1:
+        m_kappa_c1 = m_data["kappa_c1"]
+        m_delta = m_data["delta"]
+        scalar_part = m_delta * m_kappa_c1 * f_porosity(x, y, z, m_data, co_dim) / (
+                m_mu * f_d_phi(x, y, z, m_data, co_dim)
+        )
+        vector_part = f_grad_porosity(x, y, z, m_data, co_dim)
+    else:
+        raise ValueError("Only 1D and 2D settings are supported by this script.")
     return scalar_part * vector_part
 
 
@@ -208,6 +233,10 @@ def f_rhs(x, y, z, m_data, co_dim):
             * f_grad_d_phi(x, y, z, m_data, co_dim)[0]
         )
         div_u = term_1 + term_2 + term_3
+        val = div_u + f_porosity(x, y, z, m_data, co_dim) * p_exact(
+            x, y, z, m_data, co_dim
+        )
+        val *= 1.0 / np.sqrt(f_porosity(x, y, z, m_data, co_dim))
     elif co_dim == 1:
         div_u = (
             -2.0
@@ -216,10 +245,18 @@ def f_rhs(x, y, z, m_data, co_dim):
             * f_grad_d_phi(x, y, z, m_data, co_dim)[0]
         )
         div_u += -(f_d_phi(x, y, z, m_data, co_dim) ** 2) * dpfdx2(x, y, z, m_data)
+        val = div_u + f_porosity(x, y, z, m_data, co_dim) * p_exact(
+            x, y, z, m_data, co_dim
+        )
+        val *= 1.0 / np.sqrt(f_porosity(x, y, z, m_data, co_dim))
+        n_p = np.array([0.0, -1.0])
+        n_n = np.array([0.0, 1.0])
+        un_p = u_exact(x, (+1.0e-12) * np.ones_like(y), z, m_data, co_dim=0)[0].T @ n_p
+        un_n = u_exact(x, (-1.0e-12) * np.ones_like(y), z, m_data, co_dim=0)[0].T @ n_n
+        val += np.array([un_p + un_n]) / np.sqrt(f_porosity(x, y, z, m_data, co_dim))
+
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")
-    val = div_u + f_porosity(x, y, z, m_data, co_dim) * p_exact(x, y, z, m_data, co_dim)
-    val *= 1.0 / np.sqrt(f_porosity(x, y, z, m_data, co_dim))
     return np.array([val])
 
 

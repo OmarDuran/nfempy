@@ -22,7 +22,9 @@ from weak_forms.degenerate_elliptic_weak_form import (
 from weak_forms.degenerate_elliptic_weak_form import (
     DegenerateEllipticWeakFormBCDirichlet as WeakFormBCDir,
 )
-from CouplingWeakForm import CouplingWeakForm
+
+# from weak_forms.scaled_to_physical_l2_projection import ScaledToPhysicalL2Projection
+from InterfaceCouplingWeakForm import InterfaceCouplingWeakForm
 import matplotlib.pyplot as plt
 
 
@@ -246,7 +248,7 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     bc_weak_form_c1 = WeakFormBCDir(md_produc_space[1])
     bc_weak_form_c1.functions = {**exact_functions_c1, **m_functions_c1}
 
-    int_coupling_weak_form = CouplingWeakForm(md_produc_space)
+    int_coupling_weak_form = InterfaceCouplingWeakForm(md_produc_space)
     int_coupling_weak_form.functions = m_functions_coupling
 
     def scatter_form_data(A, i, weak_form):
@@ -312,7 +314,7 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     eb_c0_ids = [
         id
         for id in all_b_cell_c0_ids
-        # if gmesh.cells[id].material_id != physical_tags["line_clones"]
+        if gmesh.cells[id].material_id != physical_tags["line_clones"]
     ]
     eb_c0_el_idx = [
         md_produc_space[0].discrete_spaces["v"].id_to_bc_element[id] for id in eb_c0_ids
@@ -447,7 +449,7 @@ def compose_case_name(config):
     k_order = config["k_order"]
     flux_name, potential_name = config["var_names"]
     m_data = config["m_data"]
-    rho_1, rho_2, kappa, mu, kappa_normal, delta = list(m_data.values())
+    rho_1, rho_2, kappa_c0, kappa_c1, mu, kappa_normal, delta = list(m_data.values())
     folder_name = config.get("folder_name", None)
     for co_dim in [0, 1]:
         d = max_dim - co_dim
@@ -463,7 +465,9 @@ def compose_case_name(config):
                 + "_"
                 + str(rho_2)
                 + "_"
-                + str(kappa)
+                + str(kappa_c0)
+                + "_"
+                + str(kappa_c1)
                 + "_"
                 + str(mu)
                 + "_"
@@ -597,16 +601,17 @@ def main():
         config["min_yc"] = -1.0
         config["max_xc"] = +1.0
         config["max_yc"] = +1.0
-        config["make_fitted_q"] = True
+        config["degeneracy_q"] = False
 
         # Material data
         material_data = {
             "rho_1": 1.0 / 10.0,
             "rho_2": 1.0 / 50.0,
-            "kappa": 1.0,
+            "kappa_c0": 1.0,
+            "kappa_c1": 1.0,
             "mu": 1.0,
             "kappa_normal": 1.0,
-            "delta": 1.0,
+            "delta": delta_frac,
         }
         config["m_data"] = material_data
 
@@ -618,7 +623,7 @@ def main():
             0.25,
             0.125,
             0.0625,
-            0.03125,
+            # 0.03125,
             # 0.015625,
             # 0.0078125,
             # 0.00390625,
