@@ -343,11 +343,11 @@ def f_rhs(x, y, z, m_data, co_dim):
             x, y, z, m_data, co_dim
         )
         val *= 1.0 / np.sqrt(f_porosity(x, y, z, m_data, co_dim))
-        n_p = np.array([0.0, -1.0])
-        n_n = np.array([0.0, 1.0])
-        un_p = u_exact(x, (+1.0e-13) * np.ones_like(y), z, m_data, co_dim=0)[0].T @ n_p
-        un_n = u_exact(x, (-1.0e-13) * np.ones_like(y), z, m_data, co_dim=0)[0].T @ n_n
-        val += np.array([un_p + un_n]) / np.sqrt(f_porosity(x, y, z, m_data, co_dim))
+        # n_p = np.array([0.0, -1.0])
+        # n_n = np.array([0.0, 1.0])
+        # un_p = u_exact(x, (+1.0e-13) * np.ones_like(y), z, m_data, co_dim=0)[0].T @ n_p
+        # un_n = u_exact(x, (-1.0e-13) * np.ones_like(y), z, m_data, co_dim=0)[0].T @ n_n
+        # val += np.array([un_p + un_n]) / np.sqrt(f_porosity(x, y, z, m_data, co_dim))
 
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")

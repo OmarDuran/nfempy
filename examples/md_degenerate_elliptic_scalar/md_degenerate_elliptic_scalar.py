@@ -100,7 +100,7 @@ def fracture_disjoint_set():
 def generate_conformal_mesh(md_domain, h_val, n_ref, fracture_physical_tags):
 
     # For simplicity use h_val to control fracture refinement
-    n_points = int(1.5 / h_val) + 1
+    n_points = 2 * (int(2.0 / h_val) + 2)
 
     physical_tags = [fracture_physical_tags["line"]]
     transfinite_agruments = {"n_points": n_points, "meshType": "Bump", "coef": 1.0}
@@ -322,7 +322,7 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     eb_c0_ids = [
         id
         for id in all_b_cell_c0_ids
-        if gmesh.cells[id].material_id != physical_tags["line_clones"]
+        # if gmesh.cells[id].material_id != physical_tags["line_clones"]
     ]
     eb_c0_el_idx = [
         md_produc_space[0].discrete_spaces["v"].id_to_bc_element[id] for id in eb_c0_ids
@@ -332,25 +332,25 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     n_bc_els_c1 = len(md_produc_space[1].discrete_spaces["v"].bc_elements)
     [scatter_bc_form(A, i, bc_weak_form_c1) for i in range(n_bc_els_c1)]
 
-    # Interface weak forms
-    for interface in interfaces:
-        c1_data = interface["c1"]
-        c1_el_idx = [
-            md_produc_space[1].discrete_spaces["v"].id_to_element[cell.id]
-            for cell in c1_data[0]
-        ]
-        c0_pel_idx = [
-            md_produc_space[0].discrete_spaces["v"].id_to_bc_element[cell.id]
-            for cell in c1_data[1]
-        ]
-        c0_nel_idx = [
-            md_produc_space[0].discrete_spaces["v"].id_to_bc_element[cell.id]
-            for cell in c1_data[2]
-        ]
-        for c1_idx, c0_p_idx, c0_n_idx in zip(c1_el_idx, c0_pel_idx, c0_nel_idx):
-            scatter_coupling_form_data(
-                A, c1_idx, c0_p_idx, c0_n_idx, int_coupling_weak_form
-            )  # positive and negative at once
+    # # Interface weak forms
+    # for interface in interfaces:
+    #     c1_data = interface["c1"]
+    #     c1_el_idx = [
+    #         md_produc_space[1].discrete_spaces["v"].id_to_element[cell.id]
+    #         for cell in c1_data[0]
+    #     ]
+    #     c0_pel_idx = [
+    #         md_produc_space[0].discrete_spaces["v"].id_to_bc_element[cell.id]
+    #         for cell in c1_data[1]
+    #     ]
+    #     c0_nel_idx = [
+    #         md_produc_space[0].discrete_spaces["v"].id_to_bc_element[cell.id]
+    #         for cell in c1_data[2]
+    #     ]
+    #     for c1_idx, c0_p_idx, c0_n_idx in zip(c1_el_idx, c0_pel_idx, c0_nel_idx):
+    #         scatter_coupling_form_data(
+    #             A, c1_idx, c0_p_idx, c0_n_idx, int_coupling_weak_form
+    #         )  # positive and negative at once
 
     A.assemble()
 
@@ -629,7 +629,7 @@ def main():
             "kappa_normal": 1.0,
             "delta": delta_frac,
             "xi": 1.0,
-            "eta": 1.0,
+            "eta": 2.0,
             "chi": 1.0,
         }
         config["m_data"] = material_data
@@ -642,8 +642,8 @@ def main():
             0.25,
             0.125,
             0.0625,
-            # 0.03125,
-            # 0.015625,
+            0.03125,
+            0.015625,
             # 0.0078125,
             # 0.00390625,
             # 0.001953125,
