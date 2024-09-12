@@ -5,11 +5,12 @@ from functools import partial
 import numpy as np
 
 
-# lifting functions
+# lifting functions for pressure
 def _xs(
     x,
     y,
     z,
+    m_data,
 ):
     vals = np.ones_like(x) + np.exp(np.pi * (x - 1.0))
     return vals
@@ -19,6 +20,7 @@ def _dxsdx(
     x,
     y,
     z,
+    m_data,
 ):
     vals = np.pi * np.exp(np.pi * (x - 1.0))
     return vals
@@ -28,6 +30,7 @@ def _dxsdx2(
     x,
     y,
     z,
+    m_data,
 ):
     vals = np.pi * np.pi * np.exp(np.pi * (x - 1.0))
     return vals
@@ -37,9 +40,14 @@ def _ys(
     x,
     y,
     z,
+    m_data,
 ):
+    m_xi = m_data["xi"]
+    m_eta = m_data["eta"]
     vals = np.piecewise(
-        y, [y < 0.0, y >= 0.0], [lambda y: 1.0 - y, lambda y: (1.0 + y) ** 2]
+        y,
+        [y < 0.0, y >= 0.0],
+        [lambda y: (1.0 - y) ** m_xi, lambda y: (1.0 + y) ** m_eta],
     )
     return vals
 
@@ -48,9 +56,17 @@ def _dysdy(
     x,
     y,
     z,
+    m_data,
 ):
+    m_xi = m_data["xi"]
+    m_eta = m_data["eta"]
     vals = np.piecewise(
-        y, [y < 0.0, y >= 0.0], [lambda y: -1.0, lambda y: 2.0 * (1.0 + y)]
+        y,
+        [y < 0.0, y >= 0.0],
+        [
+            lambda y: -m_xi * (1.0 - y) ** (m_xi - 1.0),
+            lambda y: +m_eta * (1.0 + y) ** (m_eta - 1.0),
+        ],
     )
     return vals
 
@@ -59,8 +75,72 @@ def _dysdy2(
     x,
     y,
     z,
+    m_data,
 ):
-    vals = np.piecewise(y, [y < 0.0, y >= 0.0], [lambda y: 0.0, lambda y: 2.0])
+    m_xi = m_data["xi"]
+    m_eta = m_data["eta"]
+    vals = np.piecewise(
+        y,
+        [y < 0.0, y >= 0.0],
+        [
+            lambda y: m_xi * (m_xi - 1.0) * (1.0 - y) ** (m_xi - 2.0),
+            lambda y: m_eta * (m_eta - 1.0) * (1.0 + y) ** (m_eta - 2.0),
+        ],
+    )
+    return vals
+
+
+# lifting functions for porosity
+
+
+def phi_ys(
+    x,
+    y,
+    z,
+    m_data,
+):
+    m_chi = m_data["chi"]
+    vals = np.piecewise(
+        y,
+        [y < 0.0, y >= 0.0],
+        [lambda y: (1.0 - y) ** m_chi, lambda y: (1.0 + y) ** m_chi],
+    )
+    return vals
+
+
+def phi_dysdy(
+    x,
+    y,
+    z,
+    m_data,
+):
+    m_chi = m_data["chi"]
+    vals = np.piecewise(
+        y,
+        [y < 0.0, y >= 0.0],
+        [
+            lambda y: -m_chi * (1.0 - y) ** (m_chi - 1.0),
+            lambda y: +m_chi * (1.0 + y) ** (m_chi - 1.0),
+        ],
+    )
+    return vals
+
+
+def phi_dysdy2(
+    x,
+    y,
+    z,
+    m_data,
+):
+    m_chi = m_data["chi"]
+    vals = np.piecewise(
+        y,
+        [y < 0.0, y >= 0.0],
+        [
+            lambda y: m_chi * (m_chi - 1.0) * (1.0 - y) ** (m_chi - 2.0),
+            lambda y: m_chi * (m_chi - 1.0) * (1.0 + y) ** (m_chi - 2.0),
+        ],
+    )
     return vals
 
 
@@ -68,7 +148,9 @@ def f_porosity(x, y, z, m_data, co_dim):
     m_rho_1 = m_data["rho_1"]
     m_rho_2 = m_data["rho_2"]
     if co_dim == 0:
-        val = (m_rho_1 * np.ones_like(x) + m_rho_2 * np.array(x**2)) * _ys(x, y, z)
+        val = (m_rho_1 * np.ones_like(x) + m_rho_2 * np.array(x**2)) * phi_ys(
+            x, y, z, m_data
+        )
     elif co_dim == 1:
         val = m_rho_1 * np.ones_like(x) + m_rho_2 * np.array(x**2)
     else:
@@ -81,8 +163,8 @@ def f_grad_porosity(x, y, z, m_data, co_dim):
     if co_dim == 0:
         val = np.array(
             [
-                2.0 * x * m_rho_2 * _ys(x, y, z),
-                f_porosity(x, y, z, m_data, co_dim=1) * _dysdy(x, y, z),
+                2.0 * x * m_rho_2 * phi_ys(x, y, z, m_data),
+                f_porosity(x, y, z, m_data, co_dim=1) * phi_dysdy(x, y, z, m_data),
                 z * 0.0,
             ]
         )
@@ -122,15 +204,20 @@ def f_grad_d_phi(x, y, z, m_data, co_dim):
     m_mu = m_data["mu"]
     if co_dim == 0:
         m_kappa_c0 = m_data["kappa_c0"]
-        scalar_part = m_kappa_c0 * f_porosity(x, y, z, m_data, co_dim) / (
-                m_mu * f_d_phi(x, y, z, m_data, co_dim)
+        scalar_part = (
+            m_kappa_c0
+            * f_porosity(x, y, z, m_data, co_dim)
+            / (m_mu * f_d_phi(x, y, z, m_data, co_dim))
         )
         vector_part = f_grad_porosity(x, y, z, m_data, co_dim)
     elif co_dim == 1:
         m_kappa_c1 = m_data["kappa_c1"]
         m_delta = m_data["delta"]
-        scalar_part = m_delta * m_kappa_c1 * f_porosity(x, y, z, m_data, co_dim) / (
-                m_mu * f_d_phi(x, y, z, m_data, co_dim)
+        scalar_part = (
+            m_delta
+            * m_kappa_c1
+            * f_porosity(x, y, z, m_data, co_dim)
+            / (m_mu * f_d_phi(x, y, z, m_data, co_dim))
         )
         vector_part = f_grad_porosity(x, y, z, m_data, co_dim)
     else:
@@ -164,7 +251,7 @@ def dpfdx2(x, y, z, m_data):
 
 def p_exact(x, y, z, m_data, co_dim):
     if co_dim == 0:
-        val = _xs(x, y, z) * _ys(x, y, z) * pf(x, y, z, m_data)
+        val = _xs(x, y, z, m_data) * _ys(x, y, z, m_data) * pf(x, y, z, m_data)
     elif co_dim == 1:
         val = pf(x, y, z, m_data)
     else:
@@ -177,9 +264,13 @@ def u_exact(x, y, z, m_data, co_dim):
         val = -(f_d_phi(x, y, z, m_data, co_dim) ** 2) * np.array(
             [
                 [
-                    _xs(x, y, z) * _ys(x, y, z) * dpfdx(x, y, z, m_data)
-                    + _dxsdx(x, y, z) * _ys(x, y, z) * pf(x, y, z, m_data),
-                    _xs(x, y, z) * _dysdy(x, y, z) * pf(x, y, z, m_data),
+                    _xs(x, y, z, m_data) * _ys(x, y, z, m_data) * dpfdx(x, y, z, m_data)
+                    + _dxsdx(x, y, z, m_data)
+                    * _ys(x, y, z, m_data)
+                    * pf(x, y, z, m_data),
+                    _xs(x, y, z, m_data)
+                    * _dysdy(x, y, z, m_data)
+                    * pf(x, y, z, m_data),
                 ]
             ]
         )
@@ -207,28 +298,31 @@ def v_exact(x, y, z, m_data, co_dim):
 def f_rhs(x, y, z, m_data, co_dim):
     if co_dim == 0:
         term_1 = -(f_d_phi(x, y, z, m_data, co_dim) ** 2) * (
-            2.0 * _ys(x, y, z) * dpfdx(x, y, z, m_data) * _dxsdx(x, y, z)
-            + _xs(x, y, z) * _ys(x, y, z) * dpfdx2(x, y, z, m_data)
-            + _dxsdx2(x, y, z) * _ys(x, y, z) * pf(x, y, z, m_data)
+            2.0
+            * _ys(x, y, z, m_data)
+            * dpfdx(x, y, z, m_data)
+            * _dxsdx(x, y, z, m_data)
+            + _xs(x, y, z, m_data) * _ys(x, y, z, m_data) * dpfdx2(x, y, z, m_data)
+            + _dxsdx2(x, y, z, m_data) * _ys(x, y, z, m_data) * pf(x, y, z, m_data)
         )
         term_2 = (
             -(f_d_phi(x, y, z, m_data, co_dim) ** 2)
-            * _xs(x, y, z)
-            * _dysdy2(x, y, z)
+            * _xs(x, y, z, m_data)
+            * _dysdy2(x, y, z, m_data)
             * pf(x, y, z, m_data)
             - 2.0
             * pf(x, y, z, m_data)
-            * _xs(x, y, z)
+            * _xs(x, y, z, m_data)
             * f_d_phi(x, y, z, m_data, co_dim)
-            * _dysdy(x, y, z)
+            * _dysdy(x, y, z, m_data)
             * f_grad_d_phi(x, y, z, m_data, co_dim)[1]
         )
         term_3 = (
             -2.0
             * f_d_phi(x, y, z, m_data, co_dim)
             * (
-                _xs(x, y, z) * _ys(x, y, z) * dpfdx(x, y, z, m_data)
-                + _dxsdx(x, y, z) * _ys(x, y, z) * pf(x, y, z, m_data)
+                _xs(x, y, z, m_data) * _ys(x, y, z, m_data) * dpfdx(x, y, z, m_data)
+                + _dxsdx(x, y, z, m_data) * _ys(x, y, z, m_data) * pf(x, y, z, m_data)
             )
             * f_grad_d_phi(x, y, z, m_data, co_dim)[0]
         )

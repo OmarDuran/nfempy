@@ -189,6 +189,7 @@ def md_two_fields_approximation(config, write_vtk_q=False):
             physical_md_produc_space.append(fe_space)
 
     m_data = config["m_data"]
+
     assert e_functions.test_evaluation(m_data, 0)
     assert e_functions.test_evaluation(m_data, 1)
 
@@ -225,8 +226,6 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     A = PETSc.Mat()
     A.createAIJ([n_dof_g, n_dof_g])
 
-
-
     weak_form_c0 = MixedWeakForm(md_produc_space[0])
     weak_form_c0.functions = m_functions_c0
 
@@ -241,20 +240,20 @@ def md_two_fields_approximation(config, write_vtk_q=False):
 
     # Interface coupling data
     def f_kappa_normal(x, y, z):
-        return m_data['kappa_normal'] * np.ones_like(x)
+        return m_data["kappa_normal"] * np.ones_like(x)
 
     def f_delta(x, y, z):
-        return m_data['delta'] * np.ones_like(x)
+        return m_data["delta"] * np.ones_like(x)
 
     def f_mu(x, y, z):
-        return m_data['mu'] * np.ones_like(x)
+        return m_data["mu"] * np.ones_like(x)
 
     m_functions_coupling = {
         "delta": f_delta,
         "kappa_normal": f_kappa_normal,
         "mu": f_mu,
-        "d_phi_c0": m_functions_c0['d_phi'],
-        "porosity_c1": m_functions_c1['porosity']
+        "d_phi_c0": m_functions_c0["d_phi"],
+        "porosity_c1": m_functions_c1["porosity"],
     }
 
     int_coupling_weak_form = InterfaceCouplingWeakForm(md_produc_space)
@@ -458,7 +457,9 @@ def compose_case_name(config):
     k_order = config["k_order"]
     flux_name, potential_name = config["var_names"]
     m_data = config["m_data"]
-    rho_1, rho_2, kappa_c0, kappa_c1, mu, kappa_normal, delta = list(m_data.values())
+    rho_1, rho_2, kappa_c0, kappa_c1, mu, kappa_normal, delta, xi, eta, chi = list(
+        m_data.values()
+    )
     folder_name = config.get("folder_name", None)
     for co_dim in [0, 1]:
         d = max_dim - co_dim
@@ -483,6 +484,12 @@ def compose_case_name(config):
                 + str(kappa_normal)
                 + "_"
                 + str(delta)
+                + "_"
+                + str(xi)
+                + "_"
+                + str(eta)
+                + "_"
+                + str(chi)
                 + "_"
             )
             if folder_name is not None:
@@ -617,10 +624,13 @@ def main():
             "rho_1": 1.0 / 10.0,
             "rho_2": 1.0 / 50.0,
             "kappa_c0": 1.0,
-            "kappa_c1": 1.0/delta_frac,
+            "kappa_c1": 1.0 / delta_frac,
             "mu": 1.0,
             "kappa_normal": 1.0,
             "delta": delta_frac,
+            "xi": 1.0,
+            "eta": 1.0,
+            "chi": 1.0,
         }
         config["m_data"] = material_data
 

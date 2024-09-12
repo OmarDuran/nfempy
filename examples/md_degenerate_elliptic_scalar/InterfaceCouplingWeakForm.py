@@ -23,8 +23,6 @@ class InterfaceCouplingWeakForm(WeakForm):
         # from c1 object
         f_porosity = self.functions["porosity_c1"]
 
-
-
         def compute_trace_space(iel_pair, field_pair, md_space):
 
             iel_c0, iel_c1 = iel_pair
@@ -143,15 +141,23 @@ class InterfaceCouplingWeakForm(WeakForm):
                 v_h_n = alpha_v_n @ dv_h_n
                 q_h_c1 = alpha_q @ dq_h
 
-                d_phi_normal = np.sqrt(kappa_n_v * (porosity_v ** 2) / mu_v)
+                d_phi_normal = np.sqrt(kappa_n_v * (porosity_v**2) / mu_v)
                 alpha_f_v = (d_phi_normal**2) / (delta_v / 2.0)
 
                 # Robin coupling
-                equ_1_integrand = ((d_phi_v / alpha_f_v) * v_h_p + (d_phi_v / np.sqrt(porosity_v)) * q_h_c1) @ dv_h_p.T
-                equ_2_integrand = ((d_phi_v / alpha_f_v) * v_h_n + (d_phi_v / np.sqrt(porosity_v)) * q_h_c1) @ dv_h_n.T
+                equ_1_integrand = (
+                    (d_phi_v / alpha_f_v) * v_h_p
+                    + (d_phi_v / np.sqrt(porosity_v)) * q_h_c1
+                ) @ dv_h_p.T
+                equ_2_integrand = (
+                    (d_phi_v / alpha_f_v) * v_h_n
+                    + (d_phi_v / np.sqrt(porosity_v)) * q_h_c1
+                ) @ dv_h_n.T
 
                 # Robin coupling is a self-adjoint operator of c1 mass conservation
-                equ_3_integrand = (d_phi_v / np.sqrt(porosity_v)) * (v_h_p @ dq_h.T + v_h_n @ dq_h.T)
+                equ_3_integrand = (d_phi_v / np.sqrt(porosity_v)) * (
+                    v_h_p @ dq_h.T + v_h_n @ dq_h.T
+                )
 
                 multiphysic_integrand = np.zeros((1, n_dof))
                 multiphysic_integrand[:, idx_dof["v_p"]] = equ_1_integrand
