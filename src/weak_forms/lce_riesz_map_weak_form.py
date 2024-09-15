@@ -18,10 +18,17 @@ class LCERieszMapWeakForm(WeakForm):
         t_space = self.space.discrete_spaces["t"]
 
         f_rhs = self.functions["rhs"]
-        f_lambda = self.functions["lambda"]
-        f_mu = self.functions["mu"]
-        f_kappa = self.functions["kappa"]
-        f_gamma = self.functions["gamma"]
+        # strain
+        lambda_s = self.functions["lambda_s"]
+        mu_s = self.functions["mu_s"]
+        kappa_s = self.functions["kappa_s"]
+
+        # curvature
+        lambda_o = self.functions["lambda_o"]
+        mu_o = self.functions["mu_o"]
+        kappa_o = self.functions["kappa_o"]
+
+        lc = self.functions["l"]
 
         s_components = s_space.n_comp
         m_components = m_space.n_comp
@@ -33,8 +40,8 @@ class LCERieszMapWeakForm(WeakForm):
         u_data: ElementData = u_space.elements[iel].data
         t_data: ElementData = t_space.elements[iel].data
 
-        points, weights = self.space.quadrature
         dim = s_data.cell.dimension
+        points, weights = self.space.quadrature[dim]
         x, jac, det_jac, inv_jac = s_space.elements[iel].evaluate_mapping(points)
 
         # basis
@@ -68,8 +75,6 @@ class LCERieszMapWeakForm(WeakForm):
         e1 = np.array([1, 0, 0])
         e2 = np.array([0, 1, 0])
         e3 = np.array([0, 0, 1])
-
-        gamma_scale_v = f_gamma(x[:, 0], x[:, 1], x[:, 2])
 
         Imat = np.identity(dim)
         with ad.AutoDiff(alpha) as alpha:
@@ -296,20 +301,36 @@ class LCERieszMapWeakForm(WeakForm):
                     Skew_sh = 0.5 * (sh - sh.T)
 
                     tr_s_h = VecValDer(sh.val.trace(), sh.der.trace())
-                    A_sh = (1.0 / 2.0 * f_mu(xv[0], xv[1], xv[2])) * (
+                    A_sh = (1.0 / 2.0 * mu_s(xv[0], xv[1], xv[2])) * (
                         Symm_sh
                         - (
-                            f_lambda(xv[0], xv[1], xv[2])
+                            lambda_s(xv[0], xv[1], xv[2])
                             / (
-                                2.0 * f_mu(xv[0], xv[1], xv[2])
-                                + dim * f_lambda(xv[0], xv[1], xv[2])
+                                2.0 * mu_s(xv[0], xv[1], xv[2])
+                                + dim * lambda_s(xv[0], xv[1], xv[2])
                             )
                         )
                         * tr_s_h
                         * Imat
-                    ) + (1.0 / 2.0 * f_kappa(xv[0], xv[1], xv[2])) * Skew_sh
+                    ) + (1.0 / 2.0 * kappa_s(xv[0], xv[1], xv[2])) * Skew_sh
 
-                    A_mh = (1.0 / f_gamma(xv[0], xv[1], xv[2])) * mh
+
+                    Symm_mh = 0.5 * (mh + mh.T)
+                    Skew_mh = 0.5 * (mh - mh.T)
+                    tr_m_h = VecValDer(mh.val.trace(), mh.der.trace())
+                    A_mh = (1.0 / 2.0 * mu_o(xv[0], xv[1], xv[2])) * (
+                            Symm_mh
+                            - (
+                                    lambda_o(xv[0], xv[1], xv[2])
+                                    / (
+                                            2.0 * mu_o(xv[0], xv[1], xv[2])
+                                            + dim * lambda_o(xv[0], xv[1], xv[2])
+                                    )
+                            )
+                            * tr_m_h
+                            * Imat
+                    ) + (1.0 / 2.0 * kappa_o(xv[0], xv[1], xv[2])) * Skew_mh
+                    A_mh *= (1.0 / lc(xv[0], xv[1], xv[2])**2)
 
                     grad_s_phi = s_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
                     div_tau = np.array(

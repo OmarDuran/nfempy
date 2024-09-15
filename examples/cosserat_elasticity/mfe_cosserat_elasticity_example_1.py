@@ -33,9 +33,9 @@ def compose_file_name(method, k_order, ref_l, dim, material_data, suffix):
     prefix = (
         method[0]
         + "_lambda_"
-        + str(material_data["lambda"])
+        + str(material_data["lambda_o"])
         + "_gamma_"
-        + str(material_data["gamma"])
+        + str(material_data["l"])
         + "_k"
         + str(k_order)
         + "_l"
@@ -227,39 +227,19 @@ def four_field_approximation(material_data, method, gmesh, symmetric_solver_q=Tr
         P.setType("sbaij")
 
     # Material data
-    m_lambda = material_data["lambda"]
-    m_mu = material_data["mu"]
-    m_kappa = material_data["kappa"]
-    m_gamma = material_data["gamma"]
+
 
     # exact solution
-    u_exact = lce.displacement(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    t_exact = lce.rotation(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    s_exact = lce.stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    m_exact = lce.couple_stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    div_s_exact = lce.stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    div_m_exact = lce.couple_stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    f_rhs = lce.rhs(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    u_exact = lce.displacement(material_data, dim)
+    t_exact = lce.rotation(material_data, dim)
+    s_exact = lce.stress(material_data, dim)
+    m_exact = lce.couple_stress(material_data, dim)
+    div_s_exact = lce.stress_divergence(material_data, dim)
+    div_m_exact = lce.couple_stress_divergence(material_data, dim)
+    f_rhs = lce.rhs(material_data, dim)
 
-    def f_lambda(x, y, z):
-        return m_lambda
-
-    def f_mu(x, y, z):
-        return m_mu
-
-    def f_kappa(x, y, z):
-        return m_kappa
-
-    def f_gamma(x, y, z):
-        return m_gamma
-
-    m_functions = {
-        "rhs": f_rhs,
-        "lambda": f_lambda,
-        "mu": f_mu,
-        "kappa": f_kappa,
-        "gamma": f_gamma,
-    }
+    m_functions = lce.get_material_functions(material_data)
+    m_functions["rhs"] = f_rhs
 
     exact_functions = {
         "s": s_exact,
@@ -282,7 +262,8 @@ def four_field_approximation(material_data, method, gmesh, symmetric_solver_q=Tr
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
-        r_el, j_el = weak_form.evaluate_form_vectorized(i, alpha_l)
+        r_el, j_el = weak_form.evaluate_form(i, alpha_l)
+        # r_el, j_el = weak_form.evaluate_form_vectorized(i, alpha_l)
 
         # contribute rhs
         rg[dest] += r_el
@@ -322,7 +303,8 @@ def four_field_approximation(material_data, method, gmesh, symmetric_solver_q=Tr
         # destination indexes
         dest = riesz_map_weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
-        r_el, j_el = riesz_map_weak_form.evaluate_form_vectorized(i, alpha_l)
+        r_el, j_el = riesz_map_weak_form.evaluate_form(i, alpha_l)
+        # r_el, j_el = riesz_map_weak_form.evaluate_form_vectorized(i, alpha_l)
 
         # contribute lhs
         data = j_el.ravel()
@@ -1273,9 +1255,9 @@ def method_definition(k_order):
 
 def material_data_definition():
     # Material data for example 1
-    case_0 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0, "gamma": 1.0}
-    case_1 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0, "gamma": 1.0e-2}
-    case_2 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0, "gamma": 1.0e-4}
+    case_0 = {"lambda_s": 1.0, "mu_s": 1.0, "kappa_s": 1.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 1.0, "l": 1.0}
+    case_1 = {"lambda_s": 1.0, "mu_s": 1.0, "kappa_s": 1.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 1.0, "l": 1.0e-2}
+    case_2 = {"lambda_s": 1.0, "mu_s": 1.0, "kappa_s": 1.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 1.0, "l": 1.0e-4}
     cases = [case_0, case_1, case_2]
     return cases
 
@@ -1283,13 +1265,13 @@ def material_data_definition():
 def main():
     approximation_q = True
     postprocessing_q = True
-    refinements = {0: 4, 1: 4}
+    refinements = {0: 3, 1: 4}
     case_data = material_data_definition()
     for k in [0]:
         methods = method_definition(k)
         for i, method in enumerate(methods):
             for material_data in case_data:
-                for d in [2]:
+                for d in [3]:
                     configuration = {
                         "k_order": k,
                         "dimension": d,

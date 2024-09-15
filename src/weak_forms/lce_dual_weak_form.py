@@ -21,10 +21,18 @@ class LCEDualWeakForm(WeakForm):
         t_space = self.space.discrete_spaces["t"]
 
         f_rhs = self.functions["rhs"]
-        f_lambda = self.functions["lambda"]
-        f_mu = self.functions["mu"]
-        f_kappa = self.functions["kappa"]
-        f_gamma = self.functions["gamma"]
+
+        # strain
+        lambda_s = self.functions["lambda_s"]
+        mu_s = self.functions["mu_s"]
+        kappa_s = self.functions["kappa_s"]
+
+        # curvature
+        lambda_o = self.functions["lambda_o"]
+        mu_o = self.functions["mu_o"]
+        kappa_o = self.functions["kappa_o"]
+
+        lc = self.functions["l"]
 
         s_components = s_space.n_comp
         m_components = m_space.n_comp
@@ -56,21 +64,20 @@ class LCEDualWeakForm(WeakForm):
         n_u_dof = n_u_phi * u_components
         n_t_dof = n_t_phi * t_components
 
+        idx_dof = {
+            "s": slice(0, n_s_dof),
+            "m": slice(n_s_dof, n_s_dof + n_m_dof),
+            "u": slice(n_s_dof + n_m_dof, n_s_dof + n_m_dof + n_u_dof),
+            "t": slice(n_s_dof + n_m_dof + n_u_dof, n_s_dof + n_m_dof + n_u_dof + n_t_dof),
+        }
+
         n_dof = n_s_dof + n_m_dof + n_u_dof + n_t_dof
-        js = (n_dof, n_dof)
-        rs = n_dof
-        j_el = np.zeros(js)
-        r_el = np.zeros(rs)
 
         # Partial local vectorization
         f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
         u_phi_s_star = det_jac * weights * u_phi_tab[0, :, :, 0].T
         t_phi_s_star = det_jac * weights * t_phi_tab[0, :, :, 0].T
 
-        # constant directors
-        e1 = np.array([1, 0, 0])
-        e2 = np.array([0, 1, 0])
-        e3 = np.array([0, 0, 1])
         Imat = np.identity(dim)
         with ad.AutoDiff(alpha) as alpha:
             el_form = np.zeros(n_dof)
@@ -299,20 +306,36 @@ class LCEDualWeakForm(WeakForm):
                     Skew_sh = 0.5 * (sh - sh.T)
 
                     tr_s_h = VecValDer(sh.val.trace(), sh.der.trace())
-                    A_sh = (1.0 / 2.0 * f_mu(xv[0], xv[1], xv[2])) * (
+                    A_sh = (1.0 / 2.0 * mu_s(xv[0], xv[1], xv[2])) * (
                         Symm_sh
                         - (
-                            f_lambda(xv[0], xv[1], xv[2])
+                            lambda_s(xv[0], xv[1], xv[2])
                             / (
-                                2.0 * f_mu(xv[0], xv[1], xv[2])
-                                + dim * f_lambda(xv[0], xv[1], xv[2])
+                                2.0 * mu_s(xv[0], xv[1], xv[2])
+                                + dim * lambda_s(xv[0], xv[1], xv[2])
                             )
                         )
                         * tr_s_h
                         * Imat
-                    ) + (1.0 / 2.0 * f_kappa(xv[0], xv[1], xv[2])) * Skew_sh
+                    ) + (1.0 / 2.0 * kappa_s(xv[0], xv[1], xv[2])) * Skew_sh
 
-                    A_mh = (1.0 / f_gamma(xv[0], xv[1], xv[2])) * mh
+
+                    Symm_mh = 0.5 * (mh + mh.T)
+                    Skew_mh = 0.5 * (mh - mh.T)
+                    tr_m_h = VecValDer(mh.val.trace(), mh.der.trace())
+                    A_mh = (1.0 / 2.0 * mu_o(xv[0], xv[1], xv[2])) * (
+                            Symm_mh
+                            - (
+                                    lambda_o(xv[0], xv[1], xv[2])
+                                    / (
+                                            2.0 * mu_o(xv[0], xv[1], xv[2])
+                                            + dim * lambda_o(xv[0], xv[1], xv[2])
+                                    )
+                            )
+                            * tr_m_h
+                            * Imat
+                    ) + (1.0 / 2.0 * kappa_o(xv[0], xv[1], xv[2])) * Skew_mh
+                    A_mh *= (1.0 / lc(xv[0], xv[1], xv[2])**2)
 
                     grad_s_phi = s_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
                     div_tau = np.array(
@@ -372,24 +395,10 @@ class LCEDualWeakForm(WeakForm):
                 )
 
                 multiphysic_integrand = np.zeros((1, n_dof))
-                multiphysic_integrand[:, 0:n_s_dof:1] = (equ_1_integrand).reshape(
-                    (n_s_dof,)
-                )
-                multiphysic_integrand[:, n_s_dof : n_s_dof + n_m_dof : 1] = (
-                    equ_2_integrand
-                ).reshape((n_m_dof,))
-                multiphysic_integrand[
-                    :, n_s_dof + n_m_dof : n_s_dof + n_m_dof + n_u_dof : 1
-                ] = (equ_3_integrand).reshape((n_u_dof,))
-                multiphysic_integrand[
-                    :,
-                    n_s_dof
-                    + n_m_dof
-                    + n_u_dof : n_s_dof
-                    + n_m_dof
-                    + n_u_dof
-                    + n_t_dof : 1,
-                ] = (equ_4_integrand).reshape((n_t_dof,))
+                multiphysic_integrand[:, idx_dof["s"]] = (equ_1_integrand).reshape((n_s_dof,))
+                multiphysic_integrand[:, idx_dof["m"]] = (equ_2_integrand).reshape((n_m_dof,))
+                multiphysic_integrand[:, idx_dof["u"]] = (equ_3_integrand).reshape((n_u_dof,))
+                multiphysic_integrand[:, idx_dof["t"]] = (equ_4_integrand).reshape((n_t_dof,))
 
                 discrete_integrand = (multiphysic_integrand).reshape((n_dof,))
                 el_form += det_jac[i] * omega * discrete_integrand
