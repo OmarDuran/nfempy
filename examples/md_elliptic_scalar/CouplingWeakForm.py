@@ -123,11 +123,11 @@ class CouplingWeakForm(WeakForm):
                 u_h_n = alpha_u_n @ du_h_n
                 p_h_c1 = alpha_p @ dp_h
 
-                beta_v = kappa_n_v / (delta_v / 2.0)
+                alpha_v = kappa_n_v / (delta_v / 2.0)
 
                 # Robin coupling
-                equ_1_integrand = ((1.0 / beta_v) * u_h_p + p_h_c1) @ du_h_p.T
-                equ_2_integrand = ((1.0 / beta_v) * u_h_n + p_h_c1) @ du_h_n.T
+                equ_1_integrand = ((1.0 / alpha_v) * u_h_p + p_h_c1) @ du_h_p.T
+                equ_2_integrand = ((1.0 / alpha_v) * u_h_n + p_h_c1) @ du_h_n.T
 
                 # Robin coupling is a self-adjoint operator of c1 mass conservation
                 equ_3_integrand = u_h_p @ dp_h.T + u_h_n @ dp_h.T
