@@ -188,7 +188,7 @@ def div_error(dim, fe_space, functions, alpha, skip_fields=[]):
         family_by_name("BDM"),
     ]
     vec_families_in_1d = [family_by_name("Lagrange")]
-    points, weights = fe_space.quadrature
+    points, weights = fe_space.quadrature[dim]
 
     def compute_div_error(idx):
         n_components = space.n_comp
@@ -242,7 +242,7 @@ def div_scaled_error(dim, fe_space, functions, alpha, skip_fields=[]):
         family_by_name("RT"),
         family_by_name("BDM"),
     ]
-    points, weights = fe_space.quadrature
+    points, weights = fe_space.quadrature[dim]
 
     def compute_div_error(idx):
         n_components = space.n_comp

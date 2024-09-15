@@ -399,8 +399,8 @@ class LCERieszMapWeakForm(WeakForm):
         u_data: ElementData = u_space.elements[iel].data
         t_data: ElementData = t_space.elements[iel].data
 
-        points, weights = self.space.quadrature
         dim = s_data.cell.dimension
+        points, weights = self.space.quadrature[dim]
         x, jac, det_jac, inv_jac = s_space.elements[iel].evaluate_mapping(points)
 
         # basis

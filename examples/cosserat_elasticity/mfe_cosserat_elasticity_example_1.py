@@ -88,19 +88,26 @@ def create_product_space(method, gmesh):
         "t": t_disc_Q,
     }
 
+    physical_tags = {
+        "s": [1],
+        "m": [1],
+        "u": [1],
+        "t": [1],
+    }
+
     s_field_bc_physical_tags = [2, 3, 4, 5]
     m_field_bc_physical_tags = [2, 3, 4, 5]
     if gmesh.dimension == 3:
         s_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
         m_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
-    discrete_spaces_bc_physical_tags = {
+    b_physical_tags = {
         "s": s_field_bc_physical_tags,
         "m": m_field_bc_physical_tags,
     }
 
     space = ProductSpace(discrete_spaces_data)
     space.make_subspaces_discontinuous(discrete_spaces_disc)
-    space.build_structures(discrete_spaces_bc_physical_tags)
+    space.build_structures(physical_tags, b_physical_tags)
     return space
 
 
@@ -1278,11 +1285,11 @@ def main():
     postprocessing_q = True
     refinements = {0: 4, 1: 4}
     case_data = material_data_definition()
-    for k in [0, 1]:
+    for k in [0]:
         methods = method_definition(k)
         for i, method in enumerate(methods):
             for material_data in case_data:
-                for d in [3]:
+                for d in [2]:
                     configuration = {
                         "k_order": k,
                         "dimension": d,

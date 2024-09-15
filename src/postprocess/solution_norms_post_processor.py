@@ -6,7 +6,7 @@ from spaces.product_space import ProductSpace
 
 def l2_norm(dim, fe_space, functions, skip_fields=[]):
     l2_norms = []
-    points, weights = fe_space.quadrature
+    points, weights = fe_space.quadrature[dim]
     for item in fe_space.discrete_spaces.items():
         name, space = item
         if name in skip_fields:
@@ -44,7 +44,7 @@ def div_norm(dim, fe_space, functions, skip_fields=[]):
         family_by_name("RT"),
         family_by_name("BDM"),
     ]
-    points, weights = fe_space.quadrature
+    points, weights = fe_space.quadrature[dim]
 
     def compute_div_norm(idx):
         n_components = space.n_comp
