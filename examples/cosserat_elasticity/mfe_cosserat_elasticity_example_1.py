@@ -120,18 +120,13 @@ def four_field_postprocessing(
     n_dof_g = fe_space.n_dof
 
     # Material data
-    m_lambda = material_data["lambda"]
-    m_mu = material_data["mu"]
-    m_kappa = material_data["kappa"]
-    m_gamma = material_data["gamma"]
-
     # exact solution
-    u_exact = lce.displacement(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    t_exact = lce.rotation(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    s_exact = lce.stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    m_exact = lce.couple_stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    div_s_exact = lce.stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    div_m_exact = lce.couple_stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    u_exact = lce.displacement(material_data, dim)
+    t_exact = lce.rotation(material_data, dim)
+    s_exact = lce.stress(material_data, dim)
+    m_exact = lce.couple_stress(material_data, dim)
+    div_s_exact = lce.stress_divergence(material_data, dim)
+    div_m_exact = lce.couple_stress_divergence(material_data, dim)
 
     exact_functions = {
         "s": s_exact,
@@ -145,8 +140,8 @@ def four_field_postprocessing(
     if write_vtk_q:
         st = time.time()
 
-        lambda_value = material_data["lambda"]
-        gamma_value = material_data["gamma"]
+        lambda_value = material_data["lambda_s"]
+        gamma_value = material_data["l"]
 
         prefix = method[0] + "_k" + str(k_order) + "_d" + str(dim)
         prefix += "_lambda_" + str(lambda_value) + "_gamma_" + str(gamma_value)
@@ -227,8 +222,6 @@ def four_field_approximation(material_data, method, gmesh, symmetric_solver_q=Tr
         P.setType("sbaij")
 
     # Material data
-
-
     # exact solution
     u_exact = lce.displacement(material_data, dim)
     t_exact = lce.rotation(material_data, dim)
@@ -827,30 +820,13 @@ def four_field_solution_norms(material_data, method, gmesh):
     fe_space = create_product_space(method, gmesh)
 
     # Material data
-    m_lambda = material_data["lambda"]
-    m_mu = material_data["mu"]
-    m_kappa = material_data["kappa"]
-    m_gamma = material_data["gamma"]
-
     # exact solution
-    u_exact = lce.displacement(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    t_exact = lce.rotation(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    s_exact = lce.stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    m_exact = lce.couple_stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    div_s_exact = lce.stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    div_m_exact = lce.couple_stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim)
-
-    def f_lambda(x, y, z):
-        return m_lambda
-
-    def f_mu(x, y, z):
-        return m_mu
-
-    def f_kappa(x, y, z):
-        return m_kappa
-
-    def f_gamma(x, y, z):
-        return m_gamma
+    u_exact = lce.displacement(material_data, dim)
+    t_exact = lce.rotation(material_data, dim)
+    s_exact = lce.stress(material_data, dim)
+    m_exact = lce.couple_stress(material_data, dim)
+    div_s_exact = lce.stress_divergence(material_data, dim)
+    div_m_exact = lce.couple_stress_divergence(material_data, dim)
 
     exact_functions = {
         "s": s_exact,
@@ -1260,12 +1236,13 @@ def material_data_definition():
     case_1 = {"lambda_s": 1.0, "mu_s": 1.0, "kappa_s": 1.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 1.0, "l": 1.0e-2}
     case_2 = {"lambda_s": 1.0, "mu_s": 1.0, "kappa_s": 1.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 1.0, "l": 1.0e-4}
     cases = [case_0, case_1, case_2]
+    cases = [case_0]
     return cases
 
 
 def main():
-    approximation_q = True
-    postprocessing_q = False
+    approximation_q = False
+    postprocessing_q = True
     refinements = {0: 3, 1: 4}
     case_data = material_data_definition()
     for k in [0]:
