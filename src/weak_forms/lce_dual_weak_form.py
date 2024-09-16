@@ -418,10 +418,18 @@ class LCEDualWeakForm(WeakForm):
         t_space = self.space.discrete_spaces["t"]
 
         f_rhs = self.functions["rhs"]
-        f_lambda = self.functions["lambda"]
-        f_mu = self.functions["mu"]
-        f_kappa = self.functions["kappa"]
-        f_gamma = self.functions["gamma"]
+
+        # strain
+        lambda_s = self.functions["lambda_s"]
+        mu_s = self.functions["mu_s"]
+        kappa_s = self.functions["kappa_s"]
+
+        # curvature
+        lambda_o = self.functions["lambda_o"]
+        mu_o = self.functions["mu_o"]
+        kappa_o = self.functions["kappa_o"]
+
+        lc = self.functions["l"]
 
         s_components = s_space.n_comp
         m_components = m_space.n_comp
@@ -463,10 +471,15 @@ class LCEDualWeakForm(WeakForm):
         u_phi_s_star = det_jac * weights * u_phi_tab[0, :, :, 0].T
         t_phi_s_star = det_jac * weights * t_phi_tab[0, :, :, 0].T
 
-        lambda_v = f_lambda(x[:, 0], x[:, 1], x[:, 2])
-        mu_v = f_mu(x[:, 0], x[:, 1], x[:, 2])
-        kappa_v = f_kappa(x[:, 0], x[:, 1], x[:, 2])
-        gamma_v = f_gamma(x[:, 0], x[:, 1], x[:, 2])
+        lambda_s_v = lambda_s(x[:, 0], x[:, 1], x[:, 2])
+        mu_s_v = mu_s(x[:, 0], x[:, 1], x[:, 2])
+        kappa_s_v = kappa_s(x[:, 0], x[:, 1], x[:, 2])
+
+        lambda_o_v = lambda_o(x[:, 0], x[:, 1], x[:, 2])
+        mu_o_v = mu_o(x[:, 0], x[:, 1], x[:, 2])
+        kappa_o_v = kappa_o(x[:, 0], x[:, 1], x[:, 2])
+
+        lc_v = lc(x[:, 0], x[:, 1], x[:, 2])
 
         # Vectorized contributions
         # s : stress
@@ -493,12 +506,14 @@ class LCEDualWeakForm(WeakForm):
         s_j_el = np.array([0.5 * np.dot(phi, phi.T) for phi in s_phi_star]).T @ (
             det_jac * weights
         )
+
+        s_j_shear = np.array([0.5 * np.dot(phi, phi.T) for phi in s_phi_star]).T @ (
+            det_jac * weights * (((1 / (2.0 * mu_s_v)) + (1 / (2.0 * kappa_s_v))))
+        )
         for c in range(s_components):
             b = c
             e = b + n_s_dof
-            j_el[b:e:s_components, b:e:s_components] += (1 / (2.0 * mu_v)) * s_j_el + (
-                1 / (2.0 * kappa_v)
-            ) * s_j_el
+            j_el[b:e:s_components, b:e:s_components] += s_j_shear
 
         # transpose_s_j_el = np.zeros((n_s_dof, n_s_dof))
         #
@@ -534,7 +549,7 @@ class LCEDualWeakForm(WeakForm):
         # ]
         # j_el[0:n_s_dof, 0:n_s_dof] += transpose_s_j_el
 
-        vol_factor = (1.0 / (2.0 * mu_v)) * (lambda_v / (2.0 * mu_v + dim * lambda_v))
+        vol_factor = (1.0 / (2.0 * mu_s_v)) * (lambda_s_v / (2.0 * mu_s_v + dim * lambda_s_v))
         vol_s_j_el = (
             -1.0
             * np.array([np.outer(phi, phi) for phi in s_phi_tab[0, :, :, 0:dim]]).T
@@ -597,10 +612,22 @@ class LCEDualWeakForm(WeakForm):
         m_j_el = np.array(
             [np.dot(phi, phi.T) for phi in m_phi_tab[0, :, :, 0:dim]]
         ).T @ (det_jac * weights)
+
+        m_vol_factor = (1.0 / (2.0 * mu_o_v)) * (lambda_o_v / (2.0 * mu_o_v + dim * lambda_o_v))
+        vol_m_j_el = (
+            -1.0
+            * np.array([np.outer(phi, phi) for phi in m_phi_tab[0, :, :, 0:dim]]).T
+            @ (m_vol_factor * det_jac * (1 / (lc_v**2)) * weights)
+        )
+        j_el[n_s_dof:n_s_dof+n_m_dof, n_s_dof:n_s_dof+n_m_dof] += vol_m_j_el
+
+        m_j_shear = np.array(
+            [np.dot(phi, phi.T) for phi in m_phi_tab[0, :, :, 0:dim]]
+        ).T @ (det_jac * (1 / (lc_v**2)) * weights * ((1 / (2.0 * mu_o_v)) + (1 / (2.0 * kappa_o_v))))
         for c in range(m_components):
             b = c + n_s_dof
             e = b + n_m_dof
-            j_el[b:e:m_components, b:e:m_components] += (1 / (gamma_v)) * m_j_el
+            j_el[b:e:m_components, b:e:m_components] += m_j_shear
 
         # (u,s) and (s,u) blocks
         u_phi_s_star_div_det_jac = weights * u_phi_tab[0, :, :, 0].T
