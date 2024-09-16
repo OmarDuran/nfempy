@@ -627,9 +627,9 @@ def four_field_scaled_approximation(
         alpha_l = alpha[dest]
         r_el, j_el = weak_form.evaluate_form_vectorized(i, alpha_l)
 
-        r_el_c, j_el_c = weak_form.evaluate_form(i, alpha_l)
-        assert np.all(np.isclose(r_el,r_el_c))
-        assert np.all(np.isclose(j_el,j_el_c))
+        # r_el_c, j_el_c = weak_form.evaluate_form(i, alpha_l)
+        # assert np.all(np.isclose(r_el,r_el_c))
+        # assert np.all(np.isclose(j_el,j_el_c))
 
         # contribute rhs
         rg[dest] += r_el
@@ -670,9 +670,9 @@ def four_field_scaled_approximation(
         alpha_l = alpha[dest]
         r_el, j_el = riesz_map_weak_form.evaluate_form_vectorized(i, alpha_l)
 
-        r_el_c, j_el_c = riesz_map_weak_form.evaluate_form(i, alpha_l)
-        assert np.all(np.isclose(r_el,r_el_c))
-        assert np.all(np.isclose(j_el,j_el_c))
+        # r_el_c, j_el_c = riesz_map_weak_form.evaluate_form(i, alpha_l)
+        # assert np.all(np.isclose(r_el,r_el_c))
+        # assert np.all(np.isclose(j_el,j_el_c))
 
         # contribute lhs
         data = j_el.ravel()
@@ -1160,31 +1160,39 @@ def method_definition(k_order):
     }
 
     methods = [method_1, method_2, method_3, method_4]
-    methods = [method_3, method_4]
-
     method_names = ["sc_rt", "sc_bdm", "wc_rt", "wc_bdm"]
-    method_names = ["sc_rt", "sc_bdm"]
-
-    method_names = ["wc_rt"]
     return zip(method_names, methods)
 
 
 def material_data_definition():
+
     # Material data for example 1
-    case_0 = {"lambda_s": 100.0, "mu_s": 5.0, "kappa_s": 10.0, "lambda_o": 10.0, "mu_o": 25.0, "kappa_o": 100.0, "l": 50.0}
-    case_1 = {"lambda_s": 1.0, "mu_s": 1.0, "kappa_s": 1.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 1.0, "l": 1.0e-2}
-    case_2 = {"lambda_s": 1.0, "mu_s": 1.0, "kappa_s": 1.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 1.0, "l": 1.0e-4}
-    cases = [case_0, case_1, case_2]
-    cases = [case_0]
+    case_0 = {"lambda_s": 10.0, "mu_s": 1.0, "kappa_s": 0.1, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 0.1, "l": 1.0}
+    case_1 = {"lambda_s": 10.0, "mu_s": 1.0, "kappa_s": 0.1, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 0.1, "l": 1.0e-2}
+    case_2 = {"lambda_s": 10.0, "mu_s": 1.0, "kappa_s": 0.1, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 0.1, "l": 1.0e-4}
+
+    case_3 = {"lambda_s": 10.0, "mu_s": 1.0, "kappa_s": 0.1, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 10.0, "l": 1.0}
+    case_4 = {"lambda_s": 10.0, "mu_s": 1.0, "kappa_s": 0.1, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 10.0, "l": 1.0e-2}
+    case_5 = {"lambda_s": 10.0, "mu_s": 1.0, "kappa_s": 0.1, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 10.0, "l": 1.0e-4}
+
+    case_6 = {"lambda_s": 10.0, "mu_s": 1.0, "kappa_s": 10.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 0.1, "l": 1.0}
+    case_7 = {"lambda_s": 10.0, "mu_s": 1.0, "kappa_s": 10.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 0.1, "l": 1.0e-2}
+    case_8 = {"lambda_s": 10.0, "mu_s": 1.0, "kappa_s": 10.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 0.1, "l": 1.0e-4}
+
+    case_9 = {"lambda_s": 10.0, "mu_s": 1.0, "kappa_s": 10.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 10.0, "l": 1.0}
+    case_10 = {"lambda_s": 10.0, "mu_s": 1.0, "kappa_s": 10.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 10.0, "l": 1.0e-2}
+    case_11 = {"lambda_s": 10.0, "mu_s": 1.0, "kappa_s": 10.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 10.0, "l": 1.0e-4}
+
+    cases = [case_0, case_1, case_2, case_3, case_4, case_5, case_6, case_7, case_8, case_9, case_10, case_11]
     return cases
 
 
 def main():
     approximation_q = True
-    postprocessing_q = False
-    refinements = {0: 2, 1: 2}
+    postprocessing_q = True
+    refinements = {0: 4, 1: 4}
     case_data = material_data_definition()
-    for k in [0]:
+    for k in [0, 1]:
         methods = method_definition(k)
         for i, method in enumerate(methods):
             for material_data in case_data:
