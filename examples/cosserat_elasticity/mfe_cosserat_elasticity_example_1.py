@@ -281,12 +281,23 @@ def four_field_approximation(material_data, method, gmesh, symmetric_solver_q=Tr
     riesz_map_weak_form = LCERieszMapWeakForm(fe_space)
     riesz_map_weak_form.functions = m_functions
 
+    import matplotlib.pyplot as plt
+
     def scatter_form_data(A, i, weak_form, n_els):
+
+        def matrix_plot(A):
+            plt.matshow(A)
+            plt.colorbar()
+            plt.show()
+
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
-        r_el, j_el = weak_form.evaluate_form(i, alpha_l)
-        # r_el, j_el = weak_form.evaluate_form_vectorized(i, alpha_l)
+        r_el, j_el = weak_form.evaluate_form_vectorized(i, alpha_l)
+
+        # r_el_c, j_el_c = weak_form.evaluate_form(i, alpha_l)
+        # assert np.all(np.isclose(r_el,r_el_c))
+        # assert np.all(np.isclose(j_el,j_el_c))
 
         # contribute rhs
         rg[dest] += r_el
@@ -326,8 +337,11 @@ def four_field_approximation(material_data, method, gmesh, symmetric_solver_q=Tr
         # destination indexes
         dest = riesz_map_weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
-        r_el, j_el = riesz_map_weak_form.evaluate_form(i, alpha_l)
-        # r_el, j_el = riesz_map_weak_form.evaluate_form_vectorized(i, alpha_l)
+        r_el, j_el = riesz_map_weak_form.evaluate_form_vectorized(i, alpha_l)
+
+        # r_el_c, j_el_c = riesz_map_weak_form.evaluate_form(i, alpha_l)
+        # assert np.all(np.isclose(r_el,r_el_c))
+        # assert np.all(np.isclose(j_el,j_el_c))
 
         # contribute lhs
         data = j_el.ravel()
@@ -1142,13 +1156,13 @@ def method_definition(k_order):
     methods = [method_1, method_2, method_3, method_4]
     method_names = ["sc_rt", "sc_bdm", "wc_rt", "wc_bdm"]
     method_names = ["sc_rt", "sc_bdm"]
-    method_names = ["wc_rt"]
+    method_names = ["sc_rt"]
     return zip(method_names, methods)
 
 
 def material_data_definition():
     # Material data for example 1
-    case_0 = {"lambda_s": 1.0, "mu_s": 1.0, "kappa_s": 1.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 1.0, "l": 1.0}
+    case_0 = {"lambda_s": 100.0, "mu_s": 5.0, "kappa_s": 10.0, "lambda_o": 10.0, "mu_o": 25.0, "kappa_o": 100.0, "l": 50.0}
     case_1 = {"lambda_s": 1.0, "mu_s": 1.0, "kappa_s": 1.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 1.0, "l": 1.0e-2}
     case_2 = {"lambda_s": 1.0, "mu_s": 1.0, "kappa_s": 1.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 1.0, "l": 1.0e-4}
     cases = [case_0, case_1, case_2]

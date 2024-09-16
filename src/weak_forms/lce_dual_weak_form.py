@@ -8,7 +8,6 @@ from mesh.topological_queries import find_higher_dimension_neighs
 from geometry.compute_normal import normal
 from weak_forms.weak_from import WeakForm
 
-
 class LCEDualWeakForm(WeakForm):
     def evaluate_form(self, element_index, alpha):
         iel = element_index
@@ -306,7 +305,7 @@ class LCEDualWeakForm(WeakForm):
                     Skew_sh = 0.5 * (sh - sh.T)
 
                     tr_s_h = VecValDer(sh.val.trace(), sh.der.trace())
-                    A_sh = (1.0 / 2.0 * mu_s(xv[0], xv[1], xv[2])) * (
+                    A_sh = (1.0 / (2.0 * mu_s(xv[0], xv[1], xv[2])) ) * (
                         Symm_sh
                         - (
                             lambda_s(xv[0], xv[1], xv[2])
@@ -317,13 +316,13 @@ class LCEDualWeakForm(WeakForm):
                         )
                         * tr_s_h
                         * Imat
-                    ) + (1.0 / 2.0 * kappa_s(xv[0], xv[1], xv[2])) * Skew_sh
+                    ) + (1.0 / (2.0 * kappa_s(xv[0], xv[1], xv[2])) ) * Skew_sh
 
 
                     Symm_mh = 0.5 * (mh + mh.T)
                     Skew_mh = 0.5 * (mh - mh.T)
                     tr_m_h = VecValDer(mh.val.trace(), mh.der.trace())
-                    A_mh = (1.0 / 2.0 * mu_o(xv[0], xv[1], xv[2])) * (
+                    A_mh = (1.0 / (2.0 * mu_o(xv[0], xv[1], xv[2])) ) * (
                             Symm_mh
                             - (
                                     lambda_o(xv[0], xv[1], xv[2])
@@ -334,8 +333,8 @@ class LCEDualWeakForm(WeakForm):
                             )
                             * tr_m_h
                             * Imat
-                    ) + (1.0 / 2.0 * kappa_o(xv[0], xv[1], xv[2])) * Skew_mh
-                    A_mh *= (1.0 / lc(xv[0], xv[1], xv[2])**2)
+                    ) + (1.0 / (2.0 * kappa_o(xv[0], xv[1], xv[2])) ) * Skew_mh
+                    A_mh *= (1.0 / (lc(xv[0], xv[1], xv[2])**2) )
 
                     grad_s_phi = s_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
                     div_tau = np.array(
@@ -385,8 +384,8 @@ class LCEDualWeakForm(WeakForm):
 
                 equ_1_integrand = (
                     (s_phi_tab[0, i, :, 0:dim] @ A_sh.T)
-                    # + (div_tau.T @ uh)
-                    # - (s_phi_tab[0, i, :, 0:dim] @ Gamma_outer.T)
+                    + (div_tau.T @ uh)
+                    - (s_phi_tab[0, i, :, 0:dim] @ Gamma_outer.T)
                 )
                 equ_2_integrand = (m_phi_tab[0, i, :, 0:dim] @ A_mh.T) + (div_v.T @ th)
                 equ_3_integrand = u_phi_tab[0, i, :, 0:dim] @ div_sh
@@ -396,9 +395,9 @@ class LCEDualWeakForm(WeakForm):
 
                 multiphysic_integrand = np.zeros((1, n_dof))
                 multiphysic_integrand[:, idx_dof["s"]] = (equ_1_integrand).reshape((n_s_dof,))
-                # multiphysic_integrand[:, idx_dof["m"]] = (equ_2_integrand).reshape((n_m_dof,))
-                # multiphysic_integrand[:, idx_dof["u"]] = (equ_3_integrand).reshape((n_u_dof,))
-                # multiphysic_integrand[:, idx_dof["t"]] = (equ_4_integrand).reshape((n_t_dof,))
+                multiphysic_integrand[:, idx_dof["m"]] = (equ_2_integrand).reshape((n_m_dof,))
+                multiphysic_integrand[:, idx_dof["u"]] = (equ_3_integrand).reshape((n_u_dof,))
+                multiphysic_integrand[:, idx_dof["t"]] = (equ_4_integrand).reshape((n_t_dof,))
 
                 discrete_integrand = (multiphysic_integrand).reshape((n_dof,))
                 el_form += det_jac[i] * omega * discrete_integrand
@@ -501,63 +500,35 @@ class LCEDualWeakForm(WeakForm):
                 -1.0 * t_phi_s_star @ f_val_star[c + u_components]
             ).ravel()
 
+        # vectorization of symm and skew operators
+        def symm_opt(phi_i, phi_j):
+            assert phi_i.shape[0] == phi_j.shape[0]
+            n_comp = phi_i.shape[0]
+            return 0.5 * (np.dot(phi_i, phi_j) * np.identity(n_comp) + np.outer(phi_j, phi_i))
+
+        def skew_opt(phi_i, phi_j):
+            assert phi_i.shape[0] == phi_j.shape[0]
+            n_comp = phi_i.shape[0]
+            return 0.5 *(np.dot(phi_i, phi_j) * np.identity(n_comp) - np.outer(phi_j, phi_i))
+
+        def symm_fun(phi_data):
+            return np.block([[symm_opt(phi_i, phi_j) for phi_j in phi_data] for phi_i in phi_data])
+
+        def skew_fun(phi_data):
+            return np.block([[skew_opt(phi_i, phi_j) for phi_j in phi_data] for phi_i in phi_data])
+
         # (s,s) block
         s_phi_star = s_phi_tab[0, :, :, 0:dim]
-        s_j_el = np.array([0.5 * np.dot(phi, phi.T) for phi in s_phi_star]).T @ (
-            det_jac * weights
-        )
+        s_outer = np.array([np.outer(phi, phi) for phi in s_phi_star]).T
+        symm_outer = np.array(list(map(symm_fun, s_phi_star))).T
+        skew_outer = np.array(list(map(skew_fun, s_phi_star))).T
 
-        s_j_shear = np.array([0.5 * np.dot(phi, phi.T) for phi in s_phi_star]).T @ (
-            det_jac * weights * (((1 / (2.0 * mu_s_v)) + (1 / (2.0 * kappa_s_v))))
-        )
-        for c in range(s_components):
-            b = c
-            e = b + n_s_dof
-            j_el[b:e:s_components, b:e:s_components] += s_j_shear
-
-        # transpose_s_j_el = np.zeros((n_s_dof, n_s_dof))
-        #
-        # def phi_outer(phi):
-        #     n_data = phi.shape[0]
-        #     return np.array(
-        #         [
-        #             np.outer(phi[i], phi[j]).T
-        #             for i in range(n_data)
-        #             for j in range(n_data)
-        #         ]
-        #     )
-        #
-        # dest_idx = lambda idx: np.unravel_index(idx, (n_s_phi, n_s_phi))
-        #
-        # def insert_prod(k, prod, array):
-        #     ip, jp = dest_idx(k)
-        #     array[
-        #         ip * s_components : (ip + 1) * s_components,
-        #         jp * s_components : (jp + 1) * s_components,
-        #     ] += prod
-        #
-        # trans_outer_prods = (
-        #     np.array([phi_outer(phi) for phi in s_phi_star]).T @ (det_jac * weights)
-        # ).T
-        # [
-        #     insert_prod(
-        #         k,
-        #         0.5 * ((1 / (2.0 * mu_v)) - (1 / (2.0 * kappa_v))) * oprod,
-        #         transpose_s_j_el,
-        #     )
-        #     for k, oprod in enumerate(trans_outer_prods)
-        # ]
-        # j_el[0:n_s_dof, 0:n_s_dof] += transpose_s_j_el
-
+        # Stress
         vol_factor = (1.0 / (2.0 * mu_s_v)) * (lambda_s_v / (2.0 * mu_s_v + dim * lambda_s_v))
-        vol_s_j_el = (
-            -1.0
-            * np.array([np.outer(phi, phi) for phi in s_phi_tab[0, :, :, 0:dim]]).T
-            @ (vol_factor * det_jac * weights)
-        )
-        j_el[0:n_s_dof, 0:n_s_dof] += vol_s_j_el
-
-        return r_el, j_el
+        s_j_vol = -s_outer @ (det_jac * weights * vol_factor)
+        s_j_symm = symm_outer @ (det_jac * weights * ((1 / (2.0 * mu_s_v))))
+        s_j_skew = skew_outer @ (det_jac * weights * ((1 / (2.0 * kappa_s_v))))
+        j_el[0:n_s_dof, 0:n_s_dof] += s_j_symm + s_j_skew + s_j_vol
 
         # (t,s) and (s,t) blocks
         Asx_op = (
@@ -613,25 +584,19 @@ class LCEDualWeakForm(WeakForm):
 
 
         # (m,m) block
-        m_j_el = np.array(
-            [np.dot(phi, phi.T) for phi in m_phi_tab[0, :, :, 0:dim]]
-        ).T @ (det_jac * weights)
+        m_phi_star = m_phi_tab[0, :, :, 0:dim]
+        m_outer = np.array([np.outer(phi, phi) for phi in m_phi_star]).T
+        symm_outer = np.array(list(map(symm_fun, m_phi_star))).T
+        skew_outer = np.array(list(map(skew_fun, m_phi_star))).T
 
-        m_vol_factor = (1.0 / (2.0 * mu_o_v)) * (lambda_o_v / (2.0 * mu_o_v + dim * lambda_o_v))
-        vol_m_j_el = (
-            -1.0
-            * np.array([np.outer(phi, phi) for phi in m_phi_tab[0, :, :, 0:dim]]).T
-            @ (m_vol_factor * det_jac * (1 / (lc_v**2)) * weights)
-        )
-        j_el[n_s_dof:n_s_dof+n_m_dof, n_s_dof:n_s_dof+n_m_dof] += vol_m_j_el
+        # Couple stress
+        lc_scale = (1.0/lc_v**2)
+        vol_factor = (1.0 / (2.0 * mu_o_v)) * (lambda_o_v / (2.0 * mu_o_v + dim * lambda_o_v))
+        m_j_vol = -m_outer @ (det_jac * weights * lc_scale * vol_factor)
+        m_j_symm = symm_outer @ (det_jac * weights * lc_scale * ((1.0 / (2.0 * mu_o_v))))
+        m_j_skew = skew_outer @ (det_jac * weights * lc_scale * ((1.0 / (2.0 * kappa_o_v))))
+        j_el[n_s_dof:n_s_dof+n_m_dof, n_s_dof:n_s_dof+n_m_dof] += m_j_symm + m_j_skew + m_j_vol
 
-        m_j_shear = np.array(
-            [np.dot(phi, phi.T) for phi in m_phi_tab[0, :, :, 0:dim]]
-        ).T @ (det_jac * (1 / (lc_v**2)) * weights * ((1 / (2.0 * mu_o_v)) + (1 / (2.0 * kappa_o_v))))
-        for c in range(m_components):
-            b = c + n_s_dof
-            e = b + n_m_dof
-            j_el[b:e:m_components, b:e:m_components] += m_j_shear
 
         # (u,s) and (s,u) blocks
         u_phi_s_star_div_det_jac = weights * u_phi_tab[0, :, :, 0].T

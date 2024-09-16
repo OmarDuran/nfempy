@@ -708,15 +708,15 @@ def get_material_functions(material_data, dim: int = 2):
 
     if dim == 2:
         def f_grad_l(x, y, z):
-            d_gamma_x = 0.0 * x
-            d_gamma_y = 0.0 * y
-            return np.array([d_gamma_x, d_gamma_y])
+            d_l_x = 0.0 * x
+            d_l_y = 0.0 * y
+            return np.array([d_l_x, d_l_y])
     elif dim == 3:
         def f_grad_l(x, y, z):
-            d_gamma_x = 0.0 * x
-            d_gamma_y = 0.0 * y
-            d_gamma_z = 0.0 * z
-            return np.array([d_gamma_x, d_gamma_y, d_gamma_z])
+            d_l_x = 0.0 * x
+            d_l_y = 0.0 * y
+            d_l_z = 0.0 * z
+            return np.array([d_l_x, d_l_y, d_l_z])
     else:
         raise ValueError("Dimension not implemented: ", dim)
 
