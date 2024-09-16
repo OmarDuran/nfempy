@@ -69,31 +69,17 @@ class LCEScaledRieszMapWeakForm(WeakForm):
         n_dof = n_s_dof + n_m_dof + n_u_dof + n_t_dof
 
         # Partial local vectorization
-        f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
-        u_phi_s_star = det_jac * weights * u_phi_tab[0, :, :, 0].T
-        t_phi_s_star = det_jac * weights * t_phi_tab[0, :, :, 0].T
-
-        lc_scale_v = lc(x[:, 0], x[:, 1], x[:, 2])
+        lc_v = lc(x[:, 0], x[:, 1], x[:, 2])
         grad_lc_v = grad_lc(x[:, 0], x[:, 1], x[:, 2])
 
         Imat = np.identity(dim)
         with ad.AutoDiff(alpha) as alpha:
             el_form = np.zeros(n_dof)
-            for c in range(u_components):
-                b = c + n_s_dof + n_m_dof
-                e = b + n_u_dof
-                el_form[b:e:u_components] += -1.0 * u_phi_s_star @ f_val_star[c]
-            for c in range(t_components):
-                b = c + n_s_dof + n_m_dof + n_u_dof
-                e = b + n_t_dof
-                el_form[b:e:t_components] += (
-                    -1.0 * t_phi_s_star @ f_val_star[c + u_components]
-                )
 
             for i, omega in enumerate(weights):
                 xv = x[i]
 
-                lc_scale = lc_scale_v[i]
+                lc_scale = lc_v[i]
                 grad_lc_scale = grad_lc_v[:, i]
 
                 aka = 0
@@ -318,7 +304,7 @@ class LCEScaledRieszMapWeakForm(WeakForm):
                     Skew_sh = 0.5 * (sh - sh.T)
 
                     tr_s_h = VecValDer(sh.val.trace(), sh.der.trace())
-                    A_sh = (1.0 / 2.0 * mu_s(xv[0], xv[1], xv[2])) * (
+                    A_sh = (1.0 / (2.0 * mu_s(xv[0], xv[1], xv[2])) ) * (
                             Symm_sh
                             - (
                                     lambda_s(xv[0], xv[1], xv[2])
@@ -329,12 +315,12 @@ class LCEScaledRieszMapWeakForm(WeakForm):
                             )
                             * tr_s_h
                             * Imat
-                    ) + (1.0 / 2.0 * kappa_s(xv[0], xv[1], xv[2])) * Skew_sh
+                    ) + (1.0 / (2.0 * kappa_s(xv[0], xv[1], xv[2])) ) * Skew_sh
 
                     Symm_mh = 0.5 * (mh + mh.T)
                     Skew_mh = 0.5 * (mh - mh.T)
                     tr_m_h = VecValDer(mh.val.trace(), mh.der.trace())
-                    A_mh = (1.0 / 2.0 * mu_o(xv[0], xv[1], xv[2])) * (
+                    A_mh = (1.0 / (2.0 * mu_o(xv[0], xv[1], xv[2])) ) * (
                             Symm_mh
                             - (
                                     lambda_o(xv[0], xv[1], xv[2])
@@ -345,7 +331,7 @@ class LCEScaledRieszMapWeakForm(WeakForm):
                             )
                             * tr_m_h
                             * Imat
-                    ) + (1.0 / 2.0 * kappa_o(xv[0], xv[1], xv[2])) * Skew_mh
+                    ) + (1.0 / (2.0 * kappa_o(xv[0], xv[1], xv[2])) ) * Skew_mh
 
                     grad_s_phi = s_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
                     div_tau = np.array(
@@ -435,7 +421,6 @@ class LCEScaledRieszMapWeakForm(WeakForm):
         u_space = self.space.discrete_spaces["u"]
         t_space = self.space.discrete_spaces["t"]
 
-        f_rhs = self.functions["rhs"]
         lambda_s = self.functions["lambda_s"]
         mu_s = self.functions["mu_s"]
         kappa_s = self.functions["kappa_s"]
@@ -453,10 +438,6 @@ class LCEScaledRieszMapWeakForm(WeakForm):
         t_components = t_space.n_comp
 
         s_data: ElementData = s_space.elements[iel].data
-        m_data: ElementData = m_space.elements[iel].data
-        u_data: ElementData = u_space.elements[iel].data
-        t_data: ElementData = t_space.elements[iel].data
-
         dim = s_data.cell.dimension
         points, weights = self.space.quadrature[dim]
         x, jac, det_jac, inv_jac = s_space.elements[iel].evaluate_mapping(points)
@@ -483,11 +464,16 @@ class LCEScaledRieszMapWeakForm(WeakForm):
         j_el = np.zeros(js)
         r_el = np.zeros(rs)
 
-        f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
+        lambda_s_v = lambda_s(x[:, 0], x[:, 1], x[:, 2])
+        mu_s_v = mu_s(x[:, 0], x[:, 1], x[:, 2])
+        kappa_s_v = kappa_s(x[:, 0], x[:, 1], x[:, 2])
 
-        lambda_v = f_lambda(x[:, 0], x[:, 1], x[:, 2])
-        mu_v = f_mu(x[:, 0], x[:, 1], x[:, 2])
-        kappa_v = f_kappa(x[:, 0], x[:, 1], x[:, 2])
+        lambda_o_v = lambda_o(x[:, 0], x[:, 1], x[:, 2])
+        mu_o_v = mu_o(x[:, 0], x[:, 1], x[:, 2])
+        kappa_o_v = kappa_o(x[:, 0], x[:, 1], x[:, 2])
+
+        lc_v = lc(x[:, 0], x[:, 1], x[:, 2])
+        grad_lc_v = grad_lc(x[:, 0], x[:, 1], x[:, 2])
 
         # Vectorized contributions
         # s : stress
@@ -495,71 +481,58 @@ class LCEScaledRieszMapWeakForm(WeakForm):
         # u : displacement
         # t : rotation
 
-        gamma_scale_v = f_gamma(x[:, 0], x[:, 1], x[:, 2])
-        grad_gamma_v = f_grad_gamma(x[:, 0], x[:, 1], x[:, 2])
+        # vectorization of symm and skew operators
+        def outer_opt(phi_i, phi_j):
+            return 0.5 * np.outer(phi_j, phi_i)
+
+        def inner_opt(phi_i, phi_j):
+            n_comp = phi_i.shape[0]
+            return 0.5 * np.dot(phi_i, phi_j) * np.identity(n_comp)
+
+        def outer_fun(phi_data):
+            return np.block(
+                [[outer_opt(phi_i, phi_j) for phi_j in phi_data] for phi_i in
+                 phi_data])
+
+        def inner_fun(phi_data):
+            return np.block(
+                [[inner_opt(phi_i, phi_j) for phi_j in phi_data] for phi_i in
+                 phi_data])
 
         # (s,s) block
         s_phi_star = s_phi_tab[0, :, :, 0:dim]
-        s_j_el = np.array([0.5 * np.dot(phi, phi.T) for phi in s_phi_star]).T @ (
-            det_jac * weights
-        )
-        for c in range(s_components):
-            b = c
-            e = b + n_s_dof
-            j_el[b:e:s_components, b:e:s_components] += (1 / (2.0 * mu_v)) * s_j_el + (
-                1 / (2.0 * kappa_v)
-            ) * s_j_el
+        s_gen_outer = np.array(list(map(outer_fun, s_phi_star))).T
+        s_gen_inner = np.array(list(map(inner_fun, s_phi_star))).T
+        s_outer = np.array([np.outer(phi, phi) for phi in s_phi_star]).T
+        s_symm_outer = s_gen_inner + s_gen_outer
+        s_skew_outer = s_gen_inner - s_gen_outer
 
-        # transpose_s_j_el = np.zeros((n_s_dof, n_s_dof))
-        #
-        # def phi_outer(phi):
-        #     n_data = phi.shape[0]
-        #     return np.array(
-        #         [
-        #             np.outer(phi[i], phi[j]).T
-        #             for i in range(n_data)
-        #             for j in range(n_data)
-        #         ]
-        #     )
-        #
-        # dest_idx = lambda idx: np.unravel_index(idx, (n_s_phi, n_s_phi))
-        #
-        # def insert_prod(k, prod, array):
-        #     ip, jp = dest_idx(k)
-        #     array[
-        #         ip * s_components : (ip + 1) * s_components,
-        #         jp * s_components : (jp + 1) * s_components,
-        #     ] += prod
-        #
-        # trans_outer_prods = (
-        #     np.array([phi_outer(phi) for phi in s_phi_star]).T @ (det_jac * weights)
-        # ).T
-        # [
-        #     insert_prod(
-        #         k,
-        #         0.5 * ((1 / (2.0 * mu_v)) - (1 / (2.0 * kappa_v))) * oprod,
-        #         transpose_s_j_el,
-        #     )
-        #     for k, oprod in enumerate(trans_outer_prods)
-        # ]
-        # j_el[0:n_s_dof, 0:n_s_dof] += transpose_s_j_el
-
-        vol_factor = (1.0 / (2.0 * mu_v)) * (lambda_v / (2.0 * mu_v + dim * lambda_v))
-        vol_s_j_el = (
-            -1.0
-            * np.array([np.outer(phi, phi) for phi in s_phi_tab[0, :, :, 0:dim]]).T
-            @ (vol_factor * det_jac * weights)
-        )
-        j_el[0:n_s_dof, 0:n_s_dof] += vol_s_j_el
+        # Stress
+        vol_factor = (1.0 / (2.0 * mu_s_v)) * (
+                lambda_s_v / (2.0 * mu_s_v + dim * lambda_s_v))
+        s_j_vol = -s_outer @ (det_jac * weights * vol_factor)
+        s_j_symm = s_symm_outer @ (det_jac * weights * ((1 / (2.0 * mu_s_v))))
+        s_j_skew = s_skew_outer @ (det_jac * weights * ((1 / (2.0 * kappa_s_v))))
+        j_el[0:n_s_dof, 0:n_s_dof] += s_j_symm + s_j_skew + s_j_vol
 
         # (m,m) block
-        m_j_el = np.array(
-            [np.dot(phi, phi.T) for phi in m_phi_tab[0, :, :, 0:dim]]
-        ).T @ (det_jac * weights)
-        for c in range(m_components):
-            b = c + n_s_dof
-            e = b + n_m_dof
-            j_el[b:e:m_components, b:e:m_components] += m_j_el
+        m_phi_star = m_phi_tab[0, :, :, 0:dim]
+        m_gen_outer = np.array(list(map(outer_fun, m_phi_star))).T
+        m_gen_inner = np.array(list(map(inner_fun, m_phi_star))).T
+        m_outer = np.array([np.outer(phi, phi) for phi in m_phi_star]).T
+        m_symm_outer = m_gen_inner + m_gen_outer
+        m_skew_outer = m_gen_inner - m_gen_outer
+
+        # Couple stress
+        vol_factor = (1.0 / (2.0 * mu_o_v)) * (
+                lambda_o_v / (2.0 * mu_o_v + dim * lambda_o_v))
+        m_j_vol = -m_outer @ (det_jac * weights * vol_factor)
+        m_j_symm = m_symm_outer @ (
+                det_jac * weights * ((1.0 / (2.0 * mu_o_v))))
+        m_j_skew = m_skew_outer @ (
+                det_jac * weights * ((1.0 / (2.0 * kappa_o_v))))
+        j_el[n_s_dof:n_s_dof + n_m_dof,
+        n_s_dof:n_s_dof + n_m_dof] += m_j_symm + m_j_skew + m_j_vol
 
         # (div s, div tau) block
         grad_s_phi_star = s_phi_tab[1 : s_phi_tab.shape[0] + 1, :, :, 0:dim]
@@ -577,7 +550,7 @@ class LCEScaledRieszMapWeakForm(WeakForm):
         div_v_star = np.array(
             [
                 [
-                    np.trace(np.outer(grad_gamma_v[:, i], m_phi_tab[0, i, j, 0:dim]))
+                    np.trace(np.outer(grad_lc_v[:, i], m_phi_tab[0, i, j, 0:dim]))
                     for i in range(len(points))
                 ]
                 for j in range(n_m_phi)
@@ -585,7 +558,7 @@ class LCEScaledRieszMapWeakForm(WeakForm):
         )
 
         div_v_star += np.trace(grad_m_phi_star, axis1=0, axis2=3).T * (
-            gamma_scale_v / det_jac
+            lc_v / det_jac
         )
         div_v_block_outer = np.array(
             [np.outer(div_phi, div_phi) for div_phi in div_v_star.T]

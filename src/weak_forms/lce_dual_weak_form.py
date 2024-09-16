@@ -501,33 +501,32 @@ class LCEDualWeakForm(WeakForm):
             ).ravel()
 
         # vectorization of symm and skew operators
-        def symm_opt(phi_i, phi_j):
-            assert phi_i.shape[0] == phi_j.shape[0]
+        def outer_opt(phi_i, phi_j):
+            return 0.5 * np.outer(phi_j, phi_i)
+
+        def inner_opt(phi_i, phi_j):
             n_comp = phi_i.shape[0]
-            return 0.5 * (np.dot(phi_i, phi_j) * np.identity(n_comp) + np.outer(phi_j, phi_i))
+            return 0.5 * np.dot(phi_i, phi_j) * np.identity(n_comp)
 
-        def skew_opt(phi_i, phi_j):
-            assert phi_i.shape[0] == phi_j.shape[0]
-            n_comp = phi_i.shape[0]
-            return 0.5 *(np.dot(phi_i, phi_j) * np.identity(n_comp) - np.outer(phi_j, phi_i))
+        def outer_fun(phi_data):
+            return np.block([[outer_opt(phi_i, phi_j) for phi_j in phi_data] for phi_i in phi_data])
 
-        def symm_fun(phi_data):
-            return np.block([[symm_opt(phi_i, phi_j) for phi_j in phi_data] for phi_i in phi_data])
-
-        def skew_fun(phi_data):
-            return np.block([[skew_opt(phi_i, phi_j) for phi_j in phi_data] for phi_i in phi_data])
+        def inner_fun(phi_data):
+            return np.block([[inner_opt(phi_i, phi_j) for phi_j in phi_data] for phi_i in phi_data])
 
         # (s,s) block
         s_phi_star = s_phi_tab[0, :, :, 0:dim]
+        s_gen_outer = np.array(list(map(outer_fun, s_phi_star))).T
+        s_gen_inner = np.array(list(map(inner_fun, s_phi_star))).T
         s_outer = np.array([np.outer(phi, phi) for phi in s_phi_star]).T
-        symm_outer = np.array(list(map(symm_fun, s_phi_star))).T
-        skew_outer = np.array(list(map(skew_fun, s_phi_star))).T
+        s_symm_outer = s_gen_inner + s_gen_outer
+        s_skew_outer = s_gen_inner - s_gen_outer
 
         # Stress
         vol_factor = (1.0 / (2.0 * mu_s_v)) * (lambda_s_v / (2.0 * mu_s_v + dim * lambda_s_v))
         s_j_vol = -s_outer @ (det_jac * weights * vol_factor)
-        s_j_symm = symm_outer @ (det_jac * weights * ((1 / (2.0 * mu_s_v))))
-        s_j_skew = skew_outer @ (det_jac * weights * ((1 / (2.0 * kappa_s_v))))
+        s_j_symm = s_symm_outer @ (det_jac * weights * ((1 / (2.0 * mu_s_v))))
+        s_j_skew = s_skew_outer @ (det_jac * weights * ((1 / (2.0 * kappa_s_v))))
         j_el[0:n_s_dof, 0:n_s_dof] += s_j_symm + s_j_skew + s_j_vol
 
         # (t,s) and (s,t) blocks
@@ -585,16 +584,18 @@ class LCEDualWeakForm(WeakForm):
 
         # (m,m) block
         m_phi_star = m_phi_tab[0, :, :, 0:dim]
+        m_gen_outer = np.array(list(map(outer_fun, m_phi_star))).T
+        m_gen_inner = np.array(list(map(inner_fun, m_phi_star))).T
         m_outer = np.array([np.outer(phi, phi) for phi in m_phi_star]).T
-        symm_outer = np.array(list(map(symm_fun, m_phi_star))).T
-        skew_outer = np.array(list(map(skew_fun, m_phi_star))).T
+        m_symm_outer = m_gen_inner + m_gen_outer
+        m_skew_outer = m_gen_inner - m_gen_outer
 
         # Couple stress
         lc_scale = (1.0/lc_v**2)
         vol_factor = (1.0 / (2.0 * mu_o_v)) * (lambda_o_v / (2.0 * mu_o_v + dim * lambda_o_v))
         m_j_vol = -m_outer @ (det_jac * weights * lc_scale * vol_factor)
-        m_j_symm = symm_outer @ (det_jac * weights * lc_scale * ((1.0 / (2.0 * mu_o_v))))
-        m_j_skew = skew_outer @ (det_jac * weights * lc_scale * ((1.0 / (2.0 * kappa_o_v))))
+        m_j_symm = m_symm_outer @ (det_jac * weights * lc_scale * ((1.0 / (2.0 * mu_o_v))))
+        m_j_skew = m_skew_outer @ (det_jac * weights * lc_scale * ((1.0 / (2.0 * kappa_o_v))))
         j_el[n_s_dof:n_s_dof+n_m_dof, n_s_dof:n_s_dof+n_m_dof] += m_j_symm + m_j_skew + m_j_vol
 
 

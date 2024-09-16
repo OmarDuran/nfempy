@@ -295,9 +295,9 @@ def four_field_approximation(material_data, method, gmesh, symmetric_solver_q=Tr
         alpha_l = alpha[dest]
         r_el, j_el = weak_form.evaluate_form_vectorized(i, alpha_l)
 
-        # r_el_c, j_el_c = weak_form.evaluate_form(i, alpha_l)
-        # assert np.all(np.isclose(r_el,r_el_c))
-        # assert np.all(np.isclose(j_el,j_el_c))
+        r_el_c, j_el_c = weak_form.evaluate_form(i, alpha_l)
+        assert np.all(np.isclose(r_el,r_el_c))
+        assert np.all(np.isclose(j_el,j_el_c))
 
         # contribute rhs
         rg[dest] += r_el
@@ -625,8 +625,11 @@ def four_field_scaled_approximation(
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
-        r_el, j_el = weak_form.evaluate_form(i, alpha_l)
-        # r_el, j_el = weak_form.evaluate_form_vectorized(i, alpha_l)
+        r_el, j_el = weak_form.evaluate_form_vectorized(i, alpha_l)
+
+        r_el_c, j_el_c = weak_form.evaluate_form(i, alpha_l)
+        assert np.all(np.isclose(r_el,r_el_c))
+        assert np.all(np.isclose(j_el,j_el_c))
 
         # contribute rhs
         rg[dest] += r_el
@@ -665,8 +668,11 @@ def four_field_scaled_approximation(
         # destination indexes
         dest = riesz_map_weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
-        r_el, j_el = riesz_map_weak_form.evaluate_form(i, alpha_l)
-        # r_el, j_el = riesz_map_weak_form.evaluate_form_vectorized(i, alpha_l)
+        r_el, j_el = riesz_map_weak_form.evaluate_form_vectorized(i, alpha_l)
+
+        r_el_c, j_el_c = riesz_map_weak_form.evaluate_form(i, alpha_l)
+        assert np.all(np.isclose(r_el,r_el_c))
+        assert np.all(np.isclose(j_el,j_el_c))
 
         # contribute lhs
         data = j_el.ravel()
@@ -1154,9 +1160,12 @@ def method_definition(k_order):
     }
 
     methods = [method_1, method_2, method_3, method_4]
+    methods = [method_3, method_4]
+
     method_names = ["sc_rt", "sc_bdm", "wc_rt", "wc_bdm"]
     method_names = ["sc_rt", "sc_bdm"]
-    method_names = ["sc_rt"]
+
+    method_names = ["wc_rt"]
     return zip(method_names, methods)
 
 
