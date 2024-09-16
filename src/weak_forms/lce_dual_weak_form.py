@@ -385,8 +385,8 @@ class LCEDualWeakForm(WeakForm):
 
                 equ_1_integrand = (
                     (s_phi_tab[0, i, :, 0:dim] @ A_sh.T)
-                    + (div_tau.T @ uh)
-                    - (s_phi_tab[0, i, :, 0:dim] @ Gamma_outer.T)
+                    # + (div_tau.T @ uh)
+                    # - (s_phi_tab[0, i, :, 0:dim] @ Gamma_outer.T)
                 )
                 equ_2_integrand = (m_phi_tab[0, i, :, 0:dim] @ A_mh.T) + (div_v.T @ th)
                 equ_3_integrand = u_phi_tab[0, i, :, 0:dim] @ div_sh
@@ -396,9 +396,9 @@ class LCEDualWeakForm(WeakForm):
 
                 multiphysic_integrand = np.zeros((1, n_dof))
                 multiphysic_integrand[:, idx_dof["s"]] = (equ_1_integrand).reshape((n_s_dof,))
-                multiphysic_integrand[:, idx_dof["m"]] = (equ_2_integrand).reshape((n_m_dof,))
-                multiphysic_integrand[:, idx_dof["u"]] = (equ_3_integrand).reshape((n_u_dof,))
-                multiphysic_integrand[:, idx_dof["t"]] = (equ_4_integrand).reshape((n_t_dof,))
+                # multiphysic_integrand[:, idx_dof["m"]] = (equ_2_integrand).reshape((n_m_dof,))
+                # multiphysic_integrand[:, idx_dof["u"]] = (equ_3_integrand).reshape((n_u_dof,))
+                # multiphysic_integrand[:, idx_dof["t"]] = (equ_4_integrand).reshape((n_t_dof,))
 
                 discrete_integrand = (multiphysic_integrand).reshape((n_dof,))
                 el_form += det_jac[i] * omega * discrete_integrand
@@ -557,6 +557,8 @@ class LCEDualWeakForm(WeakForm):
         )
         j_el[0:n_s_dof, 0:n_s_dof] += vol_s_j_el
 
+        return r_el, j_el
+
         # (t,s) and (s,t) blocks
         Asx_op = (
             np.array(
@@ -607,6 +609,8 @@ class LCEDualWeakForm(WeakForm):
                 es = bs + n_s_dof
                 j_el[b:e:t_components, bs:es:s_components] += -1.0 * operator
                 j_el[bs:es:s_components, b:e:t_components] += -1.0 * operator.T
+
+
 
         # (m,m) block
         m_j_el = np.array(
