@@ -295,8 +295,8 @@ def div_scaled_error(dim, fe_space, functions, alpha, skip_fields=[]):
 
         div_name = "div_" + name
         exact = functions[div_name]
-        scale = functions.get("gamma", None)
-        grad_scale = functions.get("grad_gamma", None)
+        scale = functions.get("l", None)
+        grad_scale = functions.get("grad_l", None)
         if scale is None or grad_scale is None:
             continue
         div_error = np.sum([compute_div_error(idx) for idx in indexes])

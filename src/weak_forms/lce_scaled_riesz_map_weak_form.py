@@ -18,11 +18,16 @@ class LCEScaledRieszMapWeakForm(WeakForm):
         t_space = self.space.discrete_spaces["t"]
 
         f_rhs = self.functions["rhs"]
-        f_lambda = self.functions["lambda"]
-        f_mu = self.functions["mu"]
-        f_kappa = self.functions["kappa"]
-        f_gamma = self.functions["gamma"]
-        f_grad_gamma = self.functions["grad_gamma"]
+        lambda_s = self.functions["lambda_s"]
+        mu_s = self.functions["mu_s"]
+        kappa_s = self.functions["kappa_s"]
+
+        lambda_o = self.functions["lambda_o"]
+        mu_o = self.functions["mu_o"]
+        kappa_o = self.functions["kappa_o"]
+
+        lc = self.functions["l"]
+        grad_lc = self.functions["grad_l"]
 
         s_components = s_space.n_comp
         m_components = m_space.n_comp
@@ -34,8 +39,8 @@ class LCEScaledRieszMapWeakForm(WeakForm):
         u_data: ElementData = u_space.elements[iel].data
         t_data: ElementData = t_space.elements[iel].data
 
-        points, weights = self.space.quadrature
         dim = s_data.cell.dimension
+        points, weights = self.space.quadrature[dim]
         x, jac, det_jac, inv_jac = s_space.elements[iel].evaluate_mapping(points)
 
         # basis
@@ -54,24 +59,22 @@ class LCEScaledRieszMapWeakForm(WeakForm):
         n_u_dof = n_u_phi * u_components
         n_t_dof = n_t_phi * t_components
 
+        idx_dof = {
+            "s": slice(0, n_s_dof),
+            "m": slice(n_s_dof, n_s_dof + n_m_dof),
+            "u": slice(n_s_dof + n_m_dof, n_s_dof + n_m_dof + n_u_dof),
+            "t": slice(n_s_dof + n_m_dof + n_u_dof, n_s_dof + n_m_dof + n_u_dof + n_t_dof),
+        }
+
         n_dof = n_s_dof + n_m_dof + n_u_dof + n_t_dof
-        js = (n_dof, n_dof)
-        rs = n_dof
-        j_el = np.zeros(js)
-        r_el = np.zeros(rs)
 
         # Partial local vectorization
         f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
         u_phi_s_star = det_jac * weights * u_phi_tab[0, :, :, 0].T
         t_phi_s_star = det_jac * weights * t_phi_tab[0, :, :, 0].T
 
-        # constant directors
-        e1 = np.array([1, 0, 0])
-        e2 = np.array([0, 1, 0])
-        e3 = np.array([0, 0, 1])
-
-        gamma_scale_v = f_gamma(x[:, 0], x[:, 1], x[:, 2])
-        grad_gamma_v = f_grad_gamma(x[:, 0], x[:, 1], x[:, 2])
+        lc_scale_v = lc(x[:, 0], x[:, 1], x[:, 2])
+        grad_lc_v = grad_lc(x[:, 0], x[:, 1], x[:, 2])
 
         Imat = np.identity(dim)
         with ad.AutoDiff(alpha) as alpha:
@@ -90,8 +93,8 @@ class LCEScaledRieszMapWeakForm(WeakForm):
             for i, omega in enumerate(weights):
                 xv = x[i]
 
-                gamma_scale = gamma_scale_v[i]
-                grad_gamma_scale = grad_gamma_v[:, i]
+                lc_scale = lc_scale_v[i]
+                grad_lc_scale = grad_lc_v[:, i]
 
                 aka = 0
                 if dim == 2:
@@ -315,20 +318,34 @@ class LCEScaledRieszMapWeakForm(WeakForm):
                     Skew_sh = 0.5 * (sh - sh.T)
 
                     tr_s_h = VecValDer(sh.val.trace(), sh.der.trace())
-                    A_sh = (1.0 / 2.0 * f_mu(xv[0], xv[1], xv[2])) * (
-                        Symm_sh
-                        - (
-                            f_lambda(xv[0], xv[1], xv[2])
-                            / (
-                                2.0 * f_mu(xv[0], xv[1], xv[2])
-                                + dim * f_lambda(xv[0], xv[1], xv[2])
+                    A_sh = (1.0 / 2.0 * mu_s(xv[0], xv[1], xv[2])) * (
+                            Symm_sh
+                            - (
+                                    lambda_s(xv[0], xv[1], xv[2])
+                                    / (
+                                            2.0 * mu_s(xv[0], xv[1], xv[2])
+                                            + dim * lambda_s(xv[0], xv[1], xv[2])
+                                    )
                             )
-                        )
-                        * tr_s_h
-                        * Imat
-                    ) + (1.0 / 2.0 * f_kappa(xv[0], xv[1], xv[2])) * Skew_sh
+                            * tr_s_h
+                            * Imat
+                    ) + (1.0 / 2.0 * kappa_s(xv[0], xv[1], xv[2])) * Skew_sh
 
-                    A_mh = mh
+                    Symm_mh = 0.5 * (mh + mh.T)
+                    Skew_mh = 0.5 * (mh - mh.T)
+                    tr_m_h = VecValDer(mh.val.trace(), mh.der.trace())
+                    A_mh = (1.0 / 2.0 * mu_o(xv[0], xv[1], xv[2])) * (
+                            Symm_mh
+                            - (
+                                    lambda_o(xv[0], xv[1], xv[2])
+                                    / (
+                                            2.0 * mu_o(xv[0], xv[1], xv[2])
+                                            + dim * lambda_o(xv[0], xv[1], xv[2])
+                                    )
+                            )
+                            * tr_m_h
+                            * Imat
+                    ) + (1.0 / 2.0 * kappa_o(xv[0], xv[1], xv[2])) * Skew_mh
 
                     grad_s_phi = s_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
                     div_tau = np.array(
@@ -349,19 +366,19 @@ class LCEScaledRieszMapWeakForm(WeakForm):
                         [np.trace(grad_m_phi, axis1=0, axis2=2) / det_jac[i]]
                     )
 
-                    tr_grad_eps_otimes_v = np.array(
+                    tr_grad_lc_otimes_v = np.array(
                         [
                             [
                                 np.trace(
                                     np.outer(
-                                        grad_gamma_scale, m_phi_tab[0, i, j, 0:dim]
+                                        grad_lc_scale, m_phi_tab[0, i, j, 0:dim]
                                     )
                                 )
                                 for j in range(n_m_phi)
                             ]
                         ]
                     )
-                    div_v_s = gamma_scale * div_v + tr_grad_eps_otimes_v
+                    div_v_s = lc_scale * div_v + tr_grad_lc_otimes_v
 
                     div_mh_x = a_mx @ div_v_s.T
                     div_mh_y = a_my @ div_v_s.T
@@ -419,11 +436,16 @@ class LCEScaledRieszMapWeakForm(WeakForm):
         t_space = self.space.discrete_spaces["t"]
 
         f_rhs = self.functions["rhs"]
-        f_lambda = self.functions["lambda"]
-        f_mu = self.functions["mu"]
-        f_kappa = self.functions["kappa"]
-        f_gamma = self.functions["gamma"]
-        f_grad_gamma = self.functions["grad_gamma"]
+        lambda_s = self.functions["lambda_s"]
+        mu_s = self.functions["mu_s"]
+        kappa_s = self.functions["kappa_s"]
+
+        lambda_o = self.functions["lambda_o"]
+        mu_o = self.functions["mu_o"]
+        kappa_o = self.functions["kappa_o"]
+
+        lc = self.functions["l"]
+        grad_lc = self.functions["grad_l"]
 
         s_components = s_space.n_comp
         m_components = m_space.n_comp

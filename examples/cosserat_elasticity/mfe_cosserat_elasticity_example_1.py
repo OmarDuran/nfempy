@@ -29,21 +29,55 @@ from weak_forms.lce_scaled_dual_weak_form import (
 from weak_forms.lce_scaled_riesz_map_weak_form import LCEScaledRieszMapWeakForm
 
 
-def compose_file_name(method, k_order, ref_l, dim, material_data, suffix):
-    prefix = (
-        method[0]
-        + "_lambda_"
-        + str(material_data["lambda_o"])
-        + "_gamma_"
-        + str(material_data["l"])
-        + "_k"
-        + str(k_order)
-        + "_l"
-        + str(ref_l)
-        + "_"
-        + str(dim)
-        + "d"
-    )
+def compose_file_name(method, k_order, dim, material_data, suffix, ref_l = None):
+    if ref_l is None:
+        prefix = (
+                method[0]
+                + "_lambda_s_"
+                + str(material_data["lambda_s"])
+                + "_mu_s_"
+                + str(material_data["mu_s"])
+                + "_kappa_s_"
+                + str(material_data["kappa_s"])
+                + "_lambda_o_"
+                + str(material_data["lambda_o"])
+                + "_mu_p_"
+                + str(material_data["mu_o"])
+                + "_kappa_o_"
+                + str(material_data["kappa_o"])
+                + "_lc_"
+                + str(material_data["l"])
+                + "_k"
+                + str(k_order)
+                + "_"
+                + str(dim)
+                + "d"
+        )
+    else:
+        prefix = (
+            method[0]
+            + "_lambda_s_"
+            + str(material_data["lambda_s"])
+            + "_mu_s_"
+            + str(material_data["mu_s"])
+            + "_kappa_s_"
+            + str(material_data["kappa_s"])
+            + "_lambda_o_"
+            + str(material_data["lambda_o"])
+            + "_mu_p_"
+            + str(material_data["mu_o"])
+            + "_kappa_o_"
+            + str(material_data["kappa_o"])
+            + "_lc_"
+            + str(material_data["l"])
+            + "_k"
+            + str(k_order)
+            + "_l"
+            + str(ref_l)
+            + "_"
+            + str(dim)
+            + "d"
+        )
     file_name = prefix + suffix
     return file_name
 
@@ -140,11 +174,7 @@ def four_field_postprocessing(
     if write_vtk_q:
         st = time.time()
 
-        lambda_value = material_data["lambda_s"]
-        gamma_value = material_data["l"]
-
-        prefix = method[0] + "_k" + str(k_order) + "_d" + str(dim)
-        prefix += "_lambda_" + str(lambda_value) + "_gamma_" + str(gamma_value)
+        prefix = compose_file_name(method[0], k_order, dim, material_data, '')
         file_name = prefix + "_four_fields_ex_1.vtk"
 
         write_vtk_file_with_exact_solution(
@@ -231,7 +261,7 @@ def four_field_approximation(material_data, method, gmesh, symmetric_solver_q=Tr
     div_m_exact = lce.couple_stress_divergence(material_data, dim)
     f_rhs = lce.rhs(material_data, dim)
 
-    m_functions = lce.get_material_functions(material_data)
+    m_functions = lce.get_material_functions(material_data, dim)
     m_functions["rhs"] = f_rhs
 
     exact_functions = {
@@ -440,41 +470,15 @@ def four_field_scaled_postprocessing(
     m_kappa = m_mu
 
     # Material data
-    m_lambda = material_data["lambda"]
-    m_mu = material_data["mu"]
-    m_kappa = material_data["kappa"]
-    m_gamma = material_data["gamma"]
-
     # exact solution
-    u_exact = lce.displacement(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    t_exact = lce.rotation(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    s_exact = lce.stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    m_exact = lce.couple_stress_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    div_s_exact = lce.stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    div_m_exact = lce.couple_stress_divergence_scaled(
-        m_lambda, m_mu, m_kappa, m_gamma, dim
-    )
+    u_exact = lce.displacement(material_data, dim)
+    t_exact = lce.rotation(material_data, dim)
+    s_exact = lce.stress(material_data, dim)
+    m_exact = lce.couple_stress_scaled(material_data, dim)
+    div_s_exact = lce.stress_divergence(material_data, dim)
+    div_m_exact = lce.couple_stress_divergence_scaled(material_data, dim)
 
-    def f_gamma(x, y, z):
-        return m_gamma * np.ones_like(x)
-
-    if dim == 2:
-
-        def f_grad_gamma(x, y, z):
-            d_gamma_x = 0.0 * x
-            d_gamma_y = 0.0 * y
-            return np.array([d_gamma_x, d_gamma_y])
-
-    elif dim == 3:
-
-        def f_grad_gamma(x, y, z):
-            d_gamma_x = 0.0 * x
-            d_gamma_y = 0.0 * y
-            d_gamma_z = 0.0 * z
-            return np.array([d_gamma_x, d_gamma_y, d_gamma_z])
-
-    else:
-        raise ValueError("Dimension not implemented: ", dim)
+    m_functions = lce.get_material_functions(material_data, dim)
 
     exact_functions = {
         "s": s_exact,
@@ -483,14 +487,14 @@ def four_field_scaled_postprocessing(
         "t": t_exact,
         "div_s": div_s_exact,
         "div_m": div_m_exact,
-        "gamma": f_gamma,
-        "grad_gamma": f_grad_gamma,
+        "l": m_functions["l"],
+        "grad_l": m_functions["grad_l"],
     }
 
     if write_vtk_q:
         st = time.time()
 
-        prefix = method[0] + "_k" + str(k_order) + "_d" + str(dim)
+        prefix = compose_file_name(method[0], k_order, dim, material_data, '')
         file_name = prefix + "_four_fields_scaled_ex_1.vtk"
 
         write_vtk_file_with_exact_solution(
@@ -572,60 +576,17 @@ def four_field_scaled_approximation(
         P.setType("sbaij")
 
     # Material data
-    m_lambda = material_data["lambda"]
-    m_mu = material_data["mu"]
-    m_kappa = material_data["kappa"]
-    m_gamma = material_data["gamma"]
-
     # exact solution
-    u_exact = lce.displacement(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    t_exact = lce.rotation(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    s_exact = lce.stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    m_exact = lce.couple_stress_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    div_s_exact = lce.stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    div_m_exact = lce.couple_stress_divergence_scaled(
-        m_lambda, m_mu, m_kappa, m_gamma, dim
-    )
-    f_rhs = lce.rhs_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    u_exact = lce.displacement(material_data, dim)
+    t_exact = lce.rotation(material_data, dim)
+    s_exact = lce.stress(material_data, dim)
+    m_exact = lce.couple_stress_scaled(material_data, dim)
+    div_s_exact = lce.stress_divergence(material_data, dim)
+    div_m_exact = lce.couple_stress_divergence_scaled(material_data, dim)
+    f_rhs = lce.rhs_scaled(material_data, dim)
 
-    def f_lambda(x, y, z):
-        return m_lambda
-
-    def f_mu(x, y, z):
-        return m_mu
-
-    def f_kappa(x, y, z):
-        return m_kappa
-
-    def f_gamma(x, y, z):
-        return m_gamma * np.ones_like(x)
-
-    if dim == 2:
-
-        def f_grad_gamma(x, y, z):
-            d_gamma_x = 0.0 * x
-            d_gamma_y = 0.0 * y
-            return np.array([d_gamma_x, d_gamma_y])
-
-    elif dim == 3:
-
-        def f_grad_gamma(x, y, z):
-            d_gamma_x = 0.0 * x
-            d_gamma_y = 0.0 * y
-            d_gamma_z = 0.0 * z
-            return np.array([d_gamma_x, d_gamma_y, d_gamma_z])
-
-    else:
-        raise ValueError("Dimension not implemented: ", dim)
-
-    m_functions = {
-        "rhs": f_rhs,
-        "lambda": f_lambda,
-        "mu": f_mu,
-        "kappa": f_kappa,
-        "gamma": f_gamma,
-        "grad_gamma": f_grad_gamma,
-    }
+    m_functions = lce.get_material_functions(material_data, dim)
+    m_functions["rhs"] = f_rhs
 
     exact_functions = {
         "s": s_exact,
@@ -634,8 +595,8 @@ def four_field_scaled_approximation(
         "t": t_exact,
         "div_s": div_s_exact,
         "div_m": div_m_exact,
-        "gamma": f_gamma,
-        "grad_gamma": f_grad_gamma,
+        "l": m_functions["l"],
+        "grad_l": m_functions["grad_l"],
     }
 
     weak_form = LCEScaledDualWeakForm(fe_space)
@@ -650,7 +611,8 @@ def four_field_scaled_approximation(
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
-        r_el, j_el = weak_form.evaluate_form_vectorized(i, alpha_l)
+        r_el, j_el = weak_form.evaluate_form(i, alpha_l)
+        # r_el, j_el = weak_form.evaluate_form_vectorized(i, alpha_l)
 
         # contribute rhs
         rg[dest] += r_el
@@ -689,7 +651,8 @@ def four_field_scaled_approximation(
         # destination indexes
         dest = riesz_map_weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
-        r_el, j_el = riesz_map_weak_form.evaluate_form_vectorized(i, alpha_l)
+        r_el, j_el = riesz_map_weak_form.evaluate_form(i, alpha_l)
+        # r_el, j_el = riesz_map_weak_form.evaluate_form_vectorized(i, alpha_l)
 
         # contribute lhs
         data = j_el.ravel()
@@ -877,50 +840,15 @@ def four_field_scaled_solution_norms(material_data, method, gmesh):
     fe_space = create_product_space(method, gmesh)
 
     # Material data
-    m_lambda = material_data["lambda"]
-    m_mu = material_data["mu"]
-    m_kappa = material_data["kappa"]
-    m_gamma = material_data["gamma"]
-
     # exact solution
-    u_exact = lce.displacement(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    t_exact = lce.rotation(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    s_exact = lce.stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    m_exact = lce.couple_stress_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    div_s_exact = lce.stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    div_m_exact = lce.couple_stress_divergence_scaled(
-        m_lambda, m_mu, m_kappa, m_gamma, dim
-    )
+    u_exact = lce.displacement(material_data, dim)
+    t_exact = lce.rotation(material_data, dim)
+    s_exact = lce.stress(material_data, dim)
+    m_exact = lce.couple_stress_scaled(material_data, dim)
+    div_s_exact = lce.stress_divergence(material_data, dim)
+    div_m_exact = lce.couple_stress_divergence_scaled(material_data, dim)
 
-    def f_lambda(x, y, z):
-        return m_lambda
-
-    def f_mu(x, y, z):
-        return m_mu
-
-    def f_kappa(x, y, z):
-        return m_kappa
-
-    def f_gamma(x, y, z):
-        return m_gamma * np.ones_like(x)
-
-    if dim == 2:
-
-        def f_grad_gamma(x, y, z):
-            d_gamma_x = 0.0 * x
-            d_gamma_y = 0.0 * y
-            return np.array([d_gamma_x, d_gamma_y])
-
-    elif dim == 3:
-
-        def f_grad_gamma(x, y, z):
-            d_gamma_x = 0.0 * x
-            d_gamma_y = 0.0 * y
-            d_gamma_z = 0.0 * z
-            return np.array([d_gamma_x, d_gamma_y, d_gamma_z])
-
-    else:
-        raise ValueError("Dimension not implemented: ", dim)
+    m_functions = lce.get_material_functions(material_data, dim)
 
     exact_functions = {
         "s": s_exact,
@@ -929,8 +857,8 @@ def four_field_scaled_solution_norms(material_data, method, gmesh):
         "t": t_exact,
         "div_s": div_s_exact,
         "div_m": div_m_exact,
-        "gamma": f_gamma,
-        "grad_gamma": f_grad_gamma,
+        "l": m_functions["l"],
+        "grad_l": m_functions["grad_l"],
     }
 
     st = time.time()
@@ -1043,12 +971,12 @@ def perform_convergence_approximations(configuration: dict):
         else:
             alpha, res_history = four_field_approximation(material_data, method, gmesh)
         file_name = compose_file_name(
-            method, k_order, lh, gmesh.dimension, material_data, "_alpha_ex_1.npy"
+            method, k_order, gmesh.dimension, material_data, "_alpha_ex_1.npy", lh
         )
         with open(file_name, "wb") as f:
             np.save(f, alpha)
         file_name_res = compose_file_name(
-            method, k_order, lh, gmesh.dimension, material_data, "_res_history_ex_1.txt"
+            method, k_order, gmesh.dimension, material_data, "_res_history_ex_1.txt", lh
         )
         # First position includes n_dof
         np.savetxt(
@@ -1085,7 +1013,7 @@ def perform_convergence_postprocessing(configuration: dict):
         h_min, h_mean, h_max = mesh_size(gmesh)
 
         file_name = compose_file_name(
-            method, k_order, lh, gmesh.dimension, material_data, "_alpha_ex_1.npy"
+            method, k_order, gmesh.dimension, material_data, "_alpha_ex_1.npy", lh
         )
         with open(file_name, "rb") as f:
             alpha = np.load(f)
@@ -1099,7 +1027,7 @@ def perform_convergence_postprocessing(configuration: dict):
             )
 
         file_name_res = compose_file_name(
-            method, k_order, lh, gmesh.dimension, material_data, "_res_history_ex_1.txt"
+            method, k_order, gmesh.dimension, material_data, "_res_history_ex_1.txt", lh
         )
         res_data = np.genfromtxt(file_name_res, dtype=None, delimiter=",")
         n_iterations = res_data.shape[0] - 1  # First position includes n_dof
@@ -1137,20 +1065,7 @@ def perform_convergence_postprocessing(configuration: dict):
     base_str_header = dual_header
     e_str_header = "n_dof, n_iter, h, " + base_str_header
 
-    lambda_value = material_data["lambda"]
-    gamma_value = material_data["gamma"]
-
-    file_name_prefix = (
-        method[0]
-        + "_lambda_"
-        + str(lambda_value)
-        + "_gamma_"
-        + str(gamma_value)
-        + "_k"
-        + str(k_order)
-        + "_"
-        + str(dimension)
-    )
+    file_name_prefix = compose_file_name(method, k_order, dimension, material_data, '')
     if report_full_precision_data:
         np.savetxt(
             file_name_prefix + "d_error_ex_1.txt",
@@ -1227,6 +1142,7 @@ def method_definition(k_order):
     methods = [method_1, method_2, method_3, method_4]
     method_names = ["sc_rt", "sc_bdm", "wc_rt", "wc_bdm"]
     method_names = ["sc_rt", "sc_bdm"]
+    method_names = ["wc_rt"]
     return zip(method_names, methods)
 
 
@@ -1241,9 +1157,9 @@ def material_data_definition():
 
 
 def main():
-    approximation_q = False
-    postprocessing_q = True
-    refinements = {0: 3, 1: 4}
+    approximation_q = True
+    postprocessing_q = False
+    refinements = {0: 2, 1: 2}
     case_data = material_data_definition()
     for k in [0]:
         methods = method_definition(k)
