@@ -174,7 +174,7 @@ def four_field_postprocessing(
     if write_vtk_q:
         st = time.time()
 
-        prefix = compose_file_name(method[0], k_order, dim, material_data, '')
+        prefix = compose_file_name(method, k_order, dim, material_data, '')
         file_name = prefix + "_four_fields_ex_1.vtk"
 
         write_vtk_file_with_exact_solution(
@@ -508,7 +508,7 @@ def four_field_scaled_postprocessing(
     if write_vtk_q:
         st = time.time()
 
-        prefix = compose_file_name(method[0], k_order, dim, material_data, '')
+        prefix = compose_file_name(method, k_order, dim, material_data, '')
         file_name = prefix + "_four_fields_scaled_ex_1.vtk"
 
         write_vtk_file_with_exact_solution(
@@ -1088,39 +1088,39 @@ def perform_convergence_postprocessing(configuration: dict):
     file_name_prefix = compose_file_name(method, k_order, dimension, material_data, '')
     if report_full_precision_data:
         np.savetxt(
-            file_name_prefix + "d_error_ex_1.txt",
+            file_name_prefix + "_error_ex_1.txt",
             error_data,
             delimiter=",",
             header=e_str_header,
         )
         np.savetxt(
-            file_name_prefix + "d_rates_ex_1.txt",
+            file_name_prefix + "_rates_ex_1.txt",
             rates_data,
             delimiter=",",
             header=base_str_header,
         )
         np.savetxt(
-            file_name_prefix + "d_solution_norms_ex_1.txt",
+            file_name_prefix + "_solution_norms_ex_1.txt",
             sol_norms,
             delimiter=",",
             header=base_str_header,
         )
     np.savetxt(
-        file_name_prefix + "d_error_ex_1_rounded.txt",
+        file_name_prefix + "_error_ex_1_rounded.txt",
         error_data,
         fmt="%1.3e",
         delimiter=",",
         header=e_str_header,
     )
     np.savetxt(
-        file_name_prefix + "d_rates_ex_1_rounded.txt",
+        file_name_prefix + "_rates_ex_1_rounded.txt",
         rates_data,
         fmt="%1.3f",
         delimiter=",",
         header=base_str_header,
     )
     np.savetxt(
-        file_name_prefix + "d_solution_norms_ex_1_rounded.txt",
+        file_name_prefix + "_solution_norms_ex_1_rounded.txt",
         sol_norms,
         fmt="%1.10f",
         delimiter=",",
@@ -1161,6 +1161,9 @@ def method_definition(k_order):
 
     methods = [method_1, method_2, method_3, method_4]
     method_names = ["sc_rt", "sc_bdm", "wc_rt", "wc_bdm"]
+
+    methods = [method_3]
+    method_names = ["wc_rt"]
     return zip(method_names, methods)
 
 
@@ -1184,15 +1187,16 @@ def material_data_definition():
     case_11 = {"lambda_s": 10.0, "mu_s": 1.0, "kappa_s": 10.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 10.0, "l": 1.0e-4}
 
     cases = [case_0, case_1, case_2, case_3, case_4, case_5, case_6, case_7, case_8, case_9, case_10, case_11]
+    cases = [case_11]
     return cases
 
 
 def main():
     approximation_q = True
     postprocessing_q = True
-    refinements = {0: 4, 1: 4}
+    refinements = {0: 1, 1: 4}
     case_data = material_data_definition()
-    for k in [0, 1]:
+    for k in [0]:
         methods = method_definition(k)
         for i, method in enumerate(methods):
             for material_data in case_data:
