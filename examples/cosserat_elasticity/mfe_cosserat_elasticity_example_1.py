@@ -1153,45 +1153,40 @@ def method_definition(k_order):
 
     methods = [method_1, method_2, method_3, method_4]
     method_names = ["sc_rt", "sc_bdm", "wc_rt", "wc_bdm"]
-
-    methods = [method_3, method_1]
-    method_names = ["wc_rt", "sc_rt"]
     return zip(method_names, methods)
 
 
 def material_data_definition():
 
     # Material data for example 1
-    case_0 = {"lambda_s": 1.0, "mu_s": 1.0, "kappa_s": 0.1, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 0.1, "l": 1.0}
-    case_1 = {"lambda_s": 1.0, "mu_s": 1.0, "kappa_s": 0.1, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 0.1, "l": 1.0e-2}
-    case_2 = {"lambda_s": 1.0, "mu_s": 1.0, "kappa_s": 0.1, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 0.1, "l": 1.0e-4}
-
-    case_3 = {"lambda_s": 1.0, "mu_s": 1.0, "kappa_s": 0.1, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 10.0, "l": 1.0}
-    case_4 = {"lambda_s": 1.0, "mu_s": 1.0, "kappa_s": 0.1, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 10.0, "l": 1.0e-2}
-    case_5 = {"lambda_s": 1.0, "mu_s": 1.0, "kappa_s": 0.1, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 10.0, "l": 1.0e-4}
-
-    case_6 = {"lambda_s": 1.0, "mu_s": 1.0, "kappa_s": 10.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 0.1, "l": 1.0}
-    case_7 = {"lambda_s": 1.0, "mu_s": 1.0, "kappa_s": 10.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 0.1, "l": 1.0e-2}
-    case_8 = {"lambda_s": 1.0, "mu_s": 1.0, "kappa_s": 10.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 0.1, "l": 1.0e-4}
-
-    case_9 = {"lambda_s": 1.0, "mu_s": 1.0, "kappa_s": 10.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 10.0, "l": 1.0}
-    case_10 = {"lambda_s": 1.0, "mu_s": 1.0, "kappa_s": 10.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 10.0, "l": 1.0e-2}
-    case_11 = {"lambda_s": 1.0, "mu_s": 1.0, "kappa_s": 10.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 10.0, "l": 1.0e-4}
-
-    cases = [
-        case_0,
-        case_1,
-        case_2,
-        case_3,
-        case_4,
-        case_5,
-        case_6,
-        case_7,
-        case_8,
-        case_9,
-        case_10,
-        case_11,
-    ]
+    case_0 = {
+        "lambda_s": 1.0,
+        "mu_s": 1.0,
+        "kappa_s": 0.1,
+        "lambda_o": 1.0,
+        "mu_o": 1.0,
+        "kappa_o": 0.1,
+        "l": 1.0,
+    }
+    case_1 = {
+        "lambda_s": 1.0,
+        "mu_s": 1.0,
+        "kappa_s": 0.1,
+        "lambda_o": 1.0,
+        "mu_o": 1.0,
+        "kappa_o": 0.1,
+        "l": 1.0e-2,
+    }
+    case_2 = {
+        "lambda_s": 1.0,
+        "mu_s": 1.0,
+        "kappa_s": 0.1,
+        "lambda_o": 1.0,
+        "mu_o": 1.0,
+        "kappa_o": 0.1,
+        "l": 1.0e-4,
+    }
+    cases = [case_0, case_1, case_2]
     return cases
 
 
