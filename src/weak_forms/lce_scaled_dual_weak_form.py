@@ -633,10 +633,8 @@ class LCEScaledDualWeakForm(WeakForm):
         vol_factor = (1.0 / (2.0 * mu_o_v)) * (
                     lambda_o_v / (2.0 * mu_o_v + dim * lambda_o_v))
         m_j_vol = -m_outer @ (det_jac * weights * vol_factor)
-        m_j_symm = m_symm_outer @ (
-                    det_jac * weights * ((1.0 / (2.0 * mu_o_v))))
-        m_j_skew = m_skew_outer @ (
-                    det_jac * weights * ((1.0 / (2.0 * kappa_o_v))))
+        m_j_symm = m_symm_outer @ (det_jac * weights * (1.0 / (2.0 * mu_o_v)))
+        m_j_skew = m_skew_outer @ (det_jac * weights * (1.0 / (2.0 * kappa_o_v)))
         j_el[n_s_dof:n_s_dof + n_m_dof,
         n_s_dof:n_s_dof + n_m_dof] += m_j_symm + m_j_skew + m_j_vol
 
