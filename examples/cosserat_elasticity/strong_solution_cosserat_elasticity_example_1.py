@@ -1281,8 +1281,7 @@ def couple_stress_divergence_scaled(material_data, dim: int = 2):
     else:
         return lambda x, y, z: np.array(
             [
-                m_l
-                * (
+                (
                     np.pi
                     * (1 - 2 * z)
                     * m_lambda_o
@@ -1315,8 +1314,7 @@ def couple_stress_divergence_scaled(material_data, dim: int = 2):
                     * np.sin(np.pi * y)
                     * np.sin(np.pi * z)
                 ),
-                m_l
-                * (
+                (
                     np.pi
                     * (m_lambda_o - 2 * z * m_lambda_o)
                     * np.cos(np.pi * y)
@@ -1348,8 +1346,7 @@ def couple_stress_divergence_scaled(material_data, dim: int = 2):
                     * np.sin(np.pi * x)
                     * np.sin(np.pi * z)
                 ),
-                m_l
-                * (
+                (
                     np.pi
                     * (1 - 2 * y)
                     * m_lambda_o
