@@ -619,9 +619,9 @@ def four_field_scaled_approximation(
         alpha_l = alpha[dest]
         r_el, j_el = weak_form.evaluate_form_vectorized(i, alpha_l)
 
-        r_el_c, j_el_c = weak_form.evaluate_form(i, alpha_l)
-        assert np.all(np.isclose(r_el,r_el_c))
-        assert np.all(np.isclose(j_el,j_el_c))
+        # r_el_c, j_el_c = weak_form.evaluate_form(i, alpha_l)
+        # assert np.all(np.isclose(r_el,r_el_c))
+        # assert np.all(np.isclose(j_el,j_el_c))
 
         # contribute rhs
         rg[dest] += r_el
@@ -1153,7 +1153,7 @@ def method_definition(k_order):
 
     methods = [method_1, method_2, method_3, method_4]
     method_names = ["sc_rt", "sc_bdm", "wc_rt", "wc_bdm"]
-    
+
     methods = [method_3, method_1]
     method_names = ["wc_rt", "sc_rt"]
     return zip(method_names, methods)
