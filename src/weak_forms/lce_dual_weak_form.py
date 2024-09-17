@@ -334,7 +334,7 @@ class LCEDualWeakForm(WeakForm):
                             * tr_m_h
                             * Imat
                     ) + (1.0 / (2.0 * kappa_o(xv[0], xv[1], xv[2])) ) * Skew_mh
-                    A_mh *= (1.0 / (lc(xv[0], xv[1], xv[2])**2) )
+                    A_mh *= (1.0 / (lc(xv[0], xv[1], xv[2])) )
 
                     grad_s_phi = s_phi_tab[1 : s_phi_tab.shape[0] + 1, i, :, 0:dim]
                     div_tau = np.array(
@@ -591,7 +591,7 @@ class LCEDualWeakForm(WeakForm):
         m_skew_outer = m_gen_inner - m_gen_outer
 
         # Couple stress
-        lc_scale = (1.0/lc_v**2)
+        lc_scale = (1.0/lc_v)
         vol_factor = (1.0 / (2.0 * mu_o_v)) * (lambda_o_v / (2.0 * mu_o_v + dim * lambda_o_v))
         m_j_vol = -m_outer @ (det_jac * weights * lc_scale * vol_factor)
         m_j_symm = m_symm_outer @ (det_jac * weights * lc_scale * ((1.0 / (2.0 * mu_o_v))))

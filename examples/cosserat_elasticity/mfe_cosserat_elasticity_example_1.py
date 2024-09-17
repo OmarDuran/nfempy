@@ -662,9 +662,9 @@ def four_field_scaled_approximation(
         alpha_l = alpha[dest]
         r_el, j_el = riesz_map_weak_form.evaluate_form_vectorized(i, alpha_l)
 
-        # r_el_c, j_el_c = riesz_map_weak_form.evaluate_form(i, alpha_l)
-        # assert np.all(np.isclose(r_el,r_el_c))
-        # assert np.all(np.isclose(j_el,j_el_c))
+        r_el_c, j_el_c = riesz_map_weak_form.evaluate_form(i, alpha_l)
+        assert np.all(np.isclose(r_el,r_el_c))
+        assert np.all(np.isclose(j_el,j_el_c))
 
         # contribute lhs
         data = j_el.ravel()
@@ -1165,6 +1165,12 @@ def method_definition(k_order):
 
     methods = [method_3, method_1]
     method_names = ["wc_rt", "sc_rt"]
+
+    # methods = [method_1]
+    # method_names = ["sc_rt"]
+
+    methods = [method_3]
+    method_names = ["wc_rt"]
     return zip(method_names, methods)
 
 
@@ -1304,7 +1310,7 @@ def material_data_definition():
 def main():
     approximation_q = True
     postprocessing_q = True
-    refinements = {0: 4, 1: 4}
+    refinements = {0: 2, 1: 4}
     case_data = material_data_definition()
     for k in [0]:
         methods = method_definition(k)
