@@ -1279,106 +1279,47 @@ def couple_stress_divergence_scaled(material_data, dim: int = 2):
             ]
         )
     else:
-        return lambda x, y, z: m_l * m_l * np.array(
+        return lambda x, y, z: np.array(
             [
-                (
-                    np.pi
-                    * (1 - 2 * z)
-                    * m_lambda_o
-                    * np.cos(np.pi * x)
-                    * np.sin(np.pi * y)
-                    + np.pi
-                    * (-1 + 2 * z)
-                    * (m_kappa_o - m_mu_o)
-                    * np.cos(np.pi * x)
-                    * np.sin(np.pi * y)
-                    + np.pi
-                    * (1 - 2 * y)
-                    * m_lambda_o
-                    * np.cos(np.pi * x)
-                    * np.sin(np.pi * z)
-                    + np.pi
-                    * (-1 + 2 * y)
-                    * (m_kappa_o - m_mu_o)
-                    * np.cos(np.pi * x)
-                    * np.sin(np.pi * z)
-                    + 2
-                    * (np.pi**2)
-                    * (-1 + x)
-                    * x
-                    * (m_kappa_o + m_mu_o)
-                    * np.sin(np.pi * y)
-                    * np.sin(np.pi * z)
-                    - 2
-                    * (m_lambda_o + 2 * m_mu_o)
-                    * np.sin(np.pi * y)
-                    * np.sin(np.pi * z)
-                ),
-                (
-                    np.pi
-                    * (m_lambda_o - 2 * z * m_lambda_o)
-                    * np.cos(np.pi * y)
-                    * np.sin(np.pi * x)
-                    + np.pi
-                    * (-1 + 2 * z)
-                    * (m_kappa_o - m_mu_o)
-                    * np.cos(np.pi * y)
-                    * np.sin(np.pi * x)
-                    + np.pi
-                    * (1 - 2 * x)
-                    * m_lambda_o
-                    * np.cos(np.pi * y)
-                    * np.sin(np.pi * z)
-                    + np.pi
-                    * (-1 + 2 * x)
-                    * (m_kappa_o - m_mu_o)
-                    * np.cos(np.pi * y)
-                    * np.sin(np.pi * z)
-                    + 2
-                    * (np.pi**2)
-                    * (-1 + y)
-                    * y
-                    * (m_kappa_o + m_mu_o)
-                    * np.sin(np.pi * x)
-                    * np.sin(np.pi * z)
-                    - 2
-                    * (m_lambda_o + 2 * m_mu_o)
-                    * np.sin(np.pi * x)
-                    * np.sin(np.pi * z)
-                ),
-                (
-                    np.pi
-                    * (1 - 2 * y)
-                    * m_lambda_o
-                    * np.cos(np.pi * z)
-                    * np.sin(np.pi * x)
-                    + np.pi
-                    * (-1 + 2 * y)
-                    * (m_kappa_o - m_mu_o)
-                    * np.cos(np.pi * z)
-                    * np.sin(np.pi * x)
-                    + np.pi
-                    * (1 - 2 * x)
-                    * m_lambda_o
-                    * np.cos(np.pi * z)
-                    * np.sin(np.pi * y)
-                    + np.pi
-                    * (-1 + 2 * x)
-                    * (m_kappa_o - m_mu_o)
-                    * np.cos(np.pi * z)
-                    * np.sin(np.pi * y)
-                    + 2
-                    * (np.pi**2)
-                    * (-1 + z)
-                    * z
-                    * (m_kappa_o + m_mu_o)
-                    * np.sin(np.pi * x)
-                    * np.sin(np.pi * y)
-                    - 2
-                    * (m_lambda_o + 2 * m_mu_o)
-                    * np.sin(np.pi * x)
-                    * np.sin(np.pi * y)
-                ),
+                (m_l ** 2) * (-(np.pi * (-1 + 2 * z) * m_lambda_o * np.cos(
+                    np.pi * x) * np.sin(np.pi * y)) + np.pi * (-1 + 2 * z) * (
+                                          m_kappa_o - m_mu_o) * np.cos(
+                    np.pi * x) * np.sin(np.pi * y) - np.pi * (
+                                          -1 + 2 * y) * m_lambda_o * np.cos(
+                    np.pi * x) * np.sin(np.pi * z) + np.pi * (-1 + 2 * y) * (
+                                          m_kappa_o - m_mu_o) * np.cos(
+                    np.pi * x) * np.sin(np.pi * z) +
+                              2 * (np.pi ** 2) * (-1 + x) * x * (
+                                          m_kappa_o + m_mu_o) * np.sin(
+                            np.pi * y) * np.sin(np.pi * z) - 2 * (
+                                          m_lambda_o + 2 * m_mu_o) * np.sin(
+                            np.pi * y) * np.sin(np.pi * z)),
+                (m_l ** 2) * (-(np.pi * (-1 + 2 * z) * m_lambda_o * np.cos(
+                    np.pi * y) * np.sin(np.pi * x)) + np.pi * (-1 + 2 * z) * (
+                                          m_kappa_o - m_mu_o) * np.cos(
+                    np.pi * y) * np.sin(np.pi * x) - np.pi * (
+                                          -1 + 2 * x) * m_lambda_o * np.cos(
+                    np.pi * y) * np.sin(np.pi * z) + np.pi * (-1 + 2 * x) * (
+                                          m_kappa_o - m_mu_o) * np.cos(
+                    np.pi * y) * np.sin(np.pi * z) +
+                              2 * (np.pi ** 2) * (-1 + y) * y * (
+                                          m_kappa_o + m_mu_o) * np.sin(
+                            np.pi * x) * np.sin(np.pi * z) - 2 * (
+                                          m_lambda_o + 2 * m_mu_o) * np.sin(
+                            np.pi * x) * np.sin(np.pi * z)),
+                (m_l ** 2) * (-(np.pi * (-1 + 2 * y) * m_lambda_o * np.cos(
+                    np.pi * z) * np.sin(np.pi * x)) + np.pi * (-1 + 2 * y) * (
+                                          m_kappa_o - m_mu_o) * np.cos(
+                    np.pi * z) * np.sin(np.pi * x) - np.pi * (
+                                          -1 + 2 * x) * m_lambda_o * np.cos(
+                    np.pi * z) * np.sin(np.pi * y) + np.pi * (-1 + 2 * x) * (
+                                          m_kappa_o - m_mu_o) * np.cos(
+                    np.pi * z) * np.sin(np.pi * y) +
+                              2 * (np.pi ** 2) * (-1 + z) * z * (
+                                          m_kappa_o + m_mu_o) * np.sin(
+                            np.pi * x) * np.sin(np.pi * y) - 2 * (
+                                          m_lambda_o + 2 * m_mu_o) * np.sin(
+                            np.pi * x) * np.sin(np.pi * y)),
             ]
         )
 
