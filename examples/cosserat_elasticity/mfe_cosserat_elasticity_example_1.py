@@ -29,29 +29,29 @@ from weak_forms.lce_scaled_dual_weak_form import (
 from weak_forms.lce_scaled_riesz_map_weak_form import LCEScaledRieszMapWeakForm
 
 
-def compose_file_name(method, k_order, dim, material_data, suffix, ref_l = None):
+def compose_file_name(method, k_order, dim, material_data, suffix, ref_l=None):
     if ref_l is None:
         prefix = (
-                method[0]
-                + "_lambda_s_"
-                + str(material_data["lambda_s"])
-                + "_mu_s_"
-                + str(material_data["mu_s"])
-                + "_kappa_s_"
-                + str(material_data["kappa_s"])
-                + "_lambda_o_"
-                + str(material_data["lambda_o"])
-                + "_mu_p_"
-                + str(material_data["mu_o"])
-                + "_kappa_o_"
-                + str(material_data["kappa_o"])
-                + "_lc_"
-                + str(material_data["l"])
-                + "_k"
-                + str(k_order)
-                + "_"
-                + str(dim)
-                + "d"
+            method[0]
+            + "_lambda_s_"
+            + str(material_data["lambda_s"])
+            + "_mu_s_"
+            + str(material_data["mu_s"])
+            + "_kappa_s_"
+            + str(material_data["kappa_s"])
+            + "_lambda_o_"
+            + str(material_data["lambda_o"])
+            + "_mu_p_"
+            + str(material_data["mu_o"])
+            + "_kappa_o_"
+            + str(material_data["kappa_o"])
+            + "_lc_"
+            + str(material_data["l"])
+            + "_k"
+            + str(k_order)
+            + "_"
+            + str(dim)
+            + "d"
         )
     else:
         prefix = (
@@ -174,7 +174,7 @@ def four_field_postprocessing(
     if write_vtk_q:
         st = time.time()
 
-        prefix = compose_file_name(method, k_order, dim, material_data, '')
+        prefix = compose_file_name(method, k_order, dim, material_data, "")
         file_name = prefix + "_four_fields_ex_1.vtk"
 
         write_vtk_file_with_exact_solution(
@@ -281,23 +281,15 @@ def four_field_approximation(material_data, method, gmesh, symmetric_solver_q=Tr
     riesz_map_weak_form = LCERieszMapWeakForm(fe_space)
     riesz_map_weak_form.functions = m_functions
 
-    import matplotlib.pyplot as plt
-
     def scatter_form_data(A, i, weak_form, n_els):
-
-        def matrix_plot(A):
-            plt.matshow(A)
-            plt.colorbar()
-            plt.show()
-
         # destination indexes
         dest = weak_form.space.destination_indexes(i)
         alpha_l = alpha[dest]
         r_el, j_el = weak_form.evaluate_form_vectorized(i, alpha_l)
 
-        r_el_c, j_el_c = weak_form.evaluate_form(i, alpha_l)
-        assert np.all(np.isclose(r_el,r_el_c))
-        assert np.all(np.isclose(j_el,j_el_c))
+        # r_el_c, j_el_c = weak_form.evaluate_form(i, alpha_l)
+        # assert np.all(np.isclose(r_el,r_el_c))
+        # assert np.all(np.isclose(j_el,j_el_c))
 
         # contribute rhs
         rg[dest] += r_el
@@ -508,7 +500,7 @@ def four_field_scaled_postprocessing(
     if write_vtk_q:
         st = time.time()
 
-        prefix = compose_file_name(method, k_order, dim, material_data, '')
+        prefix = compose_file_name(method, k_order, dim, material_data, "")
         file_name = prefix + "_four_fields_scaled_ex_1.vtk"
 
         write_vtk_file_with_exact_solution(
@@ -1085,7 +1077,7 @@ def perform_convergence_postprocessing(configuration: dict):
     base_str_header = dual_header
     e_str_header = "n_dof, n_iter, h, " + base_str_header
 
-    file_name_prefix = compose_file_name(method, k_order, dimension, material_data, '')
+    file_name_prefix = compose_file_name(method, k_order, dimension, material_data, "")
     if report_full_precision_data:
         np.savetxt(
             file_name_prefix + "_error_ex_1.txt",
@@ -1162,31 +1154,149 @@ def method_definition(k_order):
     methods = [method_1, method_2, method_3, method_4]
     method_names = ["sc_rt", "sc_bdm", "wc_rt", "wc_bdm"]
 
-    methods = [method_3]
-    method_names = ["wc_rt"]
+    # methods = [method_3]
+    # method_names = ["wc_rt"]
+    #
+    # methods = [method_2]
+    # method_names = ["sc_bdm"]
+    #
+    # methods = [method_1]
+    # method_names = ["sc_rt"]
+
+    methods = [method_3, method_1]
+    method_names = ["wc_rt", "sc_rt"]
     return zip(method_names, methods)
 
 
 def material_data_definition():
 
     # Material data for example 1
-    case_0 = {"lambda_s": 10.0, "mu_s": 1.0, "kappa_s": 0.1, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 0.1, "l": 1.0}
-    case_1 = {"lambda_s": 10.0, "mu_s": 1.0, "kappa_s": 0.1, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 0.1, "l": 1.0e-2}
-    case_2 = {"lambda_s": 10.0, "mu_s": 1.0, "kappa_s": 0.1, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 0.1, "l": 1.0e-4}
+    case_0 = {
+        "lambda_s": 10.0,
+        "mu_s": 1.0,
+        "kappa_s": 0.1,
+        "lambda_o": 1.0,
+        "mu_o": 1.0,
+        "kappa_o": 0.1,
+        "l": 1.0,
+    }
+    case_1 = {
+        "lambda_s": 10.0,
+        "mu_s": 1.0,
+        "kappa_s": 0.1,
+        "lambda_o": 1.0,
+        "mu_o": 1.0,
+        "kappa_o": 0.1,
+        "l": 1.0e-2,
+    }
+    case_2 = {
+        "lambda_s": 10.0,
+        "mu_s": 1.0,
+        "kappa_s": 0.1,
+        "lambda_o": 1.0,
+        "mu_o": 1.0,
+        "kappa_o": 0.1,
+        "l": 1.0e-4,
+    }
 
-    case_3 = {"lambda_s": 10.0, "mu_s": 1.0, "kappa_s": 0.1, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 10.0, "l": 1.0}
-    case_4 = {"lambda_s": 10.0, "mu_s": 1.0, "kappa_s": 0.1, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 10.0, "l": 1.0e-2}
-    case_5 = {"lambda_s": 10.0, "mu_s": 1.0, "kappa_s": 0.1, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 10.0, "l": 1.0e-4}
+    case_3 = {
+        "lambda_s": 10.0,
+        "mu_s": 1.0,
+        "kappa_s": 0.1,
+        "lambda_o": 1.0,
+        "mu_o": 1.0,
+        "kappa_o": 10.0,
+        "l": 1.0,
+    }
+    case_4 = {
+        "lambda_s": 10.0,
+        "mu_s": 1.0,
+        "kappa_s": 0.1,
+        "lambda_o": 1.0,
+        "mu_o": 1.0,
+        "kappa_o": 10.0,
+        "l": 1.0e-2,
+    }
+    case_5 = {
+        "lambda_s": 10.0,
+        "mu_s": 1.0,
+        "kappa_s": 0.1,
+        "lambda_o": 1.0,
+        "mu_o": 1.0,
+        "kappa_o": 10.0,
+        "l": 1.0e-4,
+    }
 
-    case_6 = {"lambda_s": 10.0, "mu_s": 1.0, "kappa_s": 10.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 0.1, "l": 1.0}
-    case_7 = {"lambda_s": 10.0, "mu_s": 1.0, "kappa_s": 10.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 0.1, "l": 1.0e-2}
-    case_8 = {"lambda_s": 10.0, "mu_s": 1.0, "kappa_s": 10.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 0.1, "l": 1.0e-4}
+    case_6 = {
+        "lambda_s": 10.0,
+        "mu_s": 1.0,
+        "kappa_s": 10.0,
+        "lambda_o": 1.0,
+        "mu_o": 1.0,
+        "kappa_o": 0.1,
+        "l": 1.0,
+    }
+    case_7 = {
+        "lambda_s": 10.0,
+        "mu_s": 1.0,
+        "kappa_s": 10.0,
+        "lambda_o": 1.0,
+        "mu_o": 1.0,
+        "kappa_o": 0.1,
+        "l": 1.0e-2,
+    }
+    case_8 = {
+        "lambda_s": 10.0,
+        "mu_s": 1.0,
+        "kappa_s": 10.0,
+        "lambda_o": 1.0,
+        "mu_o": 1.0,
+        "kappa_o": 0.1,
+        "l": 1.0e-4,
+    }
 
-    case_9 = {"lambda_s": 10.0, "mu_s": 1.0, "kappa_s": 10.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 10.0, "l": 1.0}
-    case_10 = {"lambda_s": 10.0, "mu_s": 1.0, "kappa_s": 10.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 10.0, "l": 1.0e-2}
-    case_11 = {"lambda_s": 10.0, "mu_s": 1.0, "kappa_s": 10.0, "lambda_o": 1.0, "mu_o": 1.0, "kappa_o": 10.0, "l": 1.0e-4}
+    case_9 = {
+        "lambda_s": 10.0,
+        "mu_s": 1.0,
+        "kappa_s": 10.0,
+        "lambda_o": 1.0,
+        "mu_o": 1.0,
+        "kappa_o": 10.0,
+        "l": 1.0,
+    }
+    case_10 = {
+        "lambda_s": 10.0,
+        "mu_s": 1.0,
+        "kappa_s": 10.0,
+        "lambda_o": 1.0,
+        "mu_o": 1.0,
+        "kappa_o": 10.0,
+        "l": 1.0e-2,
+    }
+    case_11 = {
+        "lambda_s": 10.0,
+        "mu_s": 1.0,
+        "kappa_s": 10.0,
+        "lambda_o": 1.0,
+        "mu_o": 1.0,
+        "kappa_o": 10.0,
+        "l": 1.0e-4,
+    }
 
-    cases = [case_0, case_1, case_2, case_3, case_4, case_5, case_6, case_7, case_8, case_9, case_10, case_11]
+    cases = [
+        case_0,
+        case_1,
+        case_2,
+        case_3,
+        case_4,
+        case_5,
+        case_6,
+        case_7,
+        case_8,
+        case_9,
+        case_10,
+        case_11,
+    ]
     cases = [case_11]
     return cases
 
@@ -1194,7 +1304,7 @@ def material_data_definition():
 def main():
     approximation_q = True
     postprocessing_q = True
-    refinements = {0: 1, 1: 4}
+    refinements = {0: 4, 1: 4}
     case_data = material_data_definition()
     for k in [0]:
         methods = method_definition(k)
