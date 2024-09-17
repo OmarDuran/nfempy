@@ -381,7 +381,7 @@ def couple_stress_scaled(material_data, dim: int = 2):
             ]
         )
     else:
-        return lambda x, y, z: np.array(
+        return lambda x, y, z: m_l * np.array(
             [
                 [
                     -(
