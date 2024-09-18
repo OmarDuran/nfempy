@@ -1196,13 +1196,13 @@ def material_data_definition():
 def main():
     approximation_q = True
     postprocessing_q = True
-    refinements = {0: 4, 1: 4}
+    refinements = {0: 3, 1: 3}
     case_data = material_data_definition()
     for k in [0, 1]:
         methods = method_definition(k)
         for i, method in enumerate(methods):
             for material_data in case_data:
-                for d in [2]:
+                for d in [3]:
                     configuration = {
                         "k_order": k,
                         "dimension": d,
