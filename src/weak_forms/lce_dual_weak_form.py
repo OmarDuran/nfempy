@@ -579,7 +579,6 @@ class LCEDualWeakForm(WeakForm):
                 j_el[bs:es:s_components, b:e:t_components] += -1.0 * operator.T
 
 
-
         # (m,m) block
         m_phi_star = m_phi_tab[0, :, :, 0:dim]
         m_gen_outer = np.array(list(map(outer_fun, m_phi_star))).T

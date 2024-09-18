@@ -537,22 +537,19 @@ class LCEScaledDualWeakForm(WeakForm):
             ).ravel()
 
         # vectorization of symm and skew operators
-        def outer_opt(phi_i, phi_j):
-            return 0.5 * np.outer(phi_j, phi_i)
-
-        def inner_opt(phi_i, phi_j):
-            n_comp = phi_i.shape[0]
-            return 0.5 * np.dot(phi_i, phi_j) * np.identity(n_comp)
-
         def outer_fun(phi_data):
-            return np.block(
-                [[outer_opt(phi_i, phi_j) for phi_j in phi_data] for phi_i in
-                 phi_data])
+            n_data = phi_data.shape[0]
+            phi_outer = np.tensordot(phi_data, phi_data.T, axes=0)
+            return 0.5 * np.block(
+                [[phi_outer[j, :, :, i] for j in range(n_data)] for i in range(n_data)])
 
         def inner_fun(phi_data):
-            return np.block(
-                [[inner_opt(phi_i, phi_j) for phi_j in phi_data] for phi_i in
-                 phi_data])
+            n_data = phi_data.shape[0]
+            n_comp = phi_data.shape[1]
+            phi_inner = np.tensordot(phi_data, phi_data.T, axes=1)
+            return 0.5 * np.block(
+                [[phi_inner[j, i] * np.identity(n_comp) for j in range(n_data)] for i in
+                 range(n_data)])
 
         # (s,s) block
         s_phi_star = s_phi_tab[0, :, :, 0:dim]
