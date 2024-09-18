@@ -976,7 +976,7 @@ def perform_convergence_approximations(configuration: dict):
     for lh in range(n_ref):
         mesher = create_conformal_mesher(domain, h, lh)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
-        if method[0] == "wc_rt_c" or method[0] == "wc_bdm_c":
+        if method[0] == "wc_rt" or method[0] == "wc_bdm":
             alpha, res_history = four_field_scaled_approximation(
                 material_data, method, gmesh
             )
@@ -1029,7 +1029,7 @@ def perform_convergence_postprocessing(configuration: dict):
         )
         with open(file_name, "rb") as f:
             alpha = np.load(f)
-        if method[0] == "wc_rt_c" or method[0] == "wc_bdm_c":
+        if method[0] == "wc_rt" or method[0] == "wc_bdm":
             n_dof, error_vals = four_field_scaled_postprocessing(
                 k_order, material_data, method, gmesh, alpha, write_vtk
             )
@@ -1153,6 +1153,9 @@ def method_definition(k_order):
 
     methods = [method_1, method_2, method_3, method_4]
     method_names = ["sc_rt", "sc_bdm", "wc_rt", "wc_bdm"]
+
+    methods = [method_3, method_4]
+    method_names = ["wc_rt", "wc_bdm"]
     return zip(method_names, methods)
 
 
