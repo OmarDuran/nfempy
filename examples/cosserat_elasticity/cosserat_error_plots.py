@@ -222,26 +222,26 @@ class painter(ABC):
     @staticmethod
     def filter_composer(method, material_data, k, d):
         filter = (
-                method
-                + "_lambda_s_"
-                + str(material_data["lambda_s"])
-                + "_mu_s_"
-                + str(material_data["mu_s"])
-                + "_kappa_s_"
-                + str(material_data["kappa_s"])
-                + "_lambda_o_"
-                + str(material_data["lambda_o"])
-                + "_mu_p_"
-                + str(material_data["mu_o"])
-                + "_kappa_o_"
-                + str(material_data["kappa_o"])
-                + "_lc_"
-                + str(material_data["l"])
-                + "_k"
-                + str(k)
-                + "_"
-                + str(d)
-                + "d"
+            method
+            + "_lambda_s_"
+            + str(material_data["lambda_s"])
+            + "_mu_s_"
+            + str(material_data["mu_s"])
+            + "_kappa_s_"
+            + str(material_data["kappa_s"])
+            + "_lambda_o_"
+            + str(material_data["lambda_o"])
+            + "_mu_p_"
+            + str(material_data["mu_o"])
+            + "_kappa_o_"
+            + str(material_data["kappa_o"])
+            + "_lc_"
+            + str(material_data["l"])
+            + "_k"
+            + str(k)
+            + "_"
+            + str(d)
+            + "d"
         )
         return filter
 
@@ -301,7 +301,9 @@ class painter_ex_1(painter):
         label_parameters = {}
         for method in methods:
             for m_value in material_values:
-                material_data = self.material_data_composer(parameter_name, value=m_value)
+                material_data = self.material_data_composer(
+                    parameter_name, value=m_value
+                )
                 filter = painter_ex_1.filter_composer(
                     method=method, material_data=material_data, k=k, d=d
                 )
@@ -361,7 +363,17 @@ class painter_ex_1(painter):
         )
 
     def build_inset_with_parameter_name(
-        self, k, d, method, parameter_name, m_value, conv_type, rate, h_shift, e_shift, mirror_q=False
+        self,
+        k,
+        d,
+        method,
+        parameter_name,
+        m_value,
+        conv_type,
+        rate,
+        h_shift,
+        e_shift,
+        mirror_q=False,
     ):
         file_names = list(Path().glob(self.file_pattern))
         material_data = self.material_data_composer(parameter_name, value=m_value)
@@ -643,7 +655,7 @@ def render_figures_example_1(d=2):
     }
     painter.set_base_material_data(base_material_data)
 
-    parameter_name = 'l'
+    parameter_name = "l"
     k = 0
     rate = k + 1
     painter.file_name = "convergence_k0_example_1_" + str(d) + "d.pdf"
