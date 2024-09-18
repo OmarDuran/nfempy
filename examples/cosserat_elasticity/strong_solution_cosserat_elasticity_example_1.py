@@ -688,34 +688,23 @@ def rhs_scaled(material_data, dim: int = 2):
     if dim == 2:
         return lambda x, y, z: np.array(
             [
-                np.pi * (-1 + 2 * x) * (m_kappa - m_mu) * np.cos(np.pi * y)
-                - 2
-                * (m_kappa + m_mu + np.pi * m_kappa * np.cos(np.pi * y))
-                * np.sin(np.pi * x)
-                + np.pi
-                * (
-                    (m_lambda - 2 * x * m_lambda) * np.cos(np.pi * y)
-                    + np.pi * (-1 + y) * y * (m_lambda + 2 * m_mu) * np.sin(np.pi * x)
-                ),
-                -2 * (m_kappa + m_mu) * np.sin(np.pi * y)
-                + np.pi
-                * np.cos(np.pi * x)
-                * ((-1 + 2 * y) * (m_kappa - m_mu) + 2 * m_kappa * np.sin(np.pi * y))
-                + np.pi
-                * (
-                    (m_lambda - 2 * y * m_lambda) * np.cos(np.pi * x)
-                    + np.pi * (-1 + x) * x * (m_lambda + 2 * m_mu) * np.sin(np.pi * y)
-                ),
-                -2
-                * (
-                    (1 - 2 * x) * m_kappa * np.sin(np.pi * y)
-                    + np.sin(np.pi * x)
-                    * (
-                        (-1 + 2 * y) * m_kappa
-                        + ((np.pi**2) * m_gamma * m_gamma + 2 * m_kappa)
-                        * np.sin(np.pi * y)
-                    )
-                ),
+                np.pi * (-1 + 2 * x) * (m_kappa_s - m_mu_s) * np.cos(np.pi * y) - 2 * (
+                            m_kappa_s + m_mu_s + np.pi * m_kappa_s * np.cos(
+                        np.pi * y)) * np.sin(np.pi * x) + np.pi * (
+                            (m_lambda_s - 2 * x * m_lambda_s) * np.cos(
+                        np.pi * y) + np.pi * (-1 + y) * y * (
+                                        m_lambda_s + 2 * m_mu_s) * np.sin(np.pi * x)),
+                -2 * (m_kappa_s + m_mu_s) * np.sin(np.pi * y) + np.pi * np.cos(
+                    np.pi * x) * (
+                            (-1 + 2 * y) * (m_kappa_s - m_mu_s) + 2 * m_kappa_s * np.sin(
+                        np.pi * y)) + np.pi * ((m_lambda_s - 2 * y * m_lambda_s) * np.cos(
+                    np.pi * x) + np.pi * (-1 + x) * x * (
+                                                           m_lambda_s + 2 * m_mu_s) * np.sin(
+                    np.pi * y)),
+                -2 * ((1 - 2 * x) * m_kappa_s * np.sin(np.pi * y) + np.sin(np.pi * x) * (
+                            (-1 + 2 * y) * m_kappa_s + (
+                                2 * m_kappa_s + m_l * (np.pi ** 2) * (
+                                    m_kappa_o + m_mu_o)) * np.sin(np.pi * y))),
             ]
         )
     else:
