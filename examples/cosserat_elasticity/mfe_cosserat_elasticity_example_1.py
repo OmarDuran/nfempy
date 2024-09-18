@@ -976,7 +976,7 @@ def perform_convergence_approximations(configuration: dict):
     for lh in range(n_ref):
         mesher = create_conformal_mesher(domain, h, lh)
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
-        if method[0] == "wc_rt" or method[0] == "wc_bdm":
+        if method[0] == "wc_rt_c" or method[0] == "wc_bdm_c":
             alpha, res_history = four_field_scaled_approximation(
                 material_data, method, gmesh
             )
@@ -1199,7 +1199,7 @@ def main():
         methods = method_definition(k)
         for i, method in enumerate(methods):
             for material_data in case_data:
-                for d in [3]:
+                for d in [2]:
                     configuration = {
                         "k_order": k,
                         "dimension": d,

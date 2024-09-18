@@ -626,31 +626,34 @@ class painter_ex_3(painter):
 
 def render_figures_example_1(d=2):
     methods = ["sc_rt", "sc_bdm", "wc_rt", "wc_bdm"]
-    methods = ["wc_rt"]
+    methods = ["sc_rt", "wc_rt"]
     file_pattern = "output_example_1/*_error_ex_1.txt"
 
     painter = painter_ex_1()
     painter.file_pattern = file_pattern
 
     material_values = [1.0, 0.01, 0.0001]
-    painter.ordinate_range = (0.005, 50)
+    painter.ordinate_range = (0.005, 300)
     conv_type = "normal"
 
     base_material_data = {
         "lambda_s": 1.0,
         "mu_s": 1.0,
-        "kappa_s": 10.0,
-        "lambda_o": 1.0,
+        "kappa_s": 0.1,
+        "lambda_o": 0.0,
         "mu_o": 1.0,
-        "kappa_o": 10.0,
+        "kappa_o": 1.0,
         "l": 1.0,
     }
     painter.set_base_material_data(base_material_data)
 
+    extra_prefix = 'mu_c_s: ' + str(base_material_data['kappa_s'])
+    extra_prefix += '_mu_c_o: ' + str(base_material_data['kappa_o'])
+
     parameter_name = 'l'
     k = 0
     rate = k + 1
-    painter.file_name = painter.method_map[methods[0]] + "_convergence_k0_example_1_" + str(d) + "d.pdf"
+    painter.file_name = extra_prefix + "_convergence_k0_example_1_" + str(d) + "d.pdf"
     painter.color_canvas_with_parameter_name(
         k, d, methods, parameter_name, material_values, conv_type
     )
@@ -670,12 +673,12 @@ def render_figures_example_1(d=2):
     # )
     # painter.save_figure()
 
-    painter.ordinate_range = (0.000001, 50)
+    painter.ordinate_range = (0.000001, 300)
     conv_type = "super"
 
     k = 0
     rate = k + 2
-    painter.file_name = painter.method_map[methods[0]] + "_superconvergence_k0_example_1_" + str(d) + "d.pdf"
+    painter.file_name = extra_prefix + "_superconvergence_k0_example_1_" + str(d) + "d.pdf"
     painter.color_canvas_with_parameter_name(
         k, d, methods, parameter_name, material_values, conv_type
     )
