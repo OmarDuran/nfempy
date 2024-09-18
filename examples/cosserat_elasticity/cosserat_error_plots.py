@@ -281,14 +281,11 @@ class painter_ex_1(painter):
 
     @property
     def method_map(self):
-        material_data = self.base_material_data
-        extra_suffix = ': mu_c_s: ' + str(material_data['kappa_s'])
-        extra_suffix += ', mu_c_o: ' + str(material_data['kappa_o'])
         map = {
-            "sc_rt": "SC-RT" + extra_suffix,
-            "sc_bdm": "SC-BDM" + extra_suffix,
-            "wc_rt": "WC-RT" + extra_suffix,
-            "wc_bdm": "WC-BDM" + extra_suffix,
+            "sc_rt": "SC-RT",
+            "sc_bdm": "SC-BDM",
+            "wc_rt": "WC-RT",
+            "wc_bdm": "WC-BDM",
         }
         return map
 
@@ -626,7 +623,6 @@ class painter_ex_3(painter):
 
 def render_figures_example_1(d=2):
     methods = ["sc_rt", "sc_bdm", "wc_rt", "wc_bdm"]
-    methods = ["sc_rt", "wc_rt"]
     file_pattern = "output_example_1/*_error_ex_1.txt"
 
     painter = painter_ex_1()
@@ -639,26 +635,23 @@ def render_figures_example_1(d=2):
     base_material_data = {
         "lambda_s": 1.0,
         "mu_s": 1.0,
-        "kappa_s": 0.1,
-        "lambda_o": 0.0,
+        "kappa_s": 0.01,
+        "lambda_o": 1.0,
         "mu_o": 1.0,
-        "kappa_o": 1.0,
+        "kappa_o": 0.01,
         "l": 1.0,
     }
     painter.set_base_material_data(base_material_data)
 
-    extra_prefix = 'mu_c_s: ' + str(base_material_data['kappa_s'])
-    extra_prefix += '_mu_c_o: ' + str(base_material_data['kappa_o'])
-
     parameter_name = 'l'
     k = 0
     rate = k + 1
-    painter.file_name = extra_prefix + "_convergence_k0_example_1_" + str(d) + "d.pdf"
+    painter.file_name = "convergence_k0_example_1_" + str(d) + "d.pdf"
     painter.color_canvas_with_parameter_name(
         k, d, methods, parameter_name, material_values, conv_type
     )
     painter.build_inset_with_parameter_name(
-        k, d, methods[0], parameter_name, material_values[2], conv_type, rate, 0.0, -0.2
+        k, d, methods[3], parameter_name, material_values[2], conv_type, rate, 0.0, -0.2
     )
     painter.save_figure()
 
@@ -678,12 +671,12 @@ def render_figures_example_1(d=2):
 
     k = 0
     rate = k + 2
-    painter.file_name = extra_prefix + "_superconvergence_k0_example_1_" + str(d) + "d.pdf"
+    painter.file_name = "superconvergence_k0_example_1_" + str(d) + "d.pdf"
     painter.color_canvas_with_parameter_name(
         k, d, methods, parameter_name, material_values, conv_type
     )
     painter.build_inset_with_parameter_name(
-        k, d, methods[0], parameter_name, material_values[1], conv_type, rate, 0.0, -0.5
+        k, d, methods[2], parameter_name, material_values[1], conv_type, rate, 0.0, -0.5
     )
     painter.save_figure()
 
@@ -781,7 +774,7 @@ def render_figures_example_3(d=2):
 
 
 # Only figure range is adjusted for 3d.
-dim = 3
+dim = 2
 render_figures_example_1(d=dim)
 # render_figures_example_2(d=dim)
 # render_figures_example_3(d=dim)
