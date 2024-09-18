@@ -1153,9 +1153,6 @@ def method_definition(k_order):
 
     methods = [method_1, method_2, method_3, method_4]
     method_names = ["sc_rt", "sc_bdm", "wc_rt", "wc_bdm"]
-
-    methods = [method_3, method_4]
-    method_names = ["wc_rt", "wc_bdm"]
     return zip(method_names, methods)
 
 
@@ -1196,7 +1193,7 @@ def material_data_definition():
 def main():
     approximation_q = True
     postprocessing_q = True
-    refinements = {0: 3, 1: 3}
+    refinements = {0: 4, 1: 4}
     case_data = material_data_definition()
     for k in [0, 1]:
         methods = method_definition(k)
