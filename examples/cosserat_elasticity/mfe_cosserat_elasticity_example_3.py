@@ -67,19 +67,26 @@ def create_product_space(method, gmesh):
         "t": t_disc_Q,
     }
 
+    physical_tags = {
+        "s": [1],
+        "m": [1],
+        "u": [1],
+        "t": [1],
+    }
+
     s_field_bc_physical_tags = [2, 3, 4, 5]
     m_field_bc_physical_tags = [2, 3, 4, 5]
     if gmesh.dimension == 3:
         s_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
         m_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
-    discrete_spaces_bc_physical_tags = {
+    b_physical_tags = {
         "s": s_field_bc_physical_tags,
         "m": m_field_bc_physical_tags,
     }
 
     space = ProductSpace(discrete_spaces_data)
     space.make_subspaces_discontinuous(discrete_spaces_disc)
-    space.build_structures(discrete_spaces_bc_physical_tags)
+    space.build_structures(physical_tags, b_physical_tags)
     return space
 
 
@@ -110,36 +117,26 @@ def four_field_scaled_approximation(method, gmesh, symmetric_solver_q=True):
     m_lambda = 1.0
     m_mu = 1.0
     m_kappa = m_mu
+    material_data = {
+        "lambda_s": 1.0,
+        "mu_s": 1.0,
+        "kappa_s": 0.1,
+        "lambda_o": 1.0,
+        "mu_o": 1.0,
+        "kappa_o": 0.1,
+    }
 
     # exact solution
-    u_exact = lce.displacement(m_lambda, m_mu, m_kappa, dim)
-    t_exact = lce.rotation(m_lambda, m_mu, m_kappa, dim)
-    s_exact = lce.stress(m_lambda, m_mu, m_kappa, dim)
-    m_exact = lce.couple_stress_scaled(m_lambda, m_mu, m_kappa, dim)
-    div_s_exact = lce.stress_divergence(m_lambda, m_mu, m_kappa, dim)
-    div_m_exact = lce.couple_stress_divergence_scaled(m_lambda, m_mu, m_kappa, dim)
-    f_rhs = lce.rhs_scaled(m_lambda, m_mu, m_kappa, dim)
+    u_exact = lce.displacement(material_data, dim)
+    t_exact = lce.rotation(material_data, dim)
+    s_exact = lce.stress(material_data, dim)
+    m_exact = lce.couple_stress_scaled(material_data, dim)
+    div_s_exact = lce.stress_divergence(material_data, dim)
+    div_m_exact = lce.couple_stress_divergence_scaled(material_data, dim)
+    f_rhs = lce.rhs_scaled(material_data, dim)
 
-    def f_lambda(x, y, z):
-        return m_lambda
-
-    def f_mu(x, y, z):
-        return m_mu
-
-    def f_kappa(x, y, z):
-        return m_kappa
-
-    f_gamma = lce.gamma_s(dim)
-    f_grad_gamma = lce.grad_gamma_s(dim)
-
-    m_functions = {
-        "rhs": f_rhs,
-        "lambda": f_lambda,
-        "mu": f_mu,
-        "kappa": f_kappa,
-        "gamma": f_gamma,
-        "grad_gamma": f_grad_gamma,
-    }
+    m_functions = lce.get_material_functions(material_data, dim)
+    m_functions["rhs"] = f_rhs
 
     exact_functions = {
         "s": s_exact,
@@ -148,8 +145,8 @@ def four_field_scaled_approximation(method, gmesh, symmetric_solver_q=True):
         "t": t_exact,
         "div_s": div_s_exact,
         "div_m": div_m_exact,
-        "gamma": f_gamma,
-        "grad_gamma": f_grad_gamma,
+        "l": m_functions["l"],
+        "grad_l": m_functions["grad_l"],
     }
 
     weak_form = LCEScaledDualWeakForm(fe_space)
@@ -657,6 +654,9 @@ def method_definition(k_order):
 
     methods = [method_1, method_2]
     method_names = ["wc_rt", "wc_bdm"]
+
+    methods = [method_1]
+    method_names = ["wc_rt"]
     return zip(method_names, methods)
 
 
@@ -664,9 +664,9 @@ def main():
     approximation_q = True
     postprocessing_q = True
     refinements = {0: 4, 1: 4}
-    for k in [0, 1]:
+    for k in [0]:
         for method in method_definition(k):
-            for d in [3]:
+            for d in [2]:
                 configuration = {
                     "k_order": k,
                     "dimension": d,
