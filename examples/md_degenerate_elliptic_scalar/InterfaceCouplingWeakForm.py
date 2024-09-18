@@ -115,7 +115,7 @@ class InterfaceCouplingWeakForm(WeakForm):
         d_phi_star = f_d_phi(x[:, 0], x[:, 1], x[:, 2])
 
         # compute normal
-        with ad.AutoDiff(alpha) as alpha:
+        with (ad.AutoDiff(alpha) as alpha):
             el_form = np.zeros(n_dof)
             alpha_v_p = alpha[:, idx_dof["v_p"]]
             alpha_v_n = alpha[:, idx_dof["v_n"]]
@@ -124,7 +124,7 @@ class InterfaceCouplingWeakForm(WeakForm):
             for i, omega in enumerate(weights):
                 mu_v = mu_star[i]
                 kappa_n_v = kappa_star[i]
-                delta_v = (1.0e-6) * delta_star[i]
+                delta_v = delta_star[i]
 
                 porosity_v = porosity_star[i]
                 d_phi_v = d_phi_star[i]
@@ -138,7 +138,7 @@ class InterfaceCouplingWeakForm(WeakForm):
 
                 d_phi_normal = np.sqrt(kappa_n_v * (porosity_v**2) / mu_v)
                 alpha_v = (d_phi_normal**2) / (delta_v / 2.0)
-                phi_scale = 1.0 / np.sqrt(porosity_v)
+                phi_scale = np.sqrt(porosity_v)
 
                 dq_h = q_phi_tab[0, i, :, 0:dim]
                 v_h_p = alpha_v_p @ dv_h_p
@@ -146,11 +146,11 @@ class InterfaceCouplingWeakForm(WeakForm):
                 q_h_c1 = alpha_q @ dq_h
 
                 # Robin coupling
-                equ_1_integrand = ((phi_scale * d_phi_v / alpha_v) * v_h_p + phi_scale * d_phi_v * q_h_c1) @ dv_h_p.T
-                equ_2_integrand = ((phi_scale * d_phi_v / alpha_v) * v_h_n + phi_scale * d_phi_v * q_h_c1) @ dv_h_n.T
+                equ_1_integrand = ((0 * d_phi_v / alpha_v) * v_h_p +  ( d_phi_v/phi_scale) * q_h_c1) @ dv_h_p.T
+                equ_2_integrand = ((0 * d_phi_v / alpha_v) * v_h_n +  ( d_phi_v/phi_scale)  * q_h_c1) @ dv_h_n.T
 
                 # Robin coupling is a self-adjoint operator of c1 mass conservation
-                equ_3_integrand = d_phi_v * (v_h_p @ dq_h.T + v_h_n @ dq_h.T)
+                equ_3_integrand = 0 * ( d_phi_v/phi_scale) * (v_h_p @ dq_h.T + v_h_n @ dq_h.T)
 
                 multiphysic_integrand = np.zeros((1, n_dof))
                 multiphysic_integrand[:, idx_dof["v_p"]] = equ_1_integrand

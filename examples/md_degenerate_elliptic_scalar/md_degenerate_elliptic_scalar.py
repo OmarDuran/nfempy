@@ -9,6 +9,7 @@ import exact_functions as e_functions
 from postprocess.projectors import l2_projector
 from postprocess.l2_error_post_processor import l2_error, l2_error_projected
 from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
+from postprocess.solution_post_processor import write_vtk_file_exact_solution
 from spaces.product_space import ProductSpace
 from mesh.mesh import Mesh
 from mesh.mesh_metrics import mesh_size
@@ -26,6 +27,9 @@ from weak_forms.degenerate_elliptic_weak_form import (
 # from weak_forms.scaled_to_physical_l2_projection import ScaledToPhysicalL2Projection
 from InterfaceCouplingWeakForm import InterfaceCouplingWeakForm
 import matplotlib.pyplot as plt
+
+import degenerate_exact_functions as deg_exact_func
+from functools import partial
 
 
 def method_definition(dimension, k_order, flux_name, potential_name):
@@ -208,6 +212,9 @@ def md_two_fields_approximation(config, write_vtk_q=False):
         1, "rhs", "porosity", "d_phi", "grad_d_phi", m_data
     )
 
+    #def write_vtk_file_exact_solution(file_name, gmesh, name_to_fields, functions):
+    write_vtk_file_exact_solution('q_c0.vtk', gmesh, {"q": 1}, exact_functions_c0)
+
     print("Surface: Number of dof: ", md_produc_space[0].n_dof)
     print("Line: Number of dof: ", md_produc_space[1].n_dof)
 
@@ -225,6 +232,21 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     st = time.time()
     A = PETSc.Mat()
     A.createAIJ([n_dof_g, n_dof_g])
+
+
+    # retrieve material functions
+    assert deg_exact_func.test_evaluation(m_data, co_dim)
+    f_porosity = partial(deg_exact_func.f_porosity, m_data=m_data, co_dim=co_dim)
+    f_d_phi = partial(deg_exact_func.f_d_phi, m_data=m_data, co_dim=co_dim)
+    f_grad_d_phi = partial(deg_exact_func.f_grad_d_phi, m_data=m_data, co_dim=co_dim)
+    f_kappa = partial(deg_exact_func.f_kappa, m_data=m_data, co_dim=co_dim)
+
+    # retrieve exact functions
+    u_exact = partial(deg_exact_func.u_exact, m_data=m_data, co_dim=co_dim)
+    p_exact = partial(deg_exact_func.p_exact, m_data=m_data, co_dim=co_dim)
+    v_exact = partial(deg_exact_func.v_exact, m_data=m_data, co_dim=co_dim)
+    q_exact = partial(deg_exact_func.q_exact, m_data=m_data, co_dim=co_dim)
+    f_rhs = partial(deg_exact_func.f_rhs, m_data=m_data, co_dim=co_dim)
 
     weak_form_c0 = MixedWeakForm(md_produc_space[0])
     weak_form_c0.functions = m_functions_c0
@@ -607,6 +629,24 @@ def compute_approximations(config):
             plt.clf()
 
 
+def material_data_definition(dim):
+    # Material data for example 1 and 2
+    if dim == 1:
+        case_0 = {"m_par": +0.5}
+        case_1 = {"m_par": -0.5}
+        case_2 = {"m_par": -1.0}
+        case_3 = {"m_par": -1.5}
+    elif dim == 2:
+        case_0 = {"m_par": 2.0}
+        case_1 = {"m_par": 1.0}
+        case_2 = {"m_par": 0.25}
+        case_3 = {"m_par": 0.125}
+    else:
+        raise ValueError("Only 1D and 2D settings are supported by this script.")
+    cases = [case_0, case_1, case_2, case_3]
+    cases = [case_0]
+    return cases
+
 def main():
     deltas_frac = [1.0e-1, 1.0e-2, 1.0e-3, 1.0e-4, 1.0e-5]
     deltas_frac = [1.0e-7]
@@ -641,8 +681,8 @@ def main():
             0.5,
             0.25,
             0.125,
-            # 0.0625,
-            # 0.03125,
+            0.0625,
+            0.03125,
             # 0.015625,
             # 0.0078125,
             # 0.00390625,
