@@ -354,12 +354,12 @@ def couple_stress_scaled(material_data, dim: int = 2):
     m_l = material_data["l"]
 
     if dim == 2:
-        return lambda x, y, z: m_gamma * np.array(
+        return lambda x, y, z: np.array(
             [
                 [
-                    np.pi * np.cos(np.pi * x) * np.sin(np.pi * y),
-                    np.pi * np.cos(np.pi * y) * np.sin(np.pi * x),
-                ]
+                    m_l*np.pi*(m_kappa_o + m_mu_o)*np.cos(np.pi*x)*np.sin(np.pi*y),
+                    m_l*np.pi*(m_kappa_o + m_mu_o)*np.cos(np.pi*y)*np.sin(np.pi*x),
+                ],
             ]
         )
     else:
