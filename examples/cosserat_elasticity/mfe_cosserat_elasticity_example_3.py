@@ -346,7 +346,6 @@ def four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk_q=
     div_m_exact = lce.couple_stress_divergence_scaled(material_data, dim)
     m_functions = lce.get_material_functions(material_data, dim)
 
-
     exact_functions = {
         "s": s_exact,
         "m": m_exact,
@@ -665,19 +664,16 @@ def method_definition(k_order):
 
     methods = [method_1, method_2]
     method_names = ["wc_rt", "wc_bdm"]
-
-    methods = [method_1]
-    method_names = ["wc_rt"]
     return zip(method_names, methods)
 
 
 def main():
-    approximation_q = False
+    approximation_q = True
     postprocessing_q = True
     refinements = {0: 4, 1: 4}
-    for k in [0]:
+    for k in [0, 1]:
         for method in method_definition(k):
-            for d in [2]:
+            for d in [3]:
                 configuration = {
                     "k_order": k,
                     "dimension": d,
