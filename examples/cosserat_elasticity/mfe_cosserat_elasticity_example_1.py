@@ -1029,7 +1029,7 @@ def perform_convergence_postprocessing(configuration: dict):
         )
         with open(file_name, "rb") as f:
             alpha = np.load(f)
-        if method[0] == "wc_rt" or method[0] == "wc_bdm":
+        if method[0] == "wc_rt_c" or method[0] == "wc_bdm_c":
             n_dof, error_vals = four_field_scaled_postprocessing(
                 k_order, material_data, method, gmesh, alpha, write_vtk
             )
