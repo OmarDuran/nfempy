@@ -78,19 +78,26 @@ def create_product_space(method, gmesh):
         "t": t_disc_Q,
     }
 
+    physical_tags = {
+        "s": [1],
+        "m": [1],
+        "u": [1],
+        "t": [1],
+    }
+
     s_field_bc_physical_tags = [2, 3, 4, 5]
     m_field_bc_physical_tags = [2, 3, 4, 5]
     if gmesh.dimension == 3:
         s_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
         m_field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
-    discrete_spaces_bc_physical_tags = {
+    b_physical_tags = {
         "s": s_field_bc_physical_tags,
         "m": m_field_bc_physical_tags,
     }
 
     space = ProductSpace(discrete_spaces_data)
     space.make_subspaces_discontinuous(discrete_spaces_disc)
-    space.build_structures(discrete_spaces_bc_physical_tags)
+    space.build_structures(physical_tags, b_physical_tags)
     return space
 
 
@@ -119,39 +126,16 @@ def four_field_approximation(material_data, method, gmesh, symmetric_solver_q=Tr
         P.setType("sbaij")
 
     # Material data
-    m_lambda = material_data["lambda"]
-    m_mu = material_data["mu"]
-    m_kappa = material_data["kappa"]
-    m_gamma = material_data["gamma"]
+    u_exact = lce.displacement(material_data, dim)
+    t_exact = lce.rotation(material_data, dim)
+    s_exact = lce.stress(material_data, dim)
+    m_exact = lce.couple_stress(material_data, dim)
+    div_s_exact = lce.stress_divergence(material_data, dim)
+    div_m_exact = lce.couple_stress_divergence(material_data, dim)
+    f_rhs = lce.rhs(material_data, dim)
 
-    # exact solution
-    u_exact = lce.displacement(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    t_exact = lce.rotation(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    s_exact = lce.stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    m_exact = lce.couple_stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    div_s_exact = lce.stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    div_m_exact = lce.couple_stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    f_rhs = lce.rhs(m_lambda, m_mu, m_kappa, m_gamma, dim)
-
-    def f_lambda(x, y, z):
-        return m_lambda
-
-    def f_mu(x, y, z):
-        return m_mu
-
-    def f_kappa(x, y, z):
-        return m_kappa
-
-    def f_gamma(x, y, z):
-        return m_gamma
-
-    m_functions = {
-        "rhs": f_rhs,
-        "lambda": f_lambda,
-        "mu": f_mu,
-        "kappa": f_kappa,
-        "gamma": f_gamma,
-    }
+    m_functions = lce.get_material_functions(material_data, dim)
+    m_functions["rhs"] = f_rhs
 
     exact_functions = {
         "s": s_exact,
@@ -736,29 +720,56 @@ def method_definition(k_order):
 
     methods = [method_1, method_2, method_3, method_4]
     method_names = ["sc_rt", "sc_bdm", "wc_rt", "wc_bdm"]
+
+    methods = [method_3]
+    method_names = ["wc_rt"]
     return zip(method_names, methods)
 
 
 def material_data_definition():
     # Material data for example 2
-    case_0 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0, "gamma": 1.0}
-    case_1 = {"lambda": 1.0e2, "mu": 1.0, "kappa": 1.0, "gamma": 1.0}
-    case_2 = {"lambda": 1.0e4, "mu": 1.0, "kappa": 1.0, "gamma": 1.0}
+    case_0 = {
+        "lambda_s": 1.0,
+        "mu_s": 1.0,
+        "kappa_s": 0.1,
+        "lambda_o": 1.0,
+        "mu_o": 1.0,
+        "kappa_o": 0.1,
+        "l": 1.0,
+    }
+    case_1 = {
+        "lambda_s": 1.0e2,
+        "mu_s": 1.0,
+        "kappa_s": 0.1,
+        "lambda_o": 1.0,
+        "mu_o": 1.0,
+        "kappa_o": 0.1,
+        "l": 1.0,
+    }
+    case_2 = {
+        "lambda_s": 1.0e4,
+        "mu_s": 1.0,
+        "kappa_s": 0.1,
+        "lambda_o": 1.0,
+        "mu_o": 1.0,
+        "kappa_o": 0.1,
+        "l": 1.0,
+    }
     cases = [case_0, case_1, case_2]
-
+    cases = [case_2]
     return cases
 
 
 def main():
     approximation_q = True
     postprocessing_q = True
-    refinements = {0: 4, 1: 4}
+    refinements = {0: 2, 1: 4}
     case_data = material_data_definition()
-    for k in [0, 1]:
+    for k in [0]:
         methods = method_definition(k)
         for i, method in enumerate(methods):
             for material_data in case_data:
-                for d in [3]:
+                for d in [2]:
                     configuration = {
                         "k_order": k,
                         "dimension": d,

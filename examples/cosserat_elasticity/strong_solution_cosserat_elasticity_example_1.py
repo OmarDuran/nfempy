@@ -397,28 +397,33 @@ def couple_stress_scaled(material_data, dim: int = 2):
             ]
         )
     else:
-        return lambda x, y, z: m_l * np.array(
+        return lambda x, y, z: np.array(
             [
                 [
                     -(
-                        (-1 + 2 * x)
-                        * (m_lambda_o + 2 * m_mu_o)
-                        * np.sin(np.pi * y)
-                        * np.sin(np.pi * z)
-                    )
-                    + m_lambda_o
-                    * np.sin(np.pi * x)
-                    * (
-                        (1 - 2 * z) * np.sin(np.pi * y)
-                        + (1 - 2 * y) * np.sin(np.pi * z)
+                        m_l
+                        * (
+                            (-1 + 2 * x)
+                            * (m_lambda_o + 2 * m_mu_o)
+                            * np.sin(np.pi * y)
+                            * np.sin(np.pi * z)
+                            + m_lambda_o
+                            * np.sin(np.pi * x)
+                            * (
+                                (-1 + 2 * z) * np.sin(np.pi * y)
+                                + (-1 + 2 * y) * np.sin(np.pi * z)
+                            )
+                        )
                     ),
-                    np.pi
+                    m_l
+                    * np.pi
                     * (
                         (-1 + y) * y * (m_kappa_o - m_mu_o) * np.cos(np.pi * x)
                         - (-1 + x) * x * (m_kappa_o + m_mu_o) * np.cos(np.pi * y)
                     )
                     * np.sin(np.pi * z),
-                    np.pi
+                    m_l
+                    * np.pi
                     * (
                         (-1 + z) * z * (m_kappa_o - m_mu_o) * np.cos(np.pi * x)
                         - (-1 + x) * x * (m_kappa_o + m_mu_o) * np.cos(np.pi * z)
@@ -426,19 +431,31 @@ def couple_stress_scaled(material_data, dim: int = 2):
                     * np.sin(np.pi * y),
                 ],
                 [
-                    np.pi
+                    m_l
+                    * np.pi
                     * (
                         -((-1 + y) * y * (m_kappa_o + m_mu_o) * np.cos(np.pi * x))
                         + (-1 + x) * x * (m_kappa_o - m_mu_o) * np.cos(np.pi * y)
                     )
                     * np.sin(np.pi * z),
-                    (1 - 2 * x) * m_lambda_o * np.sin(np.pi * y) * np.sin(np.pi * z)
-                    + np.sin(np.pi * x)
-                    * (
-                        (m_lambda_o - 2 * z * m_lambda_o) * np.sin(np.pi * y)
-                        - (-1 + 2 * y) * (m_lambda_o + 2 * m_mu_o) * np.sin(np.pi * z)
+                    -(
+                        m_l
+                        * (
+                            (-1 + 2 * x)
+                            * m_lambda_o
+                            * np.sin(np.pi * y)
+                            * np.sin(np.pi * z)
+                            + np.sin(np.pi * x)
+                            * (
+                                (-1 + 2 * z) * m_lambda_o * np.sin(np.pi * y)
+                                + (-1 + 2 * y)
+                                * (m_lambda_o + 2 * m_mu_o)
+                                * np.sin(np.pi * z)
+                            )
+                        )
                     ),
-                    np.pi
+                    m_l
+                    * np.pi
                     * (
                         (-1 + z) * z * (m_kappa_o - m_mu_o) * np.cos(np.pi * y)
                         - (-1 + y) * y * (m_kappa_o + m_mu_o) * np.cos(np.pi * z)
@@ -446,23 +463,35 @@ def couple_stress_scaled(material_data, dim: int = 2):
                     * np.sin(np.pi * x),
                 ],
                 [
-                    np.pi
+                    m_l
+                    * np.pi
                     * (
                         -((-1 + z) * z * (m_kappa_o + m_mu_o) * np.cos(np.pi * x))
                         + (-1 + x) * x * (m_kappa_o - m_mu_o) * np.cos(np.pi * z)
                     )
                     * np.sin(np.pi * y),
-                    np.pi
+                    m_l
+                    * np.pi
                     * (
                         -((-1 + z) * z * (m_kappa_o + m_mu_o) * np.cos(np.pi * y))
                         + (-1 + y) * y * (m_kappa_o - m_mu_o) * np.cos(np.pi * z)
                     )
                     * np.sin(np.pi * x),
-                    (1 - 2 * x) * m_lambda_o * np.sin(np.pi * y) * np.sin(np.pi * z)
-                    + np.sin(np.pi * x)
-                    * (
-                        -((-1 + 2 * z) * (m_lambda_o + 2 * m_mu_o) * np.sin(np.pi * y))
-                        + (1 - 2 * y) * m_lambda_o * np.sin(np.pi * z)
+                    -(
+                        m_l
+                        * (
+                            (-1 + 2 * x)
+                            * m_lambda_o
+                            * np.sin(np.pi * y)
+                            * np.sin(np.pi * z)
+                            + np.sin(np.pi * x)
+                            * (
+                                (-1 + 2 * z)
+                                * (m_lambda_o + 2 * m_mu_o)
+                                * np.sin(np.pi * y)
+                                + (-1 + 2 * y) * m_lambda_o * np.sin(np.pi * z)
+                            )
+                        )
                     ),
                 ],
             ]
