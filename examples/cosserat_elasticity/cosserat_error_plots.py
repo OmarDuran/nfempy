@@ -10,6 +10,7 @@ import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from matplotlib.ticker import MultipleLocator
+from mfe_cosserat_elasticity_example_1 import material_data_definition as m_data_ex1
 
 plt.rcParams["text.usetex"] = True
 
@@ -219,14 +220,38 @@ class painter(ABC):
         plt.savefig(Path("figures") / Path(self._name), format="pdf")
 
     @staticmethod
-    def filter_composer(method, m_lambda, m_eps, k, d):
-        filter_0 = method
-        filter_1 = "_lambda_" + str(m_lambda)
-        filter_2 = "_gamma_" + str(m_eps)
-        filter_3 = "_k" + str(k)
-        filter_4 = "_" + str(d) + "d"
-        filter = filter_0 + filter_1 + filter_2 + filter_3 + filter_4
+    def filter_composer(method, material_data, k, d):
+        filter = (
+                method
+                + "_lambda_s_"
+                + str(material_data["lambda_s"])
+                + "_mu_s_"
+                + str(material_data["mu_s"])
+                + "_kappa_s_"
+                + str(material_data["kappa_s"])
+                + "_lambda_o_"
+                + str(material_data["lambda_o"])
+                + "_mu_p_"
+                + str(material_data["mu_o"])
+                + "_kappa_o_"
+                + str(material_data["kappa_o"])
+                + "_lc_"
+                + str(material_data["l"])
+                + "_k"
+                + str(k)
+                + "_"
+                + str(d)
+                + "d"
+        )
         return filter
+
+    def set_base_material_data(self, material_data):
+        self.base_material_data = material_data
+
+    def material_data_composer(self, parameter_name, value):
+        material_data = self.base_material_data.copy()
+        material_data[parameter_name] = value
+        return material_data
 
     @staticmethod
     def convergence_type_key(method, conv_type):
@@ -235,13 +260,6 @@ class painter(ABC):
 
 
 class painter_ex_1(painter):
-    @property
-    def m_lambda(self):
-        return 1.0
-
-    @property
-    def m_epsilon(self):
-        return 1.0
 
     @property
     def convergence_type_map(self):
@@ -257,20 +275,38 @@ class painter_ex_1(painter):
         }
         return map
 
-    def color_canvas_with_variable_epsilon(
-        self, k, d, methods, material_values, conv_type
+    @property
+    def material_label(self):
+        return "\ell"
+
+    @property
+    def method_map(self):
+        material_data = self.base_material_data
+        extra_suffix = ': mu_c_s: ' + str(material_data['kappa_s'])
+        extra_suffix += ', mu_c_o: ' + str(material_data['kappa_o'])
+        map = {
+            "sc_rt": "SC-RT" + extra_suffix,
+            "sc_bdm": "SC-BDM" + extra_suffix,
+            "wc_rt": "WC-RT" + extra_suffix,
+            "wc_bdm": "WC-BDM" + extra_suffix,
+        }
+        return map
+
+    def color_canvas_with_parameter_name(
+        self, k, d, methods, parameter_name, material_values, conv_type
     ):
         self.create_directory()
 
         file_names = list(Path().glob(self.file_pattern))
-        mat_label = "\epsilon"
+        mat_label = self.material_label
         fig, ax = plt.subplots(figsize=self.figure_size)
         label_methods = {}
         label_parameters = {}
         for method in methods:
             for m_value in material_values:
+                material_data = self.material_data_composer(parameter_name, value=m_value)
                 filter = painter_ex_1.filter_composer(
-                    method=method, m_lambda=self.m_lambda, m_eps=m_value, k=k, d=d
+                    method=method, material_data=material_data, k=k, d=d
                 )
                 result = [
                     (idx, path.name)
@@ -327,12 +363,13 @@ class painter_ex_1(painter):
             labelspacing=0.025,
         )
 
-    def build_inset_var_epsilon(
-        self, k, d, method, m_value, conv_type, rate, h_shift, e_shift, mirror_q=False
+    def build_inset_with_parameter_name(
+        self, k, d, method, parameter_name, m_value, conv_type, rate, h_shift, e_shift, mirror_q=False
     ):
         file_names = list(Path().glob(self.file_pattern))
+        material_data = self.material_data_composer(parameter_name, value=m_value)
         filter = painter_ex_1.filter_composer(
-            method=method, m_lambda=self.m_lambda, m_eps=m_value, k=k, d=d
+            method=method, material_data=material_data, k=k, d=d
         )
         result = [
             (idx, path.name)
@@ -589,6 +626,7 @@ class painter_ex_3(painter):
 
 def render_figures_example_1(d=2):
     methods = ["sc_rt", "sc_bdm", "wc_rt", "wc_bdm"]
+    methods = ["wc_rt"]
     file_pattern = "output_example_1/*_error_ex_1.txt"
 
     painter = painter_ex_1()
@@ -598,52 +636,64 @@ def render_figures_example_1(d=2):
     painter.ordinate_range = (0.005, 50)
     conv_type = "normal"
 
+    base_material_data = {
+        "lambda_s": 1.0,
+        "mu_s": 1.0,
+        "kappa_s": 10.0,
+        "lambda_o": 1.0,
+        "mu_o": 1.0,
+        "kappa_o": 10.0,
+        "l": 1.0,
+    }
+    painter.set_base_material_data(base_material_data)
+
+    parameter_name = 'l'
     k = 0
     rate = k + 1
-    painter.file_name = "convergence_k0_example_1_" + str(d) + "d.pdf"
-    painter.color_canvas_with_variable_epsilon(
-        k, d, methods, material_values, conv_type
+    painter.file_name = painter.method_map[methods[0]] + "_convergence_k0_example_1_" + str(d) + "d.pdf"
+    painter.color_canvas_with_parameter_name(
+        k, d, methods, parameter_name, material_values, conv_type
     )
-    painter.build_inset_var_epsilon(
-        k, d, methods[3], material_values[2], conv_type, rate, 0.0, -0.2
+    painter.build_inset_with_parameter_name(
+        k, d, methods[0], parameter_name, material_values[2], conv_type, rate, 0.0, -0.2
     )
     painter.save_figure()
 
-    k = 1
-    rate = k + 1
-    painter.file_name = "convergence_k1_example_1_" + str(d) + "d.pdf"
-    painter.color_canvas_with_variable_epsilon(
-        k, d, methods, material_values, conv_type
-    )
-    painter.build_inset_var_epsilon(
-        k, d, methods[3], material_values[2], conv_type, rate, 0.0, -0.2
-    )
-    painter.save_figure()
+    # k = 1
+    # rate = k + 1
+    # painter.file_name = "convergence_k1_example_1_" + str(d) + "d.pdf"
+    # painter.color_canvas_with_variable_epsilon(
+    #     k, d, methods, material_values, conv_type
+    # )
+    # painter.build_inset_var_epsilon(
+    #     k, d, methods[3], material_values[2], conv_type, rate, 0.0, -0.2
+    # )
+    # painter.save_figure()
 
     painter.ordinate_range = (0.000001, 50)
     conv_type = "super"
 
     k = 0
     rate = k + 2
-    painter.file_name = "superconvergence_k0_example_1_" + str(d) + "d.pdf"
-    painter.color_canvas_with_variable_epsilon(
-        k, d, methods, material_values, conv_type
+    painter.file_name = painter.method_map[methods[0]] + "_superconvergence_k0_example_1_" + str(d) + "d.pdf"
+    painter.color_canvas_with_parameter_name(
+        k, d, methods, parameter_name, material_values, conv_type
     )
-    painter.build_inset_var_epsilon(
-        k, d, methods[3], material_values[1], conv_type, rate, 0.0, -0.5
+    painter.build_inset_with_parameter_name(
+        k, d, methods[0], parameter_name, material_values[1], conv_type, rate, 0.0, -0.5
     )
     painter.save_figure()
 
-    k = 1
-    rate = k + 2
-    painter.file_name = "superconvergence_k1_example_1_" + str(d) + "d.pdf"
-    painter.color_canvas_with_variable_epsilon(
-        k, d, methods, material_values, conv_type
-    )
-    painter.build_inset_var_epsilon(
-        k, d, methods[3], material_values[1], conv_type, rate, 0.0, -0.4
-    )
-    painter.save_figure()
+    # k = 1
+    # rate = k + 2
+    # painter.file_name = "superconvergence_k1_example_1_" + str(d) + "d.pdf"
+    # painter.color_canvas_with_variable_epsilon(
+    #     k, d, methods, material_values, conv_type
+    # )
+    # painter.build_inset_var_epsilon(
+    #     k, d, methods[3], material_values[1], conv_type, rate, 0.0, -0.4
+    # )
+    # painter.save_figure()
 
 
 def render_figures_example_2(d=2):
@@ -730,5 +780,5 @@ def render_figures_example_3(d=2):
 # Only figure range is adjusted for 3d.
 dim = 3
 render_figures_example_1(d=dim)
-render_figures_example_2(d=dim)
-render_figures_example_3(d=dim)
+# render_figures_example_2(d=dim)
+# render_figures_example_3(d=dim)
