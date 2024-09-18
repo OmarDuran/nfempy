@@ -114,14 +114,7 @@ def four_field_scaled_approximation(method, gmesh, symmetric_solver_q=True):
         P.setType("sbaij")
 
     # Material data
-    material_data = {
-        "lambda_s": 1.0,
-        "mu_s": 1.0,
-        "kappa_s": 0.1,
-        "lambda_o": 1.0,
-        "mu_o": 1.0,
-        "kappa_o": 0.1,
-    }
+    material_data = mat_data()
 
     # exact solution
     u_exact = lce.displacement(material_data, dim)
@@ -328,14 +321,7 @@ def four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk_q=
     n_dof_g = fe_space.n_dof
 
     # Material data
-    material_data = {
-        "lambda_s": 1.0,
-        "mu_s": 1.0,
-        "kappa_s": 0.1,
-        "lambda_o": 1.0,
-        "mu_o": 1.0,
-        "kappa_o": 0.1,
-    }
+    material_data = mat_data()
 
     # exact solution
     u_exact = lce.displacement(material_data, dim)
@@ -430,14 +416,7 @@ def four_field_scaled_solution_norms(method, gmesh):
     m_kappa = m_mu
 
     # Material data
-    material_data = {
-        "lambda_s": 1.0,
-        "mu_s": 1.0,
-        "kappa_s": 0.1,
-        "lambda_o": 1.0,
-        "mu_o": 1.0,
-        "kappa_o": 0.1,
-    }
+    material_data = mat_data()
 
     # exact solution
     u_exact = lce.displacement(material_data, dim)
@@ -645,6 +624,18 @@ def perform_convergence_postprocessing(configuration: dict):
     )
 
     return
+
+
+def mat_data():
+    data = {
+        "lambda_s": 1.0,
+        "mu_s": 1.0,
+        "kappa_s": 0.1,
+        "lambda_o": 1.0,
+        "mu_o": 1.0,
+        "kappa_o": 0.1,
+    }
+    return data
 
 
 def method_definition(k_order):
