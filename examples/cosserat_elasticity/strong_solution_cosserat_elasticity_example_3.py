@@ -1093,6 +1093,7 @@ def couple_stress_divergence_scaled(material_data, dim: int = 2):
             [
                 2
                 * np.pi
+                * (m_mu_o + m_kappa_o)
                 * gamma_eval(x, y, z, dim)
                 * (
                     -(
