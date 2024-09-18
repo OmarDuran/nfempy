@@ -114,9 +114,6 @@ def four_field_scaled_approximation(method, gmesh, symmetric_solver_q=True):
         P.setType("sbaij")
 
     # Material data
-    m_lambda = 1.0
-    m_mu = 1.0
-    m_kappa = m_mu
     material_data = {
         "lambda_s": 1.0,
         "mu_s": 1.0,
@@ -331,19 +328,24 @@ def four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk_q=
     n_dof_g = fe_space.n_dof
 
     # Material data
-    m_lambda = 1.0
-    m_mu = 1.0
-    m_kappa = m_mu
+    material_data = {
+        "lambda_s": 1.0,
+        "mu_s": 1.0,
+        "kappa_s": 0.1,
+        "lambda_o": 1.0,
+        "mu_o": 1.0,
+        "kappa_o": 0.1,
+    }
 
     # exact solution
-    u_exact = lce.displacement(m_lambda, m_mu, m_kappa, dim)
-    t_exact = lce.rotation(m_lambda, m_mu, m_kappa, dim)
-    s_exact = lce.stress(m_lambda, m_mu, m_kappa, dim)
-    m_exact = lce.couple_stress_scaled(m_lambda, m_mu, m_kappa, dim)
-    div_s_exact = lce.stress_divergence(m_lambda, m_mu, m_kappa, dim)
-    div_m_exact = lce.couple_stress_divergence_scaled(m_lambda, m_mu, m_kappa, dim)
-    f_gamma = lce.gamma_s(dim)
-    f_grad_gamma = lce.grad_gamma_s(dim)
+    u_exact = lce.displacement(material_data, dim)
+    t_exact = lce.rotation(material_data, dim)
+    s_exact = lce.stress(material_data, dim)
+    m_exact = lce.couple_stress_scaled(material_data, dim)
+    div_s_exact = lce.stress_divergence(material_data, dim)
+    div_m_exact = lce.couple_stress_divergence_scaled(material_data, dim)
+    m_functions = lce.get_material_functions(material_data, dim)
+
 
     exact_functions = {
         "s": s_exact,
@@ -352,8 +354,8 @@ def four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk_q=
         "t": t_exact,
         "div_s": div_s_exact,
         "div_m": div_m_exact,
-        "gamma": f_gamma,
-        "grad_gamma": f_grad_gamma,
+        "l": m_functions["l"],
+        "grad_l": m_functions["grad_l"],
     }
 
     if write_vtk_q:
@@ -367,8 +369,8 @@ def four_field_scaled_postprocessing(k_order, method, gmesh, alpha, write_vtk_q=
         )
 
         prefix = method[0] + "_k" + str(k_order) + "_" + str(dim) + "d"
-        file_name = prefix + "_gamma_scale_ex_3.vtk"
-        name_to_fields = {"gamma": 1, "grad_gamma": dim}
+        file_name = prefix + "_lc_scale_ex_3.vtk"
+        name_to_fields = {"l": 1, "grad_l": dim}
         write_vtk_file_exact_solution(file_name, gmesh, name_to_fields, exact_functions)
 
         et = time.time()
@@ -428,15 +430,24 @@ def four_field_scaled_solution_norms(method, gmesh):
     m_mu = 1.0
     m_kappa = m_mu
 
+    # Material data
+    material_data = {
+        "lambda_s": 1.0,
+        "mu_s": 1.0,
+        "kappa_s": 0.1,
+        "lambda_o": 1.0,
+        "mu_o": 1.0,
+        "kappa_o": 0.1,
+    }
+
     # exact solution
-    u_exact = lce.displacement(m_lambda, m_mu, m_kappa, dim)
-    t_exact = lce.rotation(m_lambda, m_mu, m_kappa, dim)
-    s_exact = lce.stress(m_lambda, m_mu, m_kappa, dim)
-    m_exact = lce.couple_stress_scaled(m_lambda, m_mu, m_kappa, dim)
-    div_s_exact = lce.stress_divergence(m_lambda, m_mu, m_kappa, dim)
-    div_m_exact = lce.couple_stress_divergence_scaled(m_lambda, m_mu, m_kappa, dim)
-    f_gamma = lce.gamma_s(dim)
-    f_grad_gamma = lce.grad_gamma_s(dim)
+    u_exact = lce.displacement(material_data, dim)
+    t_exact = lce.rotation(material_data, dim)
+    s_exact = lce.stress(material_data, dim)
+    m_exact = lce.couple_stress_scaled(material_data, dim)
+    div_s_exact = lce.stress_divergence(material_data, dim)
+    div_m_exact = lce.couple_stress_divergence_scaled(material_data, dim)
+    m_functions = lce.get_material_functions(material_data, dim)
 
     exact_functions = {
         "s": s_exact,
@@ -445,8 +456,8 @@ def four_field_scaled_solution_norms(method, gmesh):
         "t": t_exact,
         "div_s": div_s_exact,
         "div_m": div_m_exact,
-        "gamma": f_gamma,
-        "grad_gamma": f_grad_gamma,
+        "l": m_functions["l"],
+        "grad_l": m_functions["grad_l"],
     }
 
     st = time.time()
@@ -661,7 +672,7 @@ def method_definition(k_order):
 
 
 def main():
-    approximation_q = True
+    approximation_q = False
     postprocessing_q = True
     refinements = {0: 4, 1: 4}
     for k in [0]:
