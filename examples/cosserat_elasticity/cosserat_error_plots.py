@@ -635,6 +635,7 @@ class painter_ex_3(painter):
 
 def render_figures_example_1(d=2):
     methods = ["sc_rt", "sc_bdm", "wc_rt", "wc_bdm"]
+    methods = ["wc_rt", "wc_bdm"]
     file_pattern = "output_example_1/*_error_ex_1.txt"
 
     painter = painter_ex_1()
@@ -647,10 +648,10 @@ def render_figures_example_1(d=2):
     base_material_data = {
         "lambda_s": 1.0,
         "mu_s": 1.0,
-        "kappa_s": 0.01,
+        "kappa_s": 0.1,
         "lambda_o": 1.0,
         "mu_o": 1.0,
-        "kappa_o": 0.01,
+        "kappa_o": 0.1,
         "l": 1.0,
     }
     painter.set_base_material_data(base_material_data)
@@ -663,7 +664,7 @@ def render_figures_example_1(d=2):
         k, d, methods, parameter_name, material_values, conv_type
     )
     painter.build_inset_with_parameter_name(
-        k, d, methods[3], parameter_name, material_values[2], conv_type, rate, 0.0, -0.2
+        k, d, methods[1], parameter_name, material_values[2], conv_type, rate, 0.0, -0.2
     )
     painter.save_figure()
 
@@ -688,7 +689,7 @@ def render_figures_example_1(d=2):
         k, d, methods, parameter_name, material_values, conv_type
     )
     painter.build_inset_with_parameter_name(
-        k, d, methods[2], parameter_name, material_values[1], conv_type, rate, 0.0, -0.5
+        k, d, methods[1], parameter_name, material_values[1], conv_type, rate, 0.0, -0.5
     )
     painter.save_figure()
 

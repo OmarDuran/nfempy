@@ -793,7 +793,7 @@ def rhs_scaled(material_data, dim: int = 2):
                     + np.sin(np.pi * x)
                     * (
                         (-1 + 2 * y) * m_kappa_s
-                        + (2 * m_kappa_s + m_l * (np.pi**2) * (m_kappa_o + m_mu_o))
+                        + (2 * m_kappa_s + m_l * m_l * (np.pi**2) * (m_kappa_o + m_mu_o))
                         * np.sin(np.pi * y)
                     )
                 ),
@@ -1326,7 +1326,7 @@ def couple_stress_divergence_scaled(material_data, dim: int = 2):
         return lambda x, y, z: np.array(
             [
                 -2
-                * m_l
+                * m_l * m_l
                 * (np.pi**2)
                 * (m_kappa_o + m_mu_o)
                 * np.sin(np.pi * x)
