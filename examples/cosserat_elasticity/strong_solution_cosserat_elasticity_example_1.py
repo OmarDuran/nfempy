@@ -793,7 +793,10 @@ def rhs_scaled(material_data, dim: int = 2):
                     + np.sin(np.pi * x)
                     * (
                         (-1 + 2 * y) * m_kappa_s
-                        + (2 * m_kappa_s + m_l * m_l * (np.pi**2) * (m_kappa_o + m_mu_o))
+                        + (
+                            2 * m_kappa_s
+                            + m_l * m_l * (np.pi**2) * (m_kappa_o + m_mu_o)
+                        )
                         * np.sin(np.pi * y)
                     )
                 ),
@@ -926,7 +929,7 @@ def rhs_scaled(material_data, dim: int = 2):
                     (-1 + 2 * y)
                     * (
                         2 * (-1 + x) * x * m_kappa_s
-                        - m_l
+                        - (m_l**2)
                         * np.pi
                         * (m_kappa_o - m_lambda_o - m_mu_o)
                         * np.cos(np.pi * x)
@@ -936,7 +939,7 @@ def rhs_scaled(material_data, dim: int = 2):
                 + np.sin(np.pi * y)
                 * (
                     2 * (-1 + x) * x * (-1 + 2 * z) * m_kappa_s
-                    + m_l
+                    + (m_l**2)
                     * np.pi
                     * (-1 + 2 * z)
                     * (m_kappa_o - m_lambda_o - m_mu_o)
@@ -944,7 +947,7 @@ def rhs_scaled(material_data, dim: int = 2):
                     + 2
                     * (
                         2 * (-1 + x) * x * m_kappa_s
-                        + m_l
+                        + (m_l**2)
                         * (
                             -m_lambda_o
                             - 2 * m_mu_o
@@ -956,7 +959,7 @@ def rhs_scaled(material_data, dim: int = 2):
                 (-1 + 2 * x)
                 * (
                     2 * (-1 + y) * y * m_kappa_s
-                    + m_l
+                    + (m_l**2)
                     * np.pi
                     * (m_kappa_o - m_lambda_o - m_mu_o)
                     * np.cos(np.pi * y)
@@ -965,7 +968,7 @@ def rhs_scaled(material_data, dim: int = 2):
                 + np.sin(np.pi * x)
                 * (
                     2 * y * (-1 + y + 2 * z - 2 * y * z) * m_kappa_s
-                    + m_l
+                    + (m_l**2)
                     * np.pi
                     * (-1 + 2 * z)
                     * (m_kappa_o - m_lambda_o - m_mu_o)
@@ -973,7 +976,7 @@ def rhs_scaled(material_data, dim: int = 2):
                     + 2
                     * (
                         2 * (-1 + y) * y * m_kappa_s
-                        + m_l
+                        + (m_l**2)
                         * (
                             -m_lambda_o
                             - 2 * m_mu_o
@@ -986,7 +989,7 @@ def rhs_scaled(material_data, dim: int = 2):
                     (-1 + 2 * x)
                     * (
                         2 * (-1 + z) * z * m_kappa_s
-                        - m_l
+                        - (m_l**2)
                         * np.pi
                         * (m_kappa_o - m_lambda_o - m_mu_o)
                         * np.cos(np.pi * z)
@@ -996,7 +999,7 @@ def rhs_scaled(material_data, dim: int = 2):
                 + np.sin(np.pi * x)
                 * (
                     2 * (-1 + 2 * y) * (-1 + z) * z * m_kappa_s
-                    + m_l
+                    + (m_l**2)
                     * np.pi
                     * (-1 + 2 * y)
                     * (m_kappa_o - m_lambda_o - m_mu_o)
@@ -1004,7 +1007,7 @@ def rhs_scaled(material_data, dim: int = 2):
                     + 2
                     * (
                         2 * (-1 + z) * z * m_kappa_s
-                        + m_l
+                        + (m_l**2)
                         * (
                             -m_lambda_o
                             - 2 * m_mu_o
@@ -1326,7 +1329,8 @@ def couple_stress_divergence_scaled(material_data, dim: int = 2):
         return lambda x, y, z: np.array(
             [
                 -2
-                * m_l * m_l
+                * m_l
+                * m_l
                 * (np.pi**2)
                 * (m_kappa_o + m_mu_o)
                 * np.sin(np.pi * x)
