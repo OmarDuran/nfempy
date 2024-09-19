@@ -12,7 +12,7 @@ def _xs(
     z,
     m_data,
 ):
-    vals = np.ones_like(x) + np.exp(np.pi * (x - 1.0))
+    vals = np.ones_like(x)
     return vals
 
 
@@ -22,7 +22,7 @@ def _dxsdx(
     z,
     m_data,
 ):
-    vals = np.pi * np.exp(np.pi * (x - 1.0))
+    vals = np.zeros_like(x)
     return vals
 
 
@@ -32,7 +32,7 @@ def _dxsdx2(
     z,
     m_data,
 ):
-    vals = np.pi * np.pi * np.exp(np.pi * (x - 1.0))
+    vals = np.zeros_like(x)
     return vals
 
 
@@ -225,11 +225,15 @@ def f_grad_d_phi(x, y, z, m_data, co_dim):
 
 # The construction stem from:
 # The pressure in the fracture;
+def x_mask(x):
+    mask = np.logical_or(x < 0.0 , np.isclose(x,0.0))
+    return mask
+
 def pf(x, y, z, m_data):
     # bubble = 0.5 * (np.ones_like(x) - x) * 0.5 * (np.ones_like(x) + x)
     # return bubble - (x**2) * np.sin(2.0 * np.pi * x)
     beta = 0.5
-    mask = x < 0.0
+    mask = x_mask(x)
     val = np.empty_like([x * 0.0])
     val[:, mask] = np.zeros_like([x[mask] * 0.0])
     # val[:, ~mask] = (np.pi * np.ones_like(x[~mask]))
@@ -258,7 +262,7 @@ def dpfdx(x, y, z, m_data):
     # return term_1 + term_2 + term_3
     beta = 0.5
 
-    mask = x < 0.0
+    mask = x_mask(x)
     val = np.empty_like([x * 0.0])
     val[:, mask] = np.zeros_like([x[mask] * 0.0])
     # val[:, ~mask] = (np.pi * np.ones_like(x[~mask]))
@@ -289,7 +293,7 @@ def dpfdx(x, y, z, m_data):
 # The pressure laplacian.
 def dpfdx2(x, y, z, m_data):
     beta = 0.5
-    mask = x < 0.0
+    mask = x_mask(x)
     val = np.empty_like([x * 0.0])
     val[:, mask] = np.zeros_like([x[mask] * 0.0])
     # val[:, ~mask] = (np.pi * np.ones_like(x[~mask]))
@@ -353,14 +357,11 @@ def q_exact(x, y, z, m_data, co_dim):
 
 
 def v_exact(x, y, z, m_data, co_dim):
-    mask = x < 0.0
+    mask = x_mask(x)
     val = np.empty_like(u_exact(x, y, z, m_data, co_dim))
     if co_dim == 0:
-        # try:
-            val[:,:, mask] = np.zeros_like(u_exact(x[mask], y[mask], z[mask], m_data, co_dim))
-            val[:,:, ~mask] = (1.0 / f_d_phi(x[~mask], y[~mask], z[~mask], m_data, co_dim)) * u_exact(x[~mask], y[~mask], z[~mask], m_data, co_dim)
-        # except:
-        #     aka = 0
+        val[:,:, mask] = np.zeros_like(u_exact(x[mask], y[mask], z[mask], m_data, co_dim))
+        val[:,:, ~mask] = (1.0 / f_d_phi(x[~mask], y[~mask], z[~mask], m_data, co_dim)) * u_exact(x[~mask], y[~mask], z[~mask], m_data, co_dim)
     else:
         val[:, mask] = np.zeros_like(u_exact(x[mask], y[mask], z[mask], m_data, co_dim))
         val[:, ~mask] = (1.0 / f_d_phi(x[~mask], y[~mask], z[~mask], m_data, co_dim)) * u_exact(x[~mask], y[~mask], z[~mask], m_data, co_dim)
