@@ -192,26 +192,63 @@ def md_two_fields_approximation(config, write_vtk_q=False):
 
     m_data = config["m_data"]
 
-    assert e_functions.test_evaluation(m_data, 0)
-    assert e_functions.test_evaluation(m_data, 1)
+    degeneracy_q = config.get("degeneracy_q", False)
+    if degeneracy_q:
+        assert deg_functions.test_evaluation(m_data, 0)
+        assert deg_functions.test_evaluation(m_data, 1)
+        exact_functions_c0 = deg_functions.get_scaled_exact_functions_by_co_dimension(
+            0, flux_name, potential_name, m_data
+        )
+        exact_functions_c1 = deg_functions.get_scaled_exact_functions_by_co_dimension(
+            1, flux_name, potential_name, m_data
+        )
+        exact_functions = [exact_functions_c0, exact_functions_c1]
 
-    assert deg_functions.test_evaluation(m_data, 0)
-    assert deg_functions.test_evaluation(m_data, 1)
+        physical_exact_functions_c0 = e_functions.get_exact_functions_by_co_dimension(
+            0, phy_flux_name, phy_potential_name, m_data
+        )
+        physical_exact_functions_c1 = e_functions.get_exact_functions_by_co_dimension(
+            1, phy_flux_name, phy_potential_name, m_data
+        )
+        physical_exact_functions = [
+            physical_exact_functions_c0,
+            physical_exact_functions_c1,
+        ]
 
-    exact_functions_c0 = e_functions.get_scaled_exact_functions_by_co_dimension(
-        0, flux_name, potential_name, m_data
-    )
-    exact_functions_c1 = e_functions.get_scaled_exact_functions_by_co_dimension(
-        1, flux_name, potential_name, m_data
-    )
-    exact_functions = [exact_functions_c0, exact_functions_c1]
+        m_functions_c0 = deg_functions.get_problem_functions_by_co_dimension(
+            0, "rhs", "porosity", "d_phi", "grad_d_phi", m_data
+        )
+        m_functions_c1 = deg_functions.get_problem_functions_by_co_dimension(
+            1, "rhs", "porosity", "d_phi", "grad_d_phi", m_data
+        )
+    else:
+        assert e_functions.test_evaluation(m_data, 0)
+        assert e_functions.test_evaluation(m_data, 1)
+        exact_functions_c0 = e_functions.get_scaled_exact_functions_by_co_dimension(
+            0, flux_name, potential_name, m_data
+        )
+        exact_functions_c1 = e_functions.get_scaled_exact_functions_by_co_dimension(
+            1, flux_name, potential_name, m_data
+        )
+        exact_functions = [exact_functions_c0, exact_functions_c1]
 
-    m_functions_c0 = e_functions.get_problem_functions_by_co_dimension(
-        0, "rhs", "porosity", "d_phi", "grad_d_phi", m_data
-    )
-    m_functions_c1 = e_functions.get_problem_functions_by_co_dimension(
-        1, "rhs", "porosity", "d_phi", "grad_d_phi", m_data
-    )
+        physical_exact_functions_c0 = e_functions.get_exact_functions_by_co_dimension(
+            0, phy_flux_name, phy_potential_name, m_data
+        )
+        physical_exact_functions_c1 = e_functions.get_exact_functions_by_co_dimension(
+            1, phy_flux_name, phy_potential_name, m_data
+        )
+        physical_exact_functions = [
+            physical_exact_functions_c0,
+            physical_exact_functions_c1,
+        ]
+
+        m_functions_c0 = e_functions.get_problem_functions_by_co_dimension(
+            0, "rhs", "porosity", "d_phi", "grad_d_phi", m_data
+        )
+        m_functions_c1 = e_functions.get_problem_functions_by_co_dimension(
+            1, "rhs", "porosity", "d_phi", "grad_d_phi", m_data
+        )
 
     print("Surface: Number of dof: ", md_produc_space[0].n_dof)
     print("Line: Number of dof: ", md_produc_space[1].n_dof)
@@ -482,14 +519,10 @@ def md_two_fields_approximation(config, write_vtk_q=False):
             dim, md_produc_space[co_dim], alpha_e, ["v"], -dof_shift
         )[0]
 
-        physical_exact_functions = e_functions.get_exact_functions_by_co_dimension(
-            co_dim, phy_flux_name, phy_potential_name, m_data
-        )
-
         u_l2_error, p_l2_error = l2_error(
             gmesh.dimension - co_dim,
             physical_md_produc_space[co_dim],
-            physical_exact_functions,
+            physical_exact_functions[co_dim],
             alpha_physical,
         )
 
@@ -498,7 +531,7 @@ def md_two_fields_approximation(config, write_vtk_q=False):
         n_dof = physical_md_produc_space[co_dim].n_dof
         # compute projection on co-dimension co_dim
         alpha_proj = l2_projector(
-            physical_md_produc_space[co_dim], physical_exact_functions, -dof_shift
+            physical_md_produc_space[co_dim], physical_exact_functions[co_dim], -dof_shift
         )
         alpha_e = alpha_physical[0 + dof_shift : n_dof + dof_shift : 1] - alpha_proj
         # compute l2_error of projected exact solution on co-dimension co_dim
@@ -553,14 +586,11 @@ def md_two_fields_approximation(config, write_vtk_q=False):
                 + str(config["mesh_size"])
                 + "_md_elliptic_physical_two_fields.vtk"
             )
-            physical_exact_functions = e_functions.get_exact_functions_by_co_dimension(
-                co_dim, phy_flux_name, phy_potential_name, m_data
-            )
             write_vtk_file_with_exact_solution(
                 file_name,
                 gmesh,
                 physical_md_produc_space[co_dim],
-                physical_exact_functions,
+                physical_exact_functions[co_dim],
                 alpha_physical,
             )
             et = time.time()
@@ -758,7 +788,6 @@ def main():
             "xi": 1.0,
             "eta": 2.0,
             "chi": 1.0,
-
         }
         config["m_data"] = material_data
 
@@ -768,8 +797,8 @@ def main():
         config["mesh_sizes"] = [
             0.5,
             0.25,
-            0.125,
-            0.0625,
+            # 0.125,
+            # 0.0625,
             # 0.03125,
             # 0.015625,
             # 0.0078125,

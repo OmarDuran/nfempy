@@ -148,9 +148,7 @@ def f_porosity(x, y, z, m_data, co_dim):
     m_rho_1 = m_data["rho_1"]
     m_rho_2 = m_data["rho_2"]
     if co_dim == 0:
-        val = np.array(x**2) * phi_ys(
-            x, y, z, m_data
-        )
+        val = np.array(x**2) * phi_ys(x, y, z, m_data)
     elif co_dim == 1:
         val = np.array(x**2)
     else:
@@ -235,19 +233,22 @@ def pf(x, y, z, m_data):
     val = np.empty_like([x * 0.0])
     val[:, mask] = np.zeros_like([x[mask] * 0.0])
     # val[:, ~mask] = (np.pi * np.ones_like(x[~mask]))
-    val[:, ~mask] = np.array(
+    val[:, ~mask] = (
+        np.array(
             [
                 (
-                        -(x[~mask] ** beta)
-                        + 0.5
-                        * (3 + np.sqrt(13))
-                        * x[~mask] ** (0.5 * (-3 + np.sqrt(13)))
-                        * beta
+                    -(x[~mask] ** beta)
+                    + 0.5
+                    * (3 + np.sqrt(13))
+                    * x[~mask] ** (0.5 * (-3 + np.sqrt(13)))
+                    * beta
                 )
                 / (-1 + beta * (3 + beta)),
             ]
         ),
+    )
     return val[0]
+
 
 # The pressure gradient;
 def dpfdx(x, y, z, m_data):
@@ -261,12 +262,17 @@ def dpfdx(x, y, z, m_data):
     val = np.empty_like([x * 0.0])
     val[:, mask] = np.zeros_like([x[mask] * 0.0])
     # val[:, ~mask] = (np.pi * np.ones_like(x[~mask]))
-    val[:, ~mask] = np.array(
+    val[:, ~mask] = (
+        np.array(
             [
-                (((x[~mask] ** (np.sqrt(13) / 2.0)) - (x[~mask] ** (1.5 + beta))) * beta) / (
-                        (x[~mask] ** 2.5) * (-1 + beta * (3 + beta))),
+                (
+                    ((x[~mask] ** (np.sqrt(13) / 2.0)) - (x[~mask] ** (1.5 + beta)))
+                    * beta
+                )
+                / ((x[~mask] ** 2.5) * (-1 + beta * (3 + beta))),
             ]
-         ),
+        ),
+    )
     return val[0]
     # return np.where(
     #     x < 0.0,
@@ -302,14 +308,24 @@ def dpfdx2(x, y, z, m_data):
     val = np.empty_like([x * 0.0])
     val[:, mask] = np.zeros_like([x[mask] * 0.0])
     # val[:, ~mask] = (np.pi * np.ones_like(x[~mask]))
-    val[:, ~mask] = np.array(
+    val[:, ~mask] = (
+        np.array(
             [
-                (((-5 + np.sqrt(13)) * (x[~mask] ** (np.sqrt(13) / 2.0)) - 2 * (x[~mask] ** (1.5 + beta)) * (-1 + beta)) * beta) / (
-                                            2.0 * (x[~mask] ** 3.5) * (-1 + beta * (3 + beta))),
+                (
+                    (
+                        (-5 + np.sqrt(13)) * (x[~mask] ** (np.sqrt(13) / 2.0))
+                        - 2 * (x[~mask] ** (1.5 + beta)) * (-1 + beta)
+                    )
+                    * beta
+                )
+                / (2.0 * (x[~mask] ** 3.5) * (-1 + beta * (3 + beta))),
             ]
-         ),
+        ),
+    )
 
     return val[0]
+
+
 def p_exact(x, y, z, m_data, co_dim):
     if co_dim == 0:
         val = _xs(x, y, z, m_data) * _ys(x, y, z, m_data) * pf(x, y, z, m_data)
@@ -411,11 +427,9 @@ def f_rhs(x, y, z, m_data, co_dim):
         un_n = u_exact(x, (-1.0e-13) * np.ones_like(y), z, m_data, co_dim=0)[0].T @ n_n
         val += np.array([un_p + un_n]) / np.sqrt(f_porosity(x, y, z, m_data, co_dim))
 
-
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")
     return np.array([val])
-
 
 
 def test_evaluation(m_data, co_dim):
@@ -471,6 +485,24 @@ def get_scaled_exact_functions_by_co_dimension(
         ),
         potential_name: partial(
             q_exact,
+            m_data=m_data,
+            co_dim=co_dim,
+        ),
+    }
+    return exact_functions
+
+
+def get_exact_functions_by_co_dimension(co_dim, flux_name, potential_name, m_data):
+    if co_dim not in [0, 1]:
+        raise ValueError("Case not available.")
+    exact_functions = {
+        flux_name: partial(
+            u_exact,
+            m_data=m_data,
+            co_dim=co_dim,
+        ),
+        potential_name: partial(
+            p_exact,
             m_data=m_data,
             co_dim=co_dim,
         ),
