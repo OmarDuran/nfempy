@@ -773,21 +773,21 @@ def render_figures_example_3(d=2):
     painter.build_inset_var_k_order(k, d, methods[1], conv_type, rate, 0.0, -0.2)
     painter.save_figure()
 
-    painter.ordinate_range = (0.0000005, 0.01)
+    painter.ordinate_range = (0.00000005, 0.01)
     conv_type = "super"
     painter.file_name = "superconvergence_example_3_" + str(d) + "d.pdf"
     painter.color_canvas_with_variable_k(d, methods, conv_type)
     k = 0
     rate = k + 2
-    painter.build_inset_var_k_order(k, d, methods[1], conv_type, rate, 0.0, -0.2)
+    painter.build_inset_var_k_order(k, d, methods[1], conv_type, rate, 0.0, -0.5)
     k = 1
     rate = k + 2
-    painter.build_inset_var_k_order(k, d, methods[1], conv_type, rate, 0.0, -0.2)
+    painter.build_inset_var_k_order(k, d, methods[1], conv_type, rate, 0.0, -0.5)
     painter.save_figure()
 
 
 # Only figure range is adjusted for 3d.
-dim = 2
-render_figures_example_1(d=dim)
+dim = 3
+# render_figures_example_1(d=dim)
 # render_figures_example_2(d=dim)
-# render_figures_example_3(d=dim)
+render_figures_example_3(d=dim)

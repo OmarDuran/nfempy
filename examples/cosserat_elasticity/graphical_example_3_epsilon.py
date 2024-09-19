@@ -86,6 +86,7 @@ def paint_on_canvas(crinkle_q):
 canvas = paint_on_canvas(False)
 canvas.save_graphic("figures/function_epsilon_example_3.eps")
 canvas.save_graphic("figures/function_epsilon_example_3.pdf")
+canvas.save_graphic("figures/function_epsilon_example_3.png")
 
 # canvas = paint_on_canvas(True)
 # canvas.save_graphic("figures/function_epsilon_crinkle_example_3.eps")
