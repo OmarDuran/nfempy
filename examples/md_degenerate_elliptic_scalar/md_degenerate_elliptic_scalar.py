@@ -254,6 +254,8 @@ def md_two_fields_approximation(config, write_vtk_q=False):
         "mu": f_mu,
         "d_phi_c0": m_functions_c0["d_phi"],
         "porosity_c1": m_functions_c1["porosity"],
+        "q_c0": exact_functions_c0['q'],
+        "q_c1": exact_functions_c1['q'],
     }
 
     int_coupling_weak_form = InterfaceCouplingWeakForm(md_produc_space)
@@ -641,7 +643,7 @@ def main():
             0.5,
             0.25,
             0.125,
-            # 0.0625,
+            0.0625,
             # 0.03125,
             # 0.015625,
             # 0.0078125,

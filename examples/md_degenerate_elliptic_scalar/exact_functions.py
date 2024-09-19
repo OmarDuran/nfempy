@@ -12,7 +12,8 @@ def _xs(
     z,
     m_data,
 ):
-    vals = np.ones_like(x) + np.exp(np.pi * (x - 1.0))
+    # vals = np.ones_like(x) + np.exp(np.pi * (x - 1.0))
+    vals = np.ones_like(x)
     return vals
 
 
@@ -22,7 +23,8 @@ def _dxsdx(
     z,
     m_data,
 ):
-    vals = np.pi * np.exp(np.pi * (x - 1.0))
+    # vals = np.pi * np.exp(np.pi * (x - 1.0))
+    vals = np.zeros_like(x)
     return vals
 
 
@@ -32,7 +34,8 @@ def _dxsdx2(
     z,
     m_data,
 ):
-    vals = np.pi * np.pi * np.exp(np.pi * (x - 1.0))
+    # vals = np.pi * np.pi * np.exp(np.pi * (x - 1.0))
+    vals = np.zeros_like(x)
     return vals
 
 
@@ -348,7 +351,7 @@ def f_rhs(x, y, z, m_data, co_dim):
         n_n = np.array([0.0, 1.0])
         un_p = u_exact(x, (+1.0e-13) * np.ones_like(y), z, m_data, co_dim=0)[0].T @ n_p
         un_n = u_exact(x, (-1.0e-13) * np.ones_like(y), z, m_data, co_dim=0)[0].T @ n_n
-        val += np.array([un_p + un_n]) / np.sqrt(f_porosity(x, y, z, m_data, co_dim))
+        # val += np.array([un_p + un_n]) / np.sqrt(f_porosity(x, y, z, m_data, co_dim))
 
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")
