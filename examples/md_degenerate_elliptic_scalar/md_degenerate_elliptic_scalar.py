@@ -5,6 +5,7 @@ import time
 
 from topology.domain_market import create_md_box_2D
 import exact_functions as e_functions
+import degenerate_exact_functions as deg_functions
 
 from postprocess.projectors import l2_projector
 from postprocess.l2_error_post_processor import l2_error, l2_error_projected
@@ -14,6 +15,7 @@ from mesh.mesh import Mesh
 from mesh.mesh_metrics import mesh_size
 from mesh.discrete_domain import DiscreteDomain
 from mesh.mesh_operations import cut_conformity_along_c1_lines
+
 
 # simple weak form
 from weak_forms.degenerate_elliptic_weak_form import (
@@ -192,6 +194,9 @@ def md_two_fields_approximation(config, write_vtk_q=False):
 
     assert e_functions.test_evaluation(m_data, 0)
     assert e_functions.test_evaluation(m_data, 1)
+
+    assert deg_functions.test_evaluation(m_data, 0)
+    assert deg_functions.test_evaluation(m_data, 1)
 
     exact_functions_c0 = e_functions.get_scaled_exact_functions_by_co_dimension(
         0, flux_name, potential_name, m_data
@@ -731,6 +736,7 @@ def main():
 
     deltas_frac = [1.0e-1, 1.0e-2, 1.0e-3, 1.0e-4, 1.0e-5]
     deltas_frac = [1.0e-5]
+
     for delta_frac in deltas_frac:
         config = {}
         # domain and discrete domain data
@@ -752,6 +758,7 @@ def main():
             "xi": 1.0,
             "eta": 2.0,
             "chi": 1.0,
+
         }
         config["m_data"] = material_data
 

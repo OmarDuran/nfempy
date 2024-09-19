@@ -231,23 +231,23 @@ def pf(x, y, z, m_data):
     # bubble = 0.5 * (np.ones_like(x) - x) * 0.5 * (np.ones_like(x) + x)
     # return bubble - (x**2) * np.sin(2.0 * np.pi * x)
     beta = 0.5
-    return np.where(
-        x < 0.0,
-        np.array([x * 0.0]),
-        np.array(
+    mask = x < 0.0
+    val = np.empty_like([x * 0.0])
+    val[:, mask] = np.zeros_like([x[mask] * 0.0])
+    # val[:, ~mask] = (np.pi * np.ones_like(x[~mask]))
+    val[:, ~mask] = np.array(
             [
                 (
-                        -(np.abs(x) ** beta)
+                        -(x[~mask] ** beta)
                         + 0.5
                         * (3 + np.sqrt(13))
-                        * np.abs(x) ** (0.5 * (-3 + np.sqrt(13)))
+                        * x[~mask] ** (0.5 * (-3 + np.sqrt(13)))
                         * beta
                 )
                 / (-1 + beta * (3 + beta)),
             ]
         ),
-    )
-
+    return val[0]
 
 # The pressure gradient;
 def dpfdx(x, y, z, m_data):
@@ -256,16 +256,28 @@ def dpfdx(x, y, z, m_data):
     # term_3 = -2.0 * x * np.sin(2.0 * np.pi * x)
     # return term_1 + term_2 + term_3
     beta = 0.5
-    return np.where(
-        x < 0.0,
-        np.array([x * 0.0]),
-        np.array(
+
+    mask = x < 0.0
+    val = np.empty_like([x * 0.0])
+    val[:, mask] = np.zeros_like([x[mask] * 0.0])
+    # val[:, ~mask] = (np.pi * np.ones_like(x[~mask]))
+    val[:, ~mask] = np.array(
             [
-                (((x ** (np.sqrt(13) / 2.0)) - (x ** (1.5 + beta))) * beta) / (
-                        (x ** 2.5) * (-1 + beta * (3 + beta))),
+                (((x[~mask] ** (np.sqrt(13) / 2.0)) - (x[~mask] ** (1.5 + beta))) * beta) / (
+                        (x[~mask] ** 2.5) * (-1 + beta * (3 + beta))),
             ]
-        ),
-    )
+         ),
+    return val[0]
+    # return np.where(
+    #     x < 0.0,
+    #     np.array([x * 0.0]),
+    #     np.array(
+    #         [
+    #             (((x ** (np.sqrt(13) / 2.0)) - (x ** (1.5 + beta))) * beta) / (
+    #                     (x ** 2.5) * (-1 + beta * (3 + beta))),
+    #         ]
+    #     ),
+    # )
 
 
 # The pressure laplacian.
@@ -276,18 +288,28 @@ def dpfdx2(x, y, z, m_data):
     # term_4 = +4.0 * (np.pi**2) * (x**2) * np.sin(2.0 * np.pi * x)
     # return term_1 + term_2 + term_3 + term_4
     beta = 0.5
-    return np.where(
-        x < 0.0,
-        np.array([x * 0.0]),
-        np.array(
+    # return np.where(
+    #     x < 0.0,
+    #     np.array([x * 0.0]),
+    #     np.array(
+    #         [
+    #             (((-5 + np.sqrt(13)) * (x ** (np.sqrt(13) / 2.0)) - 2 * (x ** (1.5 + beta)) * (-1 + beta)) * beta) / (
+    #                         2.0 * (x ** 3.5) * (-1 + beta * (3 + beta))),
+    #         ]
+    #     ),
+    # )
+    mask = x < 0.0
+    val = np.empty_like([x * 0.0])
+    val[:, mask] = np.zeros_like([x[mask] * 0.0])
+    # val[:, ~mask] = (np.pi * np.ones_like(x[~mask]))
+    val[:, ~mask] = np.array(
             [
-                (((-5 + np.sqrt(13)) * (x ** (np.sqrt(13) / 2.0)) - 2 * (x ** (1.5 + beta)) * (-1 + beta)) * beta) / (
-                            2.0 * (x ** 3.5) * (-1 + beta * (3 + beta))),
+                (((-5 + np.sqrt(13)) * (x[~mask] ** (np.sqrt(13) / 2.0)) - 2 * (x[~mask] ** (1.5 + beta)) * (-1 + beta)) * beta) / (
+                                            2.0 * (x[~mask] ** 3.5) * (-1 + beta * (3 + beta))),
             ]
-        ),
-    )
+         ),
 
-
+    return val[0]
 def p_exact(x, y, z, m_data, co_dim):
     if co_dim == 0:
         val = _xs(x, y, z, m_data) * _ys(x, y, z, m_data) * pf(x, y, z, m_data)
@@ -389,9 +411,11 @@ def f_rhs(x, y, z, m_data, co_dim):
         un_n = u_exact(x, (-1.0e-13) * np.ones_like(y), z, m_data, co_dim=0)[0].T @ n_n
         val += np.array([un_p + un_n]) / np.sqrt(f_porosity(x, y, z, m_data, co_dim))
 
+
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")
     return np.array([val])
+
 
 
 def test_evaluation(m_data, co_dim):
