@@ -414,9 +414,8 @@ def get_scaled_exact_functions_by_co_dimension(
     }
     return exact_functions
 
-def get_exact_functions_by_co_dimension(
-    co_dim, flux_name, potential_name, m_data
-):
+
+def get_exact_functions_by_co_dimension(co_dim, flux_name, potential_name, m_data):
     if co_dim not in [0, 1]:
         raise ValueError("Case not available.")
     exact_functions = {

@@ -216,6 +216,9 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     global_dof = np.add.accumulate(dof_seq)
     md_produc_space[0].dof_shift = global_dof[0]
     md_produc_space[1].dof_shift = global_dof[1]
+
+    physical_md_produc_space[0].dof_shift = global_dof[0]
+    physical_md_produc_space[1].dof_shift = global_dof[1]
     n_dof_g = np.sum(dof_seq)
     rg = np.zeros(n_dof_g)
     alpha = np.zeros(n_dof_g)
@@ -390,6 +393,7 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     print("Linear solver time:", elapsed_time, "seconds")
 
     st = time.time()
+
     # mapping variables to physical domain
     def scatter_form_data_mapping(jac_g, res_g, i, weak_form):
         # destination indexes
@@ -410,7 +414,10 @@ def md_two_fields_approximation(config, write_vtk_q=False):
             jac_g.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
     alpha_physical = np.zeros_like(alpha)
-    scale_to_physical_weak_forms = [scale_to_physical_weak_form_c0, scale_to_physical_weak_form_c1]
+    scale_to_physical_weak_forms = [
+        scale_to_physical_weak_form_c0,
+        scale_to_physical_weak_form_c1,
+    ]
     operator_lhs_g = PETSc.Mat()
     operator_lhs_g.createAIJ([n_dof_g, n_dof_g])
     operator_rhs_g = np.zeros(n_dof_g)
@@ -439,10 +446,6 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     ksp.setConvergenceHistory()
     ksp.solve(b, x)
     alpha_physical = x.array
-    # dof_shift = md_produc_space[co_dim].dof_shift
-    # n_dof_c = md_produc_space[co_dim].n_dof
-    # alpha_physical[0 + dof_shift: n_dof_c + dof_shift: 1] = x.array
-
 
     et = time.time()
     elapsed_time = et - st
@@ -474,7 +477,6 @@ def md_two_fields_approximation(config, write_vtk_q=False):
             dim, md_produc_space[co_dim], alpha_e, ["v"], -dof_shift
         )[0]
 
-
         physical_exact_functions = e_functions.get_exact_functions_by_co_dimension(
             co_dim, phy_flux_name, phy_potential_name, m_data
         )
@@ -499,7 +501,16 @@ def md_two_fields_approximation(config, write_vtk_q=False):
             dim, physical_md_produc_space[co_dim], alpha_e, ["u"], -dof_shift
         )[0]
 
-        errors_by_co_dim.append((v_l2_error, q_l2_error, q_proj_l2_error,u_l2_error, p_l2_error, p_proj_l2_error))
+        errors_by_co_dim.append(
+            (
+                v_l2_error,
+                q_l2_error,
+                q_proj_l2_error,
+                u_l2_error,
+                p_l2_error,
+                p_proj_l2_error,
+            )
+        )
         et = time.time()
         elapsed_time = et - st
         print("L2-error time:", elapsed_time, "seconds")
@@ -645,8 +656,8 @@ def compute_approximations(config):
     case_names_by_co_dim = compose_case_name(config)
 
     n_data = 7
-    normal_conv_idx = np.array([1,2,3,4,7,8,9,10])
-    enhanced_conv_idx = np.array([5,6,11,12])
+    normal_conv_idx = np.array([1, 2, 3, 4, 7, 8, 9, 10])
+    enhanced_conv_idx = np.array([5, 6, 11, 12])
     for co_dim in [0, 1]:
         case_name = case_names_by_co_dim[co_dim]
         h_data = np.array(h_sizes[:, co_dim])
@@ -676,7 +687,7 @@ def compute_approximations(config):
         raw_data[:, 2::2] = rates_data
 
         normal_conv_data = raw_data[:, normal_conv_idx]
-        enhanced_conv_data = raw_data[:,enhanced_conv_idx]
+        enhanced_conv_data = raw_data[:, enhanced_conv_idx]
 
         np.set_printoptions(precision=5)
         print("normal convergence data: ", normal_conv_data)
@@ -750,8 +761,8 @@ def main():
         config["mesh_sizes"] = [
             0.5,
             0.25,
-            # 0.125,
-            # 0.0625,
+            0.125,
+            0.0625,
             # 0.03125,
             # 0.015625,
             # 0.0078125,
