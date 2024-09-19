@@ -288,22 +288,7 @@ def dpfdx(x, y, z, m_data):
 
 # The pressure laplacian.
 def dpfdx2(x, y, z, m_data):
-    # term_1 = -0.5 * np.ones_like(x)
-    # term_2 = -8.0 * np.pi * x * np.cos(2.0 * np.pi * x)
-    # term_3 = -2.0 * np.sin(2.0 * np.pi * x)
-    # term_4 = +4.0 * (np.pi**2) * (x**2) * np.sin(2.0 * np.pi * x)
-    # return term_1 + term_2 + term_3 + term_4
     beta = 0.5
-    # return np.where(
-    #     x < 0.0,
-    #     np.array([x * 0.0]),
-    #     np.array(
-    #         [
-    #             (((-5 + np.sqrt(13)) * (x ** (np.sqrt(13) / 2.0)) - 2 * (x ** (1.5 + beta)) * (-1 + beta)) * beta) / (
-    #                         2.0 * (x ** 3.5) * (-1 + beta * (3 + beta))),
-    #         ]
-    #     ),
-    # )
     mask = x < 0.0
     val = np.empty_like([x * 0.0])
     val[:, mask] = np.zeros_like([x[mask] * 0.0])
@@ -368,7 +353,17 @@ def q_exact(x, y, z, m_data, co_dim):
 
 
 def v_exact(x, y, z, m_data, co_dim):
-    val = (1.0 / f_d_phi(x, y, z, m_data, co_dim)) * u_exact(x, y, z, m_data, co_dim)
+    mask = x < 0.0
+    val = np.empty_like(u_exact(x, y, z, m_data, co_dim))
+    if co_dim == 0:
+        # try:
+            val[:,:, mask] = np.zeros_like(u_exact(x[mask], y[mask], z[mask], m_data, co_dim))
+            val[:,:, ~mask] = (1.0 / f_d_phi(x[~mask], y[~mask], z[~mask], m_data, co_dim)) * u_exact(x[~mask], y[~mask], z[~mask], m_data, co_dim)
+        # except:
+        #     aka = 0
+    else:
+        val[:, mask] = np.zeros_like(u_exact(x[mask], y[mask], z[mask], m_data, co_dim))
+        val[:, ~mask] = (1.0 / f_d_phi(x[~mask], y[~mask], z[~mask], m_data, co_dim)) * u_exact(x[~mask], y[~mask], z[~mask], m_data, co_dim)
     return val
 
 

@@ -204,10 +204,10 @@ def md_two_fields_approximation(config, write_vtk_q=False):
         )
         exact_functions = [exact_functions_c0, exact_functions_c1]
 
-        physical_exact_functions_c0 = e_functions.get_exact_functions_by_co_dimension(
+        physical_exact_functions_c0 = deg_functions.get_exact_functions_by_co_dimension(
             0, phy_flux_name, phy_potential_name, m_data
         )
-        physical_exact_functions_c1 = e_functions.get_exact_functions_by_co_dimension(
+        physical_exact_functions_c1 = deg_functions.get_exact_functions_by_co_dimension(
             1, phy_flux_name, phy_potential_name, m_data
         )
         physical_exact_functions = [
@@ -774,7 +774,7 @@ def main():
         config["min_yc"] = -1.0
         config["max_xc"] = +1.0
         config["max_yc"] = +1.0
-        config["degeneracy_q"] = False
+        config["degeneracy_q"] = True
 
         # Material data
         material_data = {
