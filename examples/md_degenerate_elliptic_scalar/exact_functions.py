@@ -12,7 +12,6 @@ def _xs(
     z,
     m_data,
 ):
-    # vals = np.ones_like(x) + np.exp(np.pi * (x - 1.0))
     vals = np.ones_like(x)
     return vals
 
@@ -23,7 +22,6 @@ def _dxsdx(
     z,
     m_data,
 ):
-    # vals = np.pi * np.exp(np.pi * (x - 1.0))
     vals = np.zeros_like(x)
     return vals
 
@@ -34,7 +32,6 @@ def _dxsdx2(
     z,
     m_data,
 ):
-    # vals = np.pi * np.pi * np.exp(np.pi * (x - 1.0))
     vals = np.zeros_like(x)
     return vals
 
@@ -411,6 +408,25 @@ def get_scaled_exact_functions_by_co_dimension(
         ),
         potential_name: partial(
             q_exact,
+            m_data=m_data,
+            co_dim=co_dim,
+        ),
+    }
+    return exact_functions
+
+def get_exact_functions_by_co_dimension(
+    co_dim, flux_name, potential_name, m_data
+):
+    if co_dim not in [0, 1]:
+        raise ValueError("Case not available.")
+    exact_functions = {
+        flux_name: partial(
+            u_exact,
+            m_data=m_data,
+            co_dim=co_dim,
+        ),
+        potential_name: partial(
+            p_exact,
             m_data=m_data,
             co_dim=co_dim,
         ),

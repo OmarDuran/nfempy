@@ -23,7 +23,7 @@ from weak_forms.degenerate_elliptic_weak_form import (
     DegenerateEllipticWeakFormBCDirichlet as WeakFormBCDir,
 )
 
-# from weak_forms.scaled_to_physical_l2_projection import ScaledToPhysicalL2Projection
+from weak_forms.scaled_to_physical_l2_projection import ScaledToPhysicalL2Projection
 from InterfaceCouplingWeakForm import InterfaceCouplingWeakForm
 import matplotlib.pyplot as plt
 
@@ -238,6 +238,12 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     bc_weak_form_c1 = WeakFormBCDir(md_produc_space[1])
     bc_weak_form_c1.functions = {**exact_functions_c1, **m_functions_c1}
 
+    scale_to_physical_weak_form_c0 = ScaledToPhysicalL2Projection(md_produc_space[0])
+    scale_to_physical_weak_form_c0.functions = m_functions_c0
+
+    scale_to_physical_weak_form_c1 = ScaledToPhysicalL2Projection(md_produc_space[1])
+    scale_to_physical_weak_form_c1.functions = m_functions_c1
+
     # Interface coupling data
     def f_kappa_normal(x, y, z):
         return m_data["kappa_normal"] * np.ones_like(x)
@@ -383,20 +389,79 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     elapsed_time = et - st
     print("Linear solver time:", elapsed_time, "seconds")
 
+    st = time.time()
+    # mapping variables to physical domain
+    def scatter_form_data_mapping(jac_g, res_g, i, weak_form):
+        # destination indexes
+        dest = weak_form.space.destination_indexes(i)
+        alpha_physcial_l = alpha_physical[dest]
+        alpha_l = alpha[dest]
+        r_el, j_el = weak_form.evaluate_form(i, alpha_physcial_l, alpha_l)
+
+        # contribute rhs
+        res_g[dest] += r_el
+
+        # contribute lhs
+        data = j_el.ravel()
+        row = np.repeat(dest, len(dest))
+        col = np.tile(dest, len(dest))
+        nnz = data.shape[0]
+        for k in range(nnz):
+            jac_g.setValue(row=row[k], col=col[k], value=data[k], addv=True)
+
+    alpha_physical = np.zeros_like(alpha)
+    scale_to_physical_weak_forms = [scale_to_physical_weak_form_c0, scale_to_physical_weak_form_c1]
+    operator_lhs_g = PETSc.Mat()
+    operator_lhs_g.createAIJ([n_dof_g, n_dof_g])
+    operator_rhs_g = np.zeros(n_dof_g)
+    for co_dim in [0, 1]:
+
+        n_els = len(md_produc_space[co_dim].discrete_spaces["v"].elements)
+        [
+            scatter_form_data_mapping(
+                operator_lhs_g, operator_rhs_g, i, scale_to_physical_weak_forms[co_dim]
+            )
+            for i in range(n_els)
+        ]
+    operator_lhs_g.assemble()
+
+    # solving ls
+    st = time.time()
+    ksp = PETSc.KSP().create()
+    ksp.setOperators(operator_lhs_g)
+    b = operator_lhs_g.createVecLeft()
+    b.array[:] = -operator_rhs_g
+    x = operator_lhs_g.createVecRight()
+
+    ksp.setType("preonly")
+    ksp.getPC().setType("lu")
+    ksp.getPC().setFactorSolverType("mumps")
+    ksp.setConvergenceHistory()
+    ksp.solve(b, x)
+    alpha_physical = x.array
+    # dof_shift = md_produc_space[co_dim].dof_shift
+    # n_dof_c = md_produc_space[co_dim].n_dof
+    # alpha_physical[0 + dof_shift: n_dof_c + dof_shift: 1] = x.array
+
+
+    et = time.time()
+    elapsed_time = et - st
+    print("Linear solver time:", elapsed_time, "seconds")
+
     # L2 error for mixed-dimensional solution
     errors_by_co_dim = []
     for co_dim in [0, 1]:
         dim = gmesh.dimension - co_dim
         print("Computing L2-error for co-dimension: ", co_dim)
         st = time.time()
-        u_l2_error, p_l2_error = l2_error(
+        v_l2_error, q_l2_error = l2_error(
             gmesh.dimension - co_dim,
             md_produc_space[co_dim],
             exact_functions[co_dim],
             alpha,
         )
 
-        # l2_error for projected pressure
+        # l2_error for projected scaled pressure
         dof_shift = md_produc_space[co_dim].dof_shift
         n_dof = md_produc_space[co_dim].n_dof
         # compute projection on co-dimension co_dim
@@ -405,14 +470,42 @@ def md_two_fields_approximation(config, write_vtk_q=False):
         )
         alpha_e = alpha[0 + dof_shift : n_dof + dof_shift : 1] - alpha_proj
         # compute l2_error of projected exact solution on co-dimension co_dim
-        p_proj_l2_error = l2_error_projected(
-            dim, md_produc_space[co_dim], alpha_e, ["u"], -dof_shift
+        q_proj_l2_error = l2_error_projected(
+            dim, md_produc_space[co_dim], alpha_e, ["v"], -dof_shift
         )[0]
 
-        errors_by_co_dim.append((u_l2_error, p_l2_error, p_proj_l2_error))
+
+        physical_exact_functions = e_functions.get_exact_functions_by_co_dimension(
+            co_dim, phy_flux_name, phy_potential_name, m_data
+        )
+
+        u_l2_error, p_l2_error = l2_error(
+            gmesh.dimension - co_dim,
+            physical_md_produc_space[co_dim],
+            physical_exact_functions,
+            alpha_physical,
+        )
+
+        # l2_error for projected pressure
+        dof_shift = physical_md_produc_space[co_dim].dof_shift
+        n_dof = physical_md_produc_space[co_dim].n_dof
+        # compute projection on co-dimension co_dim
+        alpha_proj = l2_projector(
+            physical_md_produc_space[co_dim], physical_exact_functions, -dof_shift
+        )
+        alpha_e = alpha_physical[0 + dof_shift : n_dof + dof_shift : 1] - alpha_proj
+        # compute l2_error of projected exact solution on co-dimension co_dim
+        p_proj_l2_error = l2_error_projected(
+            dim, physical_md_produc_space[co_dim], alpha_e, ["u"], -dof_shift
+        )[0]
+
+        errors_by_co_dim.append((v_l2_error, q_l2_error, q_proj_l2_error,u_l2_error, p_l2_error, p_proj_l2_error))
         et = time.time()
         elapsed_time = et - st
         print("L2-error time:", elapsed_time, "seconds")
+        print("L2-error in v: ", v_l2_error)
+        print("L2-error in q: ", q_l2_error)
+        print("L2-error in q projected: ", q_proj_l2_error)
         print("L2-error in u: ", u_l2_error)
         print("L2-error in p: ", p_l2_error)
         print("L2-error in p projected: ", p_proj_l2_error)
@@ -436,6 +529,23 @@ def md_two_fields_approximation(config, write_vtk_q=False):
                 md_produc_space[co_dim],
                 exact_functions[co_dim],
                 alpha,
+            )
+
+            file_name = (
+                prefix
+                + "mesh_size_"
+                + str(config["mesh_size"])
+                + "_md_elliptic_physical_two_fields.vtk"
+            )
+            physical_exact_functions = e_functions.get_exact_functions_by_co_dimension(
+                co_dim, phy_flux_name, phy_potential_name, m_data
+            )
+            write_vtk_file_with_exact_solution(
+                file_name,
+                gmesh,
+                physical_md_produc_space[co_dim],
+                physical_exact_functions,
+                alpha_physical,
             )
             et = time.time()
             elapsed_time = et - st
@@ -534,7 +644,9 @@ def compute_approximations(config):
 
     case_names_by_co_dim = compose_case_name(config)
 
-    n_data = 4
+    n_data = 7
+    normal_conv_idx = np.array([1,2,3,4,7,8,9,10])
+    enhanced_conv_idx = np.array([5,6,11,12])
     for co_dim in [0, 1]:
         case_name = case_names_by_co_dim[co_dim]
         h_data = np.array(h_sizes[:, co_dim])
@@ -563,11 +675,8 @@ def compute_approximations(config):
         raw_data[:, 1::2] = error_data[:, 1 : error_data.shape[1]]
         raw_data[:, 2::2] = rates_data
 
-        normal_conv_data = raw_data[:, 0 : raw_data.shape[1] - 2]
-        enhanced_conv_data = raw_data[
-            :,
-            np.insert(np.arange(raw_data.shape[1] - 2, raw_data.shape[1]), 0, 0),
-        ]
+        normal_conv_data = raw_data[:, normal_conv_idx]
+        enhanced_conv_data = raw_data[:,enhanced_conv_idx]
 
         np.set_printoptions(precision=5)
         print("normal convergence data: ", normal_conv_data)
@@ -593,11 +702,11 @@ def compute_approximations(config):
     if save_plot_rates_q:
         for co_dim in [0, 1]:
             x = np.array(h_sizes[:, co_dim])
-            y = errors_data[:, co_dim]  # u, p, p_proj
+            y = errors_data[:, co_dim]  # v, q, q_proj, u, p, p_proj
             lineObjects = plt.loglog(x, y, marker="o")
             plt.legend(
                 iter(lineObjects),
-                ("u", "p", "p_projected"),
+                ("v", "q", "q_projected", "u", "p", "p_projected"),
             )
             plt.title("Errors on omega with co-dimension: " + str(co_dim))
             plt.xlabel("Element size")
@@ -608,8 +717,9 @@ def compute_approximations(config):
 
 
 def main():
+
     deltas_frac = [1.0e-1, 1.0e-2, 1.0e-3, 1.0e-4, 1.0e-5]
-    deltas_frac = [1.0e-7]
+    deltas_frac = [1.0e-5]
     for delta_frac in deltas_frac:
         config = {}
         # domain and discrete domain data
@@ -640,9 +750,9 @@ def main():
         config["mesh_sizes"] = [
             0.5,
             0.25,
-            0.125,
-            0.0625,
-            0.03125,
+            # 0.125,
+            # 0.0625,
+            # 0.03125,
             # 0.015625,
             # 0.0078125,
             # 0.00390625,
