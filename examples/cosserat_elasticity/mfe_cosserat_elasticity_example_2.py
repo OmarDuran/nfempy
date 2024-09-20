@@ -19,21 +19,55 @@ from weak_forms.lce_dual_weak_form import LCEDualWeakForm, LCEDualWeakFormBCDiri
 from weak_forms.lce_riesz_map_weak_form import LCERieszMapWeakForm
 
 
-def compose_file_name(method, k_order, ref_l, dim, material_data, suffix):
-    prefix = (
-        method[0]
-        + "_lambda_"
-        + str(material_data["lambda"])
-        + "_gamma_"
-        + str(material_data["gamma"])
-        + "_k"
-        + str(k_order)
-        + "_l"
-        + str(ref_l)
-        + "_"
-        + str(dim)
-        + "d"
-    )
+def compose_file_name(method, k_order, dim, material_data, suffix, ref_l=None):
+    if ref_l is None:
+        prefix = (
+            method[0]
+            + "_lambda_s_"
+            + str(material_data["lambda_s"])
+            + "_mu_s_"
+            + str(material_data["mu_s"])
+            + "_kappa_s_"
+            + str(material_data["kappa_s"])
+            + "_lambda_o_"
+            + str(material_data["lambda_o"])
+            + "_mu_p_"
+            + str(material_data["mu_o"])
+            + "_kappa_o_"
+            + str(material_data["kappa_o"])
+            + "_lc_"
+            + str(material_data["l"])
+            + "_k"
+            + str(k_order)
+            + "_"
+            + str(dim)
+            + "d"
+        )
+    else:
+        prefix = (
+            method[0]
+            + "_lambda_s_"
+            + str(material_data["lambda_s"])
+            + "_mu_s_"
+            + str(material_data["mu_s"])
+            + "_kappa_s_"
+            + str(material_data["kappa_s"])
+            + "_lambda_o_"
+            + str(material_data["lambda_o"])
+            + "_mu_p_"
+            + str(material_data["mu_o"])
+            + "_kappa_o_"
+            + str(material_data["kappa_o"])
+            + "_lc_"
+            + str(material_data["l"])
+            + "_k"
+            + str(k_order)
+            + "_l"
+            + str(ref_l)
+            + "_"
+            + str(dim)
+            + "d"
+        )
     file_name = prefix + suffix
     return file_name
 
@@ -331,18 +365,12 @@ def four_field_postprocessing(
     n_dof_g = fe_space.n_dof
 
     # Material data
-    m_lambda = material_data["lambda"]
-    m_mu = material_data["mu"]
-    m_kappa = material_data["kappa"]
-    m_gamma = material_data["gamma"]
-
-    # exact solution
-    u_exact = lce.displacement(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    t_exact = lce.rotation(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    s_exact = lce.stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    m_exact = lce.couple_stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    div_s_exact = lce.stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    div_m_exact = lce.couple_stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    u_exact = lce.displacement(material_data, dim)
+    t_exact = lce.rotation(material_data, dim)
+    s_exact = lce.stress(material_data, dim)
+    m_exact = lce.couple_stress(material_data, dim)
+    div_s_exact = lce.stress_divergence(material_data, dim)
+    div_m_exact = lce.couple_stress_divergence(material_data, dim)
 
     exact_functions = {
         "s": s_exact,
@@ -356,16 +384,13 @@ def four_field_postprocessing(
     if write_vtk_q:
         st = time.time()
 
-        lambda_value = material_data["lambda"]
-        gamma_value = material_data["gamma"]
-
-        prefix = method[0] + "_k" + str(k_order) + "_d" + str(dim)
-        prefix += "_lambda_" + str(lambda_value) + "_gamma_" + str(gamma_value)
-        file_name = prefix + "_four_fields_ex_2.vtk"
+        prefix = compose_file_name(method, k_order, dim, material_data, "")
+        file_name = prefix + "_four_fields_scaled_ex_2.vtk"
 
         write_vtk_file_with_exact_solution(
             file_name, gmesh, fe_space, exact_functions, alpha
         )
+
         et = time.time()
         elapsed_time = et - st
         print("VTK post-processing time:", elapsed_time, "seconds")
@@ -420,18 +445,12 @@ def four_field_solution_norms(material_data, method, gmesh):
     fe_space = create_product_space(method, gmesh)
 
     # Material data
-    m_lambda = material_data["lambda"]
-    m_mu = material_data["mu"]
-    m_kappa = material_data["kappa"]
-    m_gamma = material_data["gamma"]
-
-    # exact solution
-    u_exact = lce.displacement(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    t_exact = lce.rotation(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    s_exact = lce.stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    m_exact = lce.couple_stress(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    div_s_exact = lce.stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim)
-    div_m_exact = lce.couple_stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim)
+    u_exact = lce.displacement(material_data, dim)
+    t_exact = lce.rotation(material_data, dim)
+    s_exact = lce.stress(material_data, dim)
+    m_exact = lce.couple_stress(material_data, dim)
+    div_s_exact = lce.stress_divergence(material_data, dim)
+    div_m_exact = lce.couple_stress_divergence(material_data, dim)
 
     exact_functions = {
         "s": s_exact,
@@ -547,12 +566,12 @@ def perform_convergence_approximations(configuration: dict):
         gmesh = create_mesh(dimension, mesher, write_geometry_vtk)
         alpha, res_history = four_field_approximation(material_data, method, gmesh)
         file_name = compose_file_name(
-            method, k_order, lh, gmesh.dimension, material_data, "_alpha_ex_2.npy"
+            method, k_order, gmesh.dimension, material_data, "_alpha_ex_2.npy", lh
         )
         with open(file_name, "wb") as f:
             np.save(f, alpha)
         file_name_res = compose_file_name(
-            method, k_order, lh, gmesh.dimension, material_data, "_res_history_ex_2.txt"
+            method, k_order, gmesh.dimension, material_data, "_res_history_ex_2.txt", lh
         )
         # First position includes n_dof
         np.savetxt(
@@ -589,7 +608,7 @@ def perform_convergence_postprocessing(configuration: dict):
         h_min, h_mean, h_max = mesh_size(gmesh)
 
         file_name = compose_file_name(
-            method, k_order, lh, gmesh.dimension, material_data, "_alpha_ex_2.npy"
+            method, k_order, gmesh.dimension, material_data, "_alpha_ex_2.npy", lh
         )
         with open(file_name, "rb") as f:
             alpha = np.load(f)
@@ -598,7 +617,7 @@ def perform_convergence_postprocessing(configuration: dict):
         )
 
         file_name_res = compose_file_name(
-            method, k_order, lh, gmesh.dimension, material_data, "_res_history_ex_2.txt"
+            method, k_order, gmesh.dimension, material_data, "_res_history_ex_2.txt", lh
         )
         res_data = np.genfromtxt(file_name_res, dtype=None, delimiter=",")
         n_iterations = res_data.shape[0] - 1  # First position includes n_dof
@@ -631,55 +650,42 @@ def perform_convergence_postprocessing(configuration: dict):
     base_str_header = dual_header
     e_str_header = "n_dof, n_iter, h, " + base_str_header
 
-    lambda_value = material_data["lambda"]
-    gamma_value = material_data["gamma"]
-
-    file_name_prefix = (
-        method[0]
-        + "_lambda_"
-        + str(lambda_value)
-        + "_gamma_"
-        + str(gamma_value)
-        + "_k"
-        + str(k_order)
-        + "_"
-        + str(dimension)
-    )
+    file_name_prefix = compose_file_name(method, k_order, dimension, material_data, "")
     if report_full_precision_data:
         np.savetxt(
-            file_name_prefix + "d_error_ex_2.txt",
+            file_name_prefix + "_error_ex_2.txt",
             error_data,
             delimiter=",",
             header=e_str_header,
         )
         np.savetxt(
-            file_name_prefix + "d_rates_ex_2.txt",
+            file_name_prefix + "_rates_ex_2.txt",
             rates_data,
             delimiter=",",
             header=base_str_header,
         )
         np.savetxt(
-            file_name_prefix + "d_solution_norms_ex_2.txt",
+            file_name_prefix + "_solution_norms_ex_2.txt",
             sol_norms,
             delimiter=",",
             header=base_str_header,
         )
     np.savetxt(
-        file_name_prefix + "d_error_ex_2_rounded.txt",
+        file_name_prefix + "_error_ex_2_rounded.txt",
         error_data,
         fmt="%1.3e",
         delimiter=",",
         header=e_str_header,
     )
     np.savetxt(
-        file_name_prefix + "d_rates_ex_2_rounded.txt",
+        file_name_prefix + "_rates_ex_2_rounded.txt",
         rates_data,
         fmt="%1.3f",
         delimiter=",",
         header=base_str_header,
     )
     np.savetxt(
-        file_name_prefix + "d_solution_norms_ex_2_rounded.txt",
+        file_name_prefix + "_solution_norms_ex_2_rounded.txt",
         sol_norms,
         fmt="%1.10f",
         delimiter=",",
@@ -721,8 +727,8 @@ def method_definition(k_order):
     methods = [method_1, method_2, method_3, method_4]
     method_names = ["sc_rt", "sc_bdm", "wc_rt", "wc_bdm"]
 
-    methods = [method_3]
-    method_names = ["wc_rt"]
+    methods = [method_1]
+    method_names = ["sc_rt"]
     return zip(method_names, methods)
 
 
@@ -763,7 +769,7 @@ def material_data_definition():
 def main():
     approximation_q = True
     postprocessing_q = True
-    refinements = {0: 2, 1: 4}
+    refinements = {0: 4, 1: 4}
     case_data = material_data_definition()
     for k in [0]:
         methods = method_definition(k)

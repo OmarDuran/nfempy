@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def displacement(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
+def displacement(material_data, dim: int = 2):
     if dim == 2:
         return lambda x, y, z: np.array(
             [
@@ -32,7 +32,7 @@ def displacement(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
         )
 
 
-def displacement_gradient(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
+def displacement_gradient(material_data, dim: int = 2):
     if dim == 2:
         return lambda x, y, z: np.array(
             [
@@ -133,7 +133,7 @@ def displacement_gradient(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
         )
 
 
-def rotation(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
+def rotation(material_data, dim: int = 2):
     if dim == 2:
         return lambda x, y, z: np.array(
             [
@@ -150,7 +150,7 @@ def rotation(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
         )
 
 
-def rotation_gradient(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
+def rotation_gradient(material_data, dim: int = 2):
     if dim == 2:
         return lambda x, y, z: np.array(
             [
@@ -183,37 +183,20 @@ def rotation_gradient(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
         )
 
 
-def stress(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
+def stress(material_data, dim: int = 2):
+    m_lambda_s = material_data["lambda_s"]
+    m_mu_s = material_data["mu_s"]
+    m_kappa_s = material_data["kappa_s"]
     if dim == 2:
         return lambda x, y, z: np.array(
             [
                 [
-                    2 * (np.pi**2) * m_mu * np.cos(np.pi * y) * np.sin(2 * np.pi * x),
-                    (
-                        (
-                            -((np.pi**2) * (m_kappa + m_mu))
-                            + (np.pi**2)
-                            * (5 * m_kappa - 3 * m_mu)
-                            * np.cos(2 * np.pi * x)
-                            - 4 * m_kappa * np.sin(np.pi * x)
-                        )
-                        * np.sin(np.pi * y)
-                    )
-                    / 2.0,
+                    2*(np.pi**2)*m_mu_s*np.cos(np.pi*y)*np.sin(2*np.pi*x),
+                    ((-((np.pi**2)*(m_kappa_s + m_mu_s)) + (np.pi**2)*(5*m_kappa_s - 3*m_mu_s)*np.cos(2*np.pi*x) - 4*m_kappa_s*np.sin(np.pi*x))*np.sin(np.pi*y))/2.,
                 ],
                 [
-                    -0.5
-                    * (
-                        (
-                            (np.pi**2) * (-m_kappa + m_mu)
-                            + (np.pi**2)
-                            * (5 * m_kappa + 3 * m_mu)
-                            * np.cos(2 * np.pi * x)
-                            - 4 * m_kappa * np.sin(np.pi * x)
-                        )
-                        * np.sin(np.pi * y)
-                    ),
-                    -2 * (np.pi**2) * m_mu * np.cos(np.pi * y) * np.sin(2 * np.pi * x),
+                    -0.5*(((np.pi**2)*(-m_kappa_s + m_mu_s) + (np.pi**2)*(5*m_kappa_s + 3*m_mu_s)*np.cos(2*np.pi*x) - 4*m_kappa_s*np.sin(np.pi*x))*np.sin(np.pi*y)),
+                    -2*(np.pi**2)*m_mu_s*np.cos(np.pi*y)*np.sin(2*np.pi*x),
                 ],
             ]
         )
@@ -369,13 +352,18 @@ def stress(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
         )
 
 
-def couple_stress(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
+def couple_stress(material_data, dim: int = 2):
+    m_lambda_o = material_data["lambda_o"]
+    m_mu_o = material_data["mu_o"]
+    m_kappa_o = material_data["kappa_o"]
+
+    m_l = material_data["l"]
     if dim == 2:
         return lambda x, y, z: np.array(
             [
                 [
-                    np.pi * m_gamma * np.cos(np.pi * x) * np.sin(np.pi * y),
-                    np.pi * m_gamma * np.cos(np.pi * y) * np.sin(np.pi * x),
+                    m_l*np.pi*(m_kappa_o + m_mu_o)*np.cos(np.pi*x)*np.sin(np.pi*y),
+                    m_l*np.pi*(m_kappa_o + m_mu_o)*np.cos(np.pi*y)*np.sin(np.pi*x),
                 ],
             ]
         )
@@ -443,31 +431,22 @@ def couple_stress(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
         )
 
 
-def rhs(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
+def rhs(material_data, dim: int = 2):
+    m_lambda_s = material_data["lambda_s"]
+    m_mu_s = material_data["mu_s"]
+    m_kappa_s = material_data["kappa_s"]
+
+    m_lambda_o = material_data["lambda_o"]
+    m_mu_o = material_data["mu_o"]
+    m_kappa_o = material_data["kappa_o"]
+
+    m_l = material_data["l"]
     if dim == 2:
         return lambda x, y, z: np.array(
             [
-                (
-                    np.pi
-                    * np.cos(np.pi * y)
-                    * (
-                        -((np.pi**2) * (m_kappa + m_mu))
-                        + 5 * (np.pi**2) * (m_kappa + m_mu) * np.cos(2 * np.pi * x)
-                        - 4 * m_kappa * np.sin(np.pi * x)
-                    )
-                )
-                / 2.0,
-                2
-                * np.pi
-                * np.cos(np.pi * x)
-                * (m_kappa + 5 * (np.pi**2) * (m_kappa + m_mu) * np.sin(np.pi * x))
-                * np.sin(np.pi * y),
-                (
-                    -((np.pi**2) * m_kappa)
-                    + 5 * (np.pi**2) * m_kappa * np.cos(2 * np.pi * x)
-                    - 2 * ((np.pi**2) * m_gamma + 2 * m_kappa) * np.sin(np.pi * x)
-                )
-                * np.sin(np.pi * y),
+                (np.pi*np.cos(np.pi*y)*(-((np.pi**2)*(m_kappa_s + m_mu_s)) + 5*(np.pi**2)*(m_kappa_s + m_mu_s)*np.cos(2*np.pi*x) - 4*m_kappa_s*np.sin(np.pi*x)))/2.,
+                2*np.pi*np.cos(np.pi*x)*(m_kappa_s + 5*(np.pi**2)*(m_kappa_s + m_mu_s)*np.sin(np.pi*x))*np.sin(np.pi*y),
+                (-((np.pi**2)*m_kappa_s) + 5*(np.pi**2)*m_kappa_s*np.cos(2*np.pi*x) - 2*(2*m_kappa_s + m_l*(np.pi**2)*(m_kappa_o + m_mu_o))*np.sin(np.pi*x))*np.sin(np.pi*y),
             ]
         )
     else:
@@ -628,25 +607,20 @@ def rhs(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
         )
 
 
-def stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
+def stress_divergence(material_data, dim: int = 2):
+    m_lambda_s = material_data["lambda_s"]
+    m_mu_s = material_data["mu_s"]
+    m_kappa_s = material_data["kappa_s"]
     if dim == 2:
         return lambda x, y, z: np.array(
             [
-                (
-                    np.pi
-                    * np.cos(np.pi * y)
-                    * (
-                        -((np.pi**2) * (m_kappa + m_mu))
-                        + 5 * (np.pi**2) * (m_kappa + m_mu) * np.cos(2 * np.pi * x)
-                        - 4 * m_kappa * np.sin(np.pi * x)
-                    )
-                )
-                / 2.0,
-                2
-                * np.pi
-                * np.cos(np.pi * x)
-                * (m_kappa + 5 * (np.pi**2) * (m_kappa + m_mu) * np.sin(np.pi * x))
-                * np.sin(np.pi * y),
+                (np.pi * np.cos(np.pi * y) * (
+                            -((np.pi ** 2) * (m_kappa_s + m_mu_s)) + 5 * (np.pi ** 2) * (
+                                m_kappa_s + m_mu_s) * np.cos(
+                        2 * np.pi * x) - 4 * m_kappa_s * np.sin(np.pi * x))) / 2.,
+                2 * np.pi * np.cos(np.pi * x) * (
+                            m_kappa_s + 5 * (np.pi ** 2) * (m_kappa_s + m_mu_s) * np.sin(
+                        np.pi * x)) * np.sin(np.pi * y),
             ]
         )
     else:
@@ -740,11 +714,17 @@ def stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
         )
 
 
-def couple_stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
+def couple_stress_divergence(material_data, dim: int = 2):
+
+    m_lambda_o = material_data["lambda_o"]
+    m_mu_o = material_data["mu_o"]
+    m_kappa_o = material_data["kappa_o"]
+
+    m_l = material_data["l"]
     if dim == 2:
         return lambda x, y, z: np.array(
             [
-                -2 * (np.pi**2) * m_gamma * np.sin(np.pi * x) * np.sin(np.pi * y),
+                -2*m_l*(np.pi**2)*(m_kappa_o + m_mu_o)*np.sin(np.pi*x)*np.sin(np.pi*y),
             ]
         )
     else:
@@ -768,39 +748,66 @@ def couple_stress_divergence(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
             ]
         )
 
+def get_material_functions(material_data, dim: int = 2):
 
-def couple_stress_divergence_scaled(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
+    m_lambda_s = material_data["lambda_s"]
+    m_mu_s = material_data["mu_s"]
+    m_kappa_s = material_data["kappa_s"]
+
+    m_lambda_o = material_data["lambda_o"]
+    m_mu_o = material_data["mu_o"]
+    m_kappa_o = material_data["kappa_o"]
+
+    m_l = material_data["l"]
+
+    def f_lambda_s(x, y, z):
+        return m_lambda_s * np.ones_like(x)
+
+    def f_mu_s(x, y, z):
+        return m_mu_s * np.ones_like(x)
+
+    def f_kappa_s(x, y, z):
+        return m_kappa_s * np.ones_like(x)
+
+    def f_lambda_o(x, y, z):
+        return m_lambda_o * np.ones_like(x)
+
+    def f_mu_o(x, y, z):
+        return m_mu_o * np.ones_like(x)
+
+    def f_kappa_o(x, y, z):
+        return m_kappa_o * np.ones_like(x)
+
+    def f_l(x, y, z):
+        return m_l * np.ones_like(x)
+
     if dim == 2:
-        return lambda x, y, z: np.array(
-            [
-                -2
-                * (np.pi**2)
-                * m_gamma
-                * m_gamma
-                * np.sin(np.pi * x)
-                * np.sin(np.pi * y),
-            ]
-        )
+
+        def f_grad_l(x, y, z):
+            d_l_x = 0.0 * x
+            d_l_y = 0.0 * y
+            return np.array([d_l_x, d_l_y])
+
+    elif dim == 3:
+
+        def f_grad_l(x, y, z):
+            d_l_x = 0.0 * x
+            d_l_y = 0.0 * y
+            d_l_z = 0.0 * z
+            return np.array([d_l_x, d_l_y, d_l_z])
+
     else:
-        return lambda x, y, z: np.array(
-            [
-                2
-                * (-1 + (np.pi**2) * (-1 + x) * x)
-                * m_gamma
-                * m_gamma
-                * np.sin(np.pi * y)
-                * np.sin(np.pi * z),
-                2
-                * (-1 + (np.pi**2) * (-1 + y) * y)
-                * m_gamma
-                * m_gamma
-                * np.sin(np.pi * x)
-                * np.sin(np.pi * z),
-                2
-                * (-1 + (np.pi**2) * (-1 + z) * z)
-                * m_gamma
-                * m_gamma
-                * np.sin(np.pi * x)
-                * np.sin(np.pi * y),
-            ]
-        )
+        raise ValueError("Dimension not implemented: ", dim)
+
+    m_functions = {
+        "lambda_s": f_lambda_s,
+        "mu_s": f_mu_s,
+        "kappa_s": f_kappa_s,
+        "lambda_o": f_lambda_o,
+        "mu_o": f_mu_o,
+        "kappa_o": f_kappa_o,
+        "l": f_l,
+        "grad_l": f_grad_l,
+    }
+
+    return m_functions
