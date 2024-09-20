@@ -726,9 +726,6 @@ def method_definition(k_order):
 
     methods = [method_1, method_2, method_3, method_4]
     method_names = ["sc_rt", "sc_bdm", "wc_rt", "wc_bdm"]
-
-    methods = [method_1]
-    method_names = ["sc_rt"]
     return zip(method_names, methods)
 
 
@@ -762,7 +759,6 @@ def material_data_definition():
         "l": 1.0,
     }
     cases = [case_0, case_1, case_2]
-    cases = [case_2]
     return cases
 
 
@@ -775,7 +771,7 @@ def main():
         methods = method_definition(k)
         for i, method in enumerate(methods):
             for material_data in case_data:
-                for d in [2]:
+                for d in [3]:
                     configuration = {
                         "k_order": k,
                         "dimension": d,
