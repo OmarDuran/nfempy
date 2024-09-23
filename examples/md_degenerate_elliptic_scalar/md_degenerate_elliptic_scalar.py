@@ -765,7 +765,6 @@ def compute_approximations(config):
 def main():
 
     deltas_frac = [1.0e-1, 1.0e-2, 1.0e-3, 1.0e-4, 1.0e-5]
-    deltas_frac = [1.0e-5]
 
     for delta_frac in deltas_frac:
         config = {}
@@ -774,7 +773,7 @@ def main():
         config["min_yc"] = -1.0
         config["max_xc"] = +1.0
         config["max_yc"] = +1.0
-        config["degeneracy_q"] = True
+        config["degeneracy_q"] = False
 
         # Material data
         material_data = {
@@ -797,13 +796,13 @@ def main():
         config["mesh_sizes"] = [
             0.5,
             0.25,
-            # 0.125,
-            # 0.0625,
-            # 0.03125,
-            # 0.015625,
-            # 0.0078125,
-            # 0.00390625,
-            # 0.001953125,
+            0.125,
+            0.0625,
+            0.03125,
+            0.015625,
+            0.0078125,
+            0.00390625,
+            0.001953125,
         ]
 
         # output data
