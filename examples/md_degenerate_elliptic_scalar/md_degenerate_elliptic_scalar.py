@@ -373,7 +373,7 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     eb_c0_ids = [
         id
         for id in all_b_cell_c0_ids
-        # if gmesh.cells[id].material_id != physical_tags["line_clones"]
+        if gmesh.cells[id].material_id != physical_tags["line_clones"]
     ]
     eb_c0_el_idx = [
         md_produc_space[0].discrete_spaces["v"].id_to_bc_element[id] for id in eb_c0_ids
@@ -384,24 +384,24 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     [scatter_bc_form(A, i, bc_weak_form_c1) for i in range(n_bc_els_c1)]
 
     # Interface weak forms
-    # for interface in interfaces:
-    #     c1_data = interface["c1"]
-    #     c1_el_idx = [
-    #         md_produc_space[1].discrete_spaces["v"].id_to_element[cell.id]
-    #         for cell in c1_data[0]
-    #     ]
-    #     c0_pel_idx = [
-    #         md_produc_space[0].discrete_spaces["v"].id_to_bc_element[cell.id]
-    #         for cell in c1_data[1]
-    #     ]
-    #     c0_nel_idx = [
-    #         md_produc_space[0].discrete_spaces["v"].id_to_bc_element[cell.id]
-    #         for cell in c1_data[2]
-    #     ]
-    #     for c1_idx, c0_p_idx, c0_n_idx in zip(c1_el_idx, c0_pel_idx, c0_nel_idx):
-    #         scatter_coupling_form_data(
-    #             A, c1_idx, c0_p_idx, c0_n_idx, int_coupling_weak_form
-    #         )  # positive and negative at once
+    for interface in interfaces:
+        c1_data = interface["c1"]
+        c1_el_idx = [
+            md_produc_space[1].discrete_spaces["v"].id_to_element[cell.id]
+            for cell in c1_data[0]
+        ]
+        c0_pel_idx = [
+            md_produc_space[0].discrete_spaces["v"].id_to_bc_element[cell.id]
+            for cell in c1_data[1]
+        ]
+        c0_nel_idx = [
+            md_produc_space[0].discrete_spaces["v"].id_to_bc_element[cell.id]
+            for cell in c1_data[2]
+        ]
+        for c1_idx, c0_p_idx, c0_n_idx in zip(c1_el_idx, c0_pel_idx, c0_nel_idx):
+            scatter_coupling_form_data(
+                A, c1_idx, c0_p_idx, c0_n_idx, int_coupling_weak_form
+            )  # positive and negative at once
 
     A.assemble()
 
