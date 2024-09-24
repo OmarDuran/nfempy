@@ -691,8 +691,8 @@ def compute_approximations(config):
     case_names_by_co_dim = compose_case_name(config)
 
     n_data = 7
-    normal_conv_idx = np.array([1, 2, 3, 4, 7, 8, 9, 10])
-    enhanced_conv_idx = np.array([5, 6, 11, 12])
+    normal_conv_idx = np.array([0, 1, 2, 3, 4, 7, 8, 9, 10])
+    enhanced_conv_idx = np.array([0, 5, 6, 11, 12])
     for co_dim in [0, 1]:
         case_name = case_names_by_co_dim[co_dim]
         h_data = np.array(h_sizes[:, co_dim])
@@ -728,8 +728,8 @@ def compute_approximations(config):
         print("normal convergence data: ", normal_conv_data)
         print("enhanced convergence data: ", enhanced_conv_data)
 
-        normal_header = "h, u,  rate,   p,  rate"
-        enhanced_header = "h,   proj p, rate"
+        normal_header = "h, v,  rate,   q,  rate, u, rate, p, rate "
+        enhanced_header = "h,   proj q, rate, proj p, rate"
         np.savetxt(
             case_name + "normal_conv_data.txt",
             normal_conv_data,
