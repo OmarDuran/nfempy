@@ -143,6 +143,9 @@ def phi_dysdy2(
     )
     return vals
 
+def x_mask(x):
+    mask = np.logical_or(x < 0.0 , np.isclose(x,0.0))
+    return mask
 
 def f_porosity(x, y, z, m_data, co_dim):
     m_rho_1 = m_data["rho_1"]
@@ -150,14 +153,15 @@ def f_porosity(x, y, z, m_data, co_dim):
     if co_dim == 0:
         val = np.array(x**2) * phi_ys(x, y, z, m_data)
     elif co_dim == 1:
-        val = np.array(x**2)
+        mask = x_mask(x)
+        val = np.zeros_like(x)
+        val[~mask] = np.array(x[~mask]**2)
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")
     return val
 
 
 def f_grad_porosity(x, y, z, m_data, co_dim):
-    m_rho_2 = m_data["rho_2"]
     if co_dim == 0:
         val = np.array(
             [
@@ -202,20 +206,23 @@ def f_grad_d_phi(x, y, z, m_data, co_dim):
     m_mu = m_data["mu"]
     if co_dim == 0:
         m_kappa_c0 = m_data["kappa_c0"]
-        scalar_part = (
+        mask = x_mask(x)
+        scalar_part = np.zeros_like(x)
+        scalar_part[~mask] = (
             m_kappa_c0
-            * f_porosity(x, y, z, m_data, co_dim)
-            / (m_mu * f_d_phi(x, y, z, m_data, co_dim))
+            * f_porosity(x[~mask], y[~mask], z[~mask], m_data, co_dim)
+            / (m_mu * f_d_phi(x[~mask], y[~mask], z[~mask], m_data, co_dim))
         )
         vector_part = f_grad_porosity(x, y, z, m_data, co_dim)
     elif co_dim == 1:
         m_kappa_c1 = m_data["kappa_c1"]
         m_delta = m_data["delta"]
-        scalar_part = (
-            m_delta
-            * m_kappa_c1
-            * f_porosity(x, y, z, m_data, co_dim)
-            / (m_mu * f_d_phi(x, y, z, m_data, co_dim))
+        mask = x_mask(x)
+        scalar_part = np.zeros_like(x)
+        scalar_part[~mask] = (
+            m_kappa_c1
+            * f_porosity(x[~mask], y[~mask], z[~mask], m_data, co_dim)
+            / (m_mu * f_d_phi(x[~mask], y[~mask], z[~mask], m_data, co_dim))
         )
         vector_part = f_grad_porosity(x, y, z, m_data, co_dim)
     else:
@@ -225,18 +232,10 @@ def f_grad_d_phi(x, y, z, m_data, co_dim):
 
 # The construction stem from:
 # The pressure in the fracture;
-def x_mask(x):
-    mask = np.logical_or(x < 0.0 , np.isclose(x,0.0))
-    return mask
-
 def pf(x, y, z, m_data):
-    # bubble = 0.5 * (np.ones_like(x) - x) * 0.5 * (np.ones_like(x) + x)
-    # return bubble - (x**2) * np.sin(2.0 * np.pi * x)
     beta = 0.5
     mask = x_mask(x)
-    val = np.empty_like([x * 0.0])
-    val[:, mask] = np.zeros_like([x[mask] * 0.0])
-    # val[:, ~mask] = (np.pi * np.ones_like(x[~mask]))
+    val = np.zeros_like([x])
     val[:, ~mask] = (
         np.array(
             [
@@ -256,16 +255,9 @@ def pf(x, y, z, m_data):
 
 # The pressure gradient;
 def dpfdx(x, y, z, m_data):
-    # term_1 = 0.25 * (-np.ones_like(x) - x) + 0.25 * (np.ones_like(x) - x)
-    # term_2 = -2.0 * np.pi * (x**2) * np.cos(2.0 * np.pi * x)
-    # term_3 = -2.0 * x * np.sin(2.0 * np.pi * x)
-    # return term_1 + term_2 + term_3
     beta = 0.5
-
     mask = x_mask(x)
-    val = np.empty_like([x * 0.0])
-    val[:, mask] = np.zeros_like([x[mask] * 0.0])
-    # val[:, ~mask] = (np.pi * np.ones_like(x[~mask]))
+    val = np.zeros_like([x * 0.0])
     val[:, ~mask] = (
         np.array(
             [
@@ -278,25 +270,12 @@ def dpfdx(x, y, z, m_data):
         ),
     )
     return val[0]
-    # return np.where(
-    #     x < 0.0,
-    #     np.array([x * 0.0]),
-    #     np.array(
-    #         [
-    #             (((x ** (np.sqrt(13) / 2.0)) - (x ** (1.5 + beta))) * beta) / (
-    #                     (x ** 2.5) * (-1 + beta * (3 + beta))),
-    #         ]
-    #     ),
-    # )
-
 
 # The pressure laplacian.
 def dpfdx2(x, y, z, m_data):
     beta = 0.5
     mask = x_mask(x)
-    val = np.empty_like([x * 0.0])
-    val[:, mask] = np.zeros_like([x[mask] * 0.0])
-    # val[:, ~mask] = (np.pi * np.ones_like(x[~mask]))
+    val = np.zeros_like([x * 0.0])
     val[:, ~mask] = (
         np.array(
             [
@@ -311,7 +290,6 @@ def dpfdx2(x, y, z, m_data):
             ]
         ),
     )
-
     return val[0]
 
 
@@ -369,6 +347,7 @@ def v_exact(x, y, z, m_data, co_dim):
 
 
 def f_rhs(x, y, z, m_data, co_dim):
+    mask = x_mask(x)
     if co_dim == 0:
         term_1 = -(f_d_phi(x, y, z, m_data, co_dim) ** 2) * (
             2.0
@@ -403,7 +382,7 @@ def f_rhs(x, y, z, m_data, co_dim):
         val = div_u + f_porosity(x, y, z, m_data, co_dim) * p_exact(
             x, y, z, m_data, co_dim
         )
-        val *= 1.0 / np.sqrt(f_porosity(x, y, z, m_data, co_dim))
+        val[:, ~mask] *= 1.0 / np.sqrt(f_porosity(x[~mask], y[~mask], z[~mask], m_data, co_dim))
     elif co_dim == 1:
         term_1 = (
             -2.0
@@ -416,12 +395,12 @@ def f_rhs(x, y, z, m_data, co_dim):
         val = div_u + f_porosity(x, y, z, m_data, co_dim) * p_exact(
             x, y, z, m_data, co_dim
         )
-        val *= 1.0 / np.sqrt(f_porosity(x, y, z, m_data, co_dim))
-        n_p = np.array([0.0, -1.0])
-        n_n = np.array([0.0, 1.0])
-        un_p = u_exact(x, (+1.0e-13) * np.ones_like(y), z, m_data, co_dim=0)[0].T @ n_p
-        un_n = u_exact(x, (-1.0e-13) * np.ones_like(y), z, m_data, co_dim=0)[0].T @ n_n
-        val += np.array([un_p + un_n]) / np.sqrt(f_porosity(x, y, z, m_data, co_dim))
+        val[:, ~mask] *= 1.0 / np.sqrt(f_porosity(x[~mask], y[~mask], z[~mask], m_data, co_dim))
+        # n_p = np.array([0.0, -1.0])
+        # n_n = np.array([0.0, 1.0])
+        # un_p = u_exact(x[~mask], (+1.0e-13) * np.ones_like(y[~mask]), z[~mask], m_data, co_dim=0)[0].T @ n_p
+        # un_n = u_exact(x[~mask], (-1.0e-13) * np.ones_like(y[~mask]), z[~mask], m_data, co_dim=0)[0].T @ n_n
+        # val[:, ~mask] += np.array([un_p + un_n]) / np.sqrt(f_porosity(x[~mask], y[~mask], z[~mask], m_data, co_dim))
 
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")
