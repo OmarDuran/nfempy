@@ -756,14 +756,14 @@ def render_figures_example_2(d=2):
     )
     painter.save_figure()
 
-    # k = 1
-    # painter.file_name = "convergence_k1_example_2_" + str(d) + "d.pdf"
-    # painter.color_canvas_with_variable_lambda(k, d, methods, material_values, conv_type)
-    # rate = k + 1
-    # painter.build_inset_var_lambda(
-    #     k, d, methods[0], material_values[0], conv_type, rate, 0.0, -0.2
-    # )
-    # painter.save_figure()
+    k = 1
+    painter.file_name = "convergence_k1_example_2_" + str(d) + "d.pdf"
+    painter.color_canvas_with_parameter_name(k, d, methods, parameter_name, material_values, conv_type)
+    rate = k + 1
+    painter.build_inset_with_parameter_name(
+        k, d, methods[0], parameter_name, material_values[0], conv_type, rate, 0.0, -0.2
+    )
+    painter.save_figure()
 
     painter.ordinate_range = (0.00005, 50)
     conv_type = "super"
@@ -777,14 +777,14 @@ def render_figures_example_2(d=2):
     )
     painter.save_figure()
 
-    # k = 1
-    # painter.file_name = "superconvergence_k1_example_2_" + str(d) + "d.pdf"
-    # painter.color_canvas_with_variable_lambda(k, d, methods, material_values, conv_type)
-    # rate = k + 2
-    # painter.build_inset_var_lambda(
-    #     k, d, methods[0], material_values[0], conv_type, rate, 0.0, -0.2
-    # )
-    # painter.save_figure()
+    k = 1
+    painter.file_name = "superconvergence_k1_example_2_" + str(d) + "d.pdf"
+    painter.color_canvas_with_parameter_name(k, d, methods, parameter_name, material_values, conv_type)
+    rate = k + 2
+    painter.build_inset_with_parameter_name(
+        k, d, methods[0], parameter_name, material_values[0], conv_type, rate, 0.0, -0.2
+    )
+    painter.save_figure()
 
 
 def render_figures_example_3(d=2):
@@ -819,6 +819,6 @@ def render_figures_example_3(d=2):
 
 # Only figure range is adjusted for 3d.
 dim = 3
-# render_figures_example_1(d=dim)
+render_figures_example_1(d=dim)
 render_figures_example_2(d=dim)
-# render_figures_example_3(d=dim)
+render_figures_example_3(d=dim)
