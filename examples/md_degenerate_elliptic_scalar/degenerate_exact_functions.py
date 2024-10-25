@@ -148,12 +148,11 @@ def x_mask(x):
     return mask
 
 def f_porosity(x, y, z, m_data, co_dim):
-    m_rho_1 = m_data["rho_1"]
-    m_rho_2 = m_data["rho_2"]
+    mask = x_mask(x)
     if co_dim == 0:
-        val = np.array(x**2) * phi_ys(x, y, z, m_data)
+        val = np.zeros_like(x)
+        val[~mask] = np.array(x[~mask]**2) * phi_ys(x[~mask], y[~mask], z[~mask], m_data)
     elif co_dim == 1:
-        mask = x_mask(x)
         val = np.zeros_like(x)
         val[~mask] = np.array(x[~mask]**2)
     else:
@@ -162,16 +161,19 @@ def f_porosity(x, y, z, m_data, co_dim):
 
 
 def f_grad_porosity(x, y, z, m_data, co_dim):
+    mask = x_mask(x)
     if co_dim == 0:
-        val = np.array(
+        val = np.zeros_like([x,y,z])
+        val[:,~mask] = np.array(
             [
-                2.0 * x * phi_ys(x, y, z, m_data),
-                f_porosity(x, y, z, m_data, co_dim=1) * phi_dysdy(x, y, z, m_data),
-                z * 0.0,
+                2.0 * x[~mask] * phi_ys(x[~mask], y[~mask], z[~mask], m_data),
+                f_porosity(x[~mask], y[~mask], z[~mask], m_data, co_dim=1) * phi_dysdy(x[~mask], y[~mask], z[~mask], m_data),
+                z[~mask] * 0.0,
             ]
         )
     elif co_dim == 1:
-        val = np.array([2 * x, y * 0.0, z * 0.0])
+        val = np.zeros_like([x,y,z])
+        val[:,~mask] = np.array([2 * x[~mask], y[~mask] * 0.0, z[~mask] * 0.0])
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")
     return val
@@ -220,7 +222,8 @@ def f_grad_d_phi(x, y, z, m_data, co_dim):
         mask = x_mask(x)
         scalar_part = np.zeros_like(x)
         scalar_part[~mask] = (
-            m_kappa_c1
+            m_delta
+            * m_kappa_c1
             * f_porosity(x[~mask], y[~mask], z[~mask], m_data, co_dim)
             / (m_mu * f_d_phi(x[~mask], y[~mask], z[~mask], m_data, co_dim))
         )
@@ -396,11 +399,11 @@ def f_rhs(x, y, z, m_data, co_dim):
             x, y, z, m_data, co_dim
         )
         val[:, ~mask] *= 1.0 / np.sqrt(f_porosity(x[~mask], y[~mask], z[~mask], m_data, co_dim))
-        # n_p = np.array([0.0, -1.0])
-        # n_n = np.array([0.0, 1.0])
-        # un_p = u_exact(x[~mask], (+1.0e-13) * np.ones_like(y[~mask]), z[~mask], m_data, co_dim=0)[0].T @ n_p
-        # un_n = u_exact(x[~mask], (-1.0e-13) * np.ones_like(y[~mask]), z[~mask], m_data, co_dim=0)[0].T @ n_n
-        # val[:, ~mask] += np.array([un_p + un_n]) / np.sqrt(f_porosity(x[~mask], y[~mask], z[~mask], m_data, co_dim))
+        n_p = np.array([0.0, -1.0])
+        n_n = np.array([0.0, +1.0])
+        un_p = u_exact(x[~mask], (+1.0e-13) * np.ones_like(y[~mask]), z[~mask], m_data, co_dim=0)[0].T @ n_p
+        un_n = u_exact(x[~mask], (-1.0e-13) * np.ones_like(y[~mask]), z[~mask], m_data, co_dim=0)[0].T @ n_n
+        val[:, ~mask] += np.array([un_p + un_n]) / np.sqrt(f_porosity(x[~mask], y[~mask], z[~mask], m_data, co_dim))
 
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")

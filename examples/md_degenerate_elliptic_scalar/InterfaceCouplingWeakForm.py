@@ -146,7 +146,7 @@ class InterfaceCouplingWeakForm(WeakForm):
                 q_h_c1 = alpha_q @ dq_h
 
                 # Robin coupling
-                if porosity_v > 0.0:
+                if not np.isclose(porosity_v, 0.0) and porosity_v > 0.0:
                     equ_1_integrand = (
                         (phi_scale * d_phi_v / alpha_v) * v_h_p
                         + (d_phi_v / phi_scale) * q_h_c1
@@ -161,11 +161,18 @@ class InterfaceCouplingWeakForm(WeakForm):
                         v_h_p @ dq_h.T + v_h_n @ dq_h.T
                     )
                 else:
-                    equ_1_integrand = ( d_phi_v * q_h_c1) @ dv_h_p.T
-                    equ_2_integrand = ( d_phi_v * q_h_c1) @ dv_h_n.T
+                    equ_1_integrand = (
+                                              (phi_scale * d_phi_v) * v_h_p
+                                              + (d_phi_v) * q_h_c1
+                                      ) @ dv_h_p.T
+                    equ_2_integrand = (
+                                              (phi_scale * d_phi_v) * v_h_n
+                                              + (d_phi_v) * q_h_c1
+                                      ) @ dv_h_n.T
+
                     # Robin coupling is a self-adjoint operator of c1 mass conservation
-                    equ_3_integrand = d_phi_v * (
-                        v_h_p @ dq_h.T + v_h_n @ dq_h.T
+                    equ_3_integrand = (d_phi_v) * (
+                            v_h_p @ dq_h.T + v_h_n @ dq_h.T
                     )
 
 

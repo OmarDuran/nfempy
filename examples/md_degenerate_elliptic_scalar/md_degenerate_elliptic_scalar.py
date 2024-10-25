@@ -170,6 +170,10 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     physical_tags["line_clones"] = 50
     physical_tags["point_clones"] = 100
     interfaces = cut_conformity_along_c1_lines(lines, physical_tags, gmesh, False)
+
+    # shift mesh to the right
+    gmesh.points[:,0] += 1.25
+
     gmesh.write_vtk()
 
     # scaled product space
@@ -373,7 +377,7 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     eb_c0_ids = [
         id
         for id in all_b_cell_c0_ids
-        if gmesh.cells[id].material_id != physical_tags["line_clones"]
+        # if gmesh.cells[id].material_id != physical_tags["line_clones"]
     ]
     eb_c0_el_idx = [
         md_produc_space[0].discrete_spaces["v"].id_to_bc_element[id] for id in eb_c0_ids
@@ -398,10 +402,10 @@ def md_two_fields_approximation(config, write_vtk_q=False):
             md_produc_space[0].discrete_spaces["v"].id_to_bc_element[cell.id]
             for cell in c1_data[2]
         ]
-        for c1_idx, c0_p_idx, c0_n_idx in zip(c1_el_idx, c0_pel_idx, c0_nel_idx):
-            scatter_coupling_form_data(
-                A, c1_idx, c0_p_idx, c0_n_idx, int_coupling_weak_form
-            )  # positive and negative at once
+        # for c1_idx, c0_p_idx, c0_n_idx in zip(c1_el_idx, c0_pel_idx, c0_nel_idx):
+        #     scatter_coupling_form_data(
+        #         A, c1_idx, c0_p_idx, c0_n_idx, int_coupling_weak_form
+        #     )  # positive and negative at once
 
     A.assemble()
 
@@ -765,7 +769,7 @@ def compute_approximations(config):
 def main():
 
     deltas_frac = [1.0e-1, 1.0e-2, 1.0e-3, 1.0e-4, 1.0e-5]
-
+    deltas_frac = [1.0e-5]
     for delta_frac in deltas_frac:
         config = {}
         # domain and discrete domain data
@@ -797,10 +801,10 @@ def main():
             0.5,
             0.25,
             0.125,
-            0.0625,
-            0.03125,
-            0.015625,
-            0.0078125,
+            # 0.0625,
+            # 0.03125,
+            # 0.015625,
+            # 0.0078125,
         ]
 
         # output data
