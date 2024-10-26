@@ -144,10 +144,7 @@ class LaplaceDualWeakFormBCDirichlet(WeakForm):
             dim = neigh_cell.dimension
             for i, omega in enumerate(weights):
                 p_D_v = p_D(x[i, 0], x[i, 1], x[i, 2])
-                if cell.dimension == 0:
-                    phi = q_tr_phi_tab[0, i, dof_n_index, 0:dim] @ np.array([1.0])
-                else:
-                    phi = q_tr_phi_tab[0, i, dof_n_index, 0:dim] @ n[0:dim]
+                phi = q_tr_phi_tab[0, i, dof_n_index, 0:dim] @ n[0:dim]
                 res_block_q += det_jac[i] * omega * p_D_v[c] * phi
 
             r_el[b:e:u_components] += res_block_q
