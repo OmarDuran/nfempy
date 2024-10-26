@@ -262,6 +262,7 @@ def f_rhs(x, y, z, m_par, dim):
         raise ValueError("Only 1D and 2D settings are supported by this script.")
     return val
 
+
 def grad_p_exact(x, y, z, m_par, dim):
     if dim == 1:
         beta = m_par
@@ -270,13 +271,14 @@ def grad_p_exact(x, y, z, m_par, dim):
             np.array([x * 0.0]),
             np.array(
                 [
-                    (((x ** (np.sqrt(13) / 2.0)) - (x ** (1.5 + beta))) * beta) / (
-                            (x ** 2.5) * (-1 + beta * (3 + beta))),
+                    (((x ** (np.sqrt(13) / 2.0)) - (x ** (1.5 + beta))) * beta)
+                    / ((x**2.5) * (-1 + beta * (3 + beta))),
                 ]
             ),
         )
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")
+
 
 def laplacian_p_exact(x, y, z, m_par, dim):
     if dim == 1:
@@ -286,12 +288,20 @@ def laplacian_p_exact(x, y, z, m_par, dim):
             np.array([x * 0.0]),
             np.array(
                 [
-                    (((-5 + np.sqrt(13))*(x**(np.sqrt(13)/2.0)) - 2*(x**(1.5 + beta))*(-1 + beta))*beta)/ (2.*(x**3.5)*(-1 + beta*(3 + beta))),
+                    (
+                        (
+                            (-5 + np.sqrt(13)) * (x ** (np.sqrt(13) / 2.0))
+                            - 2 * (x ** (1.5 + beta)) * (-1 + beta)
+                        )
+                        * beta
+                    )
+                    / (2.0 * (x**3.5) * (-1 + beta * (3 + beta))),
                 ]
             ),
         )
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")
+
 
 def test_degeneracy(m_par, m_mu, dim):
     x = np.random.uniform(-1.0, +1.0, (10, 3))

@@ -590,7 +590,7 @@ def compute_approximations(config):
 
 
 def main():
-    
+
     deltas_frac = [1.0e-1, 1.0e-2, 1.0e-3, 1.0e-4, 1.0e-5]
     for delta_frac in deltas_frac:
         config = {}

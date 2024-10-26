@@ -172,7 +172,7 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     interfaces = cut_conformity_along_c1_lines(lines, physical_tags, gmesh, False)
 
     # shift mesh to the right
-    gmesh.points[:,0] += 0.0
+    gmesh.points[:, 0] += 1.25
 
     gmesh.write_vtk()
 
@@ -377,7 +377,7 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     eb_c0_ids = [
         id
         for id in all_b_cell_c0_ids
-        # if gmesh.cells[id].material_id != physical_tags["line_clones"]
+        if gmesh.cells[id].material_id != physical_tags["line_clones"]
     ]
     eb_c0_el_idx = [
         md_produc_space[0].discrete_spaces["v"].id_to_bc_element[id] for id in eb_c0_ids
@@ -402,10 +402,10 @@ def md_two_fields_approximation(config, write_vtk_q=False):
             md_produc_space[0].discrete_spaces["v"].id_to_bc_element[cell.id]
             for cell in c1_data[2]
         ]
-        # for c1_idx, c0_p_idx, c0_n_idx in zip(c1_el_idx, c0_pel_idx, c0_nel_idx):
-        #     scatter_coupling_form_data(
-        #         A, c1_idx, c0_p_idx, c0_n_idx, int_coupling_weak_form
-        #     )  # positive and negative at once
+        for c1_idx, c0_p_idx, c0_n_idx in zip(c1_el_idx, c0_pel_idx, c0_nel_idx):
+            scatter_coupling_form_data(
+                A, c1_idx, c0_p_idx, c0_n_idx, int_coupling_weak_form
+            )  # positive and negative at once
 
     A.assemble()
 
@@ -535,7 +535,9 @@ def md_two_fields_approximation(config, write_vtk_q=False):
         n_dof = physical_md_produc_space[co_dim].n_dof
         # compute projection on co-dimension co_dim
         alpha_proj = l2_projector(
-            physical_md_produc_space[co_dim], physical_exact_functions[co_dim], -dof_shift
+            physical_md_produc_space[co_dim],
+            physical_exact_functions[co_dim],
+            -dof_shift,
         )
         alpha_e = alpha_physical[0 + dof_shift : n_dof + dof_shift : 1] - alpha_proj
         # compute l2_error of projected exact solution on co-dimension co_dim
@@ -777,7 +779,7 @@ def main():
         config["min_yc"] = -1.0
         config["max_xc"] = +1.0
         config["max_yc"] = +1.0
-        config["degeneracy_q"] = False
+        config["degeneracy_q"] = True
 
         # Material data
         material_data = {

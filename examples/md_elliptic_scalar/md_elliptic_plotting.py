@@ -76,6 +76,7 @@ pyvista.global_theme.colorbar_orientation = "horizontal"
 #     # plotter.show()
 #     return plotter
 
+
 def paint_on_canvas_plane():
     file_name_geo = "geometric_mesh_2d.vtk"
     file_name = "mixed_rt_c_0_material_parameters_1.0_1.0_1.0_99999.99999999999_1.0_1e-05_mesh_size_0.00390625_md_elliptic_two_fields.vtk"
@@ -103,7 +104,6 @@ def paint_on_canvas_plane():
     )
     p_h_data = hdiv_solution.point_data["p_h"]
 
-
     plotter.add_mesh(
         hdiv_solution,
         scalars=p_h_data,
@@ -130,7 +130,6 @@ def paint_on_canvas_plane():
     )
     p_h_data = hdiv_solution.point_data["p_e"]
 
-
     plotter.add_mesh(
         hdiv_solution,
         scalars=p_h_data,
@@ -143,11 +142,11 @@ def paint_on_canvas_plane():
     # plotter.show()
     return plotter
 
+
 k_order = 0
 source_folder_name = "output"
 figure_folder_name = "vincent_figures"
 figure_format = "pdf"
-
 
 
 def plot_over_line(figure_file_name):
@@ -182,7 +181,7 @@ def plot_over_line(figure_file_name):
     plt.legend(iter(lineObjects), (r"$|| \mathbf{u}_e ||$", r"$|| \mathbf{u}_h ||$"))
     plt.title("")
     plt.xlabel("Length")
-    #plt.ylabel("potential")
+    # plt.ylabel("potential")
     plt.ylabel("Flux")
     # plt.show()
 
@@ -199,9 +198,9 @@ if not os.path.exists(folder_name):
 
 canvas = paint_on_canvas_plane()
 # canvas.save_graphic("vincent_figures/uh_magnitude.eps")
-#canvas.save_graphic("vincent_figures/uh_magnitude.pdf")
+# canvas.save_graphic("vincent_figures/uh_magnitude.pdf")
 canvas.save_graphic("vincent_figures/ph_magnitude.pdf")
 
 
 plot_over_line("vincent_figures/plot_over_line_u.pdf")
-#plot_over_line("vincent_figures/plot_over_line_p.pdf")
+# plot_over_line("vincent_figures/plot_over_line_p.pdf")

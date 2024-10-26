@@ -82,6 +82,7 @@ def paint_on_canvas_plane():
     # plotter.show()
     return plotter
 
+
 # def paint_on_canvas_plane():
 #     file_name_geo = "geometric_mesh_2d.vtk"
 #     file_name = "mixed_rt_c_0_material_parameters_0.1_0.02_1.0_99999.99999999999_1.0_1.0_1e-05_1.0_1.0_1.0_mesh_size_0.0078125_md_elliptic_physical_two_fields.vtk"
@@ -160,7 +161,6 @@ figure_folder_name = "md_degenerate_figures"
 figure_format = "pdf"
 
 
-
 def plot_over_line(figure_file_name):
     # Make two points to construct the line between
     a = [-1.0, 0.0, 0.0]
@@ -178,7 +178,7 @@ def plot_over_line(figure_file_name):
     # u_h_norm = np.array([np.linalg.norm(u_h) for u_h in sampled.point_data["u_h"]])
     # u_e_norm = np.array([np.linalg.norm(u_e) for u_e in sampled.point_data["u_e"]])
 
-    #scaled parameters
+    # scaled parameters
     # q_h_vals = sampled.point_data["q_h"]
     # q_e_vals = sampled.point_data["q_e"]
     v_h_norm = np.array([np.linalg.norm(v_h) for v_h in sampled.point_data["v_h"]])
@@ -192,7 +192,7 @@ def plot_over_line(figure_file_name):
     # u_data = np.vstack((u_e_norm, u_h_norm)).T
     # lineObjects = plt.plot(x, u_data)
 
-    #scaled data
+    # scaled data
     # q_e = q_e_vals
     # q_data = np.vstack((q_e_vals, q_h_vals)).T
     # lineObjects = plt.plot(x, q_data)
@@ -232,6 +232,6 @@ canvas.save_graphic("md_degenerate_figures/uh_ue_1e-5_magnitude.pdf")
 
 
 # plot_over_line("md_degenerate_figures/plot_over_line_u_1e-5.pdf")
-#plot_over_line("md_degenerate_figures/plot_over_line_p_1e-5.pdf")
+# plot_over_line("md_degenerate_figures/plot_over_line_p_1e-5.pdf")
 # plot_over_line("md_degenerate_figures/plot_over_line_v_1e-5.pdf")
 # plot_over_line("md_degenerate_figures/plot_over_line_q_1e-5.pdf")

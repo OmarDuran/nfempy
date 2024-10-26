@@ -146,13 +146,13 @@ def two_dimnesional_plots(
         # for dimension in dimensions:
         #     if dimension == 1 and method[0] == "mixed_bdm":
         #         continue
-            # fitted_domain = create_domain(dimension, make_fitted_q=True)
-            # unfitted_domain = create_domain(dimension, make_fitted_q=False)
-            # domains = {"fitted": fitted_domain, "unfitted": unfitted_domain}
+        # fitted_domain = create_domain(dimension, make_fitted_q=True)
+        # unfitted_domain = create_domain(dimension, make_fitted_q=False)
+        # domains = {"fitted": fitted_domain, "unfitted": unfitted_domain}
         materials = material_data["m_data"]
         case_names_by_co_dim = compose_case_name(config)
         for co_dim in [0, 1]:
-            if co_dim [0] not in filters["domain_type"]:
+            if co_dim[0] not in filters["domain_type"]:
                 continue
             for material in materials:
                 if material["m_data"] not in filters["parameter"]:
@@ -171,9 +171,7 @@ def two_dimnesional_plots(
                 figure_case_name = compose_case_name(
                     method, co_dim, material, figure_folder_name
                 )
-                figure_suffix = (
-                    filters["scalar_name"] + "_magnitude." + figure_format
-                )
+                figure_suffix = filters["scalar_name"] + "_magnitude." + figure_format
                 figure_name = figure_case_name + figure_suffix
                 canvas.save_graphic(figure_name)
 
@@ -229,6 +227,7 @@ def one_dimnesional_plots(
                         title_string,
                         figure_name,
                     )
+
 
 max_dim = 2
 k_order = 0

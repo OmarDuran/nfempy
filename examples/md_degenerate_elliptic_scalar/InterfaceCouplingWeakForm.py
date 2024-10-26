@@ -9,7 +9,6 @@ from weak_forms.weak_from import WeakForm
 
 
 class InterfaceCouplingWeakForm(WeakForm):
-
     def evaluate_form(self, index_c1, index_c0_p, index_c0_n, alpha):
         iel_c1, iel_c0p, iel_c0n = index_c1, index_c0_p, index_c0_n
 
@@ -74,12 +73,20 @@ class InterfaceCouplingWeakForm(WeakForm):
             map_data = (x, weights, det_jac)
             return dphi_tr_phi_tab, dphi_dof_n_index, n, p_phi_tab, map_data
 
-        dv_tr_phi_tab_p, dv_dof_n_index_p, n_p, q_phi_tab_p, map_data_p = (
-            compute_trace_space((iel_c0p, iel_c1), ("v", "q"), self.space)
-        )
-        dv_tr_phi_tab_n, dv_dof_n_index_n, n_n, q_phi_tab_n, map_data_n = (
-            compute_trace_space((iel_c0n, iel_c1), ("v", "q"), self.space)
-        )
+        (
+            dv_tr_phi_tab_p,
+            dv_dof_n_index_p,
+            n_p,
+            q_phi_tab_p,
+            map_data_p,
+        ) = compute_trace_space((iel_c0p, iel_c1), ("v", "q"), self.space)
+        (
+            dv_tr_phi_tab_n,
+            dv_dof_n_index_n,
+            n_n,
+            q_phi_tab_n,
+            map_data_n,
+        ) = compute_trace_space((iel_c0n, iel_c1), ("v", "q"), self.space)
         assert np.all(np.isclose(q_phi_tab_p, q_phi_tab_n))
         assert np.all(np.isclose(map_data_p[0], map_data_n[0]))
         assert np.all(np.isclose(map_data_p[1], map_data_n[1]))
@@ -162,19 +169,14 @@ class InterfaceCouplingWeakForm(WeakForm):
                     )
                 else:
                     equ_1_integrand = (
-                                              (phi_scale * d_phi_v) * v_h_p
-                                              + (d_phi_v) * q_h_c1
-                                      ) @ dv_h_p.T
+                        (phi_scale * d_phi_v) * v_h_p + (d_phi_v) * q_h_c1
+                    ) @ dv_h_p.T
                     equ_2_integrand = (
-                                              (phi_scale * d_phi_v) * v_h_n
-                                              + (d_phi_v) * q_h_c1
-                                      ) @ dv_h_n.T
+                        (phi_scale * d_phi_v) * v_h_n + (d_phi_v) * q_h_c1
+                    ) @ dv_h_n.T
 
                     # Robin coupling is a self-adjoint operator of c1 mass conservation
-                    equ_3_integrand = (d_phi_v) * (
-                            v_h_p @ dq_h.T + v_h_n @ dq_h.T
-                    )
-
+                    equ_3_integrand = (d_phi_v) * (v_h_p @ dq_h.T + v_h_n @ dq_h.T)
 
                 multiphysic_integrand = np.zeros((1, n_dof))
                 multiphysic_integrand[:, idx_dof["v_p"]] = equ_1_integrand
