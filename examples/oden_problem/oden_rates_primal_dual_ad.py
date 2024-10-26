@@ -248,6 +248,9 @@ def h1_model_problem(k_order, gmesh, write_vtk_q=False):
 def hdiv_model_problem(k_order, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
 
+    # shift mesh to the right
+    gmesh.points[:,0] += 0.5
+
     # FESpace: data
     q_k_order = k_order + 1
     u_k_order = k_order
@@ -491,7 +494,7 @@ def hdiv_model_problem(k_order, gmesh, write_vtk_q=False):
 
 def create_domain(dimension):
     if dimension == 1:
-        box_points = np.array([[0, 0, 0], [1, 0, 0]])
+        box_points = np.array([[1, 0, 0], [0, 0, 0]])
         domain = build_box_1D(box_points)
         return domain
     elif dimension == 2:

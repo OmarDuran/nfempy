@@ -196,6 +196,8 @@ class DegenerateEllipticWeakFormBCDirichlet(WeakForm):
 
         # compute normal
         n = normal(mp_data.mesh, neigh_cell, cell)
+        if dim == 0:
+            aka = 0
         for c in range(mp_components):
             b = c
             e = b + n_mp_dof

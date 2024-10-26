@@ -172,7 +172,7 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     interfaces = cut_conformity_along_c1_lines(lines, physical_tags, gmesh, False)
 
     # shift mesh to the right
-    gmesh.points[:,0] += 1.25
+    gmesh.points[:,0] += 0.0
 
     gmesh.write_vtk()
 
@@ -801,7 +801,7 @@ def main():
             0.5,
             0.25,
             0.125,
-            # 0.0625,
+            0.0625,
             # 0.03125,
             # 0.015625,
             # 0.0078125,

@@ -68,7 +68,7 @@ def create_product_space(dimension, method, gmesh, flux_name, potential_name):
 
     if gmesh.dimension == 2:
         md_field_physical_tags = [[], [10], [1]]
-        mp_field_bc_physical_tags = [[], [2, 4], [2, 3, 4, 5, 50]]
+        mp_field_bc_physical_tags = [[], [3, 5], [2, 3, 4, 5, 50]]
     else:
         raise ValueError("Case not available.")
 
@@ -164,6 +164,10 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     physical_tags["line_clones"] = 50
     physical_tags["point_clones"] = 100
     interfaces = cut_conformity_along_c1_lines(lines, physical_tags, gmesh, False)
+
+    # shift mesh to the right
+    gmesh.points[:,0] += 0.25
+
     gmesh.write_vtk()
 
     md_produc_space = []
@@ -591,6 +595,7 @@ def compute_approximations(config):
 
 def main():
     deltas_frac = [1.0e-1, 1.0e-2, 1.0e-3, 1.0e-4, 1.0e-5]
+    deltas_frac = [1.0e-5]
     for delta_frac in deltas_frac:
         config = {}
         # domain and discrete domain data
@@ -613,9 +618,9 @@ def main():
             0.25,
             0.125,
             0.0625,
-            0.03125,
-            0.015625,
-            0.0078125,
+            # 0.03125,
+            # 0.015625,
+            # 0.0078125,
         ]
 
         # output data
