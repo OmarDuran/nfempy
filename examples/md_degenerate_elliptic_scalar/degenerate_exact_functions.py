@@ -241,20 +241,20 @@ def f_grad_d_phi(x, y, z, m_data, co_dim):
 # The construction stem from:
 # The pressure in the fracture;
 def pf(x, y, z, m_data):
-    beta = 0.5
+    m_beta= m_data["beta"]
     mask = x_mask(x)
     val = np.zeros_like([x])
     val[:, ~mask] = (
         np.array(
             [
                 (
-                    -(x[~mask] ** beta)
+                    -(x[~mask] ** m_beta)
                     + 0.5
                     * (3 + np.sqrt(13))
                     * x[~mask] ** (0.5 * (-3 + np.sqrt(13)))
-                    * beta
+                    * m_beta
                 )
-                / (-1 + beta * (3 + beta)),
+                / (-1 + m_beta * (3 + m_beta)),
             ]
         ),
     )
@@ -263,17 +263,17 @@ def pf(x, y, z, m_data):
 
 # The pressure gradient;
 def dpfdx(x, y, z, m_data):
-    beta = 0.5
+    m_beta= m_data["beta"]
     mask = x_mask(x)
     val = np.zeros_like([x * 0.0])
     val[:, ~mask] = (
         np.array(
             [
                 (
-                    ((x[~mask] ** (np.sqrt(13) / 2.0)) - (x[~mask] ** (1.5 + beta)))
-                    * beta
+                    ((x[~mask] ** (np.sqrt(13) / 2.0)) - (x[~mask] ** (1.5 + m_beta)))
+                    * m_beta
                 )
-                / ((x[~mask] ** 2.5) * (-1 + beta * (3 + beta))),
+                / ((x[~mask] ** 2.5) * (-1 + m_beta * (3 + m_beta))),
             ]
         ),
     )
@@ -282,7 +282,7 @@ def dpfdx(x, y, z, m_data):
 
 # The pressure laplacian.
 def dpfdx2(x, y, z, m_data):
-    beta = 0.5
+    m_beta= m_data["beta"]
     mask = x_mask(x)
     val = np.zeros_like([x * 0.0])
     val[:, ~mask] = (
@@ -291,11 +291,11 @@ def dpfdx2(x, y, z, m_data):
                 (
                     (
                         (-5 + np.sqrt(13)) * (x[~mask] ** (np.sqrt(13) / 2.0))
-                        - 2 * (x[~mask] ** (1.5 + beta)) * (-1 + beta)
+                        - 2 * (x[~mask] ** (1.5 + m_beta)) * (-1 + m_beta)
                     )
                     * beta
                 )
-                / (2.0 * (x[~mask] ** 3.5) * (-1 + beta * (3 + beta))),
+                / (2.0 * (x[~mask] ** 3.5) * (-1 + m_beta * (3 + m_beta))),
             ]
         ),
     )

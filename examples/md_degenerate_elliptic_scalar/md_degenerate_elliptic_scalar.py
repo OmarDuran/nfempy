@@ -172,7 +172,7 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     interfaces = cut_conformity_along_c1_lines(lines, physical_tags, gmesh, False)
 
     # shift mesh to the right
-    gmesh.points[:, 0] += 1.25
+    gmesh.points[:, 0] += 0.0
 
     gmesh.write_vtk()
 
@@ -623,6 +623,7 @@ def compose_case_name(config):
         m_data.values()
     )
     folder_name = config.get("folder_name", None)
+    beta = config.get("beta", None)
     for co_dim in [0, 1]:
         d = max_dim - co_dim
         methods = method_definition(d, k_order, flux_name, potential_name)
@@ -654,6 +655,9 @@ def compose_case_name(config):
                 + str(chi)
                 + "_"
             )
+            if beta is not None:
+                case_name += str(beta) + "_"
+
             if folder_name is not None:
                 import os
 
@@ -768,7 +772,7 @@ def compute_approximations(config):
             plt.clf()
 
 
-def main():
+def run_case():
 
     deltas_frac = [1.0e-1, 1.0e-2, 1.0e-3, 1.0e-4, 1.0e-5]
     deltas_frac = [1.0e-5]
@@ -779,7 +783,7 @@ def main():
         config["min_yc"] = -1.0
         config["max_xc"] = +1.0
         config["max_yc"] = +1.0
-        config["degeneracy_q"] = True
+        config["degeneracy_q"] = False
 
         # Material data
         material_data = {
@@ -804,9 +808,9 @@ def main():
             0.25,
             0.125,
             0.0625,
-            # 0.03125,
-            # 0.015625,
-            # 0.0078125,
+            0.03125,
+            0.015625,
+            0.0078125,
         ]
 
         # output data
@@ -814,6 +818,67 @@ def main():
         config["save_plot_rates_q"] = True
 
         compute_approximations(config)
+
+def run_degenerate_case():
+    deltas_frac = [1.0e-1, 1.0e-2, 1.0e-3, 1.0e-4, 1.0e-5]
+    deltas_frac = [1.0e-5]
+    for delta_frac in deltas_frac:
+
+        betas = [0.5]
+        for beta in betas:
+            config = {}
+            # domain and discrete domain data
+            config["min_xc"] = -1.0
+            config["min_yc"] = -1.0
+            config["max_xc"] = +1.0
+            config["max_yc"] = +1.0
+            config["degeneracy_q"] = True
+
+            # Material data
+            material_data = {
+                "rho_1": 1.0 / 10.0,
+                "rho_2": 1.0 / 50.0,
+                "kappa_c0": 1.0,
+                "kappa_c1": 1.0 / delta_frac,
+                "mu": 1.0,
+                "kappa_normal": 1.0,
+                "delta": delta_frac,
+                "xi": 1.0,
+                "eta": 1.0,
+                "chi": 1.0,
+                "beta": beta,
+            }
+            config["m_data"] = material_data
+
+            # function space data
+            config["n_ref"] = 0
+            config["k_order"] = 0
+            config["mesh_sizes"] = [
+                0.5,
+                0.25,
+                0.125,
+                0.0625,
+                0.03125,
+                0.015625,
+                0.0078125,
+            ]
+
+            # output data
+            config["folder_name"] = "output"
+            config["save_plot_rates_q"] = True
+
+            compute_approximations(config)
+
+def main():
+
+    run_degenerate_case_q = False
+    if run_degenerate_case_q:
+        # run degenerate case with Arbbogast 1d functions with beta parametrization
+        run_degenerate_case()
+    else:
+        # run a problem with non zero porosity field
+        run_case()
+
 
 
 if __name__ == "__main__":
