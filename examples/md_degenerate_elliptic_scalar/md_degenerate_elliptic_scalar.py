@@ -790,7 +790,6 @@ def compute_approximations(config):
 def run_case():
 
     deltas_frac = [1.0e-1, 1.0e-2, 1.0e-3, 1.0e-4, 1.0e-5]
-    deltas_frac = [1.0e-5]
     for delta_frac in deltas_frac:
         config = {}
         # domain and discrete domain data
@@ -838,11 +837,8 @@ def run_case():
 def run_degenerate_case():
 
     betas = [+0.5, -0.5, -1.0, -1.5]
-    betas = [-1.0]
     for beta in betas:
         deltas_frac = [1.0e-1, 1.0e-2, 1.0e-3, 1.0e-4, 1.0e-5]
-        deltas_frac = [1.0e-5]
-
         for delta_frac in deltas_frac:
 
             config = {}
@@ -877,9 +873,9 @@ def run_degenerate_case():
                 0.25,
                 0.125,
                 0.0625,
-                # 0.03125,
-                # 0.015625,
-                # 0.0078125,
+                0.03125,
+                0.015625,
+                0.0078125,
             ]
 
             # output data
