@@ -136,6 +136,8 @@ class LaplaceDualWeakFormBCDirichlet(WeakForm):
 
         # compute normal
         n = normal(u_data.mesh, neigh_cell, cell)
+        if dim == 0:
+            aka = 0
         for c in range(u_components):
             b = c
             e = b + n_q_dof

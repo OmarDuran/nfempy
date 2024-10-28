@@ -171,6 +171,7 @@ class ProductSpace:
             field_dest = (
                 self._retrieve_space_bc_destination_indexes(space, cell_index) + stride
             )
+            field_dest += self.dof_shift
             discrete_spaces_bc_dest.__setitem__(name, field_dest)
 
         return discrete_spaces_bc_dest

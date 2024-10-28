@@ -248,6 +248,9 @@ def h1_model_problem(k_order, gmesh, write_vtk_q=False):
 def hdiv_model_problem(k_order, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
 
+    # shift mesh to the right
+    gmesh.points[:, 0] += 0.5
+
     # FESpace: data
     q_k_order = k_order + 1
     u_k_order = k_order

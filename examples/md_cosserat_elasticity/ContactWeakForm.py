@@ -9,7 +9,6 @@ from weak_forms.weak_from import WeakForm
 
 
 class ContactWeakForm(WeakForm):
-
     def evaluate_form(self, index_p, index_n, alpha):
         iel_p, iel_n = index_p, index_n
 

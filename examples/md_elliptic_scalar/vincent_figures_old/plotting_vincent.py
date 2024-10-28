@@ -100,7 +100,7 @@ def two_dimnesional_plots(
         if method[0] not in filters["method"]:
             continue
             case_name = compose_case_name(
-                        method, dimension, domain, material, source_folder_name
+                method, dimension, domain, material, source_folder_name
             )
             vtk_suffix = "l_" + str(filters["l"]) + filters["suffix"]
             vtk_file_name = case_name + vtk_suffix
@@ -115,9 +115,7 @@ def two_dimnesional_plots(
             figure_case_name = compose_case_name(
                 method, dimension, domain, material, figure_folder_name
             )
-            figure_suffix = (
-                filters["scalar_name"] + "_magnitude." + figure_format
-            )
+            figure_suffix = filters["scalar_name"] + "_magnitude." + figure_format
             figure_name = figure_case_name + figure_suffix
             canvas.save_graphic(figure_name)
 
@@ -178,10 +176,8 @@ titles_map = {
     "p_e": " pressure",
     "u_h": "velocity norm",
     "u_e": "velocity norm",
-
     "p_error": "l2-error in pressure",
     "u_error": "l2-error in velocity",
-
 }
 
 # Filters for 2d
@@ -211,7 +207,7 @@ two_dimnesional_plots(
 #     "domain_type": ["fitted", "unfitted"],
 #     "parameter": [-1.5],
 #     "scalar_names": ["v_e", "v_h"],
-#}
+# }
 # one_dimnesional_plots(
 #      k_order,
 #     source_folder_name,

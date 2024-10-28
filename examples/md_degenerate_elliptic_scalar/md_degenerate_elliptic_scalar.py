@@ -172,7 +172,7 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     interfaces = cut_conformity_along_c1_lines(lines, physical_tags, gmesh, False)
 
     # shift mesh to the right
-    gmesh.points[:,0] += 1.25
+    gmesh.points[:, 0] += 0.0
 
     gmesh.write_vtk()
 
@@ -377,7 +377,7 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     eb_c0_ids = [
         id
         for id in all_b_cell_c0_ids
-        # if gmesh.cells[id].material_id != physical_tags["line_clones"]
+        if gmesh.cells[id].material_id != physical_tags["line_clones"]
     ]
     eb_c0_el_idx = [
         md_produc_space[0].discrete_spaces["v"].id_to_bc_element[id] for id in eb_c0_ids
@@ -402,10 +402,10 @@ def md_two_fields_approximation(config, write_vtk_q=False):
             md_produc_space[0].discrete_spaces["v"].id_to_bc_element[cell.id]
             for cell in c1_data[2]
         ]
-        # for c1_idx, c0_p_idx, c0_n_idx in zip(c1_el_idx, c0_pel_idx, c0_nel_idx):
-        #     scatter_coupling_form_data(
-        #         A, c1_idx, c0_p_idx, c0_n_idx, int_coupling_weak_form
-        #     )  # positive and negative at once
+        for c1_idx, c0_p_idx, c0_n_idx in zip(c1_el_idx, c0_pel_idx, c0_nel_idx):
+            scatter_coupling_form_data(
+                A, c1_idx, c0_p_idx, c0_n_idx, int_coupling_weak_form
+            )  # positive and negative at once
 
     A.assemble()
 
@@ -535,7 +535,9 @@ def md_two_fields_approximation(config, write_vtk_q=False):
         n_dof = physical_md_produc_space[co_dim].n_dof
         # compute projection on co-dimension co_dim
         alpha_proj = l2_projector(
-            physical_md_produc_space[co_dim], physical_exact_functions[co_dim], -dof_shift
+            physical_md_produc_space[co_dim],
+            physical_exact_functions[co_dim],
+            -dof_shift,
         )
         alpha_e = alpha_physical[0 + dof_shift : n_dof + dof_shift : 1] - alpha_proj
         # compute l2_error of projected exact solution on co-dimension co_dim
@@ -617,9 +619,25 @@ def compose_case_name(config):
     k_order = config["k_order"]
     flux_name, potential_name = config["var_names"]
     m_data = config["m_data"]
-    rho_1, rho_2, kappa_c0, kappa_c1, mu, kappa_normal, delta, xi, eta, chi = list(
-        m_data.values()
-    )
+    beta = m_data.get("beta", None)
+    if beta is None:
+        rho_1, rho_2, kappa_c0, kappa_c1, mu, kappa_normal, delta, xi, eta, chi = list(
+            m_data.values()
+        )
+    else:
+        (
+            rho_1,
+            rho_2,
+            kappa_c0,
+            kappa_c1,
+            mu,
+            kappa_normal,
+            delta,
+            xi,
+            eta,
+            chi,
+            beta,
+        ) = list(m_data.values())
     folder_name = config.get("folder_name", None)
     for co_dim in [0, 1]:
         d = max_dim - co_dim
@@ -652,6 +670,9 @@ def compose_case_name(config):
                 + str(chi)
                 + "_"
             )
+            if beta is not None:
+                case_name += str(beta) + "_"
+
             if folder_name is not None:
                 import os
 
@@ -766,10 +787,9 @@ def compute_approximations(config):
             plt.clf()
 
 
-def main():
+def run_case():
 
     deltas_frac = [1.0e-1, 1.0e-2, 1.0e-3, 1.0e-4, 1.0e-5]
-    deltas_frac = [1.0e-5]
     for delta_frac in deltas_frac:
         config = {}
         # domain and discrete domain data
@@ -801,10 +821,10 @@ def main():
             0.5,
             0.25,
             0.125,
-            # 0.0625,
-            # 0.03125,
-            # 0.015625,
-            # 0.0078125,
+            0.0625,
+            0.03125,
+            0.015625,
+            0.0078125,
         ]
 
         # output data
@@ -812,6 +832,68 @@ def main():
         config["save_plot_rates_q"] = True
 
         compute_approximations(config)
+
+
+def run_degenerate_case():
+
+    betas = [+0.5, -0.5, -1.0, -1.5]
+    for beta in betas:
+        deltas_frac = [1.0e-1, 1.0e-2, 1.0e-3, 1.0e-4, 1.0e-5]
+        for delta_frac in deltas_frac:
+
+            config = {}
+            # domain and discrete domain data
+            config["min_xc"] = -1.0
+            config["min_yc"] = -1.0
+            config["max_xc"] = +1.0
+            config["max_yc"] = +1.0
+            config["degeneracy_q"] = True
+
+            # Material data
+            material_data = {
+                "rho_1": 1.0 / 10.0,
+                "rho_2": 1.0 / 50.0,
+                "kappa_c0": 1.0,
+                "kappa_c1": 1.0 / delta_frac,
+                "mu": 1.0,
+                "kappa_normal": 1.0,
+                "delta": delta_frac,
+                "xi": 1.0,
+                "eta": 1.0,
+                "chi": 1.0,
+                "beta": beta,
+            }
+            config["m_data"] = material_data
+
+            # function space data
+            config["n_ref"] = 0
+            config["k_order"] = 0
+            config["mesh_sizes"] = [
+                0.5,
+                0.25,
+                0.125,
+                0.0625,
+                0.03125,
+                0.015625,
+                0.0078125,
+            ]
+
+            # output data
+            config["folder_name"] = "output"
+            config["save_plot_rates_q"] = True
+
+            compute_approximations(config)
+
+
+def main():
+
+    run_degenerate_case_q = True
+    if run_degenerate_case_q:
+        # run degenerate case: Arbogast 1d functions with beta parametrization
+        run_degenerate_case()
+    else:
+        # run a problem with non zero porosity field
+        run_case()
 
 
 if __name__ == "__main__":

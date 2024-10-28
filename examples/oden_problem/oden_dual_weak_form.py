@@ -7,6 +7,7 @@ from basis.parametric_transformation import transform_lower_to_higher
 from geometry.compute_normal import normal
 from mesh.topological_queries import find_higher_dimension_neighs
 
+
 class OdenDualWeakForm(WeakForm):
     def evaluate_form(self, element_index, alpha):
         iel = element_index
@@ -81,6 +82,7 @@ class OdenDualWeakForm(WeakForm):
             r_el, j_el = el_form.val, el_form.der.reshape((n_dof, n_dof))
 
             return r_el, j_el
+
 
 class OdenDualWeakFormBCDirichlet(WeakForm):
     def evaluate_form(self, element_index, alpha):

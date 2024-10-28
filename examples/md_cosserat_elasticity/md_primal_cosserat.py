@@ -16,7 +16,9 @@ from mesh.mesh_operations import cut_conformity_along_c1_lines
 
 # simple weak form
 from weak_forms.lce_primal_weak_form import LCEPrimalWeakForm as PrimalWeakForm
-from weak_forms.lce_primal_weak_form import LCEPrimalWeakFormBCDirichlet as WeakFormBCDir
+from weak_forms.lce_primal_weak_form import (
+    LCEPrimalWeakFormBCDirichlet as WeakFormBCDir,
+)
 from ContactWeakForm import ContactWeakForm
 import matplotlib.pyplot as plt
 
@@ -90,7 +92,7 @@ def fracture_disjoint_set():
 def generate_conformal_mesh(md_domain, h_val, n_ref, fracture_physical_tags):
 
     # For simplicity use h_val to control fracture refinement
-    n_points = int(1.5/h_val) + 1
+    n_points = int(1.5 / h_val) + 1
 
     physical_tags = [fracture_physical_tags["line"]]
     transfinite_agruments = {"n_points": n_points, "meshType": "Bump", "coef": 1.0}
@@ -164,7 +166,9 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     for d in [2, 1]:
         methods = method_definition(d, k_order, displacement_name, rotation_name)
         for method in methods:
-            fe_space = create_product_space(d, method, gmesh, displacement_name, rotation_name)
+            fe_space = create_product_space(
+                d, method, gmesh, displacement_name, rotation_name
+            )
             md_produc_space.append(fe_space)
 
     print("Surface: Number of dof: ", md_produc_space[0].n_dof)
@@ -182,32 +186,43 @@ def md_two_fields_approximation(config, write_vtk_q=False):
 
     def f_lambda_c0(x, y, z):
         return m_lambda
+
     def f_mu_c0(x, y, z):
         return m_mu
+
     def f_kappa_c0(x, y, z):
         return m_kappa
+
     def f_gamma_c0(x, y, z):
         return m_gamma
+
     def f_rhs_c0(x, y, z):
-        return np.ones_like([x,x,x,x])
+        return np.ones_like([x, x, x, x])
 
     def f_lambda_c1(x, y, z):
         return m_lambda_c1
+
     def f_mu_c1(x, y, z):
         return m_mu_c1
+
     def f_kappa_c1(x, y, z):
         return m_kappa_c1
+
     def f_gamma_c1(x, y, z):
         return m_gamma_c1
+
     def f_rhs_c1(x, y, z):
-        return np.ones_like([x,x,x,x])
+        return np.ones_like([x, x, x, x])
 
     def f_cu_normal(x, y, z):
         return m_cu_normal
+
     def f_cu_tangential(x, y, z):
         return m_cu_tangential
+
     def f_cr_normal(x, y, z):
         return m_cr_normal
+
     def f_cr_tangential(x, y, z):
         return m_cr_tangential
 
@@ -243,12 +258,14 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     }
 
     def uD_c0(x, y, z):
-        return np.zeros_like([x,x])
+        return np.zeros_like([x, x])
+
     def rD_c0(x, y, z):
-        return np.zeros_like([x,x])
+        return np.zeros_like([x, x])
 
     def uD_c1(x, y, z):
         return np.zeros_like([x, x])
+
     def rD_c1(x, y, z):
         return np.zeros_like([x, x])
 

@@ -68,7 +68,7 @@ def create_product_space(dimension, method, gmesh, flux_name, potential_name):
 
     if gmesh.dimension == 2:
         md_field_physical_tags = [[], [10], [1]]
-        mp_field_bc_physical_tags = [[], [2, 4], [2, 3, 4, 5, 50]]
+        mp_field_bc_physical_tags = [[], [3, 5], [2, 3, 4, 5, 50]]
     else:
         raise ValueError("Case not available.")
 
@@ -590,6 +590,7 @@ def compute_approximations(config):
 
 
 def main():
+
     deltas_frac = [1.0e-1, 1.0e-2, 1.0e-3, 1.0e-4, 1.0e-5]
     for delta_frac in deltas_frac:
         config = {}

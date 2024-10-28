@@ -517,7 +517,7 @@ def torsion_hdiv_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
         n = normal(s_data.mesh, neigh_cell, cell)
 
         # destination indexes
-        dest = fe_space.bc_destination_indexes(i, 's')
+        dest = fe_space.bc_destination_indexes(i, "s")
         h_dim = neigh_cell.dimension
 
         n_phi = len(dof_s_n_index)
@@ -528,14 +528,7 @@ def torsion_hdiv_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
             for i, omega in enumerate(weights):
                 phi = s_tr_phi_tab[0, i, dof_s_n_index, 0:h_dim]
                 xv = x[i, 0], x[i, 1], x[i, 2]
-                s_h = np.vstack(
-                    tuple(
-                        [
-                            phi.T @ alpha_star[:, d]
-                            for d in range(h_dim)
-                        ]
-                    )
-                )
+                s_h = np.vstack(tuple([phi.T @ alpha_star[:, d] for d in range(h_dim)]))
                 M_t += det_jac[i] * omega * (xv[0] * s_h[2, 1] - xv[1] * s_h[2, 0])
         return M_t
 
@@ -573,7 +566,7 @@ def torsion_hdiv_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
         n = normal(m_data.mesh, neigh_cell, cell)
 
         # destination indexes
-        dest = fe_space.bc_destination_indexes(i, 'm')
+        dest = fe_space.bc_destination_indexes(i, "m")
         h_dim = neigh_cell.dimension
 
         n_phi = len(dof_m_n_index)
@@ -583,23 +576,18 @@ def torsion_hdiv_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
             alpha_star = np.array(np.split(alpha_l, n_phi))
             for i, omega in enumerate(weights):
                 phi = m_tr_phi_tab[0, i, dof_m_n_index, 0:h_dim]
-                m_h = np.vstack(
-                    tuple(
-                        [
-                            phi.T @ alpha_star[:, d]
-                            for d in range(h_dim)
-                        ]
-                    )
-                )
+                m_h = np.vstack(tuple([phi.T @ alpha_star[:, d] for d in range(h_dim)]))
                 M_t += det_jac[i] * omega * (m_h[2, 2])
         return M_t
 
     st = time.time()
     M_t_strain_vec = [
-        integrate_M_t_strain(i, fe_space) for i in range(len(fe_space.discrete_spaces['s'].bc_elements))
+        integrate_M_t_strain(i, fe_space)
+        for i in range(len(fe_space.discrete_spaces["s"].bc_elements))
     ]
     M_t_curvature_vec = [
-        integrate_M_t_curvature(i, fe_space) for i in range(len(fe_space.discrete_spaces['m'].bc_elements))
+        integrate_M_t_curvature(i, fe_space)
+        for i in range(len(fe_space.discrete_spaces["m"].bc_elements))
     ]
     et = time.time()
     elapsed_time = et - st
@@ -616,6 +604,7 @@ def torsion_hdiv_cosserat_elasticity(L_c, k_order, gmesh, write_vtk_q=False):
         print("Post-processing time:", elapsed_time, "seconds")
 
     return M_t_strain, M_t_curvature
+
 
 def create_conformal_mesher_from_file(file_name, dim):
     mesher = ConformalMesher(dimension=dim)
