@@ -619,11 +619,26 @@ def compose_case_name(config):
     k_order = config["k_order"]
     flux_name, potential_name = config["var_names"]
     m_data = config["m_data"]
-    rho_1, rho_2, kappa_c0, kappa_c1, mu, kappa_normal, delta, xi, eta, chi = list(
-        m_data.values()
-    )
+    beta = m_data.get("beta", None)
+    if beta is None:
+        rho_1, rho_2, kappa_c0, kappa_c1, mu, kappa_normal, delta, xi, eta, chi = list(
+            m_data.values()
+        )
+    else:
+        (
+            rho_1,
+            rho_2,
+            kappa_c0,
+            kappa_c1,
+            mu,
+            kappa_normal,
+            delta,
+            xi,
+            eta,
+            chi,
+            beta,
+        ) = list(m_data.values())
     folder_name = config.get("folder_name", None)
-    beta = config.get("beta", None)
     for co_dim in [0, 1]:
         d = max_dim - co_dim
         methods = method_definition(d, k_order, flux_name, potential_name)
@@ -819,13 +834,17 @@ def run_case():
 
         compute_approximations(config)
 
-def run_degenerate_case():
-    deltas_frac = [1.0e-1, 1.0e-2, 1.0e-3, 1.0e-4, 1.0e-5]
-    deltas_frac = [1.0e-5]
-    for delta_frac in deltas_frac:
 
-        betas = [0.5]
-        for beta in betas:
+def run_degenerate_case():
+
+    betas = [+0.5, -0.5, -1.0, -1.5]
+    betas = [-1.0]
+    for beta in betas:
+        deltas_frac = [1.0e-1, 1.0e-2, 1.0e-3, 1.0e-4, 1.0e-5]
+        deltas_frac = [1.0e-5]
+
+        for delta_frac in deltas_frac:
+
             config = {}
             # domain and discrete domain data
             config["min_xc"] = -1.0
@@ -858,9 +877,9 @@ def run_degenerate_case():
                 0.25,
                 0.125,
                 0.0625,
-                0.03125,
-                0.015625,
-                0.0078125,
+                # 0.03125,
+                # 0.015625,
+                # 0.0078125,
             ]
 
             # output data
@@ -869,16 +888,16 @@ def run_degenerate_case():
 
             compute_approximations(config)
 
+
 def main():
 
-    run_degenerate_case_q = False
+    run_degenerate_case_q = True
     if run_degenerate_case_q:
-        # run degenerate case with Arbbogast 1d functions with beta parametrization
+        # run degenerate case: Arbogast 1d functions with beta parametrization
         run_degenerate_case()
     else:
         # run a problem with non zero porosity field
         run_case()
-
 
 
 if __name__ == "__main__":

@@ -241,7 +241,7 @@ def f_grad_d_phi(x, y, z, m_data, co_dim):
 # The construction stem from:
 # The pressure in the fracture;
 def pf(x, y, z, m_data):
-    m_beta= m_data["beta"]
+    m_beta = m_data["beta"]
     mask = x_mask(x)
     val = np.zeros_like([x])
     val[:, ~mask] = (
@@ -263,7 +263,7 @@ def pf(x, y, z, m_data):
 
 # The pressure gradient;
 def dpfdx(x, y, z, m_data):
-    m_beta= m_data["beta"]
+    m_beta = m_data["beta"]
     mask = x_mask(x)
     val = np.zeros_like([x * 0.0])
     val[:, ~mask] = (
@@ -282,7 +282,7 @@ def dpfdx(x, y, z, m_data):
 
 # The pressure laplacian.
 def dpfdx2(x, y, z, m_data):
-    m_beta= m_data["beta"]
+    m_beta = m_data["beta"]
     mask = x_mask(x)
     val = np.zeros_like([x * 0.0])
     val[:, ~mask] = (
@@ -293,7 +293,7 @@ def dpfdx2(x, y, z, m_data):
                         (-5 + np.sqrt(13)) * (x[~mask] ** (np.sqrt(13) / 2.0))
                         - 2 * (x[~mask] ** (1.5 + m_beta)) * (-1 + m_beta)
                     )
-                    * beta
+                    * m_beta
                 )
                 / (2.0 * (x[~mask] ** 3.5) * (-1 + m_beta * (3 + m_beta))),
             ]
