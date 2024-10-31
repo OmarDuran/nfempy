@@ -1,5 +1,4 @@
 import numpy as np
-import scipy.sparse as sp
 from petsc4py import PETSc
 import time
 
@@ -68,7 +67,7 @@ def create_product_space(dimension, method, gmesh, flux_name, potential_name):
 
     if gmesh.dimension == 2:
         md_field_physical_tags = [[], [10], [1]]
-        mp_field_bc_physical_tags = [[], [2, 4], [2, 3, 4, 5, 50]]
+        mp_field_bc_physical_tags = [[], [3, 5], [2, 3, 4, 5, 50]]
     else:
         raise ValueError("Case not available.")
 
@@ -96,7 +95,7 @@ def fracture_disjoint_set():
 def generate_conformal_mesh(md_domain, h_val, n_ref, fracture_physical_tags):
 
     # For simplicity use h_val to control fracture refinement
-    n_points = int(1.5 / h_val) + 1
+    n_points = 2 * (int(2.0 / h_val) + 2)
 
     physical_tags = [fracture_physical_tags["line"]]
     transfinite_agruments = {"n_points": n_points, "meshType": "Bump", "coef": 1.0}
@@ -360,13 +359,9 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     ksp.getPC().setFactorSolverType("mumps")
     ksp.setConvergenceHistory()
 
-    ai, aj, av = A.getValuesCSR()
-    jac_sp = sp.csr_matrix((av, aj, ai))
-    alpha = sp.linalg.spsolve(jac_sp, -rg)
-
     # Some issue with PETSC solver
-    # ksp.solve(b, x)
-    # alpha = x.array
+    ksp.solve(b, x)
+    alpha = x.array
 
     et = time.time()
     elapsed_time = et - st
@@ -590,6 +585,7 @@ def compute_approximations(config):
 
 
 def main():
+
     deltas_frac = [1.0e-1, 1.0e-2, 1.0e-3, 1.0e-4, 1.0e-5]
     for delta_frac in deltas_frac:
         config = {}
@@ -616,8 +612,6 @@ def main():
             0.03125,
             0.015625,
             0.0078125,
-            0.00390625,
-            0.001953125,
         ]
 
         # output data

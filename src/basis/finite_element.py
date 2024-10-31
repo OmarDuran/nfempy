@@ -175,7 +175,12 @@ class FiniteElement:
             family_by_name("N1E"),
             family_by_name("N2E"),
         ]:
-            phi_tab[0] *= -1.0
+            # TODO: implement covariant Piola transformation for  types (N1E, N2E)
+            # Contravariant Piola transformation for 1d cells with vector families
+            phi_mapped[:, :, 0] = (1.0 / det_jac) * phi_mapped[:, :, 0] * (
+                    jac[:, :, 0] @ np.array([1.0, 0.0, 0.0]))
+            if phi_tab[0].shape == phi_mapped.shape:
+                phi_tab[0] = phi_mapped
 
         phi_tab = permute_and_transform(phi_tab, self.data)
         return phi_tab

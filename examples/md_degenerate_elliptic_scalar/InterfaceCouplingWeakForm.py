@@ -9,7 +9,6 @@ from weak_forms.weak_from import WeakForm
 
 
 class InterfaceCouplingWeakForm(WeakForm):
-
     def evaluate_form(self, index_c1, index_c0_p, index_c0_n, alpha):
         iel_c1, iel_c0p, iel_c0n = index_c1, index_c0_p, index_c0_n
 
@@ -74,12 +73,20 @@ class InterfaceCouplingWeakForm(WeakForm):
             map_data = (x, weights, det_jac)
             return dphi_tr_phi_tab, dphi_dof_n_index, n, p_phi_tab, map_data
 
-        dv_tr_phi_tab_p, dv_dof_n_index_p, n_p, q_phi_tab_p, map_data_p = (
-            compute_trace_space((iel_c0p, iel_c1), ("v", "q"), self.space)
-        )
-        dv_tr_phi_tab_n, dv_dof_n_index_n, n_n, q_phi_tab_n, map_data_n = (
-            compute_trace_space((iel_c0n, iel_c1), ("v", "q"), self.space)
-        )
+        (
+            dv_tr_phi_tab_p,
+            dv_dof_n_index_p,
+            n_p,
+            q_phi_tab_p,
+            map_data_p,
+        ) = compute_trace_space((iel_c0p, iel_c1), ("v", "q"), self.space)
+        (
+            dv_tr_phi_tab_n,
+            dv_dof_n_index_n,
+            n_n,
+            q_phi_tab_n,
+            map_data_n,
+        ) = compute_trace_space((iel_c0n, iel_c1), ("v", "q"), self.space)
         assert np.all(np.isclose(q_phi_tab_p, q_phi_tab_n))
         assert np.all(np.isclose(map_data_p[0], map_data_n[0]))
         assert np.all(np.isclose(map_data_p[1], map_data_n[1]))
@@ -124,7 +131,7 @@ class InterfaceCouplingWeakForm(WeakForm):
             for i, omega in enumerate(weights):
                 mu_v = mu_star[i]
                 kappa_n_v = kappa_star[i]
-                delta_v = (1.0e-6) * delta_star[i]
+                delta_v = delta_star[i]
 
                 porosity_v = porosity_star[i]
                 d_phi_v = d_phi_star[i]
@@ -138,7 +145,7 @@ class InterfaceCouplingWeakForm(WeakForm):
 
                 d_phi_normal = np.sqrt(kappa_n_v * (porosity_v**2) / mu_v)
                 alpha_v = (d_phi_normal**2) / (delta_v / 2.0)
-                phi_scale = 1.0 / np.sqrt(porosity_v)
+                phi_scale = np.sqrt(porosity_v)
 
                 dq_h = q_phi_tab[0, i, :, 0:dim]
                 v_h_p = alpha_v_p @ dv_h_p
@@ -146,11 +153,30 @@ class InterfaceCouplingWeakForm(WeakForm):
                 q_h_c1 = alpha_q @ dq_h
 
                 # Robin coupling
-                equ_1_integrand = ((phi_scale * d_phi_v / alpha_v) * v_h_p + phi_scale * d_phi_v * q_h_c1) @ dv_h_p.T
-                equ_2_integrand = ((phi_scale * d_phi_v / alpha_v) * v_h_n + phi_scale * d_phi_v * q_h_c1) @ dv_h_n.T
+                if not np.isclose(porosity_v, 0.0) and porosity_v > 0.0:
+                    equ_1_integrand = (
+                        (phi_scale * d_phi_v / alpha_v) * v_h_p
+                        + (d_phi_v / phi_scale) * q_h_c1
+                    ) @ dv_h_p.T
+                    equ_2_integrand = (
+                        (phi_scale * d_phi_v / alpha_v) * v_h_n
+                        + (d_phi_v / phi_scale) * q_h_c1
+                    ) @ dv_h_n.T
 
-                # Robin coupling is a self-adjoint operator of c1 mass conservation
-                equ_3_integrand = d_phi_v * (v_h_p @ dq_h.T + v_h_n @ dq_h.T)
+                    # Robin coupling is a self-adjoint operator of c1 mass conservation
+                    equ_3_integrand = (d_phi_v / phi_scale) * (
+                        v_h_p @ dq_h.T + v_h_n @ dq_h.T
+                    )
+                else:
+                    equ_1_integrand = (
+                        (phi_scale * d_phi_v) * v_h_p + (d_phi_v) * q_h_c1
+                    ) @ dv_h_p.T
+                    equ_2_integrand = (
+                        (phi_scale * d_phi_v) * v_h_n + (d_phi_v) * q_h_c1
+                    ) @ dv_h_n.T
+
+                    # Robin coupling is a self-adjoint operator of c1 mass conservation
+                    equ_3_integrand = (d_phi_v) * (v_h_p @ dq_h.T + v_h_n @ dq_h.T)
 
                 multiphysic_integrand = np.zeros((1, n_dof))
                 multiphysic_integrand[:, idx_dof["v_p"]] = equ_1_integrand

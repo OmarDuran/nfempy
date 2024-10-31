@@ -16,7 +16,7 @@ from postprocess.solution_post_processor import (
 from spaces.product_space import ProductSpace
 
 from oden_primal_weak_form import OdenPrimalWeakForm, OdenPrimalWeakFormBCDirichlet
-from oden_dual_weak_form import OdenDualWeakForm
+from oden_dual_weak_form import OdenDualWeakForm, OdenDualWeakFormBCDirichlet
 
 
 def h1_model_problem(k_order, gmesh, write_vtk_q=False):
@@ -248,6 +248,9 @@ def h1_model_problem(k_order, gmesh, write_vtk_q=False):
 def hdiv_model_problem(k_order, gmesh, write_vtk_q=False):
     dim = gmesh.dimension
 
+    # shift mesh to the right
+    gmesh.points[:, 0] += 0.5
+
     # FESpace: data
     q_k_order = k_order + 1
     u_k_order = k_order
@@ -394,8 +397,8 @@ def hdiv_model_problem(k_order, gmesh, write_vtk_q=False):
 
     weak_form = OdenDualWeakForm(fe_space)
     weak_form.functions = m_functions
-    # bc_weak_form = LaplaceDualWeakFormBCDirichlet(fe_space)
-    # bc_weak_form.functions = exact_functions
+    bc_weak_form = OdenDualWeakFormBCDirichlet(fe_space)
+    bc_weak_form.functions = exact_functions
 
     def scatter_form_data(A, i, weak_form):
         # destination indexes
@@ -433,8 +436,8 @@ def hdiv_model_problem(k_order, gmesh, write_vtk_q=False):
     n_els = len(fe_space.discrete_spaces["q"].elements)
     [scatter_form_data(A, i, weak_form) for i in range(n_els)]
 
-    # n_bc_els = len(fe_space.discrete_spaces["q"].bc_elements)
-    # [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
+    n_bc_els = len(fe_space.discrete_spaces["q"].bc_elements)
+    [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
 
     A.assemble()
 
@@ -496,9 +499,6 @@ def create_domain(dimension):
         return domain
     elif dimension == 2:
         box_points = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
-        # box_points = [
-        #     point + 0.25 * np.array([-1.0, -1.0, 0.0]) for point in box_points
-        # ]
         domain = build_box_2D(box_points)
         return domain
     else:
@@ -514,9 +514,6 @@ def create_domain(dimension):
                 [0.0, 1.0, 1.0],
             ]
         )
-        # box_points = [
-        #     point + 0.25 * np.array([-1.0, -1.0, -1.0]) for point in box_points
-        # ]
         domain = build_box_3D(box_points)
         return domain
 

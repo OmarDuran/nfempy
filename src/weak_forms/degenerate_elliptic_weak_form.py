@@ -122,7 +122,7 @@ class DegenerateEllipticWeakForm(WeakForm):
                         ]
                     ]
                 )
-                if phi > 0.0:
+                if not np.isclose(phi, 0.0) and phi > 0.0:
                     div_phi_h_s = (delta * div_psi_h + grad_delta_dot_psi_h) / np.sqrt(
                         phi
                     )
@@ -205,9 +205,9 @@ class DegenerateEllipticWeakFormBCDirichlet(WeakForm):
             for i, omega in enumerate(weights):
                 q_D_v = q_D(x[i, 0], x[i, 1], x[i, 2])
                 d_phi = f_d_phi(x[i, 0], x[i, 1], x[i, 2])
-                phi = f_porosity(x[i, 0], x[i, 1], x[i, 2])
-                if not np.isclose(phi, 0.0) and phi > 0.0:
-                    q_D_v *= d_phi / np.sqrt(phi)
+                phi_v = f_porosity(x[i, 0], x[i, 1], x[i, 2])
+                if not np.isclose(phi_v, 0.0) and phi_v > 0.0:
+                    q_D_v *= d_phi / np.sqrt(phi_v)
                 phi = mp_tr_phi_tab[0, i, mp_dof_n_index, 0:dim] @ n[0:dim]
                 res_block_mp += det_jac[i] * omega * q_D_v[c] * phi
 

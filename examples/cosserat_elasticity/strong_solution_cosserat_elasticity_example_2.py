@@ -213,7 +213,11 @@ def stress(m_lambda, m_mu, m_kappa, m_gamma, dim: int = 2):
                         )
                         * np.sin(np.pi * y)
                     ),
-                    -2 * (np.pi**2) * m_mu * np.cos(np.pi * y) * np.sin(2 * np.pi * x),
+                    -2
+                    * (np.pi**2)
+                    * m_mu
+                    * np.cos(np.pi * y)
+                    * np.sin(2 * np.pi * x),
                 ],
             ]
         )
