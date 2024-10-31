@@ -1,5 +1,4 @@
 import numpy as np
-import scipy.sparse as sp
 from petsc4py import PETSc
 import time
 
@@ -426,13 +425,8 @@ def md_two_fields_approximation(config, write_vtk_q=False):
     ksp.getPC().setFactorSolverType("mumps")
     ksp.setConvergenceHistory()
 
-    ai, aj, av = A.getValuesCSR()
-    jac_sp = sp.csr_matrix((av, aj, ai))
-    alpha = sp.linalg.spsolve(jac_sp, -rg)
-
-    # Some issue with PETSC solver
-    # ksp.solve(b, x)
-    # alpha = x.array
+    ksp.solve(b, x)
+    alpha = x.array
 
     et = time.time()
     elapsed_time = et - st
