@@ -34,14 +34,6 @@ from HydrothermalWeakForms import (
 
 
 def create_product_space(method, gmesh):
-    # if gmesh.dimension == 1:
-    #     field_bc_physical_tags = [2, 3]
-    # elif gmesh.dimension == 2:
-    #     field_bc_physical_tags = [2, 3, 4, 5]
-    # elif gmesh.dimension == 3:
-    #     field_bc_physical_tags = [2, 3, 4, 5, 6, 7]
-    # else:
-    #     raise ValueError("Case not available.")
 
     if gmesh.dimension == 1:
         field_bc_physical_tags = [2, 3]
@@ -53,30 +45,30 @@ def create_product_space(method, gmesh):
         raise ValueError("Case not available.")
 
     # FESpace: data
-    discrete_spaces_data = {}
-    discrete_spaces_disc = {}
-    discrete_spaces_bc_physical_tags = {}
+    spaces_data = {}
+    spaces_disc = {}
+    spaces_physical_tags = {}
+    spaces_bc_physical_tags = {}
     n_components = 1
     for item in method[1].items():
         field, (family, k_order) = item
-        discrete_spaces_data[field] = (
+        spaces_data[field] = (
             gmesh.dimension,
             n_components,
             family,
             k_order,
             gmesh,
         )
+        spaces_physical_tags[field] = [1]
         if family in ["RT", "BDM"]:
-            discrete_spaces_disc[field] = False
-            discrete_spaces_bc_physical_tags[field] = field_bc_physical_tags
+            spaces_disc[field] = False
+            spaces_bc_physical_tags[field] = field_bc_physical_tags
         else:
-            discrete_spaces_disc[field] = True
+            spaces_disc[field] = True
 
-        aka = 0
-
-    space = ProductSpace(discrete_spaces_data)
-    space.make_subspaces_discontinuous(discrete_spaces_disc)
-    space.build_structures(discrete_spaces_bc_physical_tags)
+    space = ProductSpace(spaces_data)
+    space.make_subspaces_discontinuous(spaces_disc)
+    space.build_structures(spaces_physical_tags, spaces_bc_physical_tags)
     return space
 
 
@@ -225,7 +217,7 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
     c1_entities = [cell for cell in gmesh.cells if cell.dimension == dim - 1]
     gc0_c1 = gmesh.build_graph(dim, 1)
     c1_triplets = [
-        (cell.id, list(gc0_c1.predecessors(cell.id))) for cell in c1_entities
+        (cell.index(), list(gc0_c1.predecessors(cell.index()))) for cell in c1_entities
     ]
     c1_itriplets = [triplet for triplet in c1_triplets if len(triplet[1]) == 2]
     c1_epairs = [
@@ -239,10 +231,10 @@ def hydrothermal_mixed_formulation(method, gmesh, write_vtk_q=False):
     sequence_domain = [i for i in range(n_els)]
     sequence_bc_domain = [i for i in range(n_bc_els)]
     sequence_c1_itriplets = [
-        (triplet[0], [gidx_midx[triplet[1][0]], gidx_midx[triplet[1][1]]])
+        (triplet[0][1], [gidx_midx[triplet[1][0][1]], gidx_midx[triplet[1][1][1]]])
         for triplet in c1_itriplets
     ]
-    sequence_c1_epairs = [(pair[0], gidx_midx[pair[1]]) for pair in c1_epairs]
+    sequence_c1_epairs = [(pair[0][1], gidx_midx[pair[1][1]]) for pair in c1_epairs]
 
     # Initial condition
     def nu_ini(x, y, z, m_val):
@@ -472,12 +464,11 @@ def create_mesh_from_file(file_name, dim, write_vtk_q=False):
 
 
 def main():
-    h = 0.25
-    dimension = 2
-    load_external_mesh_q = True
+    h = 1.0
+    dimension = 1
+    load_external_mesh_q = False
 
     domain = create_domain(dimension)
-    error_data = np.empty((0, 2), float)
     method = method_definition()
 
     if load_external_mesh_q:

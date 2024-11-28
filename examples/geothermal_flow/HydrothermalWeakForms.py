@@ -56,7 +56,7 @@ class DiffusionWeakForm(WeakForm):
 
         cell = md_data.cell
         dim = cell.dimension
-        points, weights = self.space.quadrature
+        points, weights = self.space.quadrature[dim]
         x, jac, det_jac, inv_jac = md_space.elements[iel].evaluate_mapping(points)
 
         # Hdiv basis
@@ -325,7 +325,8 @@ class DiffusionWeakFormBCRobin(WeakForm):
         md_data: ElementData = md_space.bc_elements[iel].data
 
         cell = md_data.cell
-        points, weights = self.space.bc_quadrature
+        dim = cell.dimension
+        points, weights = self.space.bc_quadrature[dim]
         x, jac, det_jac, inv_jac = md_space.bc_elements[iel].evaluate_mapping(points)
 
         fields = ["md", "ca", "qd", "qa"]
@@ -352,9 +353,10 @@ class DiffusionWeakFormBCRobin(WeakForm):
         neigh_list = find_higher_dimension_neighs(cell, md_space.dof_map.mesh_topology)
         neigh_check = len(neigh_list) > 0
         assert neigh_check
+
+        dim, cell_id = neigh_list[0]
         # select neighbor
-        neigh_cell = md_data.mesh.cells[neigh_list[0]]
-        dim = neigh_cell.dimension
+        neigh_cell = md_data.mesh.cells[cell_id]
         n = normal(md_data.mesh, neigh_cell, cell)
 
         with ad.AutoDiff(alpha) as alpha:
@@ -379,10 +381,10 @@ class DiffusionWeakFormBCRobin(WeakForm):
                 gamma_qd_v = f_gamma_qd(x[i, 0], x[i, 1], x[i, 2])
                 t_v = f_t_D(x[i, 0], x[i, 1], x[i, 2])
 
-                dmd_h = tr_dmq_h[0:1, i, :, :] @ n
-                # dca_h = tr_dca_h[0:1, i, :, :] @ n
-                dqd_h = tr_dqd_h[0:1, i, :, :] @ n
-                dqa_h = tr_dqa_h[0:1, i, :, :] @ n
+                dmd_h = tr_dmq_h[0:1, i, :, 0:dim] @ n[0:dim]
+                # dca_h = tr_dca_h[0:1, i, :, 0:dim] @ n[0:dim]
+                dqd_h = tr_dqd_h[0:1, i, :, 0:dim] @ n[0:dim]
+                dqa_h = tr_dqa_h[0:1, i, :, 0:dim] @ n[0:dim]
 
                 md_h_n = alpha_md @ dmd_h
                 qd_h_n = alpha_qd @ dqd_h
@@ -446,8 +448,8 @@ class AdvectionWeakForm(WeakForm):
         # trace of qh on both sides
         gmesh = ca_data_p.mesh
         c1_cell = gmesh.cells[cell_id]
-        element_c1_data = ElementData(c1_cell, gmesh)
-        points, weights = self.space.bc_quadrature
+        dim = c1_cell.dimension
+        points, weights = self.space.bc_quadrature[dim]
         c1_element = FiniteElement(
             cell_id, family_by_name("Lagrange"), 0, gmesh, True, 0
         )
@@ -460,9 +462,9 @@ class AdvectionWeakForm(WeakForm):
         neigh_check = len(neigh_list) > 0
         assert neigh_check
         # select neighbor
-        neigh_cell = md_data_p.mesh.cells[neigh_list[0]]
+        neigh_cell = md_data_p.mesh.cells[neigh_list[0][1]]
         n_p = normal(md_data_p.mesh, neigh_cell, c1_cell)
-        neigh_cell = md_data_p.mesh.cells[neigh_list[1]]
+        neigh_cell = md_data_p.mesh.cells[neigh_list[1][1]]
         n_n = normal(md_data_p.mesh, neigh_cell, c1_cell)
 
         # compute trace u space
@@ -576,15 +578,15 @@ class AdvectionWeakForm(WeakForm):
                 alpha_h_p = alpha[:, idx_dof["h_p"]]
                 alpha_h_n = alpha[:, idx_dof["h_n"]]
 
-                dmd_p_h = traces_v_p["md"][0:1, i, :, :] @ n_p
-                dca_p_h = traces_v_p["ca"][0:1, i, :, :] @ n_p
-                dqd_p_h = traces_v_p["qd"][0:1, i, :, :] @ n_p
-                dqa_p_h = traces_v_p["qa"][0:1, i, :, :] @ n_p
+                dmd_p_h = traces_v_p["md"][0:1, i, :, 0:dim] @ n_p[0:dim]
+                dca_p_h = traces_v_p["ca"][0:1, i, :, 0:dim] @ n_p[0:dim]
+                dqd_p_h = traces_v_p["qd"][0:1, i, :, 0:dim] @ n_p[0:dim]
+                dqa_p_h = traces_v_p["qa"][0:1, i, :, 0:dim] @ n_p[0:dim]
 
-                dmd_n_h = traces_v_n["md"][0:1, i, :, :] @ n_n
-                dca_n_h = traces_v_n["ca"][0:1, i, :, :] @ n_n
-                dqd_n_h = traces_v_n["qd"][0:1, i, :, :] @ n_n
-                dqa_n_h = traces_v_n["qa"][0:1, i, :, :] @ n_n
+                dmd_n_h = traces_v_n["md"][0:1, i, :, 0:dim] @ n_n[0:dim]
+                dca_n_h = traces_v_n["ca"][0:1, i, :, 0:dim] @ n_n[0:dim]
+                dqd_n_h = traces_v_n["qd"][0:1, i, :, 0:dim] @ n_n[0:dim]
+                dqa_n_h = traces_v_n["qa"][0:1, i, :, 0:dim] @ n_n[0:dim]
 
                 md_p_h = alpha_md_p @ dmd_p_h.T
                 ca_p_h = alpha_ca_p @ dca_p_h.T
@@ -663,8 +665,8 @@ class AdvectionWeakFormBC(WeakForm):
         # trace of qh on both sides
         gmesh = ca_data.mesh
         c1_cell = gmesh.cells[cell_id]
-        element_c1_data = ElementData(c1_cell, gmesh)
-        points, weights = self.space.bc_quadrature
+        dim = c1_cell.dimension
+        points, weights = self.space.bc_quadrature[dim]
         c1_element = FiniteElement(
             cell_id, family_by_name("Lagrange"), 0, gmesh, True, 0
         )
@@ -677,7 +679,7 @@ class AdvectionWeakFormBC(WeakForm):
         neigh_check = len(neigh_list) > 0
         assert neigh_check
         # select neighbor
-        neigh_cell = md_data.mesh.cells[neigh_list[0]]
+        neigh_cell = md_data.mesh.cells[neigh_list[0][1]]
         dim = neigh_cell.dimension
         n = normal(md_data.mesh, neigh_cell, c1_cell)
 
@@ -738,10 +740,10 @@ class AdvectionWeakFormBC(WeakForm):
                 alpha_z = alpha[:, idx_dof["z"]]
                 alpha_h = alpha[:, idx_dof["h"]]
 
-                dmd_h = traces_v["md"][0:1, i, :, :] @ n
-                dca_h = traces_v["ca"][0:1, i, :, :] @ n
-                dqd_h = traces_v["qd"][0:1, i, :, :] @ n
-                dqa_h = traces_v["qa"][0:1, i, :, :] @ n
+                dmd_h = traces_v["md"][0:1, i, :, 0:dim] @ n[0:dim]
+                dca_h = traces_v["ca"][0:1, i, :, 0:dim] @ n[0:dim]
+                dqd_h = traces_v["qd"][0:1, i, :, 0:dim] @ n[0:dim]
+                dqa_h = traces_v["qa"][0:1, i, :, 0:dim] @ n[0:dim]
 
                 md_h = alpha_md @ dmd_h.T
                 ca_h = alpha_ca @ dca_h.T

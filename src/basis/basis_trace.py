@@ -42,7 +42,7 @@ def trace_discrete_space(
     assert neigh_check
 
     # select neighbor
-    c0_cell_id = neigh_list[neigh_idx]
+    c0_dim, c0_cell_id = neigh_list[neigh_idx]
     c0_element_idx = sub_space.id_to_element[c0_cell_id]
     c0_element = sub_space.elements[c0_element_idx]
 

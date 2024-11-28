@@ -38,7 +38,7 @@ class L2ProjectorWeakForm(WeakForm):
 
             # Partial local vectorization
             f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
-            if space.family is family_by_name("Lagrange"):
+            if space.generator_family is family_by_name("Lagrange"):
                 phi_s_star = det_jac * weights * phi_tab[0, :, :, 0].T
                 for c in range(n_comp):
                     b = c
