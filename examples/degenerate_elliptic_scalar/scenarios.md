@@ -57,8 +57,7 @@ $$
 \mathbf{u}_1 \cdot \mathbf{n}_1 = -d_2(\phi_2) \mathbf{v}_2 \cdot \mathbf{n}_2
 $$
 
-For the simulation, the porosity in the degenerate domain is defined from [1]. There in see section: **See 4.1 A simple Euler equation in one dimension** and **4.2 A smooth solution test in two dimensions**.
-
+For the simulation, the porosity in the degenerate domain is defined from [1]. There in, see Sections **See 4.1 A simple Euler equation in one dimension** and **4.2 A smooth solution test in two dimensions** for the 1D and 2D cases, respectively.
 
 
 **Goal of the Numerical Results:** The objective is to validate the method show that it is stable and accurate.
