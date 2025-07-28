@@ -47,7 +47,7 @@ $$
 
 **On the interface:**
 
-The following condition can be enforced only in a weak sense:
+Pressure continuity is enforced weakly, while flux continuity is enforced using piecewise constant Lagrange multipliers.
 
 $$
 p_1 = \phi_2^{-1/2} q_2
