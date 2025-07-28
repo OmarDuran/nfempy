@@ -48,6 +48,7 @@ $$
 **On the interface:**
 
 The following condition can be enforced only in a weak sense:
+
 $$
 p_1 = \phi_2^{-1/2} q_2
 $$
