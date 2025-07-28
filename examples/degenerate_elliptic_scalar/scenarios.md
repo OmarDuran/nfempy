@@ -63,4 +63,5 @@ For the simulation, the porosity in the degenerate domain is defined from [1]. T
 **Goal of the Numerical Results:** The objective is to validate the method show that it is stable and accurate.
 
 ##References
+
 [1] Arbogast, T., & Taicher, A. L. (2017). A cell-centered finite difference method for a degenerate elliptic equation arising from two-phase mixtures. Computational Geosciences, 21(4), 701–712. https://doi.org/10.1007/s10596-017-9649-9
