@@ -63,21 +63,21 @@ def build_surface_2D(surface_points, physical_tags=None):
     edges = np.array(edges_list)
     domain.append_shapes(edges)
 
-    edge_idxs = np.array([2, 3, 6, 7])
-    vertices = np.array([domain.shapes[0][2], domain.shapes[0][2]])
-    e_tag += 1
-    wire = Wire(e_tag, edges[edge_idxs], vertices)
-    domain.append_shapes(np.array([wire]))
-    surface = Face(0, np.array([wire]))
-    surface.physical_tag = physical_tags.get("area_0", None)
-    domain.append_shapes(np.array([surface]))
-
     edge_idxs = np.array([0, 1, 7, 6, 4, 5])
     vertices = np.array([domain.shapes[0][0], domain.shapes[0][0]])
     e_tag += 1
     wire = Wire(e_tag, edges[edge_idxs], vertices)
     domain.append_shapes(np.array([wire]))
     surface = Face(1, np.array([wire]))
+    surface.physical_tag = physical_tags.get("area_0", None)
+    domain.append_shapes(np.array([surface]))
+
+    edge_idxs = np.array([2, 3, 6, 7])
+    vertices = np.array([domain.shapes[0][2], domain.shapes[0][2]])
+    e_tag += 1
+    wire = Wire(e_tag, edges[edge_idxs], vertices)
+    domain.append_shapes(np.array([wire]))
+    surface = Face(0, np.array([wire]))
     surface.physical_tag = physical_tags.get("area_1", None)
     domain.append_shapes(np.array([surface]))
 

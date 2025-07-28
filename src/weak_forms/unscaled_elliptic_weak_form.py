@@ -151,7 +151,7 @@ class UnscaledEllipticWeakFormBCDirichlet(WeakForm):
         f_d_phi = self.functions["d_phi"]
         f_porosity = self.functions["porosity"]
 
-        mp_space = self.space.discrete_spaces["v"]
+        mp_space = self.space.discrete_spaces["u"]
         mp_components = mp_space.n_comp
         mp_data: ElementData = mp_space.bc_elements[iel].data
 

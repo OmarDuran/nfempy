@@ -307,7 +307,6 @@ def write_vtk_file_pointwise_l2_error(
 
 
 def write_vtk_file_exact_solution(file_name, gmesh, name_to_fields, functions):
-    dim = gmesh.dimension
     p_data_dict = {}
     for item in name_to_fields.items():
         name, n_data = item

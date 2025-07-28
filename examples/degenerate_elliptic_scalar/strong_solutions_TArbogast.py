@@ -140,7 +140,7 @@ def u_exact(x, y, z, m_par, dim):
 
 def q_exact(x, y, z, m_par, dim):
     if dim == 1:
-        mask = x < 0.0
+        mask = x <= 0.0
         val = np.empty_like([x * 0.0])
         val[:, mask] = np.zeros_like([x[mask] * 0.0])
         val[:, ~mask] = np.sqrt(
@@ -166,7 +166,7 @@ def q_exact(x, y, z, m_par, dim):
 
 def v_exact(x, y, z, m_par, m_mu, dim):
     if dim == 1:
-        mask = x < 0.0
+        mask = x <= 0.0
         val = np.empty_like([x * 0.0])
         val[:, mask] = np.zeros_like([x[mask] * 0.0])
         val[:, ~mask] = u_exact(x[~mask], y[~mask], z[~mask], m_par, dim) / f_d_phi(
@@ -206,7 +206,7 @@ def v_exact(x, y, z, m_par, m_mu, dim):
 def f_rhs(x, y, z, m_par, dim):
     if dim == 1:
         beta = m_par
-        mask = x < 0.0
+        mask = x <= 0.0
         val = np.empty_like([[x * 0.0]])
         val[:, :, mask] = np.zeros_like([x[mask] * 0.0])
         val[:, :, ~mask] = np.array(
@@ -267,7 +267,7 @@ def grad_p_exact(x, y, z, m_par, dim):
     if dim == 1:
         beta = m_par
         return np.where(
-            x < 0.0,
+            x <= 0.0,
             np.array([x * 0.0]),
             np.array(
                 [
@@ -284,7 +284,7 @@ def laplacian_p_exact(x, y, z, m_par, dim):
     if dim == 1:
         beta = m_par
         return np.where(
-            x < 0.0,
+            x <= 0.0,
             np.array([x * 0.0]),
             np.array(
                 [
@@ -304,7 +304,7 @@ def laplacian_p_exact(x, y, z, m_par, dim):
 
 
 def test_degeneracy(m_par, m_mu, dim):
-    x = np.random.uniform(-1.0, +1.0, (10, 3))
+    x = np.random.uniform(-1.0, +1.0, (50, 3))
     try:
         phi = f_porosity(x[:, 0], x[:, 1], x[:, 2], m_par, dim)
         grad_phi = f_grad_porosity(x[:, 0], x[:, 1], x[:, 2], m_par, dim)
@@ -318,7 +318,15 @@ def test_degeneracy(m_par, m_mu, dim):
         v = v_exact(x[:, 0], x[:, 1], x[:, 2], m_par, m_mu, dim)
         q = q_exact(x[:, 0], x[:, 1], x[:, 2], m_par, dim)
         rhs = f_rhs(x[:, 0], x[:, 1], x[:, 2], m_par, dim)
+    except Exception:
+        return False
 
+    return True
+
+def test_degeneracy_md(m_par, m_mu, dim):
+    test_degeneracy(m_par, m_mu, dim)
+    x = np.random.uniform(-1.0, +1.0, (10, 3))
+    try:
         # exact functions for md cases
         grad_p = grad_p_exact(x[:, 0], x[:, 1], x[:, 2], m_par, dim)
         laplacian_p = laplacian_p_exact(x[:, 0], x[:, 1], x[:, 2], m_par, dim)

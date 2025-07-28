@@ -424,7 +424,12 @@ class Mesh:
 
         file.close()
 
-    def write_vtk(self, coloring_mesh_q=False):
+    def write_vtk(self, file_name = None, coloring_mesh_q=False):
+        if file_name is not None:
+            prefix = file_name
+        else:
+            prefix = "geometric_mesh"
+
         # write vtk files
         physical_tags_3d = np.array(
             [
@@ -481,7 +486,7 @@ class Mesh:
                 cell_data.__setitem__("c3_colors", [c3_colors])
 
             mesh_3d = meshio.Mesh(self.points, cells=cells_dict, cell_data=cell_data)
-            meshio.write("geometric_mesh_3d.vtk", mesh_3d)
+            meshio.write(prefix + "_3d.vtk", mesh_3d)
 
         physical_tags_2d = np.array(
             [
@@ -538,7 +543,7 @@ class Mesh:
                 cell_data.__setitem__("c2_colors", [c2_colors])
 
             mesh_2d = meshio.Mesh(self.points, cells=cells_dict, cell_data=cell_data)
-            meshio.write("geometric_mesh_2d.vtk", mesh_2d)
+            meshio.write(prefix + "_2d.vtk", mesh_2d)
 
         physical_tags_1d = np.array(
             [
@@ -591,7 +596,7 @@ class Mesh:
                 cell_data.__setitem__("c1_colors", [c1_colors])
 
             mesh_1d = meshio.Mesh(self.points, cells=cells_dict, cell_data=cell_data)
-            meshio.write("geometric_mesh_1d.vtk", mesh_1d)
+            meshio.write(prefix + "_1d.vtk", mesh_1d)
 
         physical_tags_0d = np.array(
             [
@@ -629,7 +634,7 @@ class Mesh:
                 "entity_tag": [entity_tags_0d],
             }
             mesh_0d = meshio.Mesh(self.points, cells=cells_dict, cell_data=cell_data)
-            meshio.write("geometric_mesh_0d.vtk", mesh_0d)
+            meshio.write(prefix + "_0d.vtk", mesh_0d)
 
     def gather_graph_edges(self, dimension, mesh_cell, tuple_id_list):
         if mesh_cell.id is None and mesh_cell.dimension != dimension:
