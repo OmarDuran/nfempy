@@ -21,7 +21,7 @@ $$
 
 # Scenario 2: Stationary Degeneracy
 
-Scenario 2 is a two-materials domain and tests the proposed method where one part of the domain has a fixed (stationary) degenerate porosity field.
+Scenario 2 is a two-materials domain and tests the proposed method where one part of the domain has a fixed (stationary) degenerate porosity field. The interace separating the two domains is not matching the level set (ϕ=0).
 
 **Formulation Used:** This scenario uses the Transformed Model (Model 2), which couples a standard Darcy domain (Ω₁) with a degenerate domain (Ω₂) using transformed variables.
 
