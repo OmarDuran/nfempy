@@ -571,7 +571,7 @@ def main():
                         y = error_data[:, 1:n_data]
                         lineObjects = plt.loglog(x, y, marker="o")
                         plt.legend(
-                            iter(lineObjects),
+                        lineObjects,
                             ("q", "v", "p", "u", "projected q", "projected p"),
                         )
                         plt.title("")
