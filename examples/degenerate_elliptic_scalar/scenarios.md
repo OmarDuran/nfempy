@@ -1,4 +1,4 @@
-# Scenario 1: Demonstrating the Need for Transformed Variables
+# Scenario 1: Need for Transformed Variables
 
 Scenario 1 is a two-materials domain numerical experiment designed to show the failure of the standard Darcy formulation in low porosity and low permeability conditions.
 
@@ -12,21 +12,18 @@ $$
 \mathbf{u} = -d^2(\phi) \nabla p
 $$
 
-**Goal of the Numerical Results:** The goal is to demonstrate that the standard approach becomes numerically unstable as the porosity gets smaller. This is shown by measuring how the following metrics worsen as the porosity cutoff value is reduced:
+**Goal:** The objetive is to showcase that the standard approach becomes numerically unstable as the porosity gets smaller. This can be shown by sampling how the following metrics worsen as the porosity cutoff value is reduced:
 
-- **Condition number:** It is expected to become much larger.
-- **Error rates:** They are expected to degrade.
-- **Absolute error:** It is expected to increase.
+- **Condition number:** expected to increase as porosity decrease.
+- **Error rates:** Expected to degrade.
+- **Absolute error:** Expected to increase.
 
-The expected outcome is that the **transformed model** would not suffer from these issues, thereby motivating its use in the domain decomposition setup.
 
----
+# Scenario 2: Stationary Degeneracy
 
-# Scenario 2: Testing the Domain Decomposition Method with Stationary Degeneracy
+Scenario 2 is a two-materials domain and tests the proposed method where one part of the domain has a fixed (stationary) degenerate porosity field.
 
-Scenario 2 tests the proposed domain decomposition method where one part of the domain has a fixed (stationary) degenerate porosity field.
-
-**Formulation Used:** This scenario uses the Transformed Model (Model 2), which couples a standard Darcy domain (Ω₁) with a degenerate domain (Ω₂) using transformed variables. The setup is:
+**Formulation Used:** This scenario uses the Transformed Model (Model 2), which couples a standard Darcy domain (Ω₁) with a degenerate domain (Ω₂) using transformed variables.
 
 **In subdomain Ω₁ (standard):**
 
@@ -50,6 +47,7 @@ $$
 
 **On the interface:**
 
+The following condition can be enforced only in a weak sense:
 $$
 p_1 = \phi_2^{-1/2} q_2
 $$
@@ -58,10 +56,11 @@ $$
 \mathbf{u}_1 \cdot \mathbf{n}_1 = -d_2(\phi_2) \mathbf{v}_2 \cdot \mathbf{n}_2
 $$
 
-For the simulation, the porosity in the degenerate domain is defined as:
+For the simulation, the porosity in the degenerate domain is defined from [1]. There in see section: **See 4.1 A simple Euler equation in one dimension** and **4.2 A smooth solution test in two dimensions**.
 
-$$
-\phi = x^5 y^{10}
-$$
 
-**Goal of the Numerical Results:** The objective is to validate the domain decomposition method and show that it is both stable and accurate. The specific goal is to compute the error rates for the numerical solution and demonstrate that they achieve the expected linear convergence as the mesh is refined. This confirms the method's reliability for coupling standard and degenerate regions.
+
+**Goal of the Numerical Results:** The objective is to validate the method show that it is stable and accurate.
+
+##References
+[1] Arbogast, T., & Taicher, A. L. (2017). A cell-centered finite difference method for a degenerate elliptic equation arising from two-phase mixtures. Computational Geosciences, 21(4), 701–712. https://doi.org/10.1007/s10596-017-9649-9
