@@ -125,7 +125,6 @@ class LEPrimalWeakForm(WeakForm):
         r_el, j_el = el_form.val, el_form.der.reshape((n_dof, n_dof))
         return r_el, j_el
 
-
 class LEPrimalWeakFormBCDirichlet(WeakForm):
     def evaluate_form(self, element_index, alpha):
         u_D = self.functions["u"]

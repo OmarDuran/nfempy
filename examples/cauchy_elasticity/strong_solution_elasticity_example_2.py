@@ -78,6 +78,17 @@ def stress(m_lambda, m_mu, m_kappa, dim):
         raise ValueError("Dimension not implemented")
 
 
+def pressure(m_lambda, m_mu, m_kappa, dim):
+    if dim == 2:
+        return lambda x, y, z: np.array(
+            [
+            -(2 * np.pi * (-1 + y) * y * (-1 + 2 * y) * np.cos(2 * np.pi * x)
+            + 2 * np.pi * (-1 + x) * x * (-1 + 2 * x) * np.cos(2 * np.pi * y))]
+        )
+    else:
+        raise ValueError("Dimension not implemented")
+
+
 def rhs(m_lambda, m_mu, m_kappa, dim):
     if dim == 2:
         return lambda x, y, z: np.array(

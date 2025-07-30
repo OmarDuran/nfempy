@@ -3,8 +3,6 @@ import time
 from functools import partial
 
 import numpy as np
-
-from examples.md_elliptic_scalar.exact_functions import p_exact
 from mesh.mesh import Mesh
 from mesh.mesh_metrics import mesh_size
 from petsc4py import PETSc
@@ -13,7 +11,7 @@ from postprocess.solution_post_processor import write_vtk_file_with_exact_soluti
 from spaces.product_space import ProductSpace
 from weak_forms.le_taylor_hood_weak_form import LETaylorHoodWeakForm, LETaylorHoodWeakFormBCDirichlet
 
-import strong_solution_elasticity_example_1 as le
+import strong_solution_elasticity_example_2 as le
 
 
 def create_product_space(method, gmesh):
@@ -65,15 +63,17 @@ def mixed_approximation(material_data, method, gmesh):
 
     A = PETSc.Mat()
     A.createAIJ([n_dof_g, n_dof_g])
+    A.setType("aij")  # General matrix for Taylor-Hood formulation
 
     # Material data
     m_lambda = material_data["lambda"]
     m_mu = material_data["mu"]
+    m_kappa = material_data["kappa"]
 
     # exact solution and functions
-    u_exact = le.displacement(m_lambda, m_mu, dim)
-    p_exact = le.pressure(m_lambda, m_mu, dim)
-    f_rhs = le.rhs(m_lambda, m_mu, dim)
+    u_exact = le.displacement(m_lambda, m_mu, m_kappa, dim)
+    p_exact = le.pressure(m_lambda, m_mu, m_kappa, dim)
+    f_rhs = le.rhs(m_lambda, m_mu, m_kappa, dim)
 
     def f_lambda(x, y, z):
         return m_lambda
@@ -81,10 +81,14 @@ def mixed_approximation(material_data, method, gmesh):
     def f_mu(x, y, z):
         return m_mu
 
+    def f_kappa(x, y, z):
+        return m_kappa
+
     m_functions = {
         "rhs": f_rhs,
         "lambda": f_lambda,
         "mu": f_mu,
+        "kappa": f_kappa,
     }
 
     exact_functions = {
@@ -95,7 +99,7 @@ def mixed_approximation(material_data, method, gmesh):
     weak_form = LETaylorHoodWeakForm(fe_space)
     weak_form.functions = m_functions
     bc_weak_form = LETaylorHoodWeakFormBCDirichlet(fe_space)
-    bc_weak_form.functions = exact_functions
+    bc_weak_form.functions = exact_functions  # This line was missing
 
     def scatter_form_data(A, i, weak_form, n_els):
         dest = weak_form.space.destination_indexes(i)
@@ -114,7 +118,7 @@ def mixed_approximation(material_data, method, gmesh):
             A.setValue(row=row[idx], col=col[idx], value=data[idx], addv=True)
             for idx in nnz_idx
         ]
-        # Diagonal zeros for PETSc
+        # Diagonal zeros for PETSc ILU
         [A.setValue(row=idx, col=idx, value=0.0, addv=True) for idx in dest]
 
         check_points = [(int(k * n_els / 10)) for k in range(11)]
@@ -134,6 +138,7 @@ def mixed_approximation(material_data, method, gmesh):
         r_el, j_el = bc_weak_form.evaluate_form(i, alpha_l)
         rg[dest] += r_el
 
+        # contribute lhs
         data = j_el.ravel()
         row = np.repeat(dest, len(dest))
         col = np.tile(dest, len(dest))
@@ -191,17 +196,18 @@ def mixed_approximation(material_data, method, gmesh):
     return alpha, residuals_history
 
 
-def mixed_postprocessing(material_data, method, gmesh, alpha, write_vtk_q=False):
+def primal_postprocessing(material_data, method, gmesh, alpha, write_vtk_q=False):
     dim = gmesh.dimension
     fe_space = create_product_space(method, gmesh)
 
     # Material data
     m_lambda = material_data["lambda"]
     m_mu = material_data["mu"]
+    m_kappa = material_data["kappa"]
 
     # exact solution
-    u_exact = le.displacement(m_lambda, m_mu, dim)
-    p_exact = le.pressure(m_lambda, m_mu, dim)
+    u_exact = le.displacement(m_lambda, m_mu, m_kappa, dim)
+    p_exact = le.pressure(m_lambda, m_mu, m_kappa, dim)
 
     exact_functions = {
         "u": u_exact,
@@ -210,7 +216,7 @@ def mixed_postprocessing(material_data, method, gmesh, alpha, write_vtk_q=False)
 
     if write_vtk_q:
         st = time.time()
-        prefix = "th_ex_" + method[0] + "_lambda_" + str(material_data["lambda"])
+        prefix = "th_ex_2_" + method[0] + "_kappa_" + str(material_data["kappa"])
         file_name = prefix + ".vtk"
         write_vtk_file_with_exact_solution(
             file_name, gmesh, fe_space, exact_functions, alpha
@@ -242,32 +248,30 @@ def create_mesh_from_file(file_name, dim, write_vtk_q=False):
 
 def method_definition(k_order):
     method_th = {
-        "u": ("Lagrange", k_order),  # k>=2 for displacement
-        "p": ("Lagrange", k_order - 1), # k-1 for pressure
+        "u": ("Lagrange", k_order),     # P2 for displacement
+        "p": ("Lagrange", k_order-1),   # P1 for pressure
     }
     methods = [method_th]
-    method_names = ["TH_FEM"]
+    method_names = ["TH_FEM"]  # Taylor-Hood FEM
     return zip(method_names, methods)
 
 
 def material_data_definition():
-    # Material data for example 1
-    case_0 = {"lambda": 1.0, "mu": 1.0}
-    case_1 = {"lambda": 1.0e2, "mu": 1.0}
-    case_2 = {"lambda": 1.0e4, "mu": 1.0}
-    case_3 = {"lambda": 1.0e8, "mu": 1.0}
-    case_4 = {"lambda": 1.0e10, "mu": 1.0}
-    cases = [case_0, case_1, case_2, case_3, case_4]
-    cases = [case_0]
+    # Material data for example 2
+    case_0 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0e-6}
+    case_1 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0}
+    case_2 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0e6}
+    cases = [case_0, case_1, case_2]
+    cases = [case_1]
     return cases
 
 
 def compose_file_name(method, ref_l, material_data, suffix):
     prefix = (
-        "ex_1_"
+        "ex_2_"
         + method[0]
-        + "_lambda_"
-        + str(material_data["lambda"])
+        + "_kappa_"
+        + str(material_data["kappa"])
         + "_l_"
         + str(ref_l)
     )
@@ -284,13 +288,14 @@ def perform_convergence_approximations(configuration: dict):
     write_geometry_vtk = configuration.get("write_geometry_Q", True)
 
     for lh in range(n_ref):
-        mesh_file = f"gmsh_files/ex_1/partition_ex_1_l_{lh}.msh"
+        mesh_file = f"gmsh_files/ex_2/partition_ex_2_l_{lh}.msh"
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
         alpha, res_history = mixed_approximation(material_data, method, gmesh)
         file_name = compose_file_name(method, lh, material_data, "_alpha.npy")
         with open(file_name, "wb") as f:
             np.save(f, alpha)
         file_name_res = compose_file_name(method, lh, material_data, "_res_history.txt")
+        # First position includes n_dof
         np.savetxt(
             file_name_res,
             np.concatenate((np.array([len(alpha)]), res_history)),
@@ -313,45 +318,48 @@ def perform_convergence_postprocessing(configuration: dict):
     error_data = np.empty((0, n_data), float)
 
     for lh in range(n_ref):
-        mesh_file = f"gmsh_files/ex_1/partition_ex_1_l_{lh}.msh"
+        mesh_file = f"gmsh_files/ex_2/partition_ex_2_l_{lh}.msh"
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
         h_min, h_mean, h_max = mesh_size(gmesh)
 
         file_name = compose_file_name(method, lh, material_data, "_alpha.npy")
         with open(file_name, "rb") as f:
             alpha = np.load(f)
-        n_dof, errors = mixed_postprocessing(
+        n_dof, errors = primal_postprocessing(
             material_data, method, gmesh, alpha, write_vtk
         )
 
         chunk = np.array([n_dof, 1, h_max, errors[0], errors[1]])
         error_data = np.append(error_data, np.array([chunk]), axis=0)
 
-    # Calculate convergence rates
-    rates_data = np.empty((0, n_data - 3), float)
+    # Calculate convergence rates (for both displacement and pressure errors)
+    rates_data = np.empty((0, 2), float)
     for i in range(error_data.shape[0] - 1):
         chunk_b = np.log(error_data[i])
         chunk_e = np.log(error_data[i + 1])
         h_step = chunk_e[2] - chunk_b[2]  # using h_max
-        partial = (chunk_e - chunk_b) / h_step
-        rates_data = np.append(rates_data, np.array([list(partial[3:n_data])]), axis=0)
+        partial = np.array([
+            (chunk_e[3] - chunk_b[3]) / h_step,  # rate for displacement error
+            (chunk_e[4] - chunk_b[4]) / h_step,  # rate for pressure error
+        ])
+        rates_data = np.append(rates_data, np.array([partial]), axis=0)
 
     # Print minimal report
     np.set_printoptions(precision=3)
     print(f"Taylor-Hood formulation: {method[0]}")
     print(f"Dimension: {dimension}")
-    print("Error data (DOFs, iterations, h_max, L2-error):")
+    print("Error data (DOFs, iterations, h_max, L2-error u, L2-error p):")
     print(error_data)
-    print("Convergence rates:")
+    print("Convergence rates (u, p):")
     print(rates_data)
     print("")
 
     # Save data to files
-    lambda_value = material_data["lambda"]
-    file_name_prefix = f"ex_1_{method[0]}_lambda_{lambda_value}"
+    kappa_value = material_data["kappa"]
+    file_name_prefix = f"ex_2_{method[0]}_kappa_{kappa_value}"
 
-    e_str_header = "n_dof, n_iter, h, u_L2_error"
-    r_str_header = "u_convergence_rate"
+    e_str_header = "n_dof, n_iter, h, u_L2_error, p_L2_error"
+    r_str_header = "u_convergence_rate, p_convergence_rate"
 
     if report_full_precision_data:
         np.savetxt(
@@ -388,7 +396,7 @@ def main():
     dimension = 2
     approximation_q = True
     postprocessing_q = True
-    refinements = {2: 4}
+    refinements = {2: 4}  # k=2 gives P2-P1 Taylor-Hood elements
     case_data = material_data_definition()
 
     for k in [2]:  # k=2 gives P2-P1 Taylor-Hood elements
@@ -406,7 +414,6 @@ def main():
                     perform_convergence_approximations(configuration)
                 if postprocessing_q:
                     perform_convergence_postprocessing(configuration)
-
 
 if __name__ == "__main__":
     main()
