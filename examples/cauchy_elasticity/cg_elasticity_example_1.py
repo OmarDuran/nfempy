@@ -164,7 +164,7 @@ def primal_approximation(material_data, method, gmesh):
     x = A.createVecRight()
 
     ksp.setType("cg")  # Conjugate gradient for symmetric positive definite system
-    ksp.getPC().setType("icc")  # Algebraic multigrid preconditioner
+    ksp.getPC().setType("icc")  # incomplete Cholesky
     ksp.setTolerances(rtol=0.0, atol=1e-10, divtol=5000, max_it=1000)
     ksp.setFromOptions()
 
@@ -240,11 +240,14 @@ def method_definition(k_order):
 
 
 def material_data_definition():
+    # Material data for example 1
     case_0 = {"lambda": 1.0, "mu": 1.0}
-    case_1 = {"lambda": 10.0, "mu": 1.0}
-    case_2 = {"lambda": 100.0, "mu": 1.0}
-    # cases = [case_0, case_1, case_2]
-    cases = [case_0]
+    case_1 = {"lambda": 1.0e2, "mu": 1.0}
+    case_2 = {"lambda": 1.0e4, "mu": 1.0}
+    case_3 = {"lambda": 1.0e8, "mu": 1.0}
+    case_4 = {"lambda": 1.0e10, "mu": 1.0}
+    cases = [case_0, case_1, case_2, case_3, case_4]
+    cases = [case_3]
     return cases
 
 
@@ -261,14 +264,126 @@ def compose_file_name(method, ref_l, material_data, suffix):
     return file_name
 
 
+def perform_convergence_postprocessing(configuration: dict):
+    # retrieve parameters from given configuration
+    method = configuration.get("method")
+    n_ref = configuration.get("n_refinements")
+    dimension = configuration.get("dimension")
+    material_data = configuration.get("material_data", {})
+    write_geometry_vtk = configuration.get("write_geometry_Q", True)
+    write_vtk = configuration.get("write_vtk_Q", True)
+    report_full_precision_data = configuration.get("report_full_precision_data_Q", True)
+
+    # For CG formulation, we track fewer quantities than MFE
+    n_data = 4  # n_dof, n_iterations, h_max, displacement error
+    error_data = np.empty((0, n_data), float)
+
+    for lh in range(n_ref):
+        mesh_file = f"gmsh_files/ex_1/partition_ex_1_l_{lh}.msh"
+        gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
+        h_min, h_mean, h_max = mesh_size(gmesh)
+
+        file_name = compose_file_name(method, lh, material_data, "_alpha.npy")
+        with open(file_name, "rb") as f:
+            alpha = np.load(f)
+        n_dof, errors = primal_postprocessing(
+            material_data, method, gmesh, alpha, write_vtk
+        )
+
+        # For CG, we only have displacement error
+        chunk = np.array([n_dof, 0, h_max, errors[0]])  # 0 for n_iterations since we use direct solver
+        error_data = np.append(error_data, np.array([chunk]), axis=0)
+
+    # Calculate convergence rates (only for displacement error)
+    rates_data = np.empty((0, 1), float)  # Only one rate for displacement
+    for i in range(error_data.shape[0] - 1):
+        chunk_b = np.log(error_data[i])
+        chunk_e = np.log(error_data[i + 1])
+        h_step = chunk_e[2] - chunk_b[2]  # using h_max
+        partial = (chunk_e[3] - chunk_b[3]) / h_step  # rate for displacement error
+        rates_data = np.append(rates_data, np.array([[partial]]), axis=0)
+
+    # Print minimal report
+    np.set_printoptions(precision=3)
+    print(f"CG formulation: {method[0]}")
+    print(f"Dimension: {dimension}")
+    print("Error data (DOFs, iterations, h_max, L2-error):")
+    print(error_data)
+    print("Convergence rates:")
+    print(rates_data)
+    print("")
+
+    # Save data to files
+    lambda_value = material_data["lambda"]
+    file_name_prefix = f"cg_ex_{method[0]}_lambda_{lambda_value}"
+
+    e_str_header = "n_dof, n_iter, h, u_L2_error"
+    r_str_header = "u_convergence_rate"
+
+    if report_full_precision_data:
+        np.savetxt(
+            file_name_prefix + "_error.txt",
+            error_data,
+            delimiter=",",
+            header=e_str_header
+        )
+        np.savetxt(
+            file_name_prefix + "_rates.txt",
+            rates_data,
+            delimiter=",",
+            header=r_str_header
+        )
+
+    # Save rounded data
+    np.savetxt(
+        file_name_prefix + "_error_rounded.txt",
+        error_data,
+        fmt="%1.3e",
+        delimiter=",",
+        header=e_str_header
+    )
+    np.savetxt(
+        file_name_prefix + "_rates_rounded.txt",
+        rates_data,
+        fmt="%1.3f",
+        delimiter=",",
+        header=r_str_header
+    )
+
+
+def perform_convergence_approximations(configuration: dict):
+    # retrieve parameters from given configuration
+    method = configuration.get("method")
+    n_ref = configuration.get("n_refinements")
+    dimension = configuration.get("dimension")
+    material_data = configuration.get("material_data", {})
+    write_geometry_vtk = configuration.get("write_geometry_Q", True)
+
+    for lh in range(n_ref):
+        mesh_file = f"gmsh_files/ex_1/partition_ex_1_l_{lh}.msh"
+        gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
+        alpha, res_history = primal_approximation(material_data, method, gmesh)
+        file_name = compose_file_name(method, lh, material_data, "_alpha.npy")
+        with open(file_name, "wb") as f:
+            np.save(f, alpha)
+        file_name_res = compose_file_name(method, lh, material_data, "_res_history.txt")
+        # First position includes n_dof
+        np.savetxt(
+            file_name_res,
+            np.concatenate((np.array([len(alpha)]), res_history)),
+            delimiter=",",
+        )
+    return
+
+
 def main():
     dimension = 2
     approximation_q = True
     postprocessing_q = True
-    refinements = {1: 2}  # 4 refinement levels for k=1
+    refinements = {2: 4}  # 4 refinement levels for k=2
     case_data = material_data_definition()
 
-    for k in [1]:  # Could extend to higher orders
+    for k in [2]:  # polynomial degree
         methods = method_definition(k)
         for method in methods:
             for material_data in case_data:
@@ -279,32 +394,10 @@ def main():
                     "method": method,
                     "material_data": material_data,
                 }
-
-                print(f"\nRunning CG elasticity with:")
-                print(f"Method: {method[0]}, k={k}")
-                print(f"lambda={material_data['lambda']}, mu={material_data['mu']}")
-
-                for lh in range(refinements[k]):
-                    mesh_file = f"gmsh_files/ex_1/partition_ex_1_l_{lh}.msh"
-                    gmesh = create_mesh_from_file(mesh_file, dimension, True)
-                    h_min, h_mean, h_max = mesh_size(gmesh)
-                    print(f"\nMesh level {lh}, h_max = {h_max}")
-
-                    if approximation_q:
-                        alpha, res_history = primal_approximation(material_data, method, gmesh)
-                        file_name = compose_file_name(method, lh, material_data, "_alpha.npy")
-                        with open(file_name, "wb") as f:
-                            np.save(f, alpha)
-
-                    if postprocessing_q:
-                        file_name = compose_file_name(method, lh, material_data, "_alpha.npy")
-                        with open(file_name, "rb") as f:
-                            alpha = np.load(f)
-                        n_dof, errors = primal_postprocessing(
-                            material_data, method, gmesh, alpha, True
-                        )
-                        print(f"DOFs: {n_dof}")
-                        print(f"L2 error: {errors[0]}")
+                if approximation_q:
+                    perform_convergence_approximations(configuration)
+                if postprocessing_q:
+                    perform_convergence_postprocessing(configuration)
 
 
 if __name__ == "__main__":
