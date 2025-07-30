@@ -7,12 +7,11 @@ from mesh.mesh import Mesh
 from mesh.mesh_metrics import mesh_size
 from petsc4py import PETSc
 from postprocess.l2_error_post_processor import l2_error
-from postprocess.solution_norms_post_processor import l2_norm
 from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
 from spaces.product_space import ProductSpace
 from weak_forms.le_primal_weak_form import LEPrimalWeakForm, LEPrimalWeakFormBCDirichlet
 
-import strong_solution_elasticity_example_1 as le
+import strong_solution_elasticity_example_2 as le
 
 
 def create_product_space(method, gmesh):
@@ -64,10 +63,11 @@ def primal_approximation(material_data, method, gmesh):
     # Material data
     m_lambda = material_data["lambda"]
     m_mu = material_data["mu"]
+    m_kappa = material_data["kappa"]
 
     # exact solution and functions
-    u_exact = le.displacement(m_lambda, m_mu, dim)  # kappa=0 for classical elasticity
-    f_rhs = le.rhs(m_lambda, m_mu, dim)
+    u_exact = le.displacement(m_lambda, m_mu, m_kappa, dim)
+    f_rhs = le.rhs(m_lambda, m_mu, m_kappa, dim)
 
     def f_lambda(x, y, z):
         return m_lambda
@@ -139,6 +139,7 @@ def primal_approximation(material_data, method, gmesh):
             if row[idx] <= col[idx]
         ]
 
+
     n_els = len(fe_space.discrete_spaces["u"].elements)
     [scatter_form_data(A, i, weak_form, n_els) for i in range(n_els)]
 
@@ -164,7 +165,7 @@ def primal_approximation(material_data, method, gmesh):
     x = A.createVecRight()
 
     ksp.setType("cg")  # Conjugate gradient for symmetric positive definite system
-    ksp.getPC().setType("icc")  # incomplete Cholesky
+    ksp.getPC().setType("icc")  # Incomplete Cholesky preconditioner
     ksp.setTolerances(rtol=0.0, atol=1e-10, divtol=5000, max_it=1000)
     ksp.setFromOptions()
 
@@ -191,9 +192,10 @@ def primal_postprocessing(material_data, method, gmesh, alpha, write_vtk_q=False
     # Material data
     m_lambda = material_data["lambda"]
     m_mu = material_data["mu"]
+    m_kappa = material_data["kappa"]
 
     # exact solution
-    u_exact = le.displacement(m_lambda, m_mu, dim)
+    u_exact = le.displacement(m_lambda, m_mu, m_kappa, dim)
 
     exact_functions = {
         "u": u_exact,
@@ -201,10 +203,10 @@ def primal_postprocessing(material_data, method, gmesh, alpha, write_vtk_q=False
 
     if write_vtk_q:
         st = time.time()
-        prefix = "cg_ex_" + method[0] + "_lambda_" + str(material_data["lambda"])
+        prefix = "cg_ex_2_" + method[0] + "_kappa_" + str(material_data["kappa"])
         file_name = prefix + ".vtk"
         write_vtk_file_with_exact_solution(
-            file_name, gmesh, fe_space, exact_functions, alpha,
+            file_name, gmesh, fe_space, exact_functions, alpha
         )
         et = time.time()
         elapsed_time = et - st
@@ -232,7 +234,7 @@ def create_mesh_from_file(file_name, dim, write_vtk_q=False):
 
 def method_definition(k_order):
     method_cg = {
-        "u": ("Lagrange", k_order),  # k+1 for optimal convergence
+        "u": ("Lagrange", k_order),
     }
     methods = [method_cg]
     method_names = ["FEM"]
@@ -240,27 +242,50 @@ def method_definition(k_order):
 
 
 def material_data_definition():
-    # Material data for example 1
-    case_0 = {"lambda": 1.0, "mu": 1.0}
-    case_1 = {"lambda": 1.0e2, "mu": 1.0}
-    case_2 = {"lambda": 1.0e4, "mu": 1.0}
-    case_3 = {"lambda": 1.0e8, "mu": 1.0}
-    case_4 = {"lambda": 1.0e10, "mu": 1.0}
-    cases = [case_0, case_1, case_2, case_3, case_4]
+    # Material data for example 2
+    case_0 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0e-6}
+    case_1 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0}
+    case_2 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0e6}
+    cases = [case_0, case_1, case_2]
     return cases
 
 
 def compose_file_name(method, ref_l, material_data, suffix):
     prefix = (
-        "ex_1_"
+        "ex_2_"
         + method[0]
-        + "_lambda_"
-        + str(material_data["lambda"])
+        + "_kappa_"
+        + str(material_data["kappa"])
         + "_l_"
         + str(ref_l)
     )
     file_name = prefix + suffix
     return file_name
+
+
+def perform_convergence_approximations(configuration: dict):
+    # retrieve parameters from given configuration
+    method = configuration.get("method")
+    n_ref = configuration.get("n_refinements")
+    dimension = configuration.get("dimension")
+    material_data = configuration.get("material_data", {})
+    write_geometry_vtk = configuration.get("write_geometry_Q", True)
+
+    for lh in range(n_ref):
+        mesh_file = f"gmsh_files/ex_2/partition_ex_2_l_{lh}.msh"
+        gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
+        alpha, res_history = primal_approximation(material_data, method, gmesh)
+        file_name = compose_file_name(method, lh, material_data, "_alpha.npy")
+        with open(file_name, "wb") as f:
+            np.save(f, alpha)
+        file_name_res = compose_file_name(method, lh, material_data, "_res_history.txt")
+        # First position includes n_dof
+        np.savetxt(
+            file_name_res,
+            np.concatenate((np.array([len(alpha)]), res_history)),
+            delimiter=",",
+        )
+    return
 
 
 def perform_convergence_postprocessing(configuration: dict):
@@ -273,12 +298,11 @@ def perform_convergence_postprocessing(configuration: dict):
     write_vtk = configuration.get("write_vtk_Q", True)
     report_full_precision_data = configuration.get("report_full_precision_data_Q", True)
 
-    # For CG formulation, we track fewer quantities than MFE
     n_data = 4  # n_dof, n_iterations, h_max, displacement error
     error_data = np.empty((0, n_data), float)
 
     for lh in range(n_ref):
-        mesh_file = f"gmsh_files/ex_1/partition_ex_1_l_{lh}.msh"
+        mesh_file = f"gmsh_files/ex_2/partition_ex_2_l_{lh}.msh"
         gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
         h_min, h_mean, h_max = mesh_size(gmesh)
 
@@ -289,8 +313,7 @@ def perform_convergence_postprocessing(configuration: dict):
             material_data, method, gmesh, alpha, write_vtk
         )
 
-        # For CG, we only have displacement error
-        chunk = np.array([n_dof, 1, h_max, errors[0]])  # 0 for n_iterations since we use direct solver
+        chunk = np.array([n_dof, 1, h_max, errors[0]]) # 0 for n_iterations since we use direct solver
         error_data = np.append(error_data, np.array([chunk]), axis=0)
 
     # Calculate convergence rates (only for displacement error)
@@ -313,8 +336,8 @@ def perform_convergence_postprocessing(configuration: dict):
     print("")
 
     # Save data to files
-    lambda_value = material_data["lambda"]
-    file_name_prefix = f"cg_ex_{method[0]}_lambda_{lambda_value}"
+    kappa_value = material_data["kappa"]
+    file_name_prefix = f"cg_ex_2_{method[0]}_kappa_{kappa_value}"
 
     e_str_header = "n_dof, n_iter, h, u_L2_error"
     r_str_header = "u_convergence_rate"
@@ -350,36 +373,11 @@ def perform_convergence_postprocessing(configuration: dict):
     )
 
 
-def perform_convergence_approximations(configuration: dict):
-    # retrieve parameters from given configuration
-    method = configuration.get("method")
-    n_ref = configuration.get("n_refinements")
-    dimension = configuration.get("dimension")
-    material_data = configuration.get("material_data", {})
-    write_geometry_vtk = configuration.get("write_geometry_Q", True)
-
-    for lh in range(n_ref):
-        mesh_file = f"gmsh_files/ex_1/partition_ex_1_l_{lh}.msh"
-        gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
-        alpha, res_history = primal_approximation(material_data, method, gmesh)
-        file_name = compose_file_name(method, lh, material_data, "_alpha.npy")
-        with open(file_name, "wb") as f:
-            np.save(f, alpha)
-        file_name_res = compose_file_name(method, lh, material_data, "_res_history.txt")
-        # First position includes n_dof
-        np.savetxt(
-            file_name_res,
-            np.concatenate((np.array([len(alpha)]), res_history)),
-            delimiter=",",
-        )
-    return
-
-
 def main():
     dimension = 2
     approximation_q = True
     postprocessing_q = True
-    refinements = {2: 4}  # 4 refinement levels for k=2
+    refinements = {2: 2}
     case_data = material_data_definition()
 
     for k in [2]:  # polynomial degree

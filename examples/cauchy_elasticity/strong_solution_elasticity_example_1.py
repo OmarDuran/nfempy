@@ -78,6 +78,13 @@ def stress(m_lambda, m_mu, dim: int = 2):
         raise ValueError("Dimension not implemented")
 
 
+def pressure(m_lambda, m_mu, dim: int = 2):
+    if dim == 2:
+        return lambda x, y, z: np.array([0.0 * x])  # pressure is zero for this example since trace(stress) = 0
+    else:
+        raise ValueError("Dimension not implemented")
+
+
 def rhs(m_lambda, m_mu, dim: int = 2):
     if dim == 2:
         return lambda x, y, z: np.array(
