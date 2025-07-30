@@ -36,6 +36,8 @@ class LEPrimalWeakForm(WeakForm):
 
         # Partial local vectorization
         f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
+        f_lambda_star = f_lambda(x[:, 0], x[:, 1], x[:, 2])
+        f_mu_star = f_mu(x[:, 0], x[:, 1], x[:, 2])
 
         # constant directors
         e1 = np.array([1, 0, 0])
@@ -78,8 +80,8 @@ class LEPrimalWeakForm(WeakForm):
 
                     # Stress tensor (linear elastic constitutive law)
                     sh = (
-                        2.0 * f_mu(xv[0], xv[1], xv[2]) * eh
-                        + f_lambda(xv[0], xv[1], xv[2]) * tr_eh * Imat
+                        2.0 * f_mu_star[i] * eh
+                        + f_lambda_star[i] * tr_eh * Imat
                     )
 
                     strain_energy_h = (grad_phi_u @ sh.T).reshape((n_u_dof,))
@@ -113,8 +115,8 @@ class LEPrimalWeakForm(WeakForm):
 
                     # Stress tensor (linear elastic constitutive law)
                     sh = (
-                        2.0 * f_mu(xv[0], xv[1], xv[2]) * eh
-                        + f_lambda(xv[0], xv[1], xv[2]) * tr_eh * Imat
+                        2.0 * f_mu_star[i] * eh
+                        + f_lambda_star[i] * tr_eh * Imat
                     )
 
                     strain_energy_h = (grad_phi_u @ sh.T).reshape((n_u_dof,))

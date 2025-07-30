@@ -210,7 +210,7 @@ def mixed_postprocessing(material_data, method, gmesh, alpha, write_vtk_q=False)
 
     if write_vtk_q:
         st = time.time()
-        prefix = "th_ex_" + method[0] + "_lambda_" + str(material_data["lambda"])
+        prefix = "ex_" + method[0] + "_lambda_" + str(material_data["lambda"])
         file_name = prefix + ".vtk"
         write_vtk_file_with_exact_solution(
             file_name, gmesh, fe_space, exact_functions, alpha

@@ -46,6 +46,8 @@ class LETaylorHoodWeakForm(WeakForm):
 
         # Partial local vectorization
         f_val_star = f_rhs(x[:, 0], x[:, 1], x[:, 2])
+        f_lambda_star = f_lambda(x[:, 0], x[:, 1], x[:, 2])
+        f_mu_star = f_mu(x[:, 0], x[:, 1], x[:, 2])
 
         # constant directors
         e1 = np.array([1, 0, 0])
@@ -107,8 +109,8 @@ class LETaylorHoodWeakForm(WeakForm):
                     ph = alpha_p @ phi_p
 
                     # Material parameters at quadrature point
-                    lambda_v = f_lambda(xv[0], xv[1], xv[2])
-                    mu_v = f_mu(xv[0], xv[1], xv[2])
+                    lambda_v = f_lambda_star[i]
+                    mu_v = f_mu_star[i]
 
                     # Compute deviatoric stress tensor
                     sh_dev = 2.0 * mu_v * (eh - (1.0/dim) * tr_eh * Imat)
@@ -155,8 +157,8 @@ class LETaylorHoodWeakForm(WeakForm):
                     ph = alpha_p @ phi_p
 
                     # Material parameters at quadrature point
-                    lambda_v = f_lambda(xv[0], xv[1], xv[2])
-                    mu_v = f_mu(xv[0], xv[1], xv[2])
+                    lambda_v = f_lambda_star[i]
+                    mu_v = f_mu_star[i]
 
                     # Compute deviatoric stress tensor
                     sh_dev = 2.0 * mu_v * (eh - (1.0/dim) * tr_eh * Imat)

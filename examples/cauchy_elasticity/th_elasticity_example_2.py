@@ -74,21 +74,18 @@ def mixed_approximation(material_data, method, gmesh):
     u_exact = le.displacement(m_lambda, m_mu, m_kappa, dim)
     p_exact = le.pressure(m_lambda, m_mu, m_kappa, dim)
     f_rhs = le.rhs(m_lambda, m_mu, m_kappa, dim)
+    f_xi = partial(le.xi, m_kappa=m_kappa, dim=dim)
 
     def f_lambda(x, y, z):
-        return m_lambda
+        return f_xi(x, y, z)
 
     def f_mu(x, y, z):
-        return m_mu
-
-    def f_kappa(x, y, z):
-        return m_kappa
+        return f_xi(x, y, z)
 
     m_functions = {
         "rhs": f_rhs,
         "lambda": f_lambda,
         "mu": f_mu,
-        "kappa": f_kappa,
     }
 
     exact_functions = {
@@ -196,7 +193,7 @@ def mixed_approximation(material_data, method, gmesh):
     return alpha, residuals_history
 
 
-def primal_postprocessing(material_data, method, gmesh, alpha, write_vtk_q=False):
+def mixed_postprocessing(material_data, method, gmesh, alpha, write_vtk_q=False):
     dim = gmesh.dimension
     fe_space = create_product_space(method, gmesh)
 
@@ -216,7 +213,7 @@ def primal_postprocessing(material_data, method, gmesh, alpha, write_vtk_q=False
 
     if write_vtk_q:
         st = time.time()
-        prefix = "th_ex_2_" + method[0] + "_kappa_" + str(material_data["kappa"])
+        prefix = "ex_2_" + method[0] + "_kappa_" + str(material_data["kappa"])
         file_name = prefix + ".vtk"
         write_vtk_file_with_exact_solution(
             file_name, gmesh, fe_space, exact_functions, alpha
@@ -325,7 +322,7 @@ def perform_convergence_postprocessing(configuration: dict):
         file_name = compose_file_name(method, lh, material_data, "_alpha.npy")
         with open(file_name, "rb") as f:
             alpha = np.load(f)
-        n_dof, errors = primal_postprocessing(
+        n_dof, errors = mixed_postprocessing(
             material_data, method, gmesh, alpha, write_vtk
         )
 
@@ -396,7 +393,7 @@ def main():
     dimension = 2
     approximation_q = True
     postprocessing_q = True
-    refinements = {2: 4}  # k=2 gives P2-P1 Taylor-Hood elements
+    refinements = {2: 2}  # k=2 gives P2-P1 Taylor-Hood elements
     case_data = material_data_definition()
 
     for k in [2]:  # k=2 gives P2-P1 Taylor-Hood elements

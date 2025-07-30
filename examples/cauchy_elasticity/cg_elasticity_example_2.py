@@ -68,12 +68,13 @@ def primal_approximation(material_data, method, gmesh):
     # exact solution and functions
     u_exact = le.displacement(m_lambda, m_mu, m_kappa, dim)
     f_rhs = le.rhs(m_lambda, m_mu, m_kappa, dim)
+    f_xi = partial(le.xi, m_kappa=m_kappa, dim=dim)
 
     def f_lambda(x, y, z):
-        return m_lambda
+        return f_xi(x, y, z)
 
     def f_mu(x, y, z):
-        return m_mu
+        return f_xi(x, y, z)
 
     m_functions = {
         "rhs": f_rhs,
@@ -247,6 +248,7 @@ def material_data_definition():
     case_1 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0}
     case_2 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0e6}
     cases = [case_0, case_1, case_2]
+    cases = [case_1]
     return cases
 
 
