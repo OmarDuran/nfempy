@@ -500,131 +500,14 @@ class painter_ex_2(painter):
         conv_triangle.inset_me()
 
 
-class painter_ex_3(painter):
-    @property
-    def markers_values_map(self):
-        map = {"four_field_MFEM": "o", "TPSA": "s"}
-        return map
-
-    @property
-    def method_style_map(self):
-        map = {
-            "four_field_MFEM": "-",
-            "TPSA": "dashed",
-        }
-        return map
-
-    @staticmethod
-    def filter_composer(method):
-        filter_0 = method
-        filter = filter_0
-        return filter
-
-    @property
-    def convergence_type_map(self):
-        map = {
-            "four_field_MFEM_u": np.array([11]),
-            "TPSA_u": np.array([6]),
-            "four_field_MFEM_sigma": np.array([5]),
-            "TPSA_sigma": np.array([4]),
-        }
-        return map
-
-    @property
-    def h_size_map(self):
-        map = {
-            "four_field_MFEM": np.array([2]),
-            "TPSA": np.array([1]),
-        }
-        return map
-
-    def color_canvas(self, methods, conv_type):
-        self.create_directory()
-
-        p = Path()
-        file_names = list(p.glob(self.file_pattern))
-        fig, ax = plt.subplots(figsize=self.figure_size)
-        label_methods = {}
-        label_parameters = {}
-        for method in methods:
-            filter = painter_ex_3.filter_composer(method=method)
-            result = [
-                (idx, path.name)
-                for idx, path in enumerate(file_names)
-                if (filter in path.name)
-            ]
-            assert len(result) == 1
-            conv_type_key = painter_ex_3.convergence_type_key(method, conv_type)
-            idxs = self.convergence_type_map[conv_type_key]
-            label_method = self.method_map[method]
-            line_style = self.method_style_map[method]
-            color = self.method_color_map[method]
-            file_name = str(file_names[result[0][0]])
-            rdata = np.genfromtxt(file_name, dtype=None, delimiter=",", skip_header=1)
-
-            h = rdata[:, self.h_size_map[method]]
-            plt.xlim(np.min(h) / 1.1, np.max(h) * 1.1)
-
-            error = np.sum(rdata[:, idxs], axis=1)
-            plt.loglog(h, error, marker="o", linestyle=line_style, color=color)
-            label_methods[label_method] = color
-
-        legend_elements = []
-        for chunk in label_methods.items():
-            legend_elements.append(
-                Line2D([0], [0], lw=2, label=chunk[0], color=chunk[1])
-            )
-        for chunk in label_parameters.items():
-            legend_elements.append(
-                Line2D(
-                    [0], [0], lw=2, label=chunk[0], linestyle=chunk[1], color="black"
-                )
-            )
-
-        ax.grid(
-            True, linestyle="-.", axis="both", which="both", color="black", alpha=0.25
-        )
-        ax.tick_params(which="both", labelcolor="black", labelsize="large", width=2)
-        ax.xaxis.set_minor_locator(MultipleLocator(0.2))
-        plt.xlabel(r"$h$")
-        plt.ylabel("Error")
-        plt.ylim(self.ordinate_range[0], self.ordinate_range[1])
-        plt.legend(
-            handles=legend_elements,
-            ncol=2,
-            handleheight=1,
-            handlelength=2.0,
-            labelspacing=0.025,
-        )
-
-    def build_inset(self, method, conv_type, rate, h_shift, e_shift, mirror_q=False):
-        file_names = list(Path().glob(self.file_pattern))
-        filter = painter_ex_3.filter_composer(method=method)
-        result = [
-            (idx, path.name)
-            for idx, path in enumerate(file_names)
-            if (filter in path.name)
-        ]
-        assert len(result) == 1
-        file_name = str(file_names[result[0][0]])
-        rdata = np.genfromtxt(file_name, dtype=None, delimiter=",", skip_header=1)
-        conv_type_key = painter_ex_3.convergence_type_key(method, conv_type)
-        idxs = self.convergence_type_map[conv_type_key]
-        ldata = np.vstack(
-            (rdata[:, self.h_size_map[method][0]], np.sum(rdata[:, idxs], axis=1))
-        ).T
-        conv_triangle = ConvergenceTriangle(ldata, rate, h_shift, e_shift, mirror_q)
-        conv_triangle.inset_me()
-
-
 def render_figures_example_1(folder_name, fig_type):
-    methods = ["three_field_MFEM", "TPSA", "MPSA"]
+    methods = ["three_field_MFEM"]
     file_pattern = folder_name + "output_example_1/*_error.txt"
 
     painter = painter_ex_1()
     painter.file_pattern = file_pattern
 
-    material_values = [1.0, 1.0e2, 1.0e4, 1.0e8]
+    material_values = [1.0, 1.0e2, 1.0e4, 1.0e8, 1.0e10]
 
     k = 0
     rate = k + 2
@@ -650,7 +533,7 @@ def render_figures_example_1(folder_name, fig_type):
 
 
 def render_figures_example_2(folder_name, fig_type):
-    methods = ["three_field_MFEM", "TPSA", "MPSA"]
+    methods = ["three_field_MFEM"]
     file_pattern = folder_name + "output_example_2/*_error.txt"
 
     painter = painter_ex_2()
@@ -681,33 +564,8 @@ def render_figures_example_2(folder_name, fig_type):
     painter.save_figure()
 
 
-def render_figures_example_3(folder_name, fig_type):
-    methods = ["four_field_MFEM", "TPSA"]
-    file_pattern = folder_name + "output_example_3/*_error.txt"
-    painter = painter_ex_3()
-    painter.file_pattern = file_pattern
 
-    k = 0
-    rate = k + 2
-    conv_type = "u"
-    painter.ordinate_range = (0.00001, 0.05)
-    painter.file_name = "convergence_u_example_3." + fig_type
-    painter.color_canvas(methods, conv_type)
-    painter.build_inset(methods[0], conv_type, rate, 0.0, -0.2)
-    painter.save_figure()
-
-    k = 0
-    rate = k + 2
-    conv_type = "sigma"
-    painter.ordinate_range = (0.0002, 10)
-    painter.file_name = "convergence_sigma_example_3." + fig_type
-    painter.color_canvas(methods, conv_type)
-    painter.build_inset(methods[0], conv_type, rate, 0.0, -0.2)
-    painter.save_figure()
-
-
-folder_name = "output_ecmor_mfem_fvm/"
+folder_name = "output_cauchy_fem/"
 for fig_type in ["pdf", "png", "svg"]:
     render_figures_example_1(folder_name, fig_type)
     render_figures_example_2(folder_name, fig_type)
-    render_figures_example_3(folder_name, fig_type)

@@ -2,7 +2,7 @@
 SetFactory("OpenCASCADE");
 
 // Define a characteristic length for the mesh size
-lc = 0.25;
+lc = 0.125;
 
 // --- 1. GEOMETRY DEFINITION ---
 
@@ -51,6 +51,9 @@ Plane Surface(3) = {3};
 // Top-left square (Points: 9-5-8-4)
 Curve Loop(5) = {12, -11, 6, 7};
 Plane Surface(5) = {5};
+
+Transfinite Line {1, 2, 3, 4, 5, 6, 7, 8} = 2;
+Transfinite Line {9, 10, 11, 12} = 20;
 
 
 // --- 2. PHYSICAL GROUP DEFINITION ---
