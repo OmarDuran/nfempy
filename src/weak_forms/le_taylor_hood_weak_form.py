@@ -98,11 +98,10 @@ class LETaylorHoodWeakForm(WeakForm):
 
                     # Compute divergence of displacement
                     grad_u_phi = u_phi_tab[1:u_phi_tab.shape[0], i, :, 0:dim]
-                    div_u = np.array([np.trace(grad_u_phi, axis1=0, axis2=2)])
+                    div_u = np.array([np.trace(grad_u_phi, axis1=0, axis2=2)]).T
                     trace_grad_u_phi = np.array([np.trace(grad_u_phi, axis1=0, axis2=2), np.trace(grad_u_phi, axis1=0, axis2=2)])
 
-                    div_uh = (a_ux @ div_u.T, a_uy @ div_u.T)
-                    div_uh = VecValDer(div_uh[0].val, div_uh[0].der)
+                    div_uh = (a_ux + a_uy) @ div_u
 
                     # Compute pressure field
                     alpha_p = alpha[:, n_u_dof:n_u_dof + n_p_dof]
@@ -116,8 +115,8 @@ class LETaylorHoodWeakForm(WeakForm):
                     sh_dev = 2.0 * mu_v * (eh - (1.0/dim) * tr_eh * Imat)
 
                     # Replace the loops with equation integrands
-                    equ_1_integrand = grad_phi_u @ sh_dev.T - ph * trace_grad_u_phi.T
-                    equ_2_integrand = (1.0/lambda_v) * ph * phi_p - div_uh * phi_p
+                    equ_1_integrand = grad_phi_u @ sh_dev.T - div_u @ ph.T
+                    equ_2_integrand = - phi_p @ div_uh.T + (1.0/lambda_v) * phi_p @ ph.T
 
                     # Assemble multiphysic integrand
                     multiphysic_integrand = np.zeros((1, n_dof))

@@ -76,10 +76,10 @@ def mixed_approximation(material_data, method, gmesh):
     f_rhs = le.rhs(m_lambda, m_mu, dim)
 
     def f_lambda(x, y, z):
-        return m_lambda
+        return m_lambda * np.ones_like(x)
 
     def f_mu(x, y, z):
-        return m_mu
+        return m_mu * np.ones_like(x)
 
     m_functions = {
         "rhs": f_rhs,
@@ -167,12 +167,9 @@ def mixed_approximation(material_data, method, gmesh):
     b.array[:] = -rg
     x = A.createVecRight()
 
-    # Use direct LU solver with MUMPS
-    ksp.setType("preonly")
-    pc = ksp.getPC()
-    pc.setType("lu")
-    pc.setFactorSolverType("mumps")
-
+    ksp.setType("cg")  # Conjugate gradient for symmetric positive definite system
+    ksp.getPC().setType("icc")  # incomplete Cholesky
+    ksp.setTolerances(rtol=0.0, atol=1e-10, divtol=5000, max_it=1000)
     ksp.setFromOptions()
 
     ksp.solve(b, x)
@@ -210,7 +207,7 @@ def mixed_postprocessing(material_data, method, gmesh, alpha, write_vtk_q=False)
 
     if write_vtk_q:
         st = time.time()
-        prefix = "ex_" + method[0] + "_lambda_" + str(material_data["lambda"])
+        prefix = "ex_1_" + method[0] + "_lambda_" + str(material_data["lambda"])
         file_name = prefix + ".vtk"
         write_vtk_file_with_exact_solution(
             file_name, gmesh, fe_space, exact_functions, alpha
@@ -243,7 +240,7 @@ def create_mesh_from_file(file_name, dim, write_vtk_q=False):
 def method_definition(k_order):
     method_th = {
         "u": ("Lagrange", k_order),  # k>=2 for displacement
-        "p": ("Lagrange", k_order - 1), # k-1 for pressure
+        "p": ("Lagrange", k_order - 2), # k-1 for pressure
     }
     methods = [method_th]
     method_names = ["TH_FEM"]
@@ -258,7 +255,7 @@ def material_data_definition():
     case_3 = {"lambda": 1.0e8, "mu": 1.0}
     case_4 = {"lambda": 1.0e10, "mu": 1.0}
     cases = [case_0, case_1, case_2, case_3, case_4]
-    cases = [case_0]
+    cases = [case_3]
     return cases
 
 

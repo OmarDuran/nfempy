@@ -7,7 +7,6 @@ from mesh.mesh import Mesh
 from mesh.mesh_metrics import mesh_size
 from petsc4py import PETSc
 from postprocess.l2_error_post_processor import l2_error
-from postprocess.solution_norms_post_processor import l2_norm
 from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
 from spaces.product_space import ProductSpace
 from weak_forms.le_primal_weak_form import LEPrimalWeakForm, LEPrimalWeakFormBCDirichlet
@@ -70,10 +69,10 @@ def primal_approximation(material_data, method, gmesh):
     f_rhs = le.rhs(m_lambda, m_mu, dim)
 
     def f_lambda(x, y, z):
-        return m_lambda
+        return m_lambda * np.ones_like(x)
 
     def f_mu(x, y, z):
-        return m_mu
+        return m_mu * np.ones_like(x)
 
     m_functions = {
         "rhs": f_rhs,
@@ -201,7 +200,7 @@ def primal_postprocessing(material_data, method, gmesh, alpha, write_vtk_q=False
 
     if write_vtk_q:
         st = time.time()
-        prefix = "cg_ex_" + method[0] + "_lambda_" + str(material_data["lambda"])
+        prefix = "ex_1_" + method[0] + "_lambda_" + str(material_data["lambda"])
         file_name = prefix + ".vtk"
         write_vtk_file_with_exact_solution(
             file_name, gmesh, fe_space, exact_functions, alpha,
@@ -247,6 +246,7 @@ def material_data_definition():
     case_3 = {"lambda": 1.0e8, "mu": 1.0}
     case_4 = {"lambda": 1.0e10, "mu": 1.0}
     cases = [case_0, case_1, case_2, case_3, case_4]
+    cases = [case_0]
     return cases
 
 
@@ -314,7 +314,7 @@ def perform_convergence_postprocessing(configuration: dict):
 
     # Save data to files
     lambda_value = material_data["lambda"]
-    file_name_prefix = f"cg_ex_{method[0]}_lambda_{lambda_value}"
+    file_name_prefix = f"ex_1_{method[0]}_lambda_{lambda_value}"
 
     e_str_header = "n_dof, n_iter, h, u_L2_error"
     r_str_header = "u_convergence_rate"

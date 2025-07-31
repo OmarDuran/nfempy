@@ -204,7 +204,7 @@ def primal_postprocessing(material_data, method, gmesh, alpha, write_vtk_q=False
 
     if write_vtk_q:
         st = time.time()
-        prefix = "cg_ex_2_" + method[0] + "_kappa_" + str(material_data["kappa"])
+        prefix = "ex_2_" + method[0] + "_kappa_" + str(material_data["kappa"])
         file_name = prefix + ".vtk"
         write_vtk_file_with_exact_solution(
             file_name, gmesh, fe_space, exact_functions, alpha
@@ -339,7 +339,7 @@ def perform_convergence_postprocessing(configuration: dict):
 
     # Save data to files
     kappa_value = material_data["kappa"]
-    file_name_prefix = f"cg_ex_2_{method[0]}_kappa_{kappa_value}"
+    file_name_prefix = f"ex_2_{method[0]}_kappa_{kappa_value}"
 
     e_str_header = "n_dof, n_iter, h, u_L2_error"
     r_str_header = "u_convergence_rate"
