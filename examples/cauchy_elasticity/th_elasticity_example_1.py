@@ -4,7 +4,6 @@ from functools import partial
 
 import numpy as np
 
-from examples.md_elliptic_scalar.exact_functions import p_exact
 from mesh.mesh import Mesh
 from mesh.mesh_metrics import mesh_size
 from petsc4py import PETSc

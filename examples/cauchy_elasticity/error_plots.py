@@ -154,10 +154,10 @@ class painter(ABC):
     @property
     def method_map(self):
         map = {
-            "three_field_MFEM": "MFEM",
-            "four_field_MFEM": "MFEM",
-            "TPSA": "TPSA",
-            "MPSA": "MPSA",
+            "three_field_MFEM": "Three-field",
+            "TH_FEM": "Two-field",
+            "1_FEM": "One-field",
+            "2_FEM": "One-field",
         }
         return map
 
@@ -165,9 +165,9 @@ class painter(ABC):
     def method_color_map(self):
         map = {
             "three_field_MFEM": mcolors.TABLEAU_COLORS["tab:blue"],
-            "four_field_MFEM": mcolors.TABLEAU_COLORS["tab:orange"],
-            "TPSA": mcolors.TABLEAU_COLORS["tab:green"],
-            "MPSA": mcolors.TABLEAU_COLORS["tab:red"],
+            "TH_FEM": mcolors.TABLEAU_COLORS["tab:green"],
+            "1_FEM": mcolors.TABLEAU_COLORS["tab:red"],
+            "2_FEM": mcolors.TABLEAU_COLORS["tab:red"],
         }
         return map
 
@@ -248,12 +248,9 @@ class painter_ex_1(painter):
     @property
     def convergence_type_map(self):
         map = {
-            "three_field_MFEM_u": np.array([8]),
-            "TPSA_u": np.array([5]),
-            "MPSA_u": np.array([5]),
-            "three_field_MFEM_sigma": np.array([5]),
-            "TPSA_sigma": np.array([4]),
-            "MPSA_sigma": np.array([4]),
+            "three_field_MFEM_u": np.array([3]),
+            "TH_FEM_u": np.array([3]),
+            "1_FEM_u": np.array([3]),
         }
         return map
 
@@ -261,8 +258,8 @@ class painter_ex_1(painter):
     def h_size_map(self):
         map = {
             "three_field_MFEM": np.array([2]),
-            "TPSA": np.array([1]),
-            "MPSA": np.array([1]),
+            "TH_FEM": np.array([2]),
+            "1_FEM": np.array([2]),
         }
         return map
 
@@ -370,30 +367,27 @@ class painter_ex_2(painter):
     @property
     def mat_values_map(self):
         map = {
-            "0.0001": "10^{-6}",
+            "1e-06": "10^{-6}",
             "1.0": "10^{0}",
-            "10000.0": "10^{6}",
+            "1000000.0": "10^{6}",
         }
         return map
 
     @property
     def style_values_map(self):
         map = {
-            "0.0001": "-",
+            "1e-06": "-",
             "1.0": "dashed",
-            "10000.0": "dashdot",
+            "1000000.0": "dashdot",
         }
         return map
 
     @property
     def convergence_type_map(self):
         map = {
-            "three_field_MFEM_u": np.array([8]),
-            "TPSA_u": np.array([5]),
-            "MPSA_u": np.array([5]),
-            "three_field_MFEM_sigma": np.array([5]),
-            "TPSA_sigma": np.array([4]),
-            "MPSA_sigma": np.array([4]),
+            "three_field_MFEM_u": np.array([3]),
+            "TH_FEM_u": np.array([3]),
+            "2_FEM_u": np.array([3]),
         }
         return map
 
@@ -401,8 +395,8 @@ class painter_ex_2(painter):
     def h_size_map(self):
         map = {
             "three_field_MFEM": np.array([2]),
-            "TPSA": np.array([1]),
-            "MPSA": np.array([1]),
+            "TH_FEM": np.array([2]),
+            "2_FEM": np.array([2]),
         }
         return map
 
@@ -501,65 +495,43 @@ class painter_ex_2(painter):
 
 
 def render_figures_example_1(folder_name, fig_type):
-    methods = ["three_field_MFEM"]
+    methods = ["three_field_MFEM", "TH_FEM", "1_FEM"]
     file_pattern = folder_name + "output_example_1/*_error.txt"
 
     painter = painter_ex_1()
     painter.file_pattern = file_pattern
 
-    material_values = [1.0, 1.0e2, 1.0e4, 1.0e8, 1.0e10]
+    material_values = [1.0, 1.0e2, 1.0e4, 1.0e8]
 
     k = 0
-    rate = k + 2
+    rate = k + 1
     conv_type = "u"
     painter.ordinate_range = (0.0005, 100)
     painter.file_name = "convergence_u_example_1." + fig_type
     painter.color_canvas_with_variable_lambda(methods, material_values, conv_type)
     painter.build_inset_var_lambda(
-        methods[2], material_values[2], conv_type, rate, 0.0, -0.2
-    )
-    painter.save_figure()
-
-    k = 0
-    rate = k + 1
-    conv_type = "sigma"
-    painter.ordinate_range = (0.05, 250)
-    painter.file_name = "convergence_sigma_example_1." + fig_type
-    painter.color_canvas_with_variable_lambda(methods, material_values, conv_type)
-    painter.build_inset_var_lambda(
-        methods[0], material_values[2], conv_type, rate, 0.0, -0.2
+        methods[0], material_values[0], conv_type, rate, 0.0, -0.2
     )
     painter.save_figure()
 
 
 def render_figures_example_2(folder_name, fig_type):
-    methods = ["three_field_MFEM"]
+    methods = ["three_field_MFEM", "TH_FEM", "2_FEM"] #, "TH_FEM", "2_FEM"]
     file_pattern = folder_name + "output_example_2/*_error.txt"
 
     painter = painter_ex_2()
     painter.file_pattern = file_pattern
 
-    material_values = [1.0e-4, 1.0, 1.0e4]
+    material_values = [1.0, 1.0e+6]
 
     k = 0
     conv_type = "u"
-    painter.ordinate_range = (0.0000001, 60.0)
+    painter.ordinate_range = (0.0000001, 1.0)
     painter.file_name = "convergence_u_example_2." + fig_type
-    painter.color_canvas_with_variable_kappa(methods, material_values, conv_type)
-    rate = k + 2
-    painter.build_inset_var_kappa(
-        methods[0], material_values[0], conv_type, rate, 0.0, -0.2
-    )
-    painter.save_figure()
-
-    k = 0
-    conv_type = "sigma"
-    painter.ordinate_range = (0.00025, 1.0)
-    painter.file_name = "convergence_sigma_example_2." + fig_type
     painter.color_canvas_with_variable_kappa(methods, material_values, conv_type)
     rate = k + 1
     painter.build_inset_var_kappa(
-        methods[0], material_values[0], conv_type, rate, 0.0, -0.2
+        methods[0], material_values[0], conv_type, rate, 0.0, -0.3
     )
     painter.save_figure()
 
@@ -567,5 +539,5 @@ def render_figures_example_2(folder_name, fig_type):
 
 folder_name = "output_cauchy_fem/"
 for fig_type in ["pdf", "png", "svg"]:
-    render_figures_example_1(folder_name, fig_type)
+    #render_figures_example_1(folder_name, fig_type)
     render_figures_example_2(folder_name, fig_type)
