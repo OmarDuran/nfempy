@@ -244,7 +244,7 @@ def create_mesh_from_file(file_name, dim, write_vtk_q=False):
 def method_definition(k_order):
     method_th = {
         "u": ("Lagrange", k_order),     # P2 for displacement
-        "p": ("Lagrange", k_order-1),   # P1 for pressure
+        "p": ("Lagrange", k_order-2),   # P1 for pressure
     }
     methods = [method_th]
     method_names = ["TH_FEM"]  # Taylor-Hood FEM
@@ -257,7 +257,6 @@ def material_data_definition():
     case_1 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0}
     case_2 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0e6}
     cases = [case_0, case_1, case_2]
-    cases = [case_1]
     return cases
 
 
@@ -391,10 +390,10 @@ def main():
     dimension = 2
     approximation_q = True
     postprocessing_q = True
-    refinements = {2: 3}  # k=2 gives P2-P1 Taylor-Hood elements
+    refinements = {2: 4}
     case_data = material_data_definition()
 
-    for k in [2]:  # k=2 gives P2-P1 Taylor-Hood elements
+    for k in [2]:
         methods = method_definition(k)
         for method in methods:
             for material_data in case_data:

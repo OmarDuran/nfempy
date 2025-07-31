@@ -255,7 +255,6 @@ def material_data_definition():
     case_2 = {"lambda": 1.0e4, "mu": 1.0}
     case_3 = {"lambda": 1.0e8, "mu": 1.0}
     cases = [case_0, case_1, case_2, case_3]
-    cases = [case_3]
     return cases
 
 
@@ -388,7 +387,7 @@ def main():
     refinements = {2: 4}
     case_data = material_data_definition()
 
-    for k in [2]:  # k=2 gives P2-P1 Taylor-Hood elements
+    for k in [2]:
         methods = method_definition(k)
         for method in methods:
             for material_data in case_data:

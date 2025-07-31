@@ -248,7 +248,6 @@ def material_data_definition():
     case_1 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0}
     case_2 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0e6}
     cases = [case_0, case_1, case_2]
-    cases = [case_1]
     return cases
 
 
@@ -379,10 +378,10 @@ def main():
     dimension = 2
     approximation_q = True
     postprocessing_q = True
-    refinements = {2: 2}
+    refinements = {2: 4}
     case_data = material_data_definition()
 
-    for k in [2]:  # polynomial degree
+    for k in [2]:
         methods = method_definition(k)
         for method in methods:
             for material_data in case_data:
