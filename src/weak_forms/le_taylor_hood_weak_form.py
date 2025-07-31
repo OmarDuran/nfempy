@@ -97,11 +97,9 @@ class LETaylorHoodWeakForm(WeakForm):
                     tr_eh = VecValDer(eh.val.trace(), eh.der.trace())
 
                     # Compute divergence of displacement
-                    grad_u_phi = u_phi_tab[1:u_phi_tab.shape[0], i, :, 0:dim]
-                    div_u = np.array([np.trace(grad_u_phi, axis1=0, axis2=2)]).T
-                    trace_grad_u_phi = np.array([np.trace(grad_u_phi, axis1=0, axis2=2), np.trace(grad_u_phi, axis1=0, axis2=2)])
-
-                    div_uh = (a_ux + a_uy) @ div_u
+                    div_u_phi = np.sum(grad_phi_u, axis=1)
+                    div_u_hat = np.vstack((div_u_phi,div_u_phi)).T
+                    div_uh = VecValDer(grad_uh.val.trace(),grad_uh.der.trace())
 
                     # Compute pressure field
                     alpha_p = alpha[:, n_u_dof:n_u_dof + n_p_dof]
@@ -112,11 +110,18 @@ class LETaylorHoodWeakForm(WeakForm):
                     mu_v = f_mu_star[i]
 
                     # Compute deviatoric stress tensor
-                    sh_dev = 2.0 * mu_v * (eh - (1.0/dim) * tr_eh * Imat)
+                    #sh_dev = 2.0 * mu_v * (eh - (1.0/dim) * tr_eh * Imat)
+                    # Stress tensor (linear elastic constitutive law)
+                    sh = (
+                        2.0 * mu_v * eh
+                        + lambda_v * tr_eh * Imat
+                    )
+                    tr_sh = VecValDer(sh.val.trace(), sh.der.trace())
+                    sh_dev = (sh - (1.0 / dim) * tr_sh * Imat)
 
                     # Replace the loops with equation integrands
-                    equ_1_integrand = grad_phi_u @ sh_dev.T - div_u @ ph.T
-                    equ_2_integrand = - phi_p @ div_uh.T + (1.0/lambda_v) * phi_p @ ph.T
+                    equ_1_integrand = grad_phi_u @ (sh_dev + ph * Imat).T
+                    equ_2_integrand = phi_p * div_uh - (1.0/lambda_v) * phi_p @ ph.T
 
                     # Assemble multiphysic integrand
                     multiphysic_integrand = np.zeros((1, n_dof))
@@ -126,6 +131,8 @@ class LETaylorHoodWeakForm(WeakForm):
                     discrete_integrand = multiphysic_integrand.reshape((n_dof,))
                     el_form += det_jac[i] * omega * discrete_integrand
                 else:  # dim == 3
+
+                    assert False
                     c = 0
                     a_ux = alpha[:,c:n_u_dof + c:u_components]
                     c = 1
