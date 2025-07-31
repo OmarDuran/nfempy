@@ -241,7 +241,7 @@ def create_mesh_from_file(file_name, dim, write_vtk_q=False):
 def method_definition(k_order):
     method_th = {
         "u": ("Lagrange", k_order),  # k>=2 for displacement
-        "p": ("Lagrange", k_order - 1), # k-1 for pressure
+        "p": ("Lagrange", k_order - 2), # k-1 for pressure
     }
     methods = [method_th]
     method_names = ["TH_FEM"]
@@ -254,9 +254,8 @@ def material_data_definition():
     case_1 = {"lambda": 1.0e2, "mu": 1.0}
     case_2 = {"lambda": 1.0e4, "mu": 1.0}
     case_3 = {"lambda": 1.0e8, "mu": 1.0}
-    case_4 = {"lambda": 1.0e10, "mu": 1.0}
-    cases = [case_0, case_1, case_2, case_3, case_4]
-    cases = [case_0]
+    cases = [case_0, case_1, case_2, case_3]
+    cases = [case_3]
     return cases
 
 

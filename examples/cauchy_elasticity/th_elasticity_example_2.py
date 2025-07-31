@@ -169,9 +169,10 @@ def mixed_approximation(material_data, method, gmesh):
     b.array[:] = -rg
     x = A.createVecRight()
 
-    ksp.setType("cg")  # Conjugate gradient for symmetric positive definite system
-    ksp.getPC().setType("icc")  # incomplete Cholesky
-    ksp.setTolerances(rtol=0.0, atol=1e-10, divtol=5000, max_it=1000)
+    ksp.setType("preonly")  # No iterative solve; rely entirely on direct solver
+    pc = ksp.getPC()
+    pc.setType("lu")  # Use LU factorization
+    pc.setFactorSolverType("mumps")  # Use MUMPS as the LU solver
     ksp.setFromOptions()
 
     ksp.solve(b, x)
@@ -243,7 +244,7 @@ def create_mesh_from_file(file_name, dim, write_vtk_q=False):
 def method_definition(k_order):
     method_th = {
         "u": ("Lagrange", k_order),     # P2 for displacement
-        "p": ("Lagrange", k_order-2),   # P1 for pressure
+        "p": ("Lagrange", k_order-1),   # P1 for pressure
     }
     methods = [method_th]
     method_names = ["TH_FEM"]  # Taylor-Hood FEM
@@ -390,7 +391,7 @@ def main():
     dimension = 2
     approximation_q = True
     postprocessing_q = True
-    refinements = {2: 2}  # k=2 gives P2-P1 Taylor-Hood elements
+    refinements = {2: 3}  # k=2 gives P2-P1 Taylor-Hood elements
     case_data = material_data_definition()
 
     for k in [2]:  # k=2 gives P2-P1 Taylor-Hood elements

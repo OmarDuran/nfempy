@@ -121,7 +121,7 @@ class LETaylorHoodWeakForm(WeakForm):
 
                     # Replace the loops with equation integrands
                     equ_1_integrand = grad_phi_u @ (sh_dev + ph * Imat).T
-                    equ_2_integrand = phi_p * div_uh - (1.0/lambda_v) * phi_p @ ph.T
+                    equ_2_integrand = phi_p * div_uh - (1.0/(lambda_v+mu_v)) * phi_p @ ph.T
 
                     # Assemble multiphysic integrand
                     multiphysic_integrand = np.zeros((1, n_dof))
