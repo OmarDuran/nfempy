@@ -174,3 +174,48 @@ class LEPrimalWeakFormBCDirichlet(WeakForm):
             j_el[b:e:u_components, b:e:u_components] += jac_block_u
 
         return r_el, j_el
+
+class LEPrimalWeakFormBCNeumann(WeakForm):
+    def evaluate_form(self, element_index, alpha):
+        # traction
+        t_N = self.functions["t"]
+
+        iel = element_index
+        u_space = self.space.discrete_spaces["u"]
+        u_components = u_space.n_comp
+
+        u_data: ElementData = u_space.bc_elements[iel].data
+
+        cell = u_data.cell
+        dim = cell.dimension
+        points, weights = self.space.bc_quadrature[dim]
+        x, jac, det_jac, inv_jac = u_space.bc_elements[iel].evaluate_mapping(points)
+
+        u_phi_tab = u_space.bc_elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+
+        n_u_phi = u_phi_tab.shape[2]
+        n_u_dof = n_u_phi * u_components
+        n_dof = n_u_dof
+
+        js = (n_dof, n_dof)
+        rs = n_dof
+        j_el = np.zeros(js)
+        r_el = np.zeros(rs)
+
+        # local blocks
+        jac_block_u = np.zeros((n_u_phi, n_u_phi))
+
+        for c in range(u_components):
+            b = c
+            e = b + n_u_dof
+
+            res_block_u = np.zeros(n_u_phi)
+            for i, omega in enumerate(weights):
+                phi = u_phi_tab[0, i, :, 0]
+                t_D_v = t_N(x[i, 0], x[i, 1], x[i, 2])
+                res_block_u += det_jac[i] * omega * t_D_v[c] * phi
+
+            r_el[b:e:u_components] += res_block_u
+            j_el[b:e:u_components, b:e:u_components] += jac_block_u
+
+        return r_el, j_el

@@ -87,16 +87,15 @@ def primal_approximation_with_load(material_data, method, gmesh, mat_ids):
 
     bc_dirichlet = LEPrimalWeakFormBCDirichlet(fe_space)
     bc_dirichlet.functions = {"u": zero_disp}
-    bc_dirichlet.bc_tags = [5, 6, 7]
 
     # Neumann BC: vertical load on top (tag 8)
     def vertical_load(x, y, z):
         # Apply a vertical load of magnitude 1.0 in y direction
-        return np.array([np.zeros_like(x), np.ones_like(x)])
+        return np.array([np.zeros_like(x), 0.1 * np.ones_like(x)])
 
     bc_neumann = LEPrimalWeakFormBCNeumann(fe_space)
-    bc_neumann.functions = {"u": vertical_load}
-    bc_neumann.bc_tags = [8]
+    bc_neumann.functions = {"t": vertical_load}
+
 
     def scatter_form_data(A, i, weak_form, n_els):
         dest = weak_form.space.destination_indexes(i)
@@ -164,7 +163,7 @@ def primal_approximation_with_load(material_data, method, gmesh, mat_ids):
 
     [scatter_bc_dirichlet(A, i, bc_dirichlet) for i in bc_bottom_idx]
     [scatter_bc_dirichlet(A, i, bc_dirichlet) for i in bc_laterals_idx]
-    [scatter_bc_dirichlet(A, i, bc_dirichlet) for i in bc_top_idx]
+    [scatter_bc_neumann(i, bc_neumann) for i in bc_top_idx]
 
     A.assemble()
     print("Assembly: nz_allocated:", int(A.getInfo()["nz_allocated"]))
@@ -218,13 +217,13 @@ def main():
     gmesh.build_conformal_mesh()
     gmesh.write_vtk()
     material_data = {"lambda": 1.0, "mu": 1.0}
-    method = ("FEM", {"u": ("Lagrange", 1)})
+    method = ("FEM", {"u": ("Lagrange", 2)})
 
     alpha = primal_approximation_with_load(material_data, method, gmesh, mat_ids)
 
     # Output VTK file
     fe_space = create_product_space(method, gmesh, mat_ids)
-    file_name = "vertical_load_result.vtk"
+    file_name = "constrained_le.vtk"
     write_vtk_file(
         file_name, gmesh, fe_space, alpha,
     )
