@@ -1,10 +1,12 @@
 import resource
 import time
 import numpy as np
+import meshio
 
 from mesh.mesh import Mesh
 from petsc4py import PETSc
-from postprocess.solution_post_processor import write_vtk_file
+from basis.element_family import family_by_name
+from postprocess.solution_post_processor import cell_centered_quatity, node_average_quatity
 from spaces.product_space import ProductSpace
 from weak_forms.le_primal_weak_form import LEPrimalWeakForm, LEPrimalWeakFormBCNormalDirichlet, LEPrimalWeakFormBCNeumann
 
@@ -38,9 +40,7 @@ def create_product_space(method, gmesh, mat_ids):
     return space
 
 
-def primal_approximation_with_load(material_data, method, gmesh, mat_ids):
-    dim = gmesh.dimension
-    fe_space = create_product_space(method, gmesh, mat_ids)
+def primal_approximation_with_load(material_data, method, fe_space, gmesh, mat_ids):
     n_dof_g = fe_space.n_dof
 
     rg = np.zeros(n_dof_g)
@@ -198,6 +198,148 @@ def primal_approximation_with_load(material_data, method, gmesh, mat_ids):
 
     return alpha
 
+def write_vtk_file_with_stress(file_name, gmesh, fe_space, alpha, material_data, cell_centered=[]):
+    """
+    Write VTK including:
+      - Nodal displacement field(s) (unchanged logic)
+      - Nodal Cauchy stress tensor (volume–weighted average of adjacent element stresses)
+    Stress tensor is written as a flattened array:
+        2D -> [s_xx, s_xy, s_yx, s_yy]
+        3D -> [s_xx, s_xy, s_xz, s_yx, s_yy, s_yz, s_zx, s_zy, s_zz]
+    """
+    dim = gmesh.dimension
+    lam = material_data["lambda"]
+    mu = material_data["mu"]
+
+    vec_families = [
+        family_by_name("RT"),
+        family_by_name("BDM"),
+        family_by_name("N1E"),
+        family_by_name("N2E"),
+    ]
+
+    p_data_dict = {}
+    c_data_dict = {}
+
+    # Displacements (and other primal fields) as before
+    for name, space in fe_space.discrete_spaces.items():
+        n_comp = space.n_comp
+        n_data = n_comp
+        if space.family in vec_families:
+            n_data *= dim
+
+        if name in cell_centered:
+            cells_dim = [cell for cell in gmesh.cells if cell.dimension == dim]
+            fh_data = np.zeros((len(cells_dim), n_data))
+            for cell_idx, cell in enumerate(cells_dim):
+                f_h = cell_centered_quatity(cell, fe_space, name, alpha)
+                fh_data[cell_idx] = f_h.ravel()
+            c_data_dict[name + "_h"] = [fh_data]
+        else:
+            fh_data = np.zeros((len(gmesh.points), n_data))
+            vertices = space.mesh_topology.entities_by_dimension(0)
+            cell_vertex_map = space.mesh_topology.entity_map_by_dimension(0)
+            for vertex_idx in vertices:
+                vertex_g_index = (0, vertex_idx)
+                if not cell_vertex_map.has_node(vertex_g_index):
+                    continue
+                node_idx = gmesh.cells[vertex_idx].node_tags[0]
+                cell_idxs = list(cell_vertex_map.predecessors(vertex_g_index))
+                f_h = node_average_quatity(node_idx, cell_idxs, fe_space, name, alpha)
+                fh_data[node_idx] = f_h.ravel()
+            p_data_dict[name + "_h"] = fh_data
+
+    # --- Nodal stress tensor recovery ---
+    u_space = fe_space.discrete_spaces["u"]
+    n_el = len(u_space.elements)
+
+    # Accumulators
+    n_points = len(gmesh.points)
+    stress_nodes = np.zeros((n_points, dim, dim))
+    weight_nodes = np.zeros(n_points)
+
+    # Constants for gradient reconstruction
+    e1 = np.zeros(3); e1[0] = 1.0
+    e2 = np.zeros(3); e2[1] = 1.0
+    e3 = np.zeros(3); e3[2] = 1.0
+
+    points_q, weights_q = fe_space.quadrature[dim]
+
+    for iel in range(n_el):
+        el = u_space.elements[iel]
+        dest = fe_space.destination_indexes(iel)
+
+        x_q, jac_q, det_jac_q, inv_jac_q = el.evaluate_mapping(points_q)
+        u_phi_tab = el.evaluate_basis(points_q, jac_q, det_jac_q, inv_jac_q)  # [val/derivs, nq, nphi, 0/1]
+
+        n_phi = u_phi_tab.shape[2]
+        u_comp = u_space.n_comp
+
+        # Local coefficients grouped by component (assuming stride = u_comp)
+        a_comp = [alpha[dest[c::u_comp]] for c in range(u_comp)]
+
+        stress_acc = np.zeros((dim, dim))
+        vol_acc = 0.0
+
+        for iq, omega in enumerate(weights_q):
+            detJ = det_jac_q[iq]
+            w = detJ * omega
+
+            if dim == 2:
+                inv_jac_m = np.vstack((inv_jac_q[iq] @ e1, inv_jac_q[iq] @ e2))  # (2,2)
+                grad_phi_u = (inv_jac_m @ u_phi_tab[1:u_phi_tab.shape[0] + 1, iq, :, 0]).T  # (n_phi,2)
+            else:
+                inv_jac_m = np.vstack((inv_jac_q[iq] @ e1, inv_jac_q[iq] @ e2, inv_jac_q[iq] @ e3))  # (3,3)
+                grad_phi_u = (inv_jac_m @ u_phi_tab[1:u_phi_tab.shape[0] + 1, iq, :, 0]).T  # (n_phi,3)
+
+            grad_u = np.zeros((dim, dim))
+            for c in range(u_comp):
+                grad_u[c, :] = a_comp[c] @ grad_phi_u
+
+            eps = 0.5 * (grad_u + grad_u.T)
+            tr_eps = np.trace(eps)
+            sigma = lam * tr_eps * np.eye(dim) + 2.0 * mu * eps
+
+            stress_acc += w * sigma
+            vol_acc += w
+
+        if vol_acc <= 0.0:
+            continue
+        sigma_el = stress_acc / vol_acc  # element-averaged stress
+
+        # Distribute to element vertices (volume-weighted)
+        node_tags = el.data.cell.node_tags
+        for nt in node_tags:
+            stress_nodes[nt, :, :] += sigma_el * vol_acc
+            weight_nodes[nt] += vol_acc
+
+    # Finalize nodal averaging
+    nonzero = weight_nodes > 0
+    stress_nodes[nonzero] /= weight_nodes[nonzero][:, None, None]
+
+    # Enforce symmetry explicitly (numerical safety)
+    for k in np.where(nonzero)[0]:
+        stress_nodes[k] = 0.5 * (stress_nodes[k] + stress_nodes[k].T)
+
+    # Flatten tensor for VTK
+    sigma_flat = stress_nodes.reshape(n_points, dim * dim)
+    p_data_dict["s_h"] = sigma_flat
+
+    # Build connectivity (top-dim cells)
+    cells_dim = [cell for cell in gmesh.cells if cell.dimension == dim]
+    con_d = np.array([cell.node_tags for cell in cells_dim])
+    meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
+    cells_dict = {meshio_cell_types[dim]: con_d}
+
+    mesh = meshio.Mesh(
+        points=gmesh.points,
+        cells=cells_dict,
+        point_data=p_data_dict,
+        cell_data=c_data_dict,
+    )
+    mesh.write(file_name)
+    print(f"VTK (with nodal tensor stress) written to {file_name}")
+
 def main():
 
     mat_ids = {
@@ -218,18 +360,12 @@ def main():
     material_data = {"lambda": 1.0, "mu": 1.0}
     method = ("FEM", {"u": ("Lagrange", 2)})
 
-    alpha = primal_approximation_with_load(material_data, method, gmesh, mat_ids)
-
-    # Postprocess (displacement + stress)
     fe_space = create_product_space(method, gmesh, mat_ids)
-    post_data = postprocess_displacement_and_stress(alpha, fe_space, gmesh, material_data)
+    alpha = primal_approximation_with_load(material_data, method, fe_space, gmesh, mat_ids)
 
-    # Existing VTK (displacements)
-    file_name = "constrained_le.vtk"
-    write_vtk_file(
-        file_name, gmesh, fe_space, alpha,
-    )
-    print(f"Results written to {file_name}")
+    # Replace original writer with augmented one
+    write_vtk_file_with_stress("constrained_le.vtk", gmesh, fe_space, alpha, material_data)
+    print(f"Results written to constrained_le_with_stress.vtk")
 
 
 if __name__ == "__main__":
