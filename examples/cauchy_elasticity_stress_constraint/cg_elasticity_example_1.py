@@ -1,15 +1,15 @@
 import resource
 import time
 import numpy as np
+
 from mesh.mesh import Mesh
-from mesh.mesh_metrics import mesh_size
 from petsc4py import PETSc
-from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
+from postprocess.solution_post_processor import write_vtk_file
 from spaces.product_space import ProductSpace
 from weak_forms.le_primal_weak_form import LEPrimalWeakForm, LEPrimalWeakFormBCDirichlet, LEPrimalWeakFormBCNeumann
 
 
-def create_product_space(method, gmesh):
+def create_product_space(method, gmesh, mat_ids):
     # FESpace: data
     u_k_order = method[1]["u"][1]
     u_components = 2 if gmesh.dimension == 2 else 3
@@ -25,11 +25,11 @@ def create_product_space(method, gmesh):
     }
 
     physical_tags = {
-        "u": [1, 2, 3, 4],  # domain tags
+        "u": mat_ids['under'] + mat_ids['reservoir'] + mat_ids['over'],  # domain tags
     }
     # Boundary tags: 5=left, 6=right, 7=bottom, 8=top (assumed from mesh)
     b_physical_tags = {
-        "u": [5, 6, 7, 8],
+        "u": mat_ids['bc_bottom'] + mat_ids['bc_top'] + mat_ids['bc_west'] + mat_ids['bc_east'],
     }
 
     space = ProductSpace(discrete_spaces_data)
@@ -38,9 +38,9 @@ def create_product_space(method, gmesh):
     return space
 
 
-def primal_approximation_with_load(material_data, method, gmesh):
+def primal_approximation_with_load(material_data, method, gmesh, mat_ids):
     dim = gmesh.dimension
-    fe_space = create_product_space(method, gmesh)
+    fe_space = create_product_space(method, gmesh, mat_ids)
     n_dof_g = fe_space.n_dof
 
     rg = np.zeros(n_dof_g)
@@ -78,7 +78,12 @@ def primal_approximation_with_load(material_data, method, gmesh):
 
     # Dirichlet BC: zero displacement on left, right, bottom (tags 5, 6, 7)
     def zero_disp(x, y, z):
-        return np.zeros((2, x.shape[0]))
+        return np.array(
+            [
+                np.zeros_like(x),
+                np.zeros_like(y),
+            ]
+        )
 
     bc_dirichlet = LEPrimalWeakFormBCDirichlet(fe_space)
     bc_dirichlet.functions = {"u": zero_disp}
@@ -151,15 +156,15 @@ def primal_approximation_with_load(material_data, method, gmesh):
     n_els = len(fe_space.discrete_spaces["u"].elements)
     [scatter_form_data(A, i, weak_form, n_els) for i in range(n_els)]
 
-    # Dirichlet BCs
-    n_bc_dir = sum([len(fe_space.discrete_spaces["u"].bc_elements_by_tag[tag]) for tag in bc_dirichlet.bc_tags])
-    for tag in bc_dirichlet.bc_tags:
-        for i in range(len(fe_space.discrete_spaces["u"].bc_elements_by_tag[tag])):
-            scatter_bc_dirichlet(A, i, bc_dirichlet)
+    # get bounday elements
+    bc_elements = fe_space.discrete_spaces["u"].bc_elements
+    bc_top_idx = [i for i, bel in enumerate(bc_elements) if bel.data.cell.material_id in mat_ids['bc_top']]
+    bc_bottom_idx = [i for i, bel in enumerate(bc_elements) if bel.data.cell.material_id in mat_ids['bc_bottom']]
+    bc_laterals_idx = [i for i, bel in enumerate(bc_elements) if bel.data.cell.material_id in mat_ids['bc_west']+mat_ids['bc_east']]
 
-    # Neumann BCs
-    for i in range(len(fe_space.discrete_spaces["u"].bc_elements_by_tag[8])):
-        scatter_bc_neumann(i, bc_neumann)
+    [scatter_bc_dirichlet(A, i, bc_dirichlet) for i in bc_bottom_idx]
+    [scatter_bc_dirichlet(A, i, bc_dirichlet) for i in bc_laterals_idx]
+    [scatter_bc_dirichlet(A, i, bc_dirichlet) for i in bc_top_idx]
 
     A.assemble()
     print("Assembly: nz_allocated:", int(A.getInfo()["nz_allocated"]))
@@ -196,6 +201,17 @@ def primal_approximation_with_load(material_data, method, gmesh):
 
 
 def main():
+
+    mat_ids = {
+        'under': [1],
+        'reservoir': [2],
+        'over': [3],
+        'bc_bottom': [4],
+        'bc_top': [5],
+        'bc_west': [6],
+        'bc_east': [7],
+    }
+
     dimension = 2
     mesh_file = "gmsh_files/ex_1/example_1_2d.msh"
     gmesh = Mesh(dimension=dimension, file_name=mesh_file)
@@ -204,13 +220,13 @@ def main():
     material_data = {"lambda": 1.0, "mu": 1.0}
     method = ("FEM", {"u": ("Lagrange", 1)})
 
-    alpha = primal_approximation_with_load(material_data, method, gmesh)
+    alpha = primal_approximation_with_load(material_data, method, gmesh, mat_ids)
 
     # Output VTK file
-    fe_space = create_product_space(method, gmesh)
+    fe_space = create_product_space(method, gmesh, mat_ids)
     file_name = "vertical_load_result.vtk"
-    write_vtk_file_with_exact_solution(
-        file_name, gmesh, fe_space, {}, alpha,
+    write_vtk_file(
+        file_name, gmesh, fe_space, alpha,
     )
     print(f"Results written to {file_name}")
 
