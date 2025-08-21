@@ -9,6 +9,7 @@ from basis.element_family import family_by_name
 from postprocess.solution_post_processor import cell_centered_quatity, node_average_quatity
 from spaces.product_space import ProductSpace
 from weak_forms.le_primal_weak_form import LEPrimalWeakForm, LEPrimalWeakFormBCNormalDirichlet, LEPrimalWeakFormBCNeumann
+from weak_forms.le_primal_stress_constraint_weak_form import LEPrimalStressConstraintWeakForm
 
 
 def create_product_space(method, gmesh, mat_ids):
@@ -72,10 +73,25 @@ def primal_approximation_with_load(material_data, fe_space, gmesh, mat_ids):
     def f_mu(x, y, z):
         return m_mu * np.ones_like(x)
 
+    def s_target(x, y, z):
+        return np.array(
+            [
+                [
+                    np.zeros_like(x),
+                    np.zeros_like(x),
+                ],
+                [
+                    np.zeros_like(x),
+                    np.zeros_like(x),
+                ]
+            ]
+        )
+
     m_functions = {
         "rhs": f_rhs,
         "lambda": f_lambda,
         "mu": f_mu,
+        "s_target": s_target,
     }
 
     weak_form = LEPrimalWeakForm(fe_space)
@@ -101,6 +117,9 @@ def primal_approximation_with_load(material_data, fe_space, gmesh, mat_ids):
     bc_neumann = LEPrimalWeakFormBCNeumann(fe_space)
     bc_neumann.functions = {"t": vertical_load}
 
+
+    constraint_weak_form = LEPrimalStressConstraintWeakForm(fe_space)
+    constraint_weak_form.functions = m_functions
 
     def scatter_form_data(A, i, weak_form, n_els):
         dest = weak_form.space.destination_indexes(i)
@@ -169,6 +188,11 @@ def primal_approximation_with_load(material_data, fe_space, gmesh, mat_ids):
     [scatter_bc_dirichlet(A, i, bc_dirichlet) for i in bc_bottom_idx]
     [scatter_bc_dirichlet(A, i, bc_dirichlet) for i in bc_laterals_idx]
     [scatter_bc_neumann(i, bc_neumann) for i in bc_top_idx]
+
+    # apply constraint on selected elements
+    elements = fe_space.discrete_spaces["u"].elements
+    target_idx = [i for i, el in enumerate(elements) if el.data.cell.material_id in mat_ids['reservoir']]
+    [scatter_form_data(A, i, constraint_weak_form, len(target_idx)) for i in target_idx]
 
     A.assemble()
     print("Assembly: nz_allocated:", int(A.getInfo()["nz_allocated"]))
