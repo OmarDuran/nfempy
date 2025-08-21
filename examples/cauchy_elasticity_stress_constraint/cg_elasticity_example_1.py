@@ -198,7 +198,6 @@ def primal_approximation_with_load(material_data, method, gmesh, mat_ids):
 
     return alpha
 
-
 def main():
 
     mat_ids = {
@@ -221,8 +220,11 @@ def main():
 
     alpha = primal_approximation_with_load(material_data, method, gmesh, mat_ids)
 
-    # Output VTK file
+    # Postprocess (displacement + stress)
     fe_space = create_product_space(method, gmesh, mat_ids)
+    post_data = postprocess_displacement_and_stress(alpha, fe_space, gmesh, material_data)
+
+    # Existing VTK (displacements)
     file_name = "constrained_le.vtk"
     write_vtk_file(
         file_name, gmesh, fe_space, alpha,
