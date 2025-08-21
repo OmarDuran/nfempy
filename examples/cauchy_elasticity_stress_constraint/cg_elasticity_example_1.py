@@ -40,7 +40,7 @@ def create_product_space(method, gmesh, mat_ids):
     return space
 
 
-def primal_approximation_with_load(material_data, method, fe_space, gmesh, mat_ids):
+def primal_approximation_with_load(material_data, fe_space, gmesh, mat_ids):
     n_dof_g = fe_space.n_dof
 
     rg = np.zeros(n_dof_g)
@@ -59,7 +59,12 @@ def primal_approximation_with_load(material_data, method, fe_space, gmesh, mat_i
 
     # Zero body force
     def f_rhs(x, y, z):
-        return np.zeros((2, x.shape[0]))
+        return np.array(
+            [
+                np.zeros_like(x),
+                material_data['rho'] * np.ones_like(y),
+            ]
+        )
 
     def f_lambda(x, y, z):
         return m_lambda * np.ones_like(x)
@@ -91,7 +96,7 @@ def primal_approximation_with_load(material_data, method, fe_space, gmesh, mat_i
     # Neumann BC: vertical load on top (tag 8)
     def vertical_load(x, y, z):
         # Apply a vertical load of magnitude 1.0 in y direction
-        return np.array([np.zeros_like(x), 0.1 * np.ones_like(x)])
+        return np.array([np.zeros_like(x), 10.0e6 * np.ones_like(x)])
 
     bc_neumann = LEPrimalWeakFormBCNeumann(fe_space)
     bc_neumann.functions = {"t": vertical_load}
@@ -340,6 +345,16 @@ def write_vtk_file_with_stress(file_name, gmesh, fe_space, alpha, material_data,
     mesh.write(file_name)
     print(f"VTK (with nodal tensor stress) written to {file_name}")
 
+def compute_lame(E, nu):
+    """
+    Convert (E, nu) to Lamé parameters (lambda, mu) in SI units.
+    E: Young's modulus [Pa]
+    nu: Poisson ratio [-]
+    """
+    lam = E * nu / ((1.0 + nu) * (1.0 - 2.0 * nu))
+    mu = E / (2.0 * (1.0 + nu))
+    return lam, mu
+
 def main():
 
     mat_ids = {
@@ -357,15 +372,29 @@ def main():
     gmesh = Mesh(dimension=dimension, file_name=mesh_file)
     gmesh.build_conformal_mesh()
     gmesh.write_vtk()
-    material_data = {"lambda": 1.0, "mu": 1.0}
+
+    # Representative elastic properties (SI units) for a layered reservoir model
+    # Sources: typical literature values (order-of-magnitude examples)
+    # underburden shale:   E ≈ 25 GPa, nu ≈ 0.25
+    # reservoir sandstone: E ≈ 12 GPa, nu ≈ 0.22
+    # overburden shale:    E ≈ 20 GPa, nu ≈ 0.26
+    materials = {
+        'under':     {'E': 25e9, 'nu': 0.25, 'rho': 2500.0},
+        'reservoir': {'E': 12e9, 'nu': 0.22, 'rho': 2300.0},
+        'over':      {'E': 20e9, 'nu': 0.26, 'rho': 2400.0},
+    }
+
+    # Current example: use reservoir layer properties globally (infrastructure not yet per-cell)
+    lam, mu = compute_lame(materials['reservoir']['E'], materials['reservoir']['nu'])
+    material_data = {"lambda": lam, "mu": mu, "rho": materials['reservoir']['rho']}
+
     method = ("FEM", {"u": ("Lagrange", 2)})
 
     fe_space = create_product_space(method, gmesh, mat_ids)
-    alpha = primal_approximation_with_load(material_data, method, fe_space, gmesh, mat_ids)
+    alpha = primal_approximation_with_load(material_data, fe_space, gmesh, mat_ids)
 
-    # Replace original writer with augmented one
     write_vtk_file_with_stress("constrained_le.vtk", gmesh, fe_space, alpha, material_data)
-    print(f"Results written to constrained_le_with_stress.vtk")
+    print("Results written to constrained_le_with_stress.vtk")
 
 
 if __name__ == "__main__":
