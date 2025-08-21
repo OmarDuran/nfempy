@@ -6,7 +6,7 @@ from mesh.mesh import Mesh
 from petsc4py import PETSc
 from postprocess.solution_post_processor import write_vtk_file
 from spaces.product_space import ProductSpace
-from weak_forms.le_primal_weak_form import LEPrimalWeakForm, LEPrimalWeakFormBCDirichlet, LEPrimalWeakFormBCNeumann
+from weak_forms.le_primal_weak_form import LEPrimalWeakForm, LEPrimalWeakFormBCNormalDirichlet, LEPrimalWeakFormBCNeumann
 
 
 def create_product_space(method, gmesh, mat_ids):
@@ -85,7 +85,7 @@ def primal_approximation_with_load(material_data, method, gmesh, mat_ids):
             ]
         )
 
-    bc_dirichlet = LEPrimalWeakFormBCDirichlet(fe_space)
+    bc_dirichlet = LEPrimalWeakFormBCNormalDirichlet(fe_space)
     bc_dirichlet.functions = {"u": zero_disp}
 
     # Neumann BC: vertical load on top (tag 8)

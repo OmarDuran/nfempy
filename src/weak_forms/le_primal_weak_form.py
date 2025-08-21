@@ -4,7 +4,8 @@ from auto_diff.vecvalder import VecValDer
 
 from basis.element_data import ElementData
 from weak_forms.weak_from import WeakForm
-
+from geometry.compute_normal import normal
+from mesh.topological_queries import find_higher_dimension_neighs
 
 class LEPrimalWeakForm(WeakForm):
     """Linear elastic primal weak form for Cauchy elasticity."""
@@ -214,6 +215,70 @@ class LEPrimalWeakFormBCNeumann(WeakForm):
                 phi = u_phi_tab[0, i, :, 0]
                 t_D_v = t_N(x[i, 0], x[i, 1], x[i, 2])
                 res_block_u += det_jac[i] * omega * t_D_v[c] * phi
+
+            r_el[b:e:u_components] += res_block_u
+            j_el[b:e:u_components, b:e:u_components] += jac_block_u
+
+        return r_el, j_el
+
+class LEPrimalWeakFormBCNormalDirichlet(WeakForm):
+    def evaluate_form(self, element_index, alpha):
+        u_D = self.functions["u"]
+
+        iel = element_index
+        u_space = self.space.discrete_spaces["u"]
+        u_components = u_space.n_comp
+
+        u_data: ElementData = u_space.bc_elements[iel].data
+
+        cell = u_data.cell
+        dim = cell.dimension
+        points, weights = self.space.bc_quadrature[dim]
+        x, jac, det_jac, inv_jac = u_space.bc_elements[iel].evaluate_mapping(points)
+
+        u_phi_tab = u_space.bc_elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+
+        n_u_phi = u_phi_tab.shape[2]
+        n_u_dof = n_u_phi * u_components
+        n_dof = n_u_dof
+
+        js = (n_dof, n_dof)
+        rs = n_dof
+        j_el = np.zeros(js)
+        r_el = np.zeros(rs)
+
+        # compute normal
+        # find high-dimension neigh q space
+        neigh_list = find_higher_dimension_neighs(cell, u_space.dof_map.mesh_topology)
+        neigh_check_mp = len(neigh_list) > 0
+        assert neigh_check_mp
+        neigh_cell_id = neigh_list[0][1]
+        neigh_cell_index = u_space.id_to_element[neigh_cell_id]
+        neigh_element = u_space.elements[neigh_cell_index]
+        neigh_cell = neigh_element.data.cell
+        n = normal(u_data.mesh, neigh_cell, cell)
+
+        # local blocks
+        beta = 1.0e12
+
+        # Enforce normal displacement condition
+        for c in range(u_components):
+            b = c
+            e = b + n_u_dof
+
+            jac_block_u = np.zeros((n_u_phi, n_u_phi))
+            for i, omega in enumerate(weights):
+                phi = u_phi_tab[0, i, :, 0] * n[c]
+                jac_block_u += beta * det_jac[i] * omega * np.outer(phi, phi)
+
+            res_block_u = np.zeros(n_u_phi)
+            for i, omega in enumerate(weights):
+                phi = u_phi_tab[0, i, :, 0] * n[c]
+                u_D_v = u_D(x[i, 0], x[i, 1], x[i, 2])
+                # Project prescribed displacement onto normal direction
+                u_D_normal = np.dot(u_D_v, n[0:dim+1])
+                # Only enforce normal component for each basis function
+                res_block_u -= beta * det_jac[i] * omega * u_D_normal * phi
 
             r_el[b:e:u_components] += res_block_u
             j_el[b:e:u_components, b:e:u_components] += jac_block_u
