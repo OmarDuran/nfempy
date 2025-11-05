@@ -392,7 +392,8 @@ def create_domain(dimension, make_fitted_q):
     elif dimension == 2:
         offset = 0.5
         if make_fitted_q:
-            offset = 0.75
+            #offset = 0.75 # original
+            offset = 0.7
         points = np.array(
             [
                 [-1.0, -1.0, 0],
