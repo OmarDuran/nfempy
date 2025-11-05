@@ -79,7 +79,21 @@ class ProductSpace:
             self.n_dof += dofs
 
     def _define_dof_shift(self):
-        self.dof_shift = 0
+        self._dof_shift = 0
+
+    @property
+    def dof_shift(self) -> int:
+        """Getter for the global DoF shift."""
+        return self._dof_shift
+
+    @dof_shift.setter
+    def dof_shift(self, value: int) -> None:
+        """Setter for the global DoF shift with basic validation."""
+        if not isinstance(value, (int, np.integer)):
+            raise TypeError("dof_shift must be an integer")
+        if value < 0:
+            raise ValueError("dof_shift must be non-negative")
+        self._dof_shift = int(value)
 
     def dimension(self):
         dims = []

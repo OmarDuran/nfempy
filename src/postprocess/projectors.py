@@ -10,6 +10,10 @@ def l2_projector(fe_space, functions, dof_shift=0, symmetric_solver_q=True):
     rg = np.zeros(n_dof_g)
     alpha = np.zeros(n_dof_g)
 
+    # local projection
+    n_dof_shift = fe_space.dof_shift
+    fe_space.dof_shift = 0
+
     # Assembler
     st = time.time()
     A = PETSc.Mat()
@@ -53,6 +57,7 @@ def l2_projector(fe_space, functions, dof_shift=0, symmetric_solver_q=True):
     name = list(fe_space.discrete_spaces.keys())[0]
     n_els = len(fe_space.discrete_spaces[name].elements)
     [scatter_form_data(A, i, weak_form) for i in range(n_els)]
+    fe_space.dof_shift = n_dof_shift
 
     A.assemble()
 

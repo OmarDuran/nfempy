@@ -1,4 +1,6 @@
 import time
+
+import mpmath
 import numpy as np
 from petsc4py import PETSc
 
@@ -85,8 +87,8 @@ def create_product_spaces(method, gmesh, flux_names, potential_names):
 
     # Scaled space physical tags
     physical_tags_scaled = {
-        flux_names["scaled"]: [1, 2],
-        potential_names["scaled"]: [1, 2],
+        flux_names["scaled"]: [1],
+        potential_names["scaled"]: [1],
     }
 
     b_physical_tags_scaled = {
@@ -95,8 +97,8 @@ def create_product_spaces(method, gmesh, flux_names, potential_names):
 
     # Unscaled space physical tags
     physical_tags_unscaled = {
-        flux_names["unscaled"]: [1, 2],
-        potential_names["unscaled"]: [1, 2],
+        flux_names["unscaled"]: [2],
+        potential_names["unscaled"]: [2],
     }
 
     b_physical_tags_unscaled = {
@@ -147,13 +149,14 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
     et = time.time()
     elapsed_time = et - st
     print("Creation of product space:", elapsed_time, "seconds")
-    assert fe_space_scaled.n_dof == fe_space_unscaled.n_dof
 
 
     # Nonlinear solver data
     n_iterations = 2
     eps_tol = 1.0e-10
-    n_dof_g = fe_space_scaled.n_dof
+    n_dof_g = fe_space_scaled.n_dof + fe_space_unscaled.n_dof
+    fe_space_scaled.dof_shift = 0
+    fe_space_unscaled.dof_shift = fe_space_scaled.n_dof
 
     st = time.time()
 
@@ -314,7 +317,8 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
     ) = l2_error(dim, fe_space_scaled, exact_functions, alpha)
 
     alpha_proj = l2_projector(fe_space_scaled, exact_functions)
-    alpha_e = alpha - alpha_proj
+    alpha_e = np.zeros_like(alpha)
+    alpha_e[0:fe_space_scaled.n_dof] = alpha[0:fe_space_scaled.n_dof] - alpha_proj
     q_proj_l2_error = l2_error_projected(dim, fe_space_scaled, alpha_e, ["v"])[0]
 
     (
@@ -323,7 +327,8 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
     ) = l2_error(dim, fe_space_unscaled, exact_functions, alpha)
 
     alpha_proj = l2_projector(fe_space_unscaled, exact_functions)
-    alpha_e = alpha - alpha_proj
+    alpha_e = np.zeros_like(alpha)
+    alpha_e[fe_space_scaled.n_dof:n_dof_g]  = alpha[fe_space_scaled.n_dof:n_dof_g] - alpha_proj
     p_proj_l2_error = l2_error_projected(dim, fe_space_unscaled, alpha_e, ["u"])[0]
 
     et = time.time()
