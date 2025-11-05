@@ -484,7 +484,7 @@ def main():
     # fixed directives
     k_order = 0
     h = 0.5
-    n_ref = 6
+    n_ref = 5
     dimensions = [2]
     folder_name = "output"
     plot_rates_q = True
