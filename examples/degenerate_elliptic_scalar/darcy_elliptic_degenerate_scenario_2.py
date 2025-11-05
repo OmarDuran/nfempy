@@ -13,6 +13,7 @@ from postprocess.solution_post_processor import (
     write_vtk_file_with_exact_solution,
     write_vtk_file_exact_solution,
     write_vtk_file_pointwise_l2_error,
+    write_fe_spaces_on_vtk_file_with_exact_solution
 )
 from spaces.product_space import ProductSpace
 from weak_forms.degenerate_elliptic_weak_form import (
@@ -192,6 +193,8 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
     exact_functions = {
         "v": v_exact,
         "q": q_exact,
+        "u": v_exact,
+        "p": q_exact,
     }
 
     weak_form_scaled = DegenerateEllipticWeakForm(fe_space_scaled)
@@ -251,8 +254,7 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
     alpha = np.zeros(n_dof_g)
 
     idx_scale = np.where(np.array([el.data.cell.material_id for el in fe_space_scaled.discrete_spaces["v"].elements]) == 1)[0]
-    idx_unscale = \
-    np.where(np.array([el.data.cell.material_id for el in fe_space_unscaled.discrete_spaces["u"].elements]) == 2)[0]
+    idx_unscale = np.where(np.array([el.data.cell.material_id for el in fe_space_unscaled.discrete_spaces["u"].elements]) == 2)[0]
 
     for iter in range(n_iterations):
         [scatter_form_data(jac_g, res_g, i, weak_form_scaled) for i in idx_scale]
@@ -315,58 +317,32 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
     alpha_e = alpha - alpha_proj
     q_proj_l2_error = l2_error_projected(dim, fe_space_scaled, alpha_e, ["v"])[0]
 
+    (
+        u_l2_error,
+        p_l2_error,
+    ) = l2_error(dim, fe_space_unscaled, exact_functions, alpha)
 
-    # physical_exact_functions = {
-    #     "u": u_exact,
-    #     "p": p_exact,
-    # }
-    #
-    # (
-    #     u_l2_error,
-    #     p_l2_error,
-    # ) = l2_error(dim, fe_space, physical_exact_functions, alpha_physical)
-    #
-    # alpha_physical_proj = l2_projector(fe_space, physical_exact_functions)
-    # alpha_physcial_e = alpha_physical - alpha_physical_proj
-    # p_proj_l2_error = l2_error_projected(dim, fe_space, alpha_physcial_e, ["u"])[0]
+    alpha_proj = l2_projector(fe_space_unscaled, exact_functions)
+    alpha_e = alpha - alpha_proj
+    p_proj_l2_error = l2_error_projected(dim, fe_space_unscaled, alpha_e, ["u"])[0]
 
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
     print("L2-error in v: ", v_l2_error)
     print("L2-error in q: ", q_l2_error)
-    # print("L2-error in u: ", u_l2_error)
-    # print("L2-error in p: ", p_l2_error)
+    print("L2-error in u: ", u_l2_error)
+    print("L2-error in p: ", p_l2_error)
     print("L2-error in q projected: ", q_proj_l2_error)
-    # print("L2-error in p projected: ", p_proj_l2_error)
+    print("L2-error in p projected: ", p_proj_l2_error)
 
     if write_vtk_q:
         # post-process solution
         st = time.time()
         file_name = case_name + "two_fields.vtk"
-        write_vtk_file_with_exact_solution(
-            file_name, gmesh, fe_space_scaled, exact_functions, alpha
+        write_fe_spaces_on_vtk_file_with_exact_solution(
+            file_name, gmesh, [fe_space_scaled, fe_space_unscaled], exact_functions, alpha
         )
-
-        # file_name = case_name + "two_fields_exact_solution.vtk"
-
-        # Define fields and their components
-        # name_to_fields = {
-        #     "v": 1,  # scaled flux (1 component)
-        #     "q": 1,  # scaled potential (1 component)
-        #     "u": 1,  # unscaled flux (1 component)
-        #     "p": 1   # unscaled potential (1 component)
-        # }
-        # # Map field names to their exact solution functions
-        # functions = {
-        #     "v": v_exact,
-        #     "q": q_exact,
-        #     "u": u_exact,
-        #     "p": p_exact
-        # }
-        # write_vtk_file_exact_solution(
-        #     file_name, gmesh, name_to_fields, functions
-        # )
         et = time.time()
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
@@ -374,10 +350,10 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
     return [
         q_l2_error,
         v_l2_error,
-        # p_l2_error,
-        # u_l2_error,
+        p_l2_error,
+        u_l2_error,
         q_proj_l2_error,
-        # p_proj_l2_error,
+        p_proj_l2_error,
     ]
 
 
@@ -511,7 +487,7 @@ def main():
                         method, dimension, domain, material, folder_name
                     )
 
-                    n_data = 4
+                    n_data = 7
                     error_data = np.empty((0, n_data), float)
                     for l in range(n_ref):
                         h_val = h * (2**-l)

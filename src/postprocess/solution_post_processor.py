@@ -239,6 +239,103 @@ def write_vtk_file_with_exact_solution(
     )
     mesh.write(file_name)
 
+def write_fe_spaces_on_vtk_file_with_exact_solution(
+    file_name, gmesh, fe_spaces, functions, alpha, cell_centered=None
+):
+    import numpy as np
+    import meshio
+    from basis.element_family import family_by_name
+    from mesh.mesh_metrics import cell_centroid
+
+    if cell_centered is None:
+        cell_centered = []
+
+    dim = gmesh.dimension
+    vec_families = [
+        family_by_name("RT"),
+        family_by_name("BDM"),
+        family_by_name("N1E"),
+        family_by_name("N2E"),
+    ]
+
+    # One cell block for all top-dimensional cells
+    top_cells = [cell for cell in gmesh.cells if cell.dimension == dim]
+    con_d = np.array([cell.node_tags for cell in top_cells])
+    meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
+    cells_dict = {meshio_cell_types[dim]: con_d}
+
+    p_data_dict = {}
+    c_data_dict = {}
+
+    for fe_space in fe_spaces:
+        for name, space in fe_space.discrete_spaces.items():
+            n_comp = space.n_comp
+            f_exact = functions[name]
+
+            n_data = n_comp
+            if space.family in vec_families:
+                n_data *= dim
+
+            # Tags of cells where this space/field is defined
+            allowed_tags = set(fe_space.fields_physical_tags.get(name, []))
+
+            if name in cell_centered:
+                # Cell-centered arrays: one value per top-dimensional cell
+                fh_data = np.full((len(top_cells), n_data), np.nan, dtype=float)
+                fe_data = np.full((len(top_cells), n_data), np.nan, dtype=float)
+
+                for cell_idx, cell in enumerate(top_cells):
+                    if cell.material_id not in allowed_tags:
+                        continue
+                    x = cell_centroid(cell, gmesh)
+                    f_e = f_exact(x[0], x[1], x[2])
+                    f_h = cell_centered_quatity(cell, fe_space, name, alpha)
+                    fh_data[cell_idx] = f_h.ravel()
+                    fe_data[cell_idx] = f_e.ravel()
+
+                c_data_dict[name + "_h"] = [fh_data]
+                c_data_dict[name + "_e"] = [fe_data]
+            else:
+                # Point-wise arrays: one value per mesh point
+                fh_data = np.full((len(gmesh.points), n_data), np.nan, dtype=float)
+                fe_data = np.full((len(gmesh.points), n_data), np.nan, dtype=float)
+
+                vertices = space.mesh_topology.entities_by_dimension(0)
+                cell_vertex_map = space.mesh_topology.entity_map_by_dimension(0)
+
+                for vertex_idx in vertices:
+                    vertex_g_index = (0, vertex_idx)
+                    if not cell_vertex_map.has_node(vertex_g_index):
+                        continue
+
+                    # Global point index
+                    node_idx = gmesh.cells[vertex_idx].node_tags[0]
+                    x = gmesh.points[node_idx]
+
+                    # Neighbor cells for averaging; only keep those in allowed tags
+                    cell_idxs = [
+                        cid for cid in cell_vertex_map.predecessors(vertex_g_index)
+                        if gmesh.cells[cid[1]].material_id in allowed_tags
+                    ]
+                    if not cell_idxs:
+                        continue
+
+                    f_e = f_exact(x[0], x[1], x[2])
+                    f_h = node_average_quatity(node_idx, cell_idxs, fe_space, name, alpha)
+
+                    fh_data[node_idx] = f_h.ravel()
+                    fe_data[node_idx] = f_e.ravel()
+
+                p_data_dict[name + "_h"] = fh_data
+                p_data_dict[name + "_e"] = fe_data
+
+    mesh = meshio.Mesh(
+        points=gmesh.points,
+        cells=cells_dict,
+        point_data=p_data_dict,
+        cell_data=c_data_dict,
+    )
+    mesh.write(file_name)
 
 def write_vtk_file_pointwise_l2_error(
     file_name, gmesh, fe_space, functions, alpha, cell_centered=[]
