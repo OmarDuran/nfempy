@@ -68,3 +68,7 @@ Physical Curve("north", 7) = {5, 6};
 Physical Curve("west", 8) = {7, 8};
 //+
 Show "*";
+
+Mesh.Dual = 1;
+
+

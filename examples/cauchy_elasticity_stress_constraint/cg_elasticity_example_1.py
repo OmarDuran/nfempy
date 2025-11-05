@@ -4,6 +4,7 @@ import numpy as np
 import meshio
 
 from mesh.mesh import Mesh
+from mesh.mesh_metrics import cell_centroid
 from petsc4py import PETSc
 from basis.element_family import family_by_name
 from postprocess.solution_post_processor import cell_centered_quatity, node_average_quatity
@@ -77,12 +78,12 @@ def primal_approximation_with_load(material_data, fe_space, gmesh, mat_ids):
         return np.array(
             [
                 [
-                    np.zeros_like(x),
+                    -3.0e6 * np.ones_like(x),
                     np.zeros_like(x),
                 ],
                 [
                     np.zeros_like(x),
-                    np.zeros_like(x),
+                    -11.0e6 * np.ones_like(x),
                 ]
             ]
         )
@@ -191,8 +192,27 @@ def primal_approximation_with_load(material_data, fe_space, gmesh, mat_ids):
 
     # apply constraint on selected elements
     elements = fe_space.discrete_spaces["u"].elements
-    target_idx = [i for i, el in enumerate(elements) if el.data.cell.material_id in mat_ids['reservoir']]
-    [scatter_form_data(A, i, constraint_weak_form, len(target_idx)) for i in target_idx]
+
+    # target_idx = [i for i, el in enumerate(elements) if el.data.cell.material_id in mat_ids['reservoir']]
+
+    cell_centroids = [cell_centroid(el.data.cell, gmesh) for el in elements]
+    centroids = np.asarray(cell_centroids)
+    xc = np.array([[500.0, 277, 0.0]])
+    r = 100.0  # Radius of the sphere in meters
+    # Squared distances to avoid unnecessary sqrt
+    diff = centroids - xc
+    dist2 = np.einsum("ij,ij->i", diff, diff)
+    r2 = r * r
+    # Optional numerical tolerance
+    tol = 1e-12
+    mask = dist2 <= r2 + tol
+    # Indices of elements whose centroids lie inside / on the sphere
+    inside_idx = np.nonzero(mask)[0]
+    # Subset centroids and elements if needed
+    inside_centroids = centroids[inside_idx]
+    inside_elements = [elements[i] for i in inside_idx]
+    print(f"Selected {inside_idx.size} elements inside sphere.")
+    [scatter_form_data(A, i, constraint_weak_form, len(inside_idx)) for i in inside_idx]
 
     A.assemble()
     print("Assembly: nz_allocated:", int(A.getInfo()["nz_allocated"]))
@@ -404,7 +424,7 @@ def main():
     # overburden shale:    E ≈ 20 GPa, nu ≈ 0.26
     materials = {
         'under':     {'E': 25e9, 'nu': 0.25, 'rho': 2500.0},
-        'reservoir': {'E': 12e9, 'nu': 0.22, 'rho': 2300.0},
+        'reservoir': {'E': 25e9, 'nu': 0.22, 'rho': 2300.0},
         'over':      {'E': 20e9, 'nu': 0.26, 'rho': 2400.0},
     }
 
@@ -417,8 +437,7 @@ def main():
     fe_space = create_product_space(method, gmesh, mat_ids)
     alpha = primal_approximation_with_load(material_data, fe_space, gmesh, mat_ids)
 
-    write_vtk_file_with_stress("constrained_le.vtk", gmesh, fe_space, alpha, material_data)
-    print("Results written to constrained_le_with_stress.vtk")
+    write_vtk_file_with_stress("constrained_le_ex_1.vtk", gmesh, fe_space, alpha, material_data)
 
 
 if __name__ == "__main__":

@@ -81,45 +81,36 @@ BooleanFragments { Surface{101, 102, 103}; Delete; }{ Line{200, 300, 400}; Delet
 
 // STEP 2: Embed the wellbores into the newly faulted surfaces.
 all_surfaces[] = Surface{:};
-Line{300, 400} In Surface {all_surfaces[]};
+//Line{300, 400} In Surface {all_surfaces[]};
 
 // STEP 3: Finalize the geometry to ensure conformality.
 Coherence;
 
-//------------------------------------------------------------------------------------
-// 4. Robust Physical Group Assignment
-//------------------------------------------------------------------------------------
+npts_bottom = 40;
+npts_top = 10;
+npts_fault = 10;
+npts_fault_res = 5;
+npts_well_left = 10;
+npts_well_right = 10;
 
-// --- Define seed points for each of the 6 faulted blocks ---
-p_bl = {100, 100, 0}; p_br = {800, 100, 0};
-p_ml = {100, 225, 0}; p_mr = {800, 225, 0};
-p_tl = {100, 400, 0}; p_tr = {800, 400, 0};
+Transfinite Line { 2, 5 } = npts_bottom;
+Transfinite Line { 9, 10, 13, 14} = npts_top;
+Transfinite Line { 3, 21 } = npts_fault;
+Transfinite Line { 11 } = npts_fault_res;
+Transfinite Line { 19 } = npts_well_left;
+Transfinite Line { 23 } = npts_well_right;
+
 
 // --- Find surfaces at seed points and assign to layer groups ---
-s_bl = Surface At Point p_bl; Physical Surface("underburden_layer", 1) = {s_bl};
-s_br = Surface At Point p_br; Physical Surface("underburden_layer", 1) += {s_br};
-s_ml = Surface At Point p_ml; Physical Surface("reservoir_layer", 2) = {s_ml};
-s_mr = Surface At Point p_mr; Physical Surface("reservoir_layer", 2) += {s_mr};
-s_tl = Surface At Point p_tl; Physical Surface("overburden_layer", 3) = {s_tl};
-s_tr = Surface At Point p_tr; Physical Surface("overburden_layer", 3) += {s_tr};
+Physical Surface("underburden_layer", 1) = {1, 2};
+Physical Surface("reservoir_layer", 2) = {3, 4};
+Physical Surface("overburden_layer", 3) = {5, 6, 7, 8};
 
-// --- Identify and group the line fragments ---
-// We select all fragments of a feature by searching for lines within its original bounding box.
-fault_lines[] = Line In BoundingBox{fault_x_position-1, -1, -1, fault_x_position+300, box_height+1, 1};
-Physical Line("fault", 200) = {fault_lines[]};
+Physical Line("bottom_boundary", 4) = {4, 7};
+Physical Line("top_boundary", 5) = {18, 20, 22, 24};
+Physical Line("left_boundary", 6) = {1, 8, 17};
+Physical Line("right_boundary", 7) = {6, 15, 25};
 
-well1_lines[] = Line In BoundingBox{well1_end_x-1, well1_end_y-1, -1, well1_start_x+1, box_height+1, 1};
-Physical Line("wellbore_1", 300) = {well1_lines[]};
-
-well2_lines[] = Line In BoundingBox{well2_start_x-1, well2_end_y-1, -1, well2_kink_x+51, box_height+1, 1};
-Physical Line("wellbore_2", 400) = {well2_lines[]};
-
-// --- Identify and group the outer boundaries ---
-b_bottom[] = Line In BoundingBox {-1, -1, -1, box_width+1, 1, 1};
-b_top[] = Line In BoundingBox {-1, box_height-1, -1, box_width+1, box_height+1, 1};
-b_left[] = Line In BoundingBox {-1, -1, -1, 1, box_height+1, 1};
-b_right[] = Line In BoundingBox {box_width-1, -1, -1, box_width+1, box_height+1, 1};
-Physical Line("bottom_boundary", 201) = {b_bottom[]};
-Physical Line("top_boundary", 202) = {b_top[]};
-Physical Line("left_boundary", 203) = {b_left[]};
-Physical Line("right_boundary", 204) = {b_right[]};
+Physical Line("well_1", 8) = {16, 23};
+Physical Line("well_2", 9) = {12, 19};
+Physical Line("fault", 10) = {21, 11, 3};

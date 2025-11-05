@@ -1,20 +1,19 @@
 import resource
 import time
-from functools import partial
-
 import numpy as np
+import meshio
+
 from mesh.mesh import Mesh
-from mesh.mesh_metrics import mesh_size
+from mesh.mesh_metrics import cell_centroid
 from petsc4py import PETSc
-from postprocess.l2_error_post_processor import l2_error
-from postprocess.solution_post_processor import write_vtk_file_with_exact_solution
+from basis.element_family import family_by_name
+from postprocess.solution_post_processor import cell_centered_quatity, node_average_quatity
 from spaces.product_space import ProductSpace
-from weak_forms.le_primal_weak_form import LEPrimalWeakForm, LEPrimalWeakFormBCDirichlet
+from weak_forms.le_primal_weak_form import LEPrimalWeakForm, LEPrimalWeakFormBCNormalDirichlet, LEPrimalWeakFormBCNeumann
+from weak_forms.le_primal_stress_constraint_weak_form import LEPrimalStressConstraintWeakForm
 
-import strong_solution_elasticity_example_2 as le
 
-
-def create_product_space(method, gmesh):
+def create_product_space(method, gmesh, mat_ids):
     # FESpace: data
     u_k_order = method[1]["u"][1]
     u_components = 2 if gmesh.dimension == 2 else 3
@@ -30,11 +29,11 @@ def create_product_space(method, gmesh):
     }
 
     physical_tags = {
-        "u": [1, 2, 3, 4],
+        "u": mat_ids['under'] + mat_ids['reservoir'] + mat_ids['over'],  # domain tags
     }
-
+    # Boundary tags: 5=left, 6=right, 7=bottom, 8=top (assumed from mesh)
     b_physical_tags = {
-        "u": [5, 6, 7, 8],
+        "u": mat_ids['bc_bottom'] + mat_ids['bc_top'] + mat_ids['bc_west'] + mat_ids['bc_east'],
     }
 
     space = ProductSpace(discrete_spaces_data)
@@ -43,9 +42,7 @@ def create_product_space(method, gmesh):
     return space
 
 
-def primal_approximation(material_data, method, gmesh):
-    dim = gmesh.dimension
-    fe_space = create_product_space(method, gmesh)
+def primal_approximation_with_load(material_data, fe_space, gmesh, mat_ids):
     n_dof_g = fe_space.n_dof
 
     rg = np.zeros(n_dof_g)
@@ -53,43 +50,77 @@ def primal_approximation(material_data, method, gmesh):
     print("n_dof: ", n_dof_g)
 
     memory_start = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    # Assembler
     st = time.time()
 
     A = PETSc.Mat()
     A.createAIJ([n_dof_g, n_dof_g])
-    A.setType("sbaij")  # Symmetric matrix for CG formulation
+    A.setType("sbaij")
 
-    # Material data
     m_lambda = material_data["lambda"]
     m_mu = material_data["mu"]
-    m_kappa = material_data["kappa"]
 
-    # exact solution and functions
-    u_exact = le.displacement(m_lambda, m_mu, m_kappa, dim)
-    f_rhs = le.rhs(m_lambda, m_mu, m_kappa, dim)
-    f_xi = partial(le.xi, m_kappa=m_kappa, dim=dim)
+    # Zero body force
+    def f_rhs(x, y, z):
+        return np.array(
+            [
+                np.zeros_like(x),
+                material_data['rho'] * np.ones_like(y),
+            ]
+        )
 
     def f_lambda(x, y, z):
-        return f_xi(x, y, z)
+        return m_lambda * np.ones_like(x)
 
     def f_mu(x, y, z):
-        return f_xi(x, y, z)
+        return m_mu * np.ones_like(x)
+
+    def s_target(x, y, z):
+        return np.array(
+            [
+                [
+                    -3.0e6 * np.ones_like(x),
+                    np.zeros_like(x),
+                ],
+                [
+                    np.zeros_like(x),
+                    -11.0e6 * np.ones_like(x),
+                ]
+            ]
+        )
 
     m_functions = {
         "rhs": f_rhs,
         "lambda": f_lambda,
         "mu": f_mu,
-    }
-
-    exact_functions = {
-        "u": u_exact,
+        "s_target": s_target,
     }
 
     weak_form = LEPrimalWeakForm(fe_space)
     weak_form.functions = m_functions
-    bc_weak_form = LEPrimalWeakFormBCDirichlet(fe_space)
-    bc_weak_form.functions = exact_functions
+
+    # Dirichlet BC: zero displacement on left, right, bottom (tags 5, 6, 7)
+    def zero_disp(x, y, z):
+        return np.array(
+            [
+                np.zeros_like(x),
+                np.zeros_like(y),
+            ]
+        )
+
+    bc_dirichlet = LEPrimalWeakFormBCNormalDirichlet(fe_space)
+    bc_dirichlet.functions = {"u": zero_disp}
+
+    # Neumann BC: vertical load on top (tag 8)
+    def vertical_load(x, y, z):
+        # Apply a vertical load of magnitude 1.0 in y direction
+        return np.array([np.zeros_like(x), 10.0e6 * np.ones_like(x)])
+
+    bc_neumann = LEPrimalWeakFormBCNeumann(fe_space)
+    bc_neumann.functions = {"t": vertical_load}
+
+
+    constraint_weak_form = LEPrimalStressConstraintWeakForm(fe_space)
+    constraint_weak_form.functions = m_functions
 
     def scatter_form_data(A, i, weak_form, n_els):
         dest = weak_form.space.destination_indexes(i)
@@ -123,7 +154,7 @@ def primal_approximation(material_data, method, gmesh):
                 (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - memory_start),
             )
 
-    def scatter_bc_form(A, i, bc_weak_form):
+    def scatter_bc_dirichlet(A, i, bc_weak_form):
         dest = fe_space.bc_destination_indexes(i)
         alpha_l = alpha[dest]
         r_el, j_el = bc_weak_form.evaluate_form(i, alpha_l)
@@ -140,12 +171,53 @@ def primal_approximation(material_data, method, gmesh):
             if row[idx] <= col[idx]
         ]
 
+    def scatter_bc_neumann(i, bc_weak_form):
+        dest = fe_space.bc_destination_indexes(i)
+        alpha_l = alpha[dest]
+        r_el, _ = bc_weak_form.evaluate_form(i, alpha_l)
+        rg[dest] += r_el
 
     n_els = len(fe_space.discrete_spaces["u"].elements)
     [scatter_form_data(A, i, weak_form, n_els) for i in range(n_els)]
 
-    n_bc_els = len(fe_space.discrete_spaces["u"].bc_elements)
-    [scatter_bc_form(A, i, bc_weak_form) for i in range(n_bc_els)]
+    # get bounday elements
+    bc_elements = fe_space.discrete_spaces["u"].bc_elements
+    bc_top_idx = [i for i, bel in enumerate(bc_elements) if bel.data.cell.material_id in mat_ids['bc_top']]
+    bc_bottom_idx = [i for i, bel in enumerate(bc_elements) if bel.data.cell.material_id in mat_ids['bc_bottom']]
+    bc_laterals_idx = [i for i, bel in enumerate(bc_elements) if bel.data.cell.material_id in mat_ids['bc_west']+mat_ids['bc_east']]
+
+    [scatter_bc_dirichlet(A, i, bc_dirichlet) for i in bc_bottom_idx]
+    [scatter_bc_dirichlet(A, i, bc_dirichlet) for i in bc_laterals_idx]
+    [scatter_bc_neumann(i, bc_neumann) for i in bc_top_idx]
+
+    # apply constraint on selected elements
+    elements = fe_space.discrete_spaces["u"].elements
+
+    gd2c1 = gmesh.build_graph(2,1)
+    faccets_well_1 = [cell for cell in gmesh.cells if cell.material_id == mat_ids["well_1"]]
+    faccets_well_2 = [cell for cell in gmesh.cells if cell.material_id == mat_ids["well_2"]]
+    faccets_fault = [cell for cell in gmesh.cells if cell.material_id == mat_ids["fault"]]
+
+    # target_idx = [i for i, el in enumerate(elements) if el.data.cell.material_id in mat_ids['reservoir']]
+
+    cell_centroids = [cell_centroid(el.data.cell, gmesh) for el in elements]
+    centroids = np.asarray(cell_centroids)
+    xc = np.array([[500.0, 277, 0.0]])
+    r = 100.0  # Radius of the sphere in meters
+    # Squared distances to avoid unnecessary sqrt
+    diff = centroids - xc
+    dist2 = np.einsum("ij,ij->i", diff, diff)
+    r2 = r * r
+    # Optional numerical tolerance
+    tol = 1e-12
+    mask = dist2 <= r2 + tol
+    # Indices of elements whose centroids lie inside / on the sphere
+    inside_idx = np.nonzero(mask)[0]
+    # Subset centroids and elements if needed
+    inside_centroids = centroids[inside_idx]
+    inside_elements = [elements[i] for i in inside_idx]
+    print(f"Selected {inside_idx.size} elements inside sphere.")
+    [scatter_form_data(A, i, constraint_weak_form, len(inside_idx)) for i in inside_idx]
 
     A.assemble()
     print("Assembly: nz_allocated:", int(A.getInfo()["nz_allocated"]))
@@ -153,26 +225,22 @@ def primal_approximation(material_data, method, gmesh):
     print("Assembly: nz_unneeded:", int(A.getInfo()["nz_unneeded"]))
 
     et = time.time()
-    elapsed_time = et - st
-    print("Assembly: Time:", elapsed_time, "seconds")
+    print("Assembly: Time:", et - st, "seconds")
 
-    # solving linear system
     st = time.time()
-
     ksp = PETSc.KSP().create(PETSc.COMM_WORLD)
     ksp.setOperators(A)
     b = A.createVecLeft()
     b.array[:] = -rg
     x = A.createVecRight()
 
-    ksp.setType("cg")  # Conjugate gradient for symmetric positive definite system
-    ksp.getPC().setType("icc")  # Incomplete Cholesky preconditioner
+    ksp.setType("cg")
+    ksp.getPC().setType("icc")
     ksp.setTolerances(rtol=0.0, atol=1e-10, divtol=5000, max_it=1000)
     ksp.setFromOptions()
 
     ksp.solve(b, x)
     alpha = x.array
-    residuals_history = ksp.getConvergenceHistory()
 
     PETSc.KSP.destroy(ksp)
     PETSc.Mat.destroy(A)
@@ -180,222 +248,204 @@ def primal_approximation(material_data, method, gmesh):
     PETSc.Vec.destroy(x)
 
     et = time.time()
-    elapsed_time = et - st
-    print("Linear solver: Time:", elapsed_time, "seconds")
+    print("Linear solver: Time:", et - st, "seconds")
 
-    return alpha, residuals_history
+    return alpha
 
-
-def primal_postprocessing(material_data, method, gmesh, alpha, write_vtk_q=False):
+def write_vtk_file_with_stress(file_name, gmesh, fe_space, alpha, material_data, cell_centered=[]):
+    """
+    Write VTK including:
+      - Nodal displacement field(s) (unchanged logic)
+      - Nodal Cauchy stress tensor (volume–weighted average of adjacent element stresses)
+    Stress tensor is written as a flattened array:
+        2D -> [s_xx, s_xy, s_yx, s_yy]
+        3D -> [s_xx, s_xy, s_xz, s_yx, s_yy, s_yz, s_zx, s_zy, s_zz]
+    """
     dim = gmesh.dimension
-    fe_space = create_product_space(method, gmesh)
+    lam = material_data["lambda"]
+    mu = material_data["mu"]
 
-    # Material data
-    m_lambda = material_data["lambda"]
-    m_mu = material_data["mu"]
-    m_kappa = material_data["kappa"]
+    vec_families = [
+        family_by_name("RT"),
+        family_by_name("BDM"),
+        family_by_name("N1E"),
+        family_by_name("N2E"),
+    ]
 
-    # exact solution
-    u_exact = le.displacement(m_lambda, m_mu, m_kappa, dim)
+    p_data_dict = {}
+    c_data_dict = {}
 
-    exact_functions = {
-        "u": u_exact,
-    }
+    # Displacements (and other primal fields) as before
+    for name, space in fe_space.discrete_spaces.items():
+        n_comp = space.n_comp
+        n_data = n_comp
+        if space.family in vec_families:
+            n_data *= dim
 
-    if write_vtk_q:
-        st = time.time()
-        prefix = "ex_2_" + method[0] + "_kappa_" + str(material_data["kappa"])
-        file_name = prefix + ".vtk"
-        write_vtk_file_with_exact_solution(
-            file_name, gmesh, fe_space, exact_functions, alpha
-        )
-        et = time.time()
-        elapsed_time = et - st
-        print("VTK post-processing time:", elapsed_time, "seconds")
+        if name in cell_centered:
+            cells_dim = [cell for cell in gmesh.cells if cell.dimension == dim]
+            fh_data = np.zeros((len(cells_dim), n_data))
+            for cell_idx, cell in enumerate(cells_dim):
+                f_h = cell_centered_quatity(cell, fe_space, name, alpha)
+                fh_data[cell_idx] = f_h.ravel()
+            c_data_dict[name + "_h"] = [fh_data]
+        else:
+            fh_data = np.zeros((len(gmesh.points), n_data))
+            vertices = space.mesh_topology.entities_by_dimension(0)
+            cell_vertex_map = space.mesh_topology.entity_map_by_dimension(0)
+            for vertex_idx in vertices:
+                vertex_g_index = (0, vertex_idx)
+                if not cell_vertex_map.has_node(vertex_g_index):
+                    continue
+                node_idx = gmesh.cells[vertex_idx].node_tags[0]
+                cell_idxs = list(cell_vertex_map.predecessors(vertex_g_index))
+                f_h = node_average_quatity(node_idx, cell_idxs, fe_space, name, alpha)
+                fh_data[node_idx] = f_h.ravel()
+            p_data_dict[name + "_h"] = fh_data
 
-    st = time.time()
-    u_l2_error = l2_error(dim, fe_space, exact_functions, alpha)[0]
+    # --- Nodal stress tensor recovery ---
+    u_space = fe_space.discrete_spaces["u"]
+    n_el = len(u_space.elements)
 
-    et = time.time()
-    elapsed_time = et - st
-    print("Error computation time:", elapsed_time, "seconds")
-    print("L2-error displacement: ", u_l2_error)
-    print("")
+    # Accumulators
+    n_points = len(gmesh.points)
+    stress_nodes = np.zeros((n_points, dim, dim))
+    weight_nodes = np.zeros(n_points)
 
-    return fe_space.n_dof, np.array([u_l2_error])
+    # Constants for gradient reconstruction
+    e1 = np.zeros(3); e1[0] = 1.0
+    e2 = np.zeros(3); e2[1] = 1.0
+    e3 = np.zeros(3); e3[2] = 1.0
 
+    points_q, weights_q = fe_space.quadrature[dim]
 
-def create_mesh_from_file(file_name, dim, write_vtk_q=False):
-    gmesh = Mesh(dimension=dim, file_name=file_name)
-    gmesh.build_conformal_mesh()
-    if write_vtk_q:
-        gmesh.write_vtk()
-    return gmesh
+    for iel in range(n_el):
+        el = u_space.elements[iel]
+        dest = fe_space.destination_indexes(iel)
 
+        x_q, jac_q, det_jac_q, inv_jac_q = el.evaluate_mapping(points_q)
+        u_phi_tab = el.evaluate_basis(points_q, jac_q, det_jac_q, inv_jac_q)  # [val/derivs, nq, nphi, 0/1]
 
-def method_definition(k_order):
-    method_cg = {
-        "u": ("Lagrange", k_order),
-    }
-    methods = [method_cg]
-    method_names = ["FEM"]
-    return zip(method_names, methods)
+        n_phi = u_phi_tab.shape[2]
+        u_comp = u_space.n_comp
 
+        # Local coefficients grouped by component (assuming stride = u_comp)
+        a_comp = [alpha[dest[c::u_comp]] for c in range(u_comp)]
 
-def material_data_definition():
-    # Material data for example 2
-    case_0 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0e-6}
-    case_1 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0}
-    case_2 = {"lambda": 1.0, "mu": 1.0, "kappa": 1.0e6}
-    cases = [case_0, case_1, case_2]
-    return cases
+        stress_acc = np.zeros((dim, dim))
+        vol_acc = 0.0
 
+        for iq, omega in enumerate(weights_q):
+            detJ = det_jac_q[iq]
+            w = detJ * omega
 
-def compose_file_name(method, ref_l, material_data, suffix):
-    prefix = (
-        "ex_2_"
-        + method[0]
-        + "_kappa_"
-        + str(material_data["kappa"])
-        + "_l_"
-        + str(ref_l)
+            if dim == 2:
+                inv_jac_m = np.vstack((inv_jac_q[iq] @ e1, inv_jac_q[iq] @ e2))  # (2,2)
+                grad_phi_u = (inv_jac_m @ u_phi_tab[1:u_phi_tab.shape[0] + 1, iq, :, 0]).T  # (n_phi,2)
+            else:
+                inv_jac_m = np.vstack((inv_jac_q[iq] @ e1, inv_jac_q[iq] @ e2, inv_jac_q[iq] @ e3))  # (3,3)
+                grad_phi_u = (inv_jac_m @ u_phi_tab[1:u_phi_tab.shape[0] + 1, iq, :, 0]).T  # (n_phi,3)
+
+            grad_u = np.zeros((dim, dim))
+            for c in range(u_comp):
+                grad_u[c, :] = a_comp[c] @ grad_phi_u
+
+            eps = 0.5 * (grad_u + grad_u.T)
+            tr_eps = np.trace(eps)
+            sigma = lam * tr_eps * np.eye(dim) + 2.0 * mu * eps
+
+            stress_acc += w * sigma
+            vol_acc += w
+
+        if vol_acc <= 0.0:
+            continue
+        sigma_el = stress_acc / vol_acc  # element-averaged stress
+
+        # Distribute to element vertices (volume-weighted)
+        node_tags = el.data.cell.node_tags
+        for nt in node_tags:
+            stress_nodes[nt, :, :] += sigma_el * vol_acc
+            weight_nodes[nt] += vol_acc
+
+    # Finalize nodal averaging
+    nonzero = weight_nodes > 0
+    stress_nodes[nonzero] /= weight_nodes[nonzero][:, None, None]
+
+    # Enforce symmetry explicitly (numerical safety)
+    for k in np.where(nonzero)[0]:
+        stress_nodes[k] = 0.5 * (stress_nodes[k] + stress_nodes[k].T)
+
+    # Flatten tensor for VTK
+    sigma_flat = stress_nodes.reshape(n_points, dim * dim)
+    p_data_dict["s_h"] = sigma_flat
+
+    # Build connectivity (top-dim cells)
+    cells_dim = [cell for cell in gmesh.cells if cell.dimension == dim]
+    con_d = np.array([cell.node_tags for cell in cells_dim])
+    meshio_cell_types = {0: "vertex", 1: "line", 2: "triangle", 3: "tetra"}
+    cells_dict = {meshio_cell_types[dim]: con_d}
+
+    mesh = meshio.Mesh(
+        points=gmesh.points,
+        cells=cells_dict,
+        point_data=p_data_dict,
+        cell_data=c_data_dict,
     )
-    file_name = prefix + suffix
-    return file_name
+    mesh.write(file_name)
+    print(f"VTK (with nodal tensor stress) written to {file_name}")
 
-
-def perform_convergence_approximations(configuration: dict):
-    # retrieve parameters from given configuration
-    method = configuration.get("method")
-    n_ref = configuration.get("n_refinements")
-    dimension = configuration.get("dimension")
-    material_data = configuration.get("material_data", {})
-    write_geometry_vtk = configuration.get("write_geometry_Q", True)
-
-    for lh in range(n_ref):
-        mesh_file = f"gmsh_files/ex_2/partition_ex_2_l_{lh}.msh"
-        gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
-        alpha, res_history = primal_approximation(material_data, method, gmesh)
-        file_name = compose_file_name(method, lh, material_data, "_alpha.npy")
-        with open(file_name, "wb") as f:
-            np.save(f, alpha)
-        file_name_res = compose_file_name(method, lh, material_data, "_res_history.txt")
-        # First position includes n_dof
-        np.savetxt(
-            file_name_res,
-            np.concatenate((np.array([len(alpha)]), res_history)),
-            delimiter=",",
-        )
-    return
-
-
-def perform_convergence_postprocessing(configuration: dict):
-    # retrieve parameters from given configuration
-    method = configuration.get("method")
-    n_ref = configuration.get("n_refinements")
-    dimension = configuration.get("dimension")
-    material_data = configuration.get("material_data", {})
-    write_geometry_vtk = configuration.get("write_geometry_Q", True)
-    write_vtk = configuration.get("write_vtk_Q", True)
-    report_full_precision_data = configuration.get("report_full_precision_data_Q", True)
-
-    n_data = 4  # n_dof, n_iterations, h_max, displacement error
-    error_data = np.empty((0, n_data), float)
-
-    for lh in range(n_ref):
-        mesh_file = f"gmsh_files/ex_2/partition_ex_2_l_{lh}.msh"
-        gmesh = create_mesh_from_file(mesh_file, dimension, write_geometry_vtk)
-        h_min, h_mean, h_max = mesh_size(gmesh)
-
-        file_name = compose_file_name(method, lh, material_data, "_alpha.npy")
-        with open(file_name, "rb") as f:
-            alpha = np.load(f)
-        n_dof, errors = primal_postprocessing(
-            material_data, method, gmesh, alpha, write_vtk
-        )
-
-        chunk = np.array([n_dof, 1, h_max, errors[0]]) # 0 for n_iterations since we use direct solver
-        error_data = np.append(error_data, np.array([chunk]), axis=0)
-
-    # Calculate convergence rates (only for displacement error)
-    rates_data = np.empty((0, 1), float)  # Only one rate for displacement
-    for i in range(error_data.shape[0] - 1):
-        chunk_b = np.log(error_data[i])
-        chunk_e = np.log(error_data[i + 1])
-        h_step = chunk_e[2] - chunk_b[2]  # using h_max
-        partial = (chunk_e[3] - chunk_b[3]) / h_step  # rate for displacement error
-        rates_data = np.append(rates_data, np.array([[partial]]), axis=0)
-
-    # Print minimal report
-    np.set_printoptions(precision=3)
-    print(f"CG formulation: {method[0]}")
-    print(f"Dimension: {dimension}")
-    print("Error data (DOFs, iterations, h_max, L2-error):")
-    print(error_data)
-    print("Convergence rates:")
-    print(rates_data)
-    print("")
-
-    # Save data to files
-    kappa_value = material_data["kappa"]
-    file_name_prefix = f"ex_2_{method[0]}_kappa_{kappa_value}"
-
-    e_str_header = "n_dof, n_iter, h, u_L2_error"
-    r_str_header = "u_convergence_rate"
-
-    if report_full_precision_data:
-        np.savetxt(
-            file_name_prefix + "_error.txt",
-            error_data,
-            delimiter=",",
-            header=e_str_header
-        )
-        np.savetxt(
-            file_name_prefix + "_rates.txt",
-            rates_data,
-            delimiter=",",
-            header=r_str_header
-        )
-
-    # Save rounded data
-    np.savetxt(
-        file_name_prefix + "_error_rounded.txt",
-        error_data,
-        fmt="%1.3e",
-        delimiter=",",
-        header=e_str_header
-    )
-    np.savetxt(
-        file_name_prefix + "_rates_rounded.txt",
-        rates_data,
-        fmt="%1.3f",
-        delimiter=",",
-        header=r_str_header
-    )
-
+def compute_lame(E, nu):
+    """
+    Convert (E, nu) to Lamé parameters (lambda, mu) in SI units.
+    E: Young's modulus [Pa]
+    nu: Poisson ratio [-]
+    """
+    lam = E * nu / ((1.0 + nu) * (1.0 - 2.0 * nu))
+    mu = E / (2.0 * (1.0 + nu))
+    return lam, mu
 
 def main():
-    dimension = 2
-    approximation_q = True
-    postprocessing_q = True
-    refinements = {2: 4}
-    case_data = material_data_definition()
 
-    for k in [2]:
-        methods = method_definition(k)
-        for method in methods:
-            for material_data in case_data:
-                configuration = {
-                    "k_order": k,
-                    "dimension": dimension,
-                    "n_refinements": refinements[k],
-                    "method": method,
-                    "material_data": material_data,
-                }
-                if approximation_q:
-                    perform_convergence_approximations(configuration)
-                if postprocessing_q:
-                    perform_convergence_postprocessing(configuration)
+    mat_ids = {
+        'under': [1],
+        'reservoir': [2],
+        'over': [3],
+        'bc_bottom': [4],
+        'bc_top': [5],
+        'bc_west': [6],
+        'bc_east': [7],
+        'well_1': [8],
+        'well_2': [9],
+        'fault': [10],
+    }
+
+    dimension = 2
+    mesh_file = "gmsh_files/ex_2/example_2_2d.msh"
+    gmesh = Mesh(dimension=dimension, file_name=mesh_file)
+    gmesh.build_conformal_mesh()
+    gmesh.write_vtk()
+
+    # Representative elastic properties (SI units) for a layered reservoir model
+    # Sources: typical literature values (order-of-magnitude examples)
+    # underburden shale:   E ≈ 25 GPa, nu ≈ 0.25
+    # reservoir sandstone: E ≈ 12 GPa, nu ≈ 0.22
+    # overburden shale:    E ≈ 20 GPa, nu ≈ 0.26
+    materials = {
+        'under':     {'E': 25e9, 'nu': 0.25, 'rho': 2500.0},
+        'reservoir': {'E': 25e9, 'nu': 0.22, 'rho': 2300.0},
+        'over':      {'E': 20e9, 'nu': 0.26, 'rho': 2400.0},
+    }
+
+    # Current example: use reservoir layer properties globally (infrastructure not yet per-cell)
+    lam, mu = compute_lame(materials['reservoir']['E'], materials['reservoir']['nu'])
+    material_data = {"lambda": lam, "mu": mu, "rho": materials['reservoir']['rho']}
+
+    method = ("FEM", {"u": ("Lagrange", 2)})
+
+    fe_space = create_product_space(method, gmesh, mat_ids)
+    alpha = primal_approximation_with_load(material_data, fe_space, gmesh, mat_ids)
+
+    write_vtk_file_with_stress("constrained_le_ex_2.vtk", gmesh, fe_space, alpha, material_data)
 
 
 if __name__ == "__main__":

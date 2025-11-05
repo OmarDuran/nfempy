@@ -22,7 +22,7 @@ class LEPrimalStressConstraintWeakForm(WeakForm):
         f_lambda = self.functions["lambda"]
         f_mu = self.functions["mu"]
 
-        beta = 1.0e12  # Penalization parameter
+        beta = 1.0e6  # Penalization parameter
 
         u_data: ElementData = u_space.elements[iel].data
 
