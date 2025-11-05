@@ -39,15 +39,18 @@ def create_product_spaces(method, gmesh, flux_names, potential_names):
 
     v_k_order = method[1][flux_names["scaled"]][1]
     q_k_order = method[1][potential_names["scaled"]][1]
+    l_k_order = method[1]["l"][1]
 
     u_family = method[1][flux_names["unscaled"]][0]
     p_family = method[1][potential_names["unscaled"]][0]
 
     v_family = method[1][flux_names["scaled"]][0]
     q_family = method[1][potential_names["scaled"]][0]
+    l_family = method[1]["l"][0]
 
     flux_components = 1
     potential_components = 1
+    lm_components = 1
 
     # Scaled space data
     discrete_spaces_data_scaled = {
@@ -61,8 +64,14 @@ def create_product_spaces(method, gmesh, flux_names, potential_names):
         potential_names["unscaled"]: (gmesh.dimension, potential_components, p_family, p_k_order, gmesh),
     }
 
+    # Scaled space data
+    discrete_spaces_data_lm = {
+        "l": (gmesh.dimension-1, lm_components, l_family, l_k_order, gmesh),
+    }
+
     flux_disc_Q = False
     potential_disc_Q = True
+    lm_disc_Q = True
 
     # Scaled space discontinuity data
     discrete_spaces_disc_scaled = {
@@ -74,6 +83,10 @@ def create_product_spaces(method, gmesh, flux_names, potential_names):
     discrete_spaces_disc_unscaled = {
         flux_names["unscaled"]: flux_disc_Q,
         potential_names["unscaled"]: potential_disc_Q,
+    }
+
+    discrete_spaces_disc_lm = {
+        "l": lm_disc_Q,
     }
 
     if gmesh.dimension == 1:
@@ -105,6 +118,11 @@ def create_product_spaces(method, gmesh, flux_names, potential_names):
         flux_names["unscaled"]: flux_unscale_bc_physical_tags,
     }
 
+    # LM space physical tags
+    physical_tags_lm = {
+        "l": [9,10],
+    }
+
     # Create scaled space
     space_scaled = ProductSpace(discrete_spaces_data_scaled)
     space_scaled.make_subspaces_discontinuous(discrete_spaces_disc_scaled)
@@ -115,7 +133,11 @@ def create_product_spaces(method, gmesh, flux_names, potential_names):
     space_unscaled.make_subspaces_discontinuous(discrete_spaces_disc_unscaled)
     space_unscaled.build_structures(physical_tags_unscaled, b_physical_tags_unscaled)
 
-    return (space_scaled, space_unscaled)
+    space_lm = ProductSpace(discrete_spaces_data_lm)
+    space_lm.make_subspaces_discontinuous(discrete_spaces_disc_lm)
+    space_lm.build_structures(physical_tags_lm, {})
+
+    return (space_scaled, space_unscaled, space_lm)
 
 
 def method_definition(k_order):
@@ -125,6 +147,7 @@ def method_definition(k_order):
         "p": ("Lagrange", k_order),
         "v": ("RT", k_order + 1),
         "q": ("Lagrange", k_order),
+        "l": ("Lagrange", k_order),
     }
 
     method_2 = {
@@ -132,6 +155,7 @@ def method_definition(k_order):
         "p": ("Lagrange", k_order),
         "v": ("BDM", k_order + 1),
         "q": ("Lagrange", k_order),
+        "l": ("Lagrange", k_order),
     }
 
     # methods = [method_1, method_2]
@@ -143,9 +167,12 @@ def method_definition(k_order):
 def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True):
     dim = gmesh.dimension
 
+    # tag material interface for Lagrange multipliers
+
+
     st = time.time()
     print("Creating scaled variable fe space.")
-    fe_space_scaled, fe_space_unscaled = create_product_spaces(method, gmesh, flux_names={"scaled":"v","unscaled":"u"},potential_names={"scaled":"q","unscaled":"p"})
+    fe_space_scaled, fe_space_unscaled, fe_space_lm = create_product_spaces(method, gmesh, flux_names={"scaled":"v","unscaled":"u"},potential_names={"scaled":"q","unscaled":"p"})
     et = time.time()
     elapsed_time = et - st
     print("Creation of product space:", elapsed_time, "seconds")
@@ -154,9 +181,10 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
     # Nonlinear solver data
     n_iterations = 2
     eps_tol = 1.0e-10
-    n_dof_g = fe_space_scaled.n_dof + fe_space_unscaled.n_dof
+    n_dof_g = fe_space_scaled.n_dof + fe_space_unscaled.n_dof + fe_space_lm.n_dof
     fe_space_scaled.dof_shift = 0
     fe_space_unscaled.dof_shift = fe_space_scaled.n_dof
+    fe_space_lm.dof_shift = fe_space_scaled.n_dof + fe_space_unscaled.dof_shift
 
     st = time.time()
 
@@ -328,7 +356,8 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
 
     alpha_proj = l2_projector(fe_space_unscaled, exact_functions)
     alpha_e = np.zeros_like(alpha)
-    alpha_e[fe_space_scaled.n_dof:n_dof_g]  = alpha[fe_space_scaled.n_dof:n_dof_g] - alpha_proj
+    n_dof_pde = fe_space_scaled.n_dof + fe_space_unscaled.dof_shift
+    alpha_e[fe_space_scaled.n_dof:n_dof_pde]  = alpha[fe_space_scaled.n_dof:n_dof_pde] - alpha_proj
     p_proj_l2_error = l2_error_projected(dim, fe_space_unscaled, alpha_e, ["u"])[0]
 
     et = time.time()
@@ -386,7 +415,7 @@ def create_domain(dimension, make_fitted_q):
                 [-offset, -offset, 0],
             ]
         )
-        domain = build_surface_2D(points)
+        domain = build_surface_2D(points, skip_e_tags=[])
         return domain
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")

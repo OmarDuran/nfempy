@@ -30,9 +30,11 @@ def build_line_1D(line_points, physical_tags=None):
     return domain
 
 
-def build_surface_2D(surface_points, physical_tags=None):
+def build_surface_2D(surface_points, physical_tags=None, skip_e_tags=None):
     if physical_tags is None:
         physical_tags = {"area_0": 1, "area_1": 2}
+    if skip_e_tags is None:
+        skip_e_tags = [6, 7]
 
     domain = Domain(dimension=2)
     vertices = np.array(
@@ -52,7 +54,6 @@ def build_surface_2D(surface_points, physical_tags=None):
     ]
     edges_list = []
     e_physical_tag = 3
-    skip_e_tags = [6, 7]
     for e_tag, edge_con in enumerate(edges_connectivities):
         edge = Edge(e_tag, domain.shapes[0][edge_con])
         if e_tag not in skip_e_tags:
