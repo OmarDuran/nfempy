@@ -26,6 +26,7 @@ from weak_forms.unscaled_elliptic_weak_form import (
     UnscaledEllipticWeakForm,
     UnscaledEllipticWeakFormBCDirichlet,
 )
+from LMWeakForm import  LMgWeakForm
 from weak_forms.scaled_to_physical_l2_projection import ScaledToPhysicalL2Projection
 import strong_solutions_TArbogast as exact_funcs
 from functools import partial
@@ -93,8 +94,8 @@ def create_product_spaces(method, gmesh, flux_names, potential_names):
         flux_scale_bc_physical_tags = [3]
         flux_unscale_bc_physical_tags = [4]
     elif gmesh.dimension == 2:
-        flux_scale_bc_physical_tags = [3, 4, 7, 8]
-        flux_unscale_bc_physical_tags = [5, 6]
+        flux_scale_bc_physical_tags = [3, 4, 7, 8, 9, 10]
+        flux_unscale_bc_physical_tags = [5, 6, 9, 10]
     else:
         raise ValueError("Case not available.")
 
@@ -238,6 +239,9 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
     bc_weak_form_unscaled = UnscaledEllipticWeakFormBCDirichlet(fe_space_unscaled)
     bc_weak_form_unscaled.functions = bc_functions
 
+    product_spaces = [fe_space_lm, fe_space_scaled, fe_space_unscaled]
+    lm_weak_form = LMgWeakForm(product_spaces)
+    lm_weak_form.functions = m_functions
 
     def scatter_form_data(jac_g, res_g, i, weak_form):
         # destination indexes
@@ -273,6 +277,26 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
         for k in range(nnz):
             jac_g.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
+    def scatter_coupling_form_data(jac_g, c1_idx, c0_n_idx, c0_p_idx, int_weak_form):
+
+        dest_c0_n = int_weak_form.space[0].destination_indexes(c0_n_idx, "v")
+        dest_c0_p = int_weak_form.space[0].destination_indexes(c0_p_idx, "u")
+        dest_c1 = int_weak_form.space[1].destination_indexes(c1_idx, "q")
+        dest = np.concatenate([dest_c0_p, dest_c0_n, dest_c1])
+        alpha_l = alpha[dest]
+        r_el, j_el = int_weak_form.evaluate_form(c1_idx, c0_p_idx, c0_n_idx, alpha_l)
+
+        # contribute rhs
+        res_g[dest] += r_el
+
+        # contribute lhs
+        data = j_el.ravel()
+        row = np.repeat(dest, len(dest))
+        col = np.tile(dest, len(dest))
+        nnz = data.shape[0]
+        for k in range(nnz):
+            jac_g.setValue(row=row[k], col=col[k], value=data[k], addv=True)
+
     # Assembler
     st = time.time()
     jac_g = PETSc.Mat()
@@ -287,6 +311,15 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
     idx_scale = np.where(np.array([el.data.cell.material_id for el in fe_space_scaled.discrete_spaces["v"].elements]) == 1)[0]
     idx_unscale = np.where(np.array([el.data.cell.material_id for el in fe_space_unscaled.discrete_spaces["u"].elements]) == 2)[0]
 
+    # interface data
+    cells_c1 = [cell for cell in gmesh.cells if cell.dimension ==1 and cell.material_id in fe_space_lm.fields_physical_tags["l"]]
+    gd1_cm1 = gmesh.build_graph(dimension=2,co_dimension=1)
+    c0_pairs = [list(gd1_cm1.predecessors(cell_c1.index())) for cell_c1 in cells_c1]
+    c0_id_pairs = [[c0_pair[0][1],c0_pair[1][1]] for c0_pair in c0_pairs]
+    c1_idx = [fe_space_lm.discrete_spaces["l"].id_to_element[cell_c1.id] for cell_c1 in cells_c1]
+    c0n_idx = [fe_space_scaled.discrete_spaces["v"].id_to_element[c0_pair[1]] for c0_pair in c0_id_pairs]
+    c0p_idx = [fe_space_unscaled.discrete_spaces["u"].id_to_element[c0_pair[0]] for c0_pair in c0_id_pairs]
+
     for iter in range(n_iterations):
         [scatter_form_data(jac_g, res_g, i, weak_form_scaled) for i in idx_scale]
         n_bc_els = len(fe_space_scaled.discrete_spaces["v"].bc_elements)
@@ -295,6 +328,12 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
         [scatter_form_data(jac_g, res_g, i, weak_form_unscaled) for i in idx_unscale]
         n_bc_els = len(fe_space_unscaled.discrete_spaces["u"].bc_elements)
         [scatter_bc_form(jac_g, res_g, i, bc_weak_form_unscaled, fe_space_unscaled) for i in range(n_bc_els)]
+
+        # Interface weak forms
+        for c1_idx, c0_n_idx, c0_p_idx in zip(c1_idx, c0n_idx, c0p_idx):
+            scatter_coupling_form_data(
+                jac_g, c1_idx, c0_n_idx, c0_p_idx, lm_weak_form
+            )  # positive and negative at once
 
         jac_g.assemble()
 
@@ -403,7 +442,7 @@ def create_domain(dimension, make_fitted_q):
         offset = 0.5
         if make_fitted_q:
             #offset = 0.75 # original
-            offset = 0.7
+            offset = 0.5
         points = np.array(
             [
                 [-1.0, -1.0, 0],
