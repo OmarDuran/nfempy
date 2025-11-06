@@ -185,7 +185,7 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
     n_dof_g = fe_space_scaled.n_dof + fe_space_unscaled.n_dof + fe_space_lm.n_dof
     fe_space_scaled.dof_shift = 0
     fe_space_unscaled.dof_shift = fe_space_scaled.n_dof
-    fe_space_lm.dof_shift = fe_space_scaled.n_dof + fe_space_unscaled.dof_shift
+    fe_space_lm.dof_shift = fe_space_scaled.n_dof + fe_space_unscaled.n_dof
 
     st = time.time()
 
@@ -229,6 +229,12 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
         "p": q_exact,
     }
 
+    m_lm_functions = {
+        "porosity_c0n": f_porosity,
+        "d_phi_c0n": f_d_phi,
+    }
+
+
     weak_form_scaled = DegenerateEllipticWeakForm(fe_space_scaled)
     weak_form_scaled.functions = m_functions
     bc_weak_form_scaled = DegenerateEllipticWeakFormBCDirichlet(fe_space_scaled)
@@ -239,9 +245,9 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
     bc_weak_form_unscaled = UnscaledEllipticWeakFormBCDirichlet(fe_space_unscaled)
     bc_weak_form_unscaled.functions = bc_functions
 
-    product_spaces = [fe_space_lm, fe_space_scaled, fe_space_unscaled]
+    product_spaces = [fe_space_scaled, fe_space_unscaled, fe_space_lm]
     lm_weak_form = LMgWeakForm(product_spaces)
-    lm_weak_form.functions = m_functions
+    lm_weak_form.functions = m_lm_functions
 
     def scatter_form_data(jac_g, res_g, i, weak_form):
         # destination indexes
@@ -279,12 +285,12 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
 
     def scatter_coupling_form_data(jac_g, c1_idx, c0_n_idx, c0_p_idx, int_weak_form):
 
-        dest_c0_n = int_weak_form.space[0].destination_indexes(c0_n_idx, "v")
-        dest_c0_p = int_weak_form.space[0].destination_indexes(c0_p_idx, "u")
-        dest_c1 = int_weak_form.space[1].destination_indexes(c1_idx, "q")
-        dest = np.concatenate([dest_c0_p, dest_c0_n, dest_c1])
+        dest_c0_n = int_weak_form.space[0].bc_destination_indexes(c0_n_idx, "v")
+        dest_c0_p = int_weak_form.space[1].bc_destination_indexes(c0_p_idx, "u")
+        dest_c1 = int_weak_form.space[2].destination_indexes(c1_idx, "l")
+        dest = np.concatenate([dest_c0_n, dest_c0_p, dest_c1])
         alpha_l = alpha[dest]
-        r_el, j_el = int_weak_form.evaluate_form(c1_idx, c0_p_idx, c0_n_idx, alpha_l)
+        r_el, j_el = int_weak_form.evaluate_form(c1_idx, c0_n_idx, c0_p_idx, alpha_l)
 
         # contribute rhs
         res_g[dest] += r_el
@@ -313,12 +319,14 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
 
     # interface data
     cells_c1 = [cell for cell in gmesh.cells if cell.dimension ==1 and cell.material_id in fe_space_lm.fields_physical_tags["l"]]
-    gd1_cm1 = gmesh.build_graph(dimension=2,co_dimension=1)
-    c0_pairs = [list(gd1_cm1.predecessors(cell_c1.index())) for cell_c1 in cells_c1]
-    c0_id_pairs = [[c0_pair[0][1],c0_pair[1][1]] for c0_pair in c0_pairs]
-    c1_idx = [fe_space_lm.discrete_spaces["l"].id_to_element[cell_c1.id] for cell_c1 in cells_c1]
-    c0n_idx = [fe_space_scaled.discrete_spaces["v"].id_to_element[c0_pair[1]] for c0_pair in c0_id_pairs]
-    c0p_idx = [fe_space_unscaled.discrete_spaces["u"].id_to_element[c0_pair[0]] for c0_pair in c0_id_pairs]
+    # gd1_cm1 = gmesh.build_graph(dimension=2,co_dimension=1)
+    # c0_pairs = [list(gd1_cm1.predecessors(cell_c1.index())) for cell_c1 in cells_c1]
+    # c0_id_pairs = [[c0_pair[0][1],c0_pair[1][1]] for c0_pair in c0_pairs]
+
+    # this is possible because the conformity
+    c1_idxs = [fe_space_lm.discrete_spaces["l"].id_to_element[cell_c1.id] for cell_c1 in cells_c1]
+    c0n_idx = [fe_space_scaled.discrete_spaces["v"].id_to_bc_element[cell_c1.id] for cell_c1 in cells_c1]
+    c0p_idx = [fe_space_unscaled.discrete_spaces["u"].id_to_bc_element[cell_c1.id] for cell_c1 in cells_c1]
 
     for iter in range(n_iterations):
         [scatter_form_data(jac_g, res_g, i, weak_form_scaled) for i in idx_scale]
@@ -330,7 +338,7 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
         [scatter_bc_form(jac_g, res_g, i, bc_weak_form_unscaled, fe_space_unscaled) for i in range(n_bc_els)]
 
         # Interface weak forms
-        for c1_idx, c0_n_idx, c0_p_idx in zip(c1_idx, c0n_idx, c0p_idx):
+        for c1_idx, c0_n_idx, c0_p_idx in zip(c1_idxs, c0n_idx, c0p_idx):
             scatter_coupling_form_data(
                 jac_g, c1_idx, c0_n_idx, c0_p_idx, lm_weak_form
             )  # positive and negative at once
@@ -395,7 +403,7 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
 
     alpha_proj = l2_projector(fe_space_unscaled, exact_functions)
     alpha_e = np.zeros_like(alpha)
-    n_dof_pde = fe_space_scaled.n_dof + fe_space_unscaled.dof_shift
+    n_dof_pde = fe_space_scaled.n_dof + fe_space_unscaled.n_dof
     alpha_e[fe_space_scaled.n_dof:n_dof_pde]  = alpha[fe_space_scaled.n_dof:n_dof_pde] - alpha_proj
     p_proj_l2_error = l2_error_projected(dim, fe_space_unscaled, alpha_e, ["u"])[0]
 
