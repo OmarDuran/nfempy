@@ -655,6 +655,7 @@ def main():
                         filename = case_name + "convergence_plot.png"
                         plt.savefig(filename, dpi=300, bbox_inches='tight')
                         # plt.show()
+                        plt.close()
 
 
 if __name__ == "__main__":
