@@ -218,6 +218,8 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
     bc_functions = {
         "v": v_exact,
         "q": q_exact,
+        "u": u_exact,
+        "p": p_exact,
         "d_phi": f_d_phi,
         "porosity": f_porosity,
     }
@@ -225,8 +227,8 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
     exact_functions = {
         "v": v_exact,
         "q": q_exact,
-        "u": v_exact,
-        "p": q_exact,
+        "u": u_exact,
+        "p": p_exact,
     }
 
     m_lm_functions = {
@@ -542,7 +544,7 @@ def main():
     # fixed directives
     k_order = 0
     h = 0.5
-    n_ref = 5
+    n_ref = 7
     dimensions = [2]
     folder_name = "output"
     plot_rates_q = True
@@ -649,6 +651,10 @@ def main():
                         plt.title("")
                         plt.xlabel("Element size")
                         plt.ylabel("L2-error")
+
+                        # Save the figure
+                        filename = case_name + "convergence_plot.png"
+                        plt.savefig(filename, dpi=300, bbox_inches='tight')
                         plt.show()
 
 

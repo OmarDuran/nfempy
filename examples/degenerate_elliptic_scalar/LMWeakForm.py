@@ -141,8 +141,8 @@ class LMgWeakForm(WeakForm):
                 q_h_c1 = alpha_q @ dq_h
 
                 equ_1_integrand = ( (d_phi_v) * q_h_c1) @ dv_h_n.T
-                equ_2_integrand = ( (d_phi_v) * q_h_c1) @ du_h_p.T
-                equ_3_integrand = (d_phi_v) * (v_h_n @ dq_h.T + u_h_p @ dq_h.T)
+                equ_2_integrand = ( (1.0/phi_scale) * q_h_c1) @ du_h_p.T
+                equ_3_integrand = (d_phi_v) * (v_h_n @ dq_h.T + (u_h_p/d_phi_v) @ dq_h.T)
 
                 multiphysic_integrand = np.zeros((1, n_dof))
                 multiphysic_integrand[:, idx_dof["v_n"]] = equ_1_integrand

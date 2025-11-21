@@ -44,94 +44,84 @@ class UnscaledEllipticWeakForm(WeakForm):
         if self.space is None or self.functions is None:
             raise ValueError
 
-        v_space = self.space.discrete_spaces["u"]
-        q_space = self.space.discrete_spaces["p"]
+        u_space = self.space.discrete_spaces["u"]
+        p_space = self.space.discrete_spaces["p"]
 
         f_rhs_f = self.functions["rhs"]
         f_porosity = self.functions["porosity"]
         f_d_phi = self.functions["d_phi"]
         f_grad_d_phi = self.functions["grad_d_phi"]
 
-        v_components = v_space.n_comp
-        q_components = q_space.n_comp
+        u_components = u_space.n_comp
+        p_components = p_space.n_comp
 
-        v_data: ElementData = v_space.elements[iel].data
+        u_data: ElementData = u_space.elements[iel].data
 
-        cell = v_data.cell
+        cell = u_data.cell
         dim = cell.dimension
         points, weights = self.space.quadrature[dim]
-        x, jac, det_jac, inv_jac = v_space.elements[iel].evaluate_mapping(points)
+        x, jac, det_jac, inv_jac = u_space.elements[iel].evaluate_mapping(points)
 
         # basis
-        v_phi_tab = v_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
-        q_phi_tab = q_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+        u_phi_tab = u_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
+        p_phi_tab = p_space.elements[iel].evaluate_basis(points, jac, det_jac, inv_jac)
 
-        n_v_phi = v_phi_tab.shape[2]
-        n_q_phi = q_phi_tab.shape[2]
+        n_u_phi = u_phi_tab.shape[2]
+        n_p_phi = p_phi_tab.shape[2]
 
-        n_v_dof = n_v_phi * v_components
-        n_q_dof = n_q_phi * q_components
+        n_u_dof = n_u_phi * u_components
+        n_p_dof = n_p_phi * p_components
 
         idx_dof = {
-            "u": slice(0, n_v_dof),
-            "p": slice(n_v_dof, n_v_dof + n_q_dof),
+            "u": slice(0, n_u_dof),
+            "p": slice(n_u_dof, n_u_dof + n_p_dof),
         }
 
-        n_dof = n_v_dof + n_q_dof
+        n_dof = n_u_dof + n_p_dof
 
         # Partial local vectorization
         phi_star = f_porosity(x[:, 0], x[:, 1], x[:, 2])
+
+        sqrt_phi_star = np.sqrt(phi_star)
 
         # alternative name for d_phi
         delta_star = f_d_phi(x[:, 0], x[:, 1], x[:, 2])
         grad_delta_star = f_grad_d_phi(x[:, 0], x[:, 1], x[:, 2])
 
         f_f_val_star = f_rhs_f(x[:, 0], x[:, 1], x[:, 2])
-        phi_q_star = det_jac * weights * q_phi_tab[0, :, :, 0].T
+        phi_q_star = det_jac * weights * p_phi_tab[0, :, :, 0].T
 
         with ad.AutoDiff(alpha) as alpha:
             el_form = np.zeros(n_dof)
-            for c in range(q_components):
-                b = c + n_v_dof
-                e = b + n_q_dof
-                el_form[b:e:q_components] -= phi_q_star @ f_f_val_star[c].T
+            for c in range(p_components):
+                b = c + n_u_dof
+                e = b + n_p_dof
+                el_form[b:e:p_components] -= (sqrt_phi_star * phi_q_star) @ f_f_val_star[c].T
 
             for i, omega in enumerate(weights):
 
                 phi = phi_star[i]
                 delta = delta_star[i]
-                grad_delta = grad_delta_star[:, i]
 
                 # Functions and derivatives at integration point i
-                psi_h = v_phi_tab[0, i, :, 0:dim]
-                w_h = q_phi_tab[0, i, :, 0:dim]
+                psi_h = u_phi_tab[0, i, :, 0:dim]
+                w_h = p_phi_tab[0, i, :, 0:dim]
 
-                v_h = alpha[:, idx_dof["u"]] @ psi_h
-                q_h = alpha[:, idx_dof["p"]] @ w_h
+                u_h = alpha[:, idx_dof["u"]] @ psi_h
+                p_h = alpha[:, idx_dof["p"]] @ w_h
 
-                grad_psi_h = v_phi_tab[1 : v_phi_tab.shape[0] + 1, i, :, 0:dim]
+                grad_psi_h = u_phi_tab[1 : u_phi_tab.shape[0] + 1, i, :, 0:dim]
                 div_psi_h = np.array(
                     [np.trace(grad_psi_h, axis1=0, axis2=2) / det_jac[i]]
                 )
 
-                grad_delta_dot_psi_h = np.array(
-                    [
-                        [
-                            np.dot(grad_delta[0:dim], psi_h[j, 0:dim])
-                            for j in range(n_v_phi)
-                        ]
-                    ]
-                )
-                if not np.isclose(phi, 0.0) and phi > 0.0:
-                    div_phi_h_s = (delta * div_psi_h + grad_delta_dot_psi_h) / np.sqrt(
-                        phi
-                    )
-                else:
-                    div_phi_h_s = 0.0 * (delta * div_psi_h + grad_delta_dot_psi_h)
-                div_delta_v_h = alpha[:, idx_dof["u"]] @ div_phi_h_s.T
+                if  np.isclose(phi, 0.0) and phi < 0.0:
+                    print("UnscaledEllipticWeakForm:: porosity zero or negative.")
 
-                equ_1_integrand = (v_h @ psi_h.T) - (q_h @ div_phi_h_s)
-                equ_2_integrand = div_delta_v_h @ w_h.T + q_h @ w_h.T
+                div_u_h = alpha[:, idx_dof["u"]] @ div_psi_h.T
+
+                equ_1_integrand = ((1/(delta*delta)) * u_h @ psi_h.T) - (p_h @ div_psi_h)
+                equ_2_integrand = div_u_h @ w_h.T + phi * p_h @ w_h.T
 
                 multiphysic_integrand = np.zeros((1, n_dof))
                 multiphysic_integrand[:, idx_dof["u"]] = equ_1_integrand
@@ -147,7 +137,7 @@ class UnscaledEllipticWeakForm(WeakForm):
 class UnscaledEllipticWeakFormBCDirichlet(WeakForm):
     def evaluate_form(self, element_index, alpha):
         iel = element_index
-        q_D = self.functions["q"]
+        p_D = self.functions["p"]
         f_d_phi = self.functions["d_phi"]
         f_porosity = self.functions["porosity"]
 
@@ -203,13 +193,13 @@ class UnscaledEllipticWeakFormBCDirichlet(WeakForm):
             res_block_mp = np.zeros(n_mp_phi)
             dim = neigh_cell.dimension
             for i, omega in enumerate(weights):
-                q_D_v = q_D(x[i, 0], x[i, 1], x[i, 2])
-                d_phi = f_d_phi(x[i, 0], x[i, 1], x[i, 2])
-                phi_v = f_porosity(x[i, 0], x[i, 1], x[i, 2])
-                if not np.isclose(phi_v, 0.0) and phi_v > 0.0:
-                    q_D_v *= d_phi / np.sqrt(phi_v)
+                p_D_v = p_D(x[i, 0], x[i, 1], x[i, 2])
+                # d_phi = f_d_phi(x[i, 0], x[i, 1], x[i, 2])
+                # phi_v = f_porosity(x[i, 0], x[i, 1], x[i, 2])
+                # if not np.isclose(phi_v, 0.0) and phi_v > 0.0:
+                #     p_D_v *= d_phi / np.sqrt(phi_v)
                 phi = mp_tr_phi_tab[0, i, mp_dof_n_index, 0:dim] @ n[0:dim]
-                res_block_mp += det_jac[i] * omega * q_D_v[c] * phi
+                res_block_mp += det_jac[i] * omega * p_D_v[c] * phi
 
             r_el[b:e:mp_components] += res_block_mp
 
