@@ -502,7 +502,6 @@ def material_data_definition(dim):
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")
     cases = [case_0, case_1, case_2, case_3]
-    cases = [case_0]
     return cases
 
 
@@ -544,7 +543,7 @@ def main():
     # fixed directives
     k_order = 0
     h = 0.5
-    n_ref = 7
+    n_ref = 4
     dimensions = [2]
     folder_name = "output"
     plot_rates_q = True
@@ -655,7 +654,7 @@ def main():
                         # Save the figure
                         filename = case_name + "convergence_plot.png"
                         plt.savefig(filename, dpi=300, bbox_inches='tight')
-                        plt.show()
+                        # plt.show()
 
 
 if __name__ == "__main__":
