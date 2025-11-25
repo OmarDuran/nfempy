@@ -205,11 +205,14 @@ def plot_loglog_convergence(
         plt.loglog(h_values, errors, marker=markers[idx % len(markers)], label=label)
 
     if triangle and len(h_values) >= 2:
+        if error_values.shape[1] == 0:
+            raise ValueError("No error series available for convergence triangle")
         anchor = triangle.anchor_idx
         anchor = anchor if anchor >= 0 else len(h_values) + anchor
         anchor = max(1, min(anchor, len(h_values) - 1))
         x0, x1 = h_values[anchor - 1], h_values[anchor]
-        y0 = error_values[0, anchor - 1] * triangle.scale
+        reference_series = error_values[:, 0]
+        y0 = reference_series[anchor - 1] * triangle.scale
         slope_line = y0 * (np.array([x0, x1]) / x0) ** triangle.slope
         plt.loglog([x0, x1], slope_line, "k-", linewidth=2, label=f"rate {triangle.slope}")
 
@@ -330,8 +333,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    args.plot_fields = True
-    # args.plot_normal = True
+    # args.plot_fields = True
+    args.plot_normal = True
     # args.plot_enhanced = True
     methods = list(method_definition(k_order=0))
     scalar_fields = [
