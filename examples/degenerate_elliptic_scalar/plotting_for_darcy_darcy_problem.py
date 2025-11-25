@@ -212,11 +212,13 @@ def plot_loglog_convergence(
         anchor = anchor if anchor >= 0 else len(h_values) + anchor
         anchor = max(1, min(anchor, len(h_values) - 1))
         x0, x1 = h_values[anchor - 1], h_values[anchor]
-        reference_series = error_values[:, 0]
+        series_at_anchor = error_values[anchor - 1, :]
+        best_idx = int(np.argmin(series_at_anchor))
+        reference_series = error_values[:, best_idx]
         y0 = reference_series[anchor - 1] * triangle.scale
         slope_line = y0 * (np.array([x0, x1]) / x0) ** triangle.slope
         plt.loglog([x0, x1], slope_line, "k-", linewidth=2, label=f"rate {triangle.slope}")
-        draw_unit_triangle(plt.gca())
+        draw_data_triangle(plt.gca(), x0, x1, reference_series[anchor - 1], reference_series[anchor])
 
     plt.xlabel("Element size h")
     plt.ylabel("L2 error")
@@ -226,13 +228,16 @@ def plot_loglog_convergence(
     plt.close()
 
 
-def draw_unit_triangle(ax: plt.Axes, anchor: tuple[float, float] = (0.72, 0.18), size: float = 0.1) -> None:
-    x0, y0 = anchor
-    points = [(x0, y0), (x0 + size, y0), (x0 + size, y0 + size)]
-    triangle = Polygon(points, closed=True, fill=False, edgecolor="black", linewidth=2, transform=ax.transAxes, clip_on=False)
+def draw_data_triangle(ax: plt.Axes, x0: float, x1: float, y_prev: float, y_curr: float) -> None:
+    y_base = max(y_prev, y_curr)
+    y_top = min(y_prev, y_curr)
+    points = [(x0, y_base), (x1, y_base), (x1, y_top)]
+    triangle = Polygon(points, closed=True, fill=False, edgecolor="black", linewidth=2)
     ax.add_patch(triangle)
-    ax.text(x0 + size / 2, y0 - 0.03, "1", ha="center", va="top", fontsize=12, transform=ax.transAxes)
-    ax.text(x0 + size + 0.02, y0 + size / 2, "1", ha="left", va="center", fontsize=12, rotation=90, transform=ax.transAxes)
+    base_mid_x = np.sqrt(x0 * x1)
+    ax.text(base_mid_x, y_base, "1", ha="center", va="bottom", fontsize=12)
+    vert_mid_y = np.sqrt(y_base * y_top) if y_top > 0 else y_top
+    ax.text(x1, vert_mid_y, "1", ha="left", va="center", rotation=90, fontsize=12)
 
 
 def resolve_cli_path(path_str: str, allow_missing: bool = False) -> Path:
