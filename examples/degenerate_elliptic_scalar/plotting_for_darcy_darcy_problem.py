@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
 import numpy as np
 import pyvista
+import seaborn as sns
+
 from degenerate_mixed_flow_model import (
     compose_case_name,
     create_domain,
@@ -23,6 +25,29 @@ pyvista.global_theme.colorbar_orientation = "horizontal"
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 
+CUSTOM_PALETTES = {
+    "tokyo": [
+        "#0d1b2a",
+        "#1b263b",
+        "#415a77",
+        "#778da9",
+        "#e0e1dd",
+        "#f4a261",
+        "#e76f51",
+    ]
+}
+
+def get_palette(name: str, n_colors: int) -> list[str]:
+    base = CUSTOM_PALETTES.get(name)
+    if base:
+        if len(base) >= n_colors:
+            return base[:n_colors]
+        repeats = (n_colors + len(base) - 1) // len(base)
+        return (base * repeats)[:n_colors]
+    try:
+        return sns.color_palette(name, n_colors=n_colors)
+    except ValueError:
+        return sns.color_palette("deep", n_colors=n_colors)
 
 def find_repo_root(start: Path) -> Path:
     for candidate in [start] + list(start.parents):
@@ -201,10 +226,11 @@ def plot_loglog_convergence(
 ) -> None:
     h_values = error_table[:, 0]
     error_values = error_table[:, 1::2]
+    palette = get_palette("tokyo", n_colors=len(labels))
 
     plt.figure(figsize=(8, 6))
     for idx, (errors, label) in enumerate(zip(error_values.T, labels)):
-        plt.loglog(h_values, errors, marker=markers[idx % len(markers)], label=label)
+        plt.loglog(h_values, errors, marker=markers[idx % len(markers)], label=label, color=palette[idx % len(palette)])
 
     if triangle and len(h_values) >= 2:
         if error_values.shape[1] == 0:
@@ -365,7 +391,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     # args.plot_fields = True
-    # args.plot_normal = True
+    args.plot_normal = True
     args.plot_enhanced = True
     methods = list(method_definition(k_order=0))
     scalar_fields = [
@@ -418,3 +444,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
