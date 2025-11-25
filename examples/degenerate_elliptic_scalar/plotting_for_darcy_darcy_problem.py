@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from sys import platform
@@ -145,7 +144,11 @@ def generate_field_plots(config: PlotConfig) -> None:
     for method, material, domain, dimension, level in iter_cases(config):
         vtk_base = build_case_basename(method, dimension, domain, material, config.vtks_folder)
         vtk_file = vtk_base.with_name(vtk_base.name + f"l_{level}_two_fields.vtk")
-        mesh = load_mesh(vtk_file)
+        try:
+            mesh = load_mesh(vtk_file)
+        except FileNotFoundError:
+            print(f"Skipping missing VTK file: {vtk_file}")
+            continue
         case_prefix = build_case_basename(method, dimension, domain, material, config.figure_folder)
         for scalar in config.scalar_fields:
             figure_name = f"{case_prefix.name}l_{level}_{scalar.name}_map.{config.figure_format}"
@@ -204,11 +207,15 @@ def main() -> None:
         ScalarFieldPlot(name="v_e", title="Unphysical velocity norm"),
     ]
 
+    figures_path = Path(args.figures).expanduser().resolve()
+    vtks_path = Path(args.vtks).expanduser().resolve()
+    errors_path = Path(args.errors).expanduser().resolve()
+
     config = PlotConfig(
-        figure_folder=Path(args.figures),
+        figure_folder=figures_path,
         figure_format=args.formats,
-        vtks_folder=Path(args.vtks),
-        errors_folder=Path(args.errors),
+        vtks_folder=vtks_path,
+        errors_folder=errors_path,
         scalar_fields=scalar_fields,
         methods=methods,
         material_params=args.materials,
@@ -217,14 +224,12 @@ def main() -> None:
         dimension=args.dim,
     )
 
-    generate_field_plots(config)
-    aka = 0
-    # if args.plot_fields:
-    #     generate_field_plots(config)
-    # if args.plot_normal:
-    #     generate_convergence_plots(config, "normal")
-    # if args.plot_enhanced:
-    #     generate_convergence_plots(config, "enhanced")
+    if args.plot_fields:
+        generate_field_plots(config)
+    if args.plot_normal:
+        generate_convergence_plots(config, "normal")
+    if args.plot_enhanced:
+        generate_convergence_plots(config, "enhanced")
 
 
 if __name__ == "__main__":
