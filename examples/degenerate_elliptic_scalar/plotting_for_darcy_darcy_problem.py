@@ -7,6 +7,7 @@ from sys import platform
 from typing import Iterable, Sequence
 
 import matplotlib.pyplot as plt
+from matplotlib.patches import Polygon
 import numpy as np
 import pyvista
 from degenerate_mixed_flow_model import (
