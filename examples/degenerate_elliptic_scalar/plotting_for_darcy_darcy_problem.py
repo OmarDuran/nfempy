@@ -77,6 +77,7 @@ class PlotConfig:
     camera_azimuth: float = 0.0
     camera_elevation: float = 30.0
     camera_zoom: float = 1.2
+    field_resolution: tuple[int, int] = (1600, 900)
 
 
 def ensure_folder(path: Path) -> None:
@@ -122,10 +123,10 @@ def plot_field_pair(mesh: pyvista.DataSet, config: PlotConfig, pair: FieldPair, 
     left_mesh, left_scalar_name = prepare_scalar_dataset(mesh, pair.left, pair_scale[0])
     right_mesh, right_scalar_name = prepare_scalar_dataset(mesh, pair.right, pair_scale[1])
 
-    plotter = pyvista.Plotter(off_screen=True)
+    plotter = pyvista.Plotter(off_screen=True, window_size=config.field_resolution)
     left_bar = dict(
         title=pair.left.title,
-        position_x=0.22,
+        position_x=0.1,
         position_y=0.15,
         height=0.7,
         width=0.02,
@@ -135,7 +136,7 @@ def plot_field_pair(mesh: pyvista.DataSet, config: PlotConfig, pair: FieldPair, 
     )
     right_bar = dict(
         title=pair.right.title,
-        position_x=0.82,
+        position_x=0.9,
         position_y=0.15,
         height=0.7,
         width=0.02,
@@ -167,7 +168,7 @@ def plot_field_pair(mesh: pyvista.DataSet, config: PlotConfig, pair: FieldPair, 
     plotter.camera.azimuth = config.camera_azimuth
     plotter.camera.elevation = config.camera_elevation
     plotter.camera.zoom(config.camera_zoom)
-    plotter.screenshot(str(figure_path))
+    plotter.screenshot(str(figure_path), window_size=config.field_resolution)
     plotter.close()
 
 
@@ -298,6 +299,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--camera-azimuth", type=float, default=-150.0, help="Azimuth angle for the 3D camera (degrees)")
     parser.add_argument("--camera-elevation", type=float, default=10.0, help="Elevation angle for the 3D camera (degrees)")
     parser.add_argument("--camera-zoom", type=float, default=1.1, help="Zoom factor for the 3D camera")
+    parser.add_argument(
+        "--field-resolution",
+        nargs=2,
+        type=int,
+        metavar=("WIDTH", "HEIGHT"),
+        default=(1200, 1200),
+        help="Resolution of generated field figure PNGs",
+    )
     return parser.parse_args()
 
 
@@ -332,8 +341,8 @@ def main() -> None:
         field_pairs=[
             FieldPair("qh_ph", field_lookup["q_h"], field_lookup["p_h"], height_scale=(1.0, 1.0)),
             FieldPair("qe_pe", field_lookup["q_e"], field_lookup["p_e"], height_scale=(1.0, 1.0)),
-            FieldPair("ve_ue", field_lookup["v_e"], field_lookup["u_e"], height_scale=(1.0, 1.0/5000.0)),
-            FieldPair("vh_uh", field_lookup["v_h"], field_lookup["u_h"], height_scale=(1.0, 1.0/5000.0)),
+            FieldPair("ve_ue", field_lookup["v_e"], field_lookup["u_e"], height_scale=(0.5, 1.0/5000.0)),
+            FieldPair("vh_uh", field_lookup["v_h"], field_lookup["u_h"], height_scale=(0.5, 1.0/5000.0)),
         ],
         methods=methods,
         material_params=args.materials,
@@ -343,6 +352,7 @@ def main() -> None:
         camera_azimuth=args.camera_azimuth,
         camera_elevation=args.camera_elevation,
         camera_zoom=args.camera_zoom,
+        field_resolution=tuple(args.field_resolution),
     )
 
     if args.plot_fields:
