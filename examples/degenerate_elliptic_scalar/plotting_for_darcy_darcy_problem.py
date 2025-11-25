@@ -361,8 +361,8 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     # args.plot_fields = True
-    args.plot_normal = True
-    # args.plot_enhanced = True
+    # args.plot_normal = True
+    args.plot_enhanced = True
     methods = list(method_definition(k_order=0))
     scalar_fields = [
         ScalarFieldPlot(name="p_h", title="Pressure", clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
