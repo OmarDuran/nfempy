@@ -524,7 +524,6 @@ def main() -> None:
     args = parse_args()
     args.plot_fields = True
     args.plot_normal = True
-    args.plot_enhanced = True
     methods = list(method_definition(k_order=0))
     scalar_fields = [
         ScalarFieldPlot(name="p_h", title="Pressure (Computed)", clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
@@ -562,17 +561,11 @@ def main() -> None:
         setattr(config, "y_range_normal", (float(args.y_range_normal[0]), float(args.y_range_normal[1])))
     else:
         setattr(config, "y_range_normal", None)
-    if args.y_range_enhanced is not None:
-        setattr(config, "y_range_enhanced", (float(args.y_range_enhanced[0]), float(args.y_range_enhanced[1])))
-    else:
-        setattr(config, "y_range_enhanced", None)
 
     if args.plot_fields:
-        generate_field_plots(config, verbose=args.verbose)
+        generate_field_plots(config, scalar_fields, verbose=args.verbose)
     if args.plot_normal:
         generate_convergence_plots(config, "normal")
-    if args.plot_enhanced:
-        generate_convergence_plots(config, "enhanced")
 
 
 if __name__ == "__main__":
