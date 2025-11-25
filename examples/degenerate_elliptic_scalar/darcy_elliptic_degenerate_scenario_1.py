@@ -217,31 +217,13 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
     # initial guess
     alpha = np.zeros(n_dof_g)
 
-    idx_scale = np.where(np.array([el.data.cell.material_id for el in fe_space_scaled.discrete_spaces["v"].elements]) == 1)[0]
-    idx_unscale = np.where(np.array([el.data.cell.material_id for el in fe_space_unscaled.discrete_spaces["u"].elements]) == 2)[0]
-
-    # interface data
-    cells_c1 = [cell for cell in gmesh.cells if cell.dimension ==1 and cell.material_id in fe_space_lm.fields_physical_tags["l"]]
-
-    # this is possible because the conformity
-    c1_idxs = [fe_space_lm.discrete_spaces["l"].id_to_element[cell_c1.id] for cell_c1 in cells_c1]
-    c0n_idx = [fe_space_scaled.discrete_spaces["v"].id_to_bc_element[cell_c1.id] for cell_c1 in cells_c1]
-    c0p_idx = [fe_space_unscaled.discrete_spaces["u"].id_to_bc_element[cell_c1.id] for cell_c1 in cells_c1]
+    idx_unscale = np.arange(len(fe_space_unscaled.discrete_spaces["u"].elements))
 
     for iter in range(n_iterations):
-        [scatter_form_data(jac_g, res_g, i, weak_form_scaled) for i in idx_scale]
-        n_bc_els = len(fe_space_scaled.discrete_spaces["v"].bc_elements)
-        [scatter_bc_form(jac_g, res_g, i, bc_weak_form_scaled, fe_space_scaled) for i in range(n_bc_els)]
-
         [scatter_form_data(jac_g, res_g, i, weak_form_unscaled) for i in idx_unscale]
         n_bc_els = len(fe_space_unscaled.discrete_spaces["u"].bc_elements)
         [scatter_bc_form(jac_g, res_g, i, bc_weak_form_unscaled, fe_space_unscaled) for i in range(n_bc_els)]
 
-        # Interface weak forms
-        for c1_idx, c0_n_idx, c0_p_idx in zip(c1_idxs, c0n_idx, c0p_idx):
-            scatter_coupling_form_data(
-                jac_g, c1_idx, c0_n_idx, c0_p_idx, lm_weak_form
-            )  # positive and negative at once
 
         jac_g.assemble()
 
@@ -287,34 +269,20 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
 
     st = time.time()
     (
-        v_l2_error,
-        q_l2_error,
-    ) = l2_error(dim, fe_space_scaled, exact_functions, alpha)
-
-    alpha_proj = l2_projector(fe_space_scaled, exact_functions)
-    alpha_e = np.zeros_like(alpha)
-    alpha_e[0:fe_space_scaled.n_dof] = alpha[0:fe_space_scaled.n_dof] - alpha_proj
-    q_proj_l2_error = l2_error_projected(dim, fe_space_scaled, alpha_e, ["v"])[0]
-
-    (
         u_l2_error,
         p_l2_error,
     ) = l2_error(dim, fe_space_unscaled, exact_functions, alpha)
 
     alpha_proj = l2_projector(fe_space_unscaled, exact_functions)
     alpha_e = np.zeros_like(alpha)
-    n_dof_pde = fe_space_scaled.n_dof + fe_space_unscaled.n_dof
-    alpha_e[fe_space_scaled.n_dof:n_dof_pde]  = alpha[fe_space_scaled.n_dof:n_dof_pde] - alpha_proj
+    alpha_e = alpha - alpha_proj
     p_proj_l2_error = l2_error_projected(dim, fe_space_unscaled, alpha_e, ["u"])[0]
 
     et = time.time()
     elapsed_time = et - st
     print("L2-error time:", elapsed_time, "seconds")
-    print("L2-error in v: ", v_l2_error)
-    print("L2-error in q: ", q_l2_error)
     print("L2-error in u: ", u_l2_error)
     print("L2-error in p: ", p_l2_error)
-    print("L2-error in q projected: ", q_proj_l2_error)
     print("L2-error in p projected: ", p_proj_l2_error)
 
     if write_vtk_q:
@@ -322,18 +290,15 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
         st = time.time()
         file_name = case_name + "two_fields.vtk"
         write_fe_spaces_on_vtk_file_with_exact_solution(
-            file_name, gmesh, [fe_space_scaled, fe_space_unscaled], exact_functions, alpha
+            file_name, gmesh, [fe_space_unscaled], exact_functions, alpha
         )
         et = time.time()
         elapsed_time = et - st
         print("Post-processing time:", elapsed_time, "seconds")
 
     return [
-        q_l2_error,
-        v_l2_error,
         p_l2_error,
         u_l2_error,
-        q_proj_l2_error,
         p_proj_l2_error,
     ]
 
@@ -467,7 +432,7 @@ def main():
                         method, dimension, domain, material, folder_name
                     )
 
-                    n_data = 7
+                    n_data = 4
                     error_data = np.empty((0, n_data), float)
                     for l in range(n_ref):
                         h_val = h * (2**-l)
