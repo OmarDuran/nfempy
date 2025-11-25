@@ -123,16 +123,26 @@ def ensure_folder(path: Path) -> None:
 
 
 # Improved loader: differentiate missing file vs read/parse failure so caller prints accurate message.
-def load_mesh(vtk_path: Path) -> pyvista.DataSet:
+def load_mesh(vtk_path: Path, verbose: bool = False) -> pyvista.DataSet:
+    """Load a VTK file with clearer error semantics.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the path itself does not exist on disk.
+    RuntimeError
+        If the file exists but pyvista fails to read/parse it for any reason.
+    """
     if not vtk_path.exists():
         raise FileNotFoundError(vtk_path)
+    if verbose:
+        print(f"[load_mesh] Found file: {vtk_path} (size={vtk_path.stat().st_size} bytes)")
     try:
         return pyvista.read(vtk_path)
-    except FileNotFoundError:
-        # Propagate explicit FileNotFoundError (unlikely after exists check, but keep for safety)
-        raise
+    except FileNotFoundError as e:
+        # Path existed, so treat this as a read failure (e.g., corrupted file or unsupported format)
+        raise RuntimeError(f"Read failure (FileNotFound inside reader) for existing VTK file '{vtk_path}': {e}") from e
     except Exception as e:  # noqa: BLE001
-        # Wrap any other failure so caller can distinguish from missing file scenario.
         raise RuntimeError(f"Failed to read VTK file '{vtk_path}': {e}") from e
 
 
@@ -360,13 +370,13 @@ def build_case_basename(method, dimension, domain, material, folder: Path | None
     return Path(prefix)
 
 
-def generate_field_plots(config: PlotConfig) -> None:
+def generate_field_plots(config: PlotConfig, verbose: bool = False) -> None:
     ensure_folder(config.figure_folder)
     for method, material, domain, dimension, level in iter_cases(config):
         vtk_base = build_case_basename(method, dimension, domain, material, config.vtks_folder)
         vtk_file = vtk_base.with_name(vtk_base.name + f"l_{level}_two_fields.vtk")
         try:
-            mesh = load_mesh(vtk_file)
+            mesh = load_mesh(vtk_file, verbose=verbose)
         except FileNotFoundError:
             print(f"Skipping missing VTK file (not found): {vtk_file}")
             continue
@@ -432,6 +442,7 @@ def parse_args() -> argparse.Namespace:
         default=0.02,
         help="Width of the scalar bar as a fraction of the render window",
     )
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose diagnostic output")
     return parser.parse_args()
 
 
@@ -482,7 +493,7 @@ def main() -> None:
     )
 
     if args.plot_fields:
-        generate_field_plots(config)
+        generate_field_plots(config, verbose=args.verbose)
     if args.plot_normal:
         generate_convergence_plots(config, "normal")
     if args.plot_enhanced:
