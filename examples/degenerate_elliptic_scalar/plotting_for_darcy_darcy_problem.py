@@ -40,6 +40,7 @@ class ScalarFieldPlot:
     cmap: str = "terrain"
     clim: tuple[float, float] | None = None
     use_norm: bool = False
+    threshold: tuple[float, float] | None = None
 
 
 @dataclass(frozen=True)
@@ -84,9 +85,9 @@ def load_mesh(vtk_path: Path) -> pyvista.DataSet:
     return pyvista.read(vtk_path)
 
 
-def plot_scalar_field(mesh: pyvista.DataSet, config: PlotConfig, scalar: ScalarFieldPlot, figure_path: Path) -> None:
+def prepare_scalar_dataset(mesh: pyvista.DataSet, scalar: ScalarFieldPlot, height_scale: float) -> tuple[pyvista.DataSet, str]:
     if scalar.name not in mesh.point_data:
-        raise KeyError(f"Scalar '{scalar.name}' not found in {figure_path}")
+        raise KeyError(f"Scalar '{scalar.name}' not found in mesh point data")
     values = mesh.point_data[scalar.name]
     if scalar.use_norm or values.ndim > 1:
         scalars = np.linalg.norm(values, axis=1)
@@ -96,16 +97,61 @@ def plot_scalar_field(mesh: pyvista.DataSet, config: PlotConfig, scalar: ScalarF
     quantity_name = f"{scalar.name}_magnitude" if scalar.use_norm else scalar.name
     plot_mesh = mesh.copy(deep=True)
     plot_mesh.point_data[quantity_name] = scalars
-    warped = plot_mesh.warp_by_scalar(quantity_name, factor=config.height_scale)
+    filtered = plot_mesh
+    if scalar.threshold is not None:
+        filtered_candidate = plot_mesh.threshold(
+            value=scalar.threshold,
+            scalars=quantity_name,
+            preference="point",
+        )
+        if filtered_candidate.n_cells > 0:
+            filtered = filtered_candidate
+    warped = filtered.warp_by_scalar(quantity_name, factor=height_scale)
+    return warped, quantity_name
+
+
+def plot_field_pair(mesh: pyvista.DataSet, config: PlotConfig, pair: FieldPair, figure_path: Path) -> None:
+    left_mesh, left_scalar_name = prepare_scalar_dataset(mesh, pair.left, config.height_scale)
+    right_mesh, right_scalar_name = prepare_scalar_dataset(mesh, pair.right, config.height_scale)
 
     plotter = pyvista.Plotter(off_screen=True)
+    left_bar = dict(
+        title=pair.left.title,
+        position_x=0.02,
+        position_y=0.15,
+        height=0.7,
+        width=0.03,
+        vertical=True,
+        title_font_size=18,
+        label_font_size=14,
+    )
+    right_bar = dict(
+        title=pair.right.title,
+        position_x=0.9,
+        position_y=0.15,
+        height=0.7,
+        width=0.03,
+        vertical=True,
+        title_font_size=18,
+        label_font_size=14,
+    )
+
     plotter.add_mesh(
-        warped,
-        scalars=quantity_name,
-        cmap=scalar.cmap,
-        clim=scalar.clim,
+        left_mesh,
+        scalars=left_scalar_name,
+        cmap=pair.left.cmap,
+        clim=pair.left.clim,
         show_edges=False,
-        scalar_bar_args={"title": scalar.title},
+        scalar_bar_args=left_bar,
+        copy_mesh=True,
+    )
+    plotter.add_mesh(
+        right_mesh,
+        scalars=right_scalar_name,
+        cmap=pair.right.cmap,
+        clim=pair.right.clim,
+        show_edges=False,
+        scalar_bar_args=right_bar,
         copy_mesh=True,
     )
     plotter.enable_eye_dome_lighting()
