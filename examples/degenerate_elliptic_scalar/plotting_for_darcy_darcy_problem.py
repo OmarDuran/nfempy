@@ -242,14 +242,14 @@ def main() -> None:
     # args.plot_enhanced = True
     methods = list(method_definition(k_order=0))
     scalar_fields = [
-        ScalarFieldPlot(name="p_h", title="Physical pressure"),
-        ScalarFieldPlot(name="p_e", title="Physical pressure"),
-        ScalarFieldPlot(name="q_h", title="Unphysical pressure"),
-        ScalarFieldPlot(name="q_e", title="Unphysical pressure"),
-        ScalarFieldPlot(name="u_h", title="Physical velocity norm", use_norm=True),
-        ScalarFieldPlot(name="u_e", title="Physical velocity norm", use_norm=True),
-        ScalarFieldPlot(name="v_h", title="Unphysical velocity norm", use_norm=True),
-        ScalarFieldPlot(name="v_e", title="Unphysical velocity norm", use_norm=True),
+        ScalarFieldPlot(name="p_h", title="Physical pressure", clim=(-1.0, 1.0)),
+        ScalarFieldPlot(name="p_e", title="Physical pressure", clim=(-1.0, 1.0)),
+        ScalarFieldPlot(name="q_h", title="Unphysical pressure", clim=(-1.0, 1.0)),
+        ScalarFieldPlot(name="q_e", title="Unphysical pressure", clim=(-1.0, 1.0)),
+        ScalarFieldPlot(name="u_h", title="Physical velocity norm", use_norm=True, clim=(0.0, 4.0)),
+        ScalarFieldPlot(name="u_e", title="Physical velocity norm", use_norm=True, clim=(0.0, 4.0)),
+        ScalarFieldPlot(name="v_h", title="Unphysical velocity norm", use_norm=True, clim=(0.0, 270.0)),
+        ScalarFieldPlot(name="v_e", title="Unphysical velocity norm", use_norm=True, clim=(0.0, 270.0)),
     ]
 
     figures_path = resolve_cli_path(args.figures, allow_missing=True)
