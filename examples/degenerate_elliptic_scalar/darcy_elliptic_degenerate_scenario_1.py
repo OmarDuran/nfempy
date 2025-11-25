@@ -18,15 +18,10 @@ from postprocess.solution_post_processor import (
     write_fe_spaces_on_vtk_file_with_exact_solution
 )
 from spaces.product_space import ProductSpace
-from weak_forms.degenerate_elliptic_weak_form import (
-    DegenerateEllipticWeakForm,
-    DegenerateEllipticWeakFormBCDirichlet,
-)
 from weak_forms.unscaled_elliptic_weak_form import (
     UnscaledEllipticWeakForm,
     UnscaledEllipticWeakFormBCDirichlet,
 )
-from LMWeakForm import  LMgWeakForm
 from weak_forms.scaled_to_physical_l2_projection import ScaledToPhysicalL2Projection
 import strong_solutions_TArbogast as exact_funcs
 from functools import partial

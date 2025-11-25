@@ -116,6 +116,7 @@ class UnscaledEllipticWeakForm(WeakForm):
                 )
 
                 if  np.isclose(phi, 0.0) and phi < 0.0:
+                    phi = 1e-16
                     print("UnscaledEllipticWeakForm:: porosity zero or negative.")
 
                 div_u_h = alpha[:, idx_dof["u"]] @ div_psi_h.T
