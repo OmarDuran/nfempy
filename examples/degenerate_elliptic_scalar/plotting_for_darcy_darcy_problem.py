@@ -1,256 +1,229 @@
+from __future__ import annotations
+
+import argparse
+import os
+from dataclasses import dataclass
 from pathlib import Path
 from sys import platform
-import os
+from typing import Iterable, Sequence
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pyvista
+from scipy import stats
 from degenerate_mixed_flow_model import (
     compose_case_name,
-    method_definition,
-    material_data_definition,
     create_domain,
+    material_data_definition,
+    method_definition,
 )
-import matplotlib.pyplot as plt
 
 if platform == "linux" or platform == "linux2":
     pyvista.start_xvfb()
 pyvista.global_theme.colorbar_orientation = "horizontal"
 
 
-def paint_scalar_on_canvas_plane(vtk_file_name, scalar_name, title_string):
-    # Load data from the two VTK files
-    pyvista_unstructure_mesh = pyvista.read(vtk_file_name)
+@dataclass(frozen=True)
+class ScalarFieldPlot:
+    name: str
+    title: str
+    cmap: str = "viridis"
+    clim: tuple[float, float] | None = None
 
-    plotter = pyvista.Plotter(shape=(1, 1))
 
-    # First subplot for physical_solution
-    plotter.subplot(0, 0)
-    args = dict(
-        title_font_size=35,
-        label_font_size=35,
-        shadow=False,
-        n_labels=4,
-        italic=True,
-        fmt="%.1e",
-        font_family="courier",
-        position_x=0.2,
-        position_y=0.87,
-        title=title_string,
-    )
-    quantity_data = pyvista_unstructure_mesh.point_data[scalar_name]
-    quantity_norm = np.array([np.linalg.norm(value) for value in quantity_data])
+@dataclass(frozen=True)
+class TriangleSpec:
+    slope: float
+    anchor_idx: int = -2
+    scale: float = 1.0
 
+
+@dataclass
+class PlotConfig:
+    figure_folder: Path
+    figure_format: str
+    vtks_folder: Path
+    errors_folder: Path
+    scalar_fields: Sequence[ScalarFieldPlot]
+    methods: Sequence[tuple[str, dict]]
+    material_params: Sequence[float]
+    refinement_levels: Sequence[int]
+    domain_type: str = "fitted"
+    dimension: int = 2
+    cmap: str = "viridis"
+    loglog_markers: Sequence[str] = ("o", "s", "^", "D")
+    triangle: TriangleSpec = TriangleSpec(slope=1.0)
+
+
+def ensure_folder(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True)
+
+
+def load_mesh(vtk_path: Path) -> pyvista.DataSet:
+    if not vtk_path.exists():
+        raise FileNotFoundError(vtk_path)
+    return pyvista.read(vtk_path)
+
+
+def plot_scalar_field(mesh: pyvista.DataSet, config: PlotConfig, scalar: ScalarFieldPlot, figure_path: Path) -> None:
+    if scalar.name not in mesh.point_data:
+        raise KeyError(f"Scalar '{scalar.name}' not found in {figure_path}")
+    values = mesh.point_data[scalar.name]
+    norms = np.linalg.norm(values, axis=1) if values.ndim > 1 else values
+
+    plotter = pyvista.Plotter(off_screen=True)
     plotter.add_mesh(
-        pyvista_unstructure_mesh,
-        scalars=quantity_norm,
-        cmap="terrain",
+        mesh,
+        scalars=norms,
+        cmap=scalar.cmap,
+        clim=scalar.clim,
         show_edges=False,
-        scalar_bar_args=args,
+        scalar_bar_args={"title": scalar.title},
         copy_mesh=True,
     )
     plotter.view_xy()
-    return plotter
+    plotter.camera.zoom(1.2)
+    plotter.screenshot(str(figure_path))
+    plotter.close()
 
 
-def plot_over_line(vtk_file_name, scalar_names, title_string, figure_name):
-    a = [-1.0, 0.0, 0.0]
-    b = [1.0, 0.0, 0.0]
-    # Load data from the VTK file
-    pyvista_unstructured_mesh = pyvista.read(vtk_file_name)
-    sampled = pyvista_unstructured_mesh.sample_over_line(a, b, resolution=1000)
-
-    quantities_norm = []
-    for scalar_name in scalar_names:
-        quantity_data = sampled.point_data[scalar_name]
-        quantity_norm = np.array([np.linalg.norm(value) for value in quantity_data])
-        quantities_norm.append(quantity_norm)
-
-    x = sampled["Distance"] - 1.0
-
-    # Plotting
-    plt.figure(figsize=(12, 8))
-    lineObjects = plt.plot(x, np.array(quantities_norm).T)
-    linewidths = [4.0, 4.0]
-    styles = ["solid", "--"]
-
-    for i, line in enumerate(lineObjects):
-        line.set_linestyle(styles[i])
-        line.set_linewidth(linewidths[i])
-
-    legends = []
-    for scalar_name in scalar_names:
-        legend = r"$|| " + scalar_name + " ||$"
-        legends.append(legend)
-
-    plt.legend(iter(lineObjects), legends, fontsize=20)
-    plt.title(title_string, fontsize=25)
-    plt.xlabel("Length", fontsize=25)
-    plt.ylabel("", fontsize=25)
-    plt.savefig(figure_name)
-    return
+def load_error_table(path: Path) -> np.ndarray:
+    if not path.exists():
+        raise FileNotFoundError(path)
+    return np.loadtxt(path, delimiter=",", skiprows=1)
 
 
-def two_dimnesional_plots(
-    k_order,
-    source_folder_name,
-    figure_folder_name,
-    figure_format,
-    dimensions,
-    methods,
-    titles_map,
-    filters,
-):
-    for method in methods:
-        if method[0] not in filters["method"]:
-            continue
-        for dimension in dimensions:
-            if dimension == 1 and method[0] == "mixed_bdm":
+def plot_loglog_convergence(
+    error_table: np.ndarray,
+    labels: Sequence[str],
+    figure_path: Path,
+    triangle: TriangleSpec,
+    markers: Sequence[str],
+) -> None:
+    h_values = error_table[:, 0]
+    error_values = error_table[:, 1::2]
+
+    plt.figure(figsize=(8, 6))
+    for idx, (errors, label) in enumerate(zip(error_values.T, labels)):
+        plt.loglog(h_values, errors, marker=markers[idx % len(markers)], label=label)
+
+    if triangle and len(h_values) >= 2:
+        anchor = triangle.anchor_idx
+        anchor = anchor if anchor >= 0 else len(h_values) + anchor
+        anchor = max(1, min(anchor, len(h_values) - 1))
+        x0, x1 = h_values[anchor - 1], h_values[anchor]
+        y0 = error_values[0, anchor - 1] * triangle.scale
+        slope_line = y0 * (np.array([x0, x1]) / x0) ** triangle.slope
+        plt.loglog([x0, x1], slope_line, "k-", linewidth=2, label=f"rate {triangle.slope}")
+
+    plt.xlabel("Element size h")
+    plt.ylabel("L2 error")
+    plt.legend()
+    plt.grid(True, which="both", linestyle=":", linewidth=0.6)
+    plt.savefig(figure_path, bbox_inches="tight", dpi=300)
+    plt.close()
+
+
+def iter_cases(config: PlotConfig) -> Iterable[tuple[str, dict, tuple[str, object], dict, int]]:
+    for method in config.methods:
+        for material in material_data_definition(config.dimension):
+            if material["m_par"] not in config.material_params:
                 continue
-            fitted_domain = create_domain(dimension, make_fitted_q=True)
-            unfitted_domain = create_domain(dimension, make_fitted_q=False)
-            domains = {"fitted": fitted_domain, "unfitted": unfitted_domain}
-            materials = material_data_definition(dimension)
-            for domain in domains.items():
-                if domain[0] not in filters["domain_type"]:
-                    continue
-                for material in materials:
-                    if material["m_par"] not in filters["parameter"]:
-                        continue
-                    case_name = compose_case_name(
-                        method, dimension, domain, material, source_folder_name
-                    )
-                    vtk_suffix = "l_" + str(filters["l"]) + filters["suffix"]
-                    vtk_file_name = case_name + vtk_suffix
-
-                    if not os.path.exists(figure_folder_name):
-                        os.makedirs(figure_folder_name)
-
-                    title_string = titles_map[filters["scalar_name"]]
-                    canvas = paint_scalar_on_canvas_plane(
-                        vtk_file_name, filters["scalar_name"], title_string
-                    )
-                    figure_case_name = compose_case_name(
-                        method, dimension, domain, material, figure_folder_name
-                    )
-                    figure_suffix = (
-                        filters["scalar_name"] + "_magnitude." + figure_format
-                    )
-                    figure_name = figure_case_name + figure_suffix
-                    canvas.save_graphic(figure_name)
+            fitted = create_domain(config.dimension, make_fitted_q=True)
+            domain = (config.domain_type, fitted)
+            for level in config.refinement_levels:
+                yield method, material, domain, config.dimension, level
 
 
-def one_dimnesional_plots(
-    k_order,
-    source_folder_name,
-    figure_folder_name,
-    figure_format,
-    dimensions,
-    methods,
-    titles_map,
-    filters,
-):
-    for method in methods:
-        if method[0] not in filters["method"]:
+def build_case_basename(method, dimension, domain, material, folder: Path | None = None) -> Path:
+    prefix = compose_case_name(method, dimension, domain, material, str(folder) if folder else None)
+    return Path(prefix)
+
+
+def generate_field_plots(config: PlotConfig) -> None:
+    ensure_folder(config.figure_folder)
+    for method, material, domain, dimension, level in iter_cases(config):
+        vtk_base = build_case_basename(method, dimension, domain, material, config.vtks_folder)
+        vtk_file = vtk_base.with_name(vtk_base.name + f"l_{level}_two_fields.vtk")
+        mesh = load_mesh(vtk_file)
+        case_prefix = build_case_basename(method, dimension, domain, material, config.figure_folder)
+        for scalar in config.scalar_fields:
+            figure_name = f"{case_prefix.name}l_{level}_{scalar.name}_map.{config.figure_format}"
+            plot_scalar_field(mesh, config, scalar, config.figure_folder / figure_name)
+
+
+def generate_convergence_plots(config: PlotConfig, table_kind: str) -> None:
+    ensure_folder(config.figure_folder)
+    labels = {
+        "normal": ["q", "v", "p", "u"],
+        "enhanced": ["proj q", "proj p"],
+    }[table_kind]
+    file_suffix = {
+        "normal": "normal_conv_data.txt",
+        "enhanced": "enhanced_conv_data.txt",
+    }[table_kind]
+
+    for method, material, domain, dimension, _ in iter_cases(config):
+        case_prefix = build_case_basename(method, dimension, domain, material, config.errors_folder)
+        table_path = case_prefix.with_name(case_prefix.name + file_suffix)
+        try:
+            table = load_error_table(table_path)
+        except FileNotFoundError:
             continue
-        for dimension in dimensions:
-            if dimension == 1 and method[0] == "mixed_bdm":
-                continue
-            fitted_domain = create_domain(dimension, make_fitted_q=True)
-            unfitted_domain = create_domain(dimension, make_fitted_q=False)
-            domains = {"fitted": fitted_domain, "unfitted": unfitted_domain}
-            materials = material_data_definition(dimension)
-            for domain in domains.items():
-                if domain[0] not in filters["domain_type"]:
-                    continue
-                for material in materials:
-                    if material["m_par"] not in filters["parameter"]:
-                        continue
-                    case_name = compose_case_name(
-                        method, dimension, domain, material, source_folder_name
-                    )
-                    vtk_suffix = "l_" + str(filters["l"]) + filters["suffix"]
-                    vtk_file_name = case_name + vtk_suffix
-
-                    if not os.path.exists(figure_folder_name):
-                        os.makedirs(figure_folder_name)
-
-                    title_string = titles_map[filters["scalar_names"][0]]
-                    figure_case_name = compose_case_name(
-                        method, dimension, domain, material, figure_folder_name
-                    )
-
-                    scalars_chunk = ""
-                    for scalar_name in filters["scalar_names"]:
-                        scalars_chunk += scalar_name
-                        scalars_chunk += "_"
-
-                    figure_suffix = scalars_chunk + "magnitude." + figure_format
-                    figure_name = figure_case_name + figure_suffix
-                    plot_over_line(
-                        vtk_file_name,
-                        filters["scalar_names"],
-                        title_string,
-                        figure_name,
-                    )
+        figure_name = f"{case_prefix.name}{table_kind}_convergence.{config.figure_format}"
+        plot_loglog_convergence(table, labels, config.figure_folder / figure_name, config.triangle, config.loglog_markers)
 
 
-k_order = 0
-source_folder_name = "output"
-figure_folder_name = "Arbogast_figures"
-figure_format = "pdf"
-dimensions = [2]
-methods = method_definition(k_order)
-titles_map = {
-    "p_h": "Physical pressure",
-    "p_e": "Physical pressure",
-    "q_h": "Unphysical pressure",
-    "q_e": "Unphysical pressure",
-    "u_h": "Physical velocity norm",
-    "u_e": "Physical velocity norm",
-    "v_h": "Unphysical velocity norm",
-    "v_e": "Unphysical velocity norm",
-    "p_error": "l2-error in physical pressure",
-    "q_error": "l2-error in unphysical pressure",
-    "u_error": "l2-error in physical velocity",
-    "v_error": "l2-error in unphysical velocity",
-}
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Darcy degenerate plot generator")
+    parser.add_argument("--vtks", default="examples/degenerate_elliptic_scalar", help="Folder containing VTK files")
+    parser.add_argument("--errors", default="examples/degenerate_elliptic_scalar/output", help="Folder containing convergence tables")
+    parser.add_argument("--figures", default="examples/degenerate_elliptic_scalar/figures", help="Destination folder for plots")
+    parser.add_argument("--formats", default="png", help="Figure format")
+    parser.add_argument("--materials", nargs="*", type=float, default=[2.0, 1.0, 0.25, 0.125])
+    parser.add_argument("--levels", nargs="*", type=int, default=list(range(7)))
+    parser.add_argument("--domain", default="fitted")
+    parser.add_argument("--dim", type=int, default=2)
+    parser.add_argument("--plot-fields", action="store_true")
+    parser.add_argument("--plot-normal", action="store_true")
+    parser.add_argument("--plot-enhanced", action="store_true")
+    return parser.parse_args()
 
-# Filters for 2d
-filters_2d = {
-    "method": ["mixed_rt"],
-    "l": 4,
-    "suffix": "_physical_two_fields.vtk",
-    "domain_type": ["fitted", "unfitted"],
-    "parameter": [1],
-    "scalar_name": "p_e",
-}
-two_dimnesional_plots(
-    k_order,
-    source_folder_name,
-    figure_folder_name,
-    figure_format,
-    dimensions,
-    methods,
-    titles_map,
-    filters_2d,
-)
 
-# Filters for 1d
-figure_format_1d = "pdf"
-filters_1d = {
-    "method": ["mixed_rt"],
-    "l": 4,
-    "suffix": "_two_fields.vtk",
-    "domain_type": ["fitted", "unfitted"],
-    "parameter": [-1.5],
-    "scalar_names": ["v_e", "v_h"],
-}
-# one_dimnesional_plots(
-#      k_order,
-#     source_folder_name,
-#     figure_folder_name,
-#     figure_format_1d,
-#     dimensions,
-#     methods,
-#     titles_map,
-#     filters_1d,
-# )
+def main() -> None:
+    args = parse_args()
+    methods = list(method_definition(k_order=0))
+    scalar_fields = [
+        ScalarFieldPlot(name="p_h", title="Physical pressure"),
+        ScalarFieldPlot(name="p_e", title="Physical pressure"),
+        ScalarFieldPlot(name="q_h", title="Unphysical pressure"),
+        ScalarFieldPlot(name="q_e", title="Unphysical pressure"),
+        ScalarFieldPlot(name="u_h", title="Physical velocity norm"),
+        ScalarFieldPlot(name="u_e", title="Physical velocity norm"),
+        ScalarFieldPlot(name="v_h", title="Unphysical velocity norm"),
+        ScalarFieldPlot(name="v_e", title="Unphysical velocity norm"),
+    ]
+
+    config = PlotConfig(
+        figure_folder=Path(args.figures),
+        figure_format=args.formats,
+        vtks_folder=Path(args.vtks),
+        errors_folder=Path(args.errors),
+        scalar_fields=scalar_fields,
+        methods=methods,
+        material_params=args.materials,
+        refinement_levels=args.levels,
+        domain_type=args.domain,
+        dimension=args.dim,
+    )
+
+    if args.plot_fields:
+        generate_field_plots(config)
+    if args.plot_normal:
+        generate_convergence_plots(config, "normal")
+    if args.plot_enhanced:
+        generate_convergence_plots(config, "enhanced")
+
+
+if __name__ == "__main__":
+    main()
