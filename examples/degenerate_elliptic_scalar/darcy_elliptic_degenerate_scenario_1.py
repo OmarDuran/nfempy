@@ -122,7 +122,7 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
 
     # Material data as scalars
     m_mu = 1.0
-    m_par = material["m_par"]
+    m_par = 2.0
 
     # retrieve material functions
     assert exact_funcs.test_degeneracy(m_par, m_mu, dim)
@@ -158,7 +158,7 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
 
     weak_form_unscaled = UnscaledEllipticWeakForm(fe_space_unscaled)
     weak_form_unscaled.functions = m_functions
-    weak_form_unscaled.phi_threshold = 1.0e-4
+    weak_form_unscaled.phi_threshold = 10**(-material["m_par"])
 
     bc_weak_form_unscaled = UnscaledEllipticWeakFormBCDirichlet(fe_space_unscaled)
     bc_weak_form_unscaled.functions = bc_functions
@@ -347,14 +347,13 @@ def material_data_definition(dim):
         case_2 = {"m_par": -1.0}
         case_3 = {"m_par": -1.5}
     elif dim == 2:
-        case_0 = {"m_par": 2.0}
-        case_1 = {"m_par": 1.0}
-        case_2 = {"m_par": 0.25}
-        case_3 = {"m_par": 0.125}
+        case_0 = {"m_par": 2}
+        case_1 = {"m_par": 4}
+        case_2 = {"m_par": 8}
+        case_3 = {"m_par": 16}
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")
     cases = [case_0, case_1, case_2, case_3]
-    cases = [case_0]
     return cases
 
 
@@ -396,7 +395,7 @@ def main():
     # fixed directives
     k_order = 0
     h = 0.5
-    n_ref = 6
+    n_ref = 7
     dimensions = [2]
     folder_name = "output_scenario_1"
     plot_rates_q = True
