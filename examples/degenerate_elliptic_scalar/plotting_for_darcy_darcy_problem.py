@@ -131,8 +131,8 @@ def plot_field_pair(mesh: pyvista.DataSet, config: PlotConfig, pair: FieldPair, 
         height=0.7,
         width=0.02,
         vertical=True,
-        title_font_size=26,
-        label_font_size=26,
+        title_font_size=32,
+        label_font_size=32,
     )
     right_bar = dict(
         title=pair.right.title,
@@ -141,8 +141,8 @@ def plot_field_pair(mesh: pyvista.DataSet, config: PlotConfig, pair: FieldPair, 
         height=0.7,
         width=0.02,
         vertical=True,
-        title_font_size=26,
-        label_font_size=24,
+        title_font_size=32,
+        label_font_size=32,
     )
 
     plotter.add_mesh(
@@ -304,7 +304,7 @@ def parse_args() -> argparse.Namespace:
         nargs=2,
         type=int,
         metavar=("WIDTH", "HEIGHT"),
-        default=(1200, 1200),
+        default=(1600, 1600),
         help="Resolution of generated field figure PNGs",
     )
     return parser.parse_args()
