@@ -33,26 +33,11 @@ def create_product_spaces(method, gmesh, flux_names, potential_names):
     u_k_order = method[1][flux_names["unscaled"]][1]
     p_k_order = method[1][potential_names["unscaled"]][1]
 
-    v_k_order = method[1][flux_names["scaled"]][1]
-    q_k_order = method[1][potential_names["scaled"]][1]
-    l_k_order = method[1]["l"][1]
-
     u_family = method[1][flux_names["unscaled"]][0]
     p_family = method[1][potential_names["unscaled"]][0]
 
-    v_family = method[1][flux_names["scaled"]][0]
-    q_family = method[1][potential_names["scaled"]][0]
-    l_family = method[1]["l"][0]
-
     flux_components = 1
     potential_components = 1
-    lm_components = 1
-
-    # Scaled space data
-    discrete_spaces_data_scaled = {
-        flux_names["scaled"]: (gmesh.dimension, flux_components, v_family, v_k_order, gmesh),
-        potential_names["scaled"]: (gmesh.dimension, potential_components, q_family, q_k_order, gmesh),
-    }
 
     # Unscaled space data
     discrete_spaces_data_unscaled = {
@@ -60,20 +45,8 @@ def create_product_spaces(method, gmesh, flux_names, potential_names):
         potential_names["unscaled"]: (gmesh.dimension, potential_components, p_family, p_k_order, gmesh),
     }
 
-    # Scaled space data
-    discrete_spaces_data_lm = {
-        "l": (gmesh.dimension-1, lm_components, l_family, l_k_order, gmesh),
-    }
-
     flux_disc_Q = False
     potential_disc_Q = True
-    lm_disc_Q = True
-
-    # Scaled space discontinuity data
-    discrete_spaces_disc_scaled = {
-        flux_names["scaled"]: flux_disc_Q,
-        potential_names["scaled"]: potential_disc_Q,
-    }
 
     # Unscaled space discontinuity data
     discrete_spaces_disc_unscaled = {
@@ -81,59 +54,29 @@ def create_product_spaces(method, gmesh, flux_names, potential_names):
         potential_names["unscaled"]: potential_disc_Q,
     }
 
-    discrete_spaces_disc_lm = {
-        "l": lm_disc_Q,
-    }
-
     if gmesh.dimension == 1:
-        flux_scale_bc_physical_tags = [3]
-        flux_unscale_bc_physical_tags = [4]
+        flux_unscale_bc_physical_tags = [3, 4]
     elif gmesh.dimension == 2:
-        flux_scale_bc_physical_tags = [3, 4, 7, 8, 9, 10]
-        flux_unscale_bc_physical_tags = [5, 6, 9, 10]
+        flux_unscale_bc_physical_tags = [3, 4, 5, 6, 7, 8, 9, 10]
     else:
         raise ValueError("Case not available.")
 
-    # Scaled space physical tags
-    physical_tags_scaled = {
-        flux_names["scaled"]: [1],
-        potential_names["scaled"]: [1],
-    }
-
-    b_physical_tags_scaled = {
-        flux_names["scaled"]: flux_scale_bc_physical_tags,
-    }
-
     # Unscaled space physical tags
     physical_tags_unscaled = {
-        flux_names["unscaled"]: [2],
-        potential_names["unscaled"]: [2],
+        flux_names["unscaled"]: [1, 2],
+        potential_names["unscaled"]: [1, 2],
     }
 
     b_physical_tags_unscaled = {
         flux_names["unscaled"]: flux_unscale_bc_physical_tags,
     }
 
-    # LM space physical tags
-    physical_tags_lm = {
-        "l": [9,10],
-    }
-
-    # Create scaled space
-    space_scaled = ProductSpace(discrete_spaces_data_scaled)
-    space_scaled.make_subspaces_discontinuous(discrete_spaces_disc_scaled)
-    space_scaled.build_structures(physical_tags_scaled, b_physical_tags_scaled)
-
     # Create unscaled space
     space_unscaled = ProductSpace(discrete_spaces_data_unscaled)
     space_unscaled.make_subspaces_discontinuous(discrete_spaces_disc_unscaled)
     space_unscaled.build_structures(physical_tags_unscaled, b_physical_tags_unscaled)
 
-    space_lm = ProductSpace(discrete_spaces_data_lm)
-    space_lm.make_subspaces_discontinuous(discrete_spaces_disc_lm)
-    space_lm.build_structures(physical_tags_lm, {})
-
-    return (space_scaled, space_unscaled, space_lm)
+    return space_unscaled
 
 
 def method_definition(k_order):
@@ -167,8 +110,8 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
 
 
     st = time.time()
-    print("Creating scaled variable fe space.")
-    fe_space_scaled, fe_space_unscaled, fe_space_lm = create_product_spaces(method, gmesh, flux_names={"scaled":"v","unscaled":"u"},potential_names={"scaled":"q","unscaled":"p"})
+    print("Creating unscaled variable fe space.")
+    fe_space_unscaled = create_product_spaces(method, gmesh, flux_names={"scaled":"v","unscaled":"u"},potential_names={"scaled":"q","unscaled":"p"})
     et = time.time()
     elapsed_time = et - st
     print("Creation of product space:", elapsed_time, "seconds")
@@ -177,10 +120,8 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
     # Nonlinear solver data
     n_iterations = 2
     eps_tol = 1.0e-10
-    n_dof_g = fe_space_scaled.n_dof + fe_space_unscaled.n_dof + fe_space_lm.n_dof
-    fe_space_scaled.dof_shift = 0
-    fe_space_unscaled.dof_shift = fe_space_scaled.n_dof
-    fe_space_lm.dof_shift = fe_space_scaled.n_dof + fe_space_unscaled.n_dof
+    n_dof_g = fe_space_unscaled.n_dof
+    fe_space_unscaled.dof_shift = 0
 
     st = time.time()
 
@@ -220,31 +161,15 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
     }
 
     exact_functions = {
-        "v": v_exact,
-        "q": q_exact,
         "u": u_exact,
         "p": p_exact,
     }
-
-    m_lm_functions = {
-        "porosity_c0n": f_porosity,
-        "d_phi_c0n": f_d_phi,
-    }
-
-
-    weak_form_scaled = DegenerateEllipticWeakForm(fe_space_scaled)
-    weak_form_scaled.functions = m_functions
-    bc_weak_form_scaled = DegenerateEllipticWeakFormBCDirichlet(fe_space_scaled)
-    bc_weak_form_scaled.functions = bc_functions
 
     weak_form_unscaled = UnscaledEllipticWeakForm(fe_space_unscaled)
     weak_form_unscaled.functions = m_functions
     bc_weak_form_unscaled = UnscaledEllipticWeakFormBCDirichlet(fe_space_unscaled)
     bc_weak_form_unscaled.functions = bc_functions
 
-    product_spaces = [fe_space_scaled, fe_space_unscaled, fe_space_lm]
-    lm_weak_form = LMgWeakForm(product_spaces)
-    lm_weak_form.functions = m_lm_functions
 
     def scatter_form_data(jac_g, res_g, i, weak_form):
         # destination indexes
