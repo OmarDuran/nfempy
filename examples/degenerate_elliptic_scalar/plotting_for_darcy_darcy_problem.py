@@ -231,7 +231,6 @@ def draw_data_triangle(ax: plt.Axes, x0: float, x1: float, y_prev: float, y_curr
     logx0, logx1 = np.log10([x0, x1])
     logy0 = np.log10(max(y_prev, y_curr))
     delta_x = logx1 - logx0
-    delta_y = y_curr - y_prev
     log_shift = np.abs(delta_x) / 2.0
     if np.isclose(np.abs(delta_x), 0.0):
         return
