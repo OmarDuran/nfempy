@@ -9,7 +9,6 @@ from typing import Iterable, Sequence
 import matplotlib.pyplot as plt
 import numpy as np
 import pyvista
-from scipy import stats
 from degenerate_mixed_flow_model import (
     compose_case_name,
     create_domain,
@@ -20,6 +19,18 @@ from degenerate_mixed_flow_model import (
 if platform == "linux" or platform == "linux2":
     pyvista.start_xvfb()
 pyvista.global_theme.colorbar_orientation = "horizontal"
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+
+
+def find_repo_root(start: Path) -> Path:
+    for candidate in [start] + list(start.parents):
+        if (candidate / ".git").exists():
+            return candidate
+    return start
+
+
+REPO_ROOT = find_repo_root(SCRIPT_DIR)
 
 
 @dataclass(frozen=True)
@@ -207,9 +218,9 @@ def main() -> None:
         ScalarFieldPlot(name="v_e", title="Unphysical velocity norm"),
     ]
 
-    figures_path = Path(args.figures).expanduser().resolve()
-    vtks_path = Path(args.vtks).expanduser().resolve()
-    errors_path = Path(args.errors).expanduser().resolve()
+    figures_path = resolve_cli_path(args.figures, allow_missing=True)
+    vtks_path = resolve_cli_path(args.vtks)
+    errors_path = resolve_cli_path(args.errors)
 
     config = PlotConfig(
         figure_folder=figures_path,
