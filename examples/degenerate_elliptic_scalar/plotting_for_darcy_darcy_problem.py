@@ -290,9 +290,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--plot-fields", action="store_true")
     parser.add_argument("--plot-normal", action="store_true")
     parser.add_argument("--plot-enhanced", action="store_true")
-    parser.add_argument("--camera-azimuth", type=float, default=0.0, help="Azimuth angle for the 3D camera (degrees)")
-    parser.add_argument("--camera-elevation", type=float, default=30.0, help="Elevation angle for the 3D camera (degrees)")
-    parser.add_argument("--camera-zoom", type=float, default=1.2, help="Zoom factor for the 3D camera")
+    parser.add_argument("--camera-azimuth", type=float, default=-135.0, help="Azimuth angle for the 3D camera (degrees)")
+    parser.add_argument("--camera-elevation", type=float, default=10.0, help="Elevation angle for the 3D camera (degrees)")
+    parser.add_argument("--camera-zoom", type=float, default=1.1, help="Zoom factor for the 3D camera")
     return parser.parse_args()
 
 
