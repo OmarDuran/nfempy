@@ -64,6 +64,7 @@ class PlotConfig:
     cmap: str = "viridis"
     loglog_markers: Sequence[str] = ("o", "s", "^", "D")
     triangle: TriangleSpec = TriangleSpec(slope=1.0)
+    height_scale: float = 1.0
 
 
 def ensure_folder(path: Path) -> None:
@@ -80,19 +81,28 @@ def plot_scalar_field(mesh: pyvista.DataSet, config: PlotConfig, scalar: ScalarF
     if scalar.name not in mesh.point_data:
         raise KeyError(f"Scalar '{scalar.name}' not found in {figure_path}")
     values = mesh.point_data[scalar.name]
-    norms = np.linalg.norm(values, axis=1) if values.ndim > 1 else values
+    if scalar.use_norm or values.ndim > 1:
+        scalars = np.linalg.norm(values, axis=1)
+    else:
+        scalars = np.asarray(values).reshape(-1)
+
+    quantity_name = f"{scalar.name}_magnitude" if scalar.use_norm else scalar.name
+    plot_mesh = mesh.copy(deep=True)
+    plot_mesh.point_data[quantity_name] = scalars
+    warped = plot_mesh.warp_by_scalar(quantity_name, factor=config.height_scale)
 
     plotter = pyvista.Plotter(off_screen=True)
     plotter.add_mesh(
-        mesh,
-        scalars=norms,
+        warped,
+        scalars=quantity_name,
         cmap=scalar.cmap,
         clim=scalar.clim,
         show_edges=False,
         scalar_bar_args={"title": scalar.title},
         copy_mesh=True,
     )
-    plotter.view_xy()
+    plotter.enable_eye_dome_lighting()
+    plotter.view_isometric()
     plotter.camera.zoom(1.2)
     plotter.screenshot(str(figure_path))
     plotter.close()
