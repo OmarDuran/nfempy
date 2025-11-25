@@ -78,6 +78,7 @@ class PlotConfig:
     camera_elevation: float = 30.0
     camera_zoom: float = 1.2
     field_resolution: tuple[int, int] = (1600, 900)
+    color_bar_width: float = 0.02
 
 
 def ensure_folder(path: Path) -> None:
@@ -129,7 +130,7 @@ def plot_field_pair(mesh: pyvista.DataSet, config: PlotConfig, pair: FieldPair, 
         position_x=0.1,
         position_y=0.15,
         height=0.7,
-        width=0.02,
+        width=config.color_bar_width,
         vertical=True,
         title_font_size=32,
         label_font_size=32,
@@ -139,7 +140,7 @@ def plot_field_pair(mesh: pyvista.DataSet, config: PlotConfig, pair: FieldPair, 
         position_x=0.9,
         position_y=0.15,
         height=0.7,
-        width=0.02,
+        width=config.color_bar_width,
         vertical=True,
         title_font_size=32,
         label_font_size=32,
@@ -307,6 +308,12 @@ def parse_args() -> argparse.Namespace:
         default=(1600, 1600),
         help="Resolution of generated field figure PNGs",
     )
+    parser.add_argument(
+        "--color-bar-width",
+        type=float,
+        default=0.02,
+        help="Width of the scalar bar as a fraction of the render window",
+    )
     return parser.parse_args()
 
 
@@ -353,6 +360,7 @@ def main() -> None:
         camera_elevation=args.camera_elevation,
         camera_zoom=args.camera_zoom,
         field_resolution=tuple(args.field_resolution),
+        color_bar_width=args.color_bar_width,
     )
 
     if args.plot_fields:
