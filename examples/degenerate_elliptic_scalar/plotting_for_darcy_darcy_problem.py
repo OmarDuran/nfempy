@@ -230,21 +230,22 @@ def draw_data_triangle(ax: plt.Axes, x0: float, x1: float, y_prev: float, y_curr
         return
     logx0, logx1 = np.log10([x0, x1])
     logy0 = np.log10(max(y_prev, y_curr))
-    delta = logx1 - logx0
-    log_shift = np.abs(delta) / 2.0
-    if np.isclose(np.abs(delta), 0.0):
+    delta_x = logx1 - logx0
+    delta_y = y_curr - y_prev
+    log_shift = np.abs(delta_x) / 2.0
+    if np.isclose(np.abs(delta_x), 0.0):
         return
     A = np.array([logx0, logy0 - log_shift])
-    B = np.array([logx0, logy0 + delta - log_shift])
-    C = np.array([logx1, logy0 + delta - log_shift])
+    B = np.array([logx0, logy0 + delta_x - log_shift])
+    C = np.array([logx1, logy0 + delta_x - log_shift])
     points_log = np.array([A, B, C])
     points = [(10 ** px, 10 ** py) for px, py in points_log]
-    AB_xc = np.mean([np.array(points[0]), np.array(points[1])],axis=1)
-    BC_xc = np.mean([np.array(points[1]), np.array(points[2])],axis=1)
+    AB_xc = np.mean([np.array(points[0]), np.array(points[1])], axis=0)
+    BC_xc = np.mean([np.array(points[1]), np.array(points[2])], axis=0)
     triangle = Polygon(points, closed=True, fill=False, edgecolor="#444444", linewidth=2)
     ax.add_patch(triangle)
-    ax.text(AB_xc[0], AB_xc[1], "1", ha="center", va="center", fontsize=12, color="#444444")
-    ax.text(BC_xc[0], BC_xc[1], "1", ha="center", va="center", fontsize=12, color="#444444")
+    ax.text(AB_xc[0]+10 ** (7*delta_x), AB_xc[1], "1", ha="center", va="center", fontsize=8, color="#444444")
+    ax.text(BC_xc[0], BC_xc[1]+ 10 ** (1000.0*delta_y), "1", ha="center", va="center", fontsize=8, color="#444444")
 
 
 def resolve_cli_path(path_str: str, allow_missing: bool = False) -> Path:
