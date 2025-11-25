@@ -92,10 +92,12 @@ def prepare_scalar_dataset(mesh: pyvista.DataSet, scalar: ScalarFieldPlot, heigh
     if scalar.name not in mesh.point_data:
         raise KeyError(f"Scalar '{scalar.name}' not found in mesh point data")
     values = mesh.point_data[scalar.name]
-    if scalar.use_norm or values.ndim > 1:
-        scalars = np.linalg.norm(values, axis=1)
+    raw_values = np.asarray(values)
+    is_vector = raw_values.ndim == 2 and raw_values.shape[1] > 1
+    if scalar.use_norm or is_vector:
+        scalars = np.linalg.norm(raw_values, axis=1)
     else:
-        scalars = np.asarray(values).reshape(-1)
+        scalars = raw_values.reshape(-1)
 
     quantity_name = f"{scalar.name}_magnitude" if scalar.use_norm else scalar.name
     plot_mesh = mesh.copy(deep=True)
@@ -110,6 +112,7 @@ def prepare_scalar_dataset(mesh: pyvista.DataSet, scalar: ScalarFieldPlot, heigh
         if filtered_candidate.n_cells > 0:
             filtered = filtered_candidate
     warped = filtered.warp_by_scalar(quantity_name, factor=height_scale)
+    warped.point_data[quantity_name] = filtered.point_data[quantity_name]
     return warped, quantity_name
 
 
@@ -290,7 +293,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--plot-fields", action="store_true")
     parser.add_argument("--plot-normal", action="store_true")
     parser.add_argument("--plot-enhanced", action="store_true")
-    parser.add_argument("--camera-azimuth", type=float, default=-135.0, help="Azimuth angle for the 3D camera (degrees)")
+    parser.add_argument("--camera-azimuth", type=float, default=-150.0, help="Azimuth angle for the 3D camera (degrees)")
     parser.add_argument("--camera-elevation", type=float, default=10.0, help="Elevation angle for the 3D camera (degrees)")
     parser.add_argument("--camera-zoom", type=float, default=1.1, help="Zoom factor for the 3D camera")
     return parser.parse_args()
