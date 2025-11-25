@@ -27,13 +27,13 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 
 CUSTOM_PALETTES = {
     "tokyo": [
-        "#0d1b2a",
-        "#1b263b",
-        "#415a77",
-        "#778da9",
-        "#e0e1dd",
-        "#f4a261",
         "#e76f51",
+        "#f4a261",
+        "#e0e1dd",
+        "#778da9",
+        "#415a77",
+        "#1b263b",
+        "#0d1b2a",
     ]
 }
 
@@ -426,7 +426,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    # args.plot_fields = True
+    args.plot_fields = True
     args.plot_normal = True
     args.plot_enhanced = True
     methods = list(method_definition(k_order=0))
