@@ -325,8 +325,8 @@ def draw_data_triangle(ax: plt.Axes, x0: float, x1: float, y_prev: float, y_curr
     BC_xc = np.mean([np.array(points[1]), np.array(points[2])], axis=0)
     horizontal_len = abs(points[2][0] - points[1][0])
     vertical_len = abs(points[1][1] - points[0][1])
-    label_x_shift = 0.15 * horizontal_len if horizontal_len > 0 else 0.0
-    label_y_shift = 0.25 * vertical_len if vertical_len > 0 else 0.0
+    label_x_shift = (0.15) * horizontal_len if horizontal_len > 0 else 0.0
+    label_y_shift = (0.15/conv_rate) * vertical_len if vertical_len > 0 else 0.0
     triangle = Polygon(points, closed=True, fill=False, edgecolor="#444444", linewidth=2)
     ax.add_patch(triangle)
     label_text = str(conv_rate)
