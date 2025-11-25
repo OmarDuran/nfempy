@@ -197,6 +197,7 @@ def plot_loglog_convergence(
     figure_path: Path,
     triangle: TriangleSpec,
     markers: Sequence[str],
+    conv_rate: int = 1,
 ) -> None:
     h_values = error_table[:, 0]
     error_values = error_table[:, 1::2]
@@ -215,7 +216,14 @@ def plot_loglog_convergence(
         series_at_anchor = error_values[anchor - 1, :]
         best_idx = int(np.argmin(series_at_anchor))
         reference_series = error_values[:, best_idx]
-        draw_data_triangle(plt.gca(), x0, x1, reference_series[anchor - 1], reference_series[anchor])
+        draw_data_triangle(
+            plt.gca(),
+            x0,
+            x1,
+            reference_series[anchor - 1],
+            reference_series[anchor],
+            conv_rate=conv_rate,
+        )
 
     plt.xlabel("Element size h")
     plt.ylabel("L2 error")
@@ -225,7 +233,7 @@ def plot_loglog_convergence(
     plt.close()
 
 
-def draw_data_triangle(ax: plt.Axes, x0: float, x1: float, y_prev: float, y_curr: float) -> None:
+def draw_data_triangle(ax: plt.Axes, x0: float, x1: float, y_prev: float, y_curr: float, conv_rate: int = 1) -> None:
     if min(x0, x1, y_prev, y_curr) <= 0:
         return
     logx0, logx1 = np.log10([x0, x1])
