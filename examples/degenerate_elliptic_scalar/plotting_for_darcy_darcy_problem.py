@@ -251,7 +251,7 @@ def draw_data_triangle(ax: plt.Axes, x0: float, x1: float, y_prev: float, y_curr
     ax.add_patch(triangle)
     label_text = str(conv_rate)
     ax.text(AB_xc[0] + label_x_shift, AB_xc[1], label_text, ha="center", va="center", fontsize=8, color="#444444")
-    ax.text(BC_xc[0], BC_xc[1] - label_y_shift, label_text, ha="center", va="center", fontsize=8, color="#444444")
+    ax.text(BC_xc[0], BC_xc[1] - label_y_shift, str(1), ha="center", va="center", fontsize=8, color="#444444")
 
 
 def resolve_cli_path(path_str: str, allow_missing: bool = False) -> Path:
@@ -325,7 +325,8 @@ def generate_convergence_plots(config: PlotConfig, table_kind: str) -> None:
         except FileNotFoundError:
             continue
         figure_name = f"{case_prefix.name}{table_kind}_convergence.{config.figure_format}"
-        plot_loglog_convergence(table, labels, config.figure_folder / figure_name, config.triangle, config.loglog_markers)
+        conv_rate = 2 if table_kind == "enhanced" else 1
+        plot_loglog_convergence(table, labels, config.figure_folder / figure_name, config.triangle, config.loglog_markers, conv_rate=conv_rate)
 
 
 def parse_args() -> argparse.Namespace:
