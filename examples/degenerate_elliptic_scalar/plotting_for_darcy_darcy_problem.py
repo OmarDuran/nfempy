@@ -225,13 +225,6 @@ def plot_loglog_convergence(
             conv_rate=conv_rate,
         )
 
-    plt.xlabel("Element size h")
-    plt.ylabel("L2 error")
-    plt.legend()
-    plt.grid(True, which="both", linestyle=":", linewidth=0.6)
-    plt.savefig(figure_path, bbox_inches="tight", dpi=300)
-    plt.close()
-
 
 def draw_data_triangle(ax: plt.Axes, x0: float, x1: float, y_prev: float, y_curr: float, conv_rate: int = 1) -> None:
     if min(x0, x1, y_prev, y_curr) <= 0:
@@ -242,9 +235,10 @@ def draw_data_triangle(ax: plt.Axes, x0: float, x1: float, y_prev: float, y_curr
     log_shift = np.abs(delta_x) / 2.0
     if np.isclose(np.abs(delta_x), 0.0):
         return
+    effective_delta = conv_rate * delta_x
     A = np.array([logx0, logy0 - log_shift])
-    B = np.array([logx0, logy0 + delta_x - log_shift])
-    C = np.array([logx1, logy0 + delta_x - log_shift])
+    B = np.array([logx0, logy0 + effective_delta - log_shift])
+    C = np.array([logx1, logy0 + effective_delta - log_shift])
     points_log = np.array([A, B, C])
     points = [(10 ** px, 10 ** py) for px, py in points_log]
     AB_xc = np.mean([np.array(points[0]), np.array(points[1])], axis=0)
@@ -255,8 +249,9 @@ def draw_data_triangle(ax: plt.Axes, x0: float, x1: float, y_prev: float, y_curr
     label_y_shift = 0.25 * vertical_len if vertical_len > 0 else 0.0
     triangle = Polygon(points, closed=True, fill=False, edgecolor="#444444", linewidth=2)
     ax.add_patch(triangle)
-    ax.text(AB_xc[0] + label_x_shift, AB_xc[1], "1", ha="center", va="center", fontsize=8, color="#444444")
-    ax.text(BC_xc[0], BC_xc[1] - label_y_shift, "1", ha="center", va="center", fontsize=8, color="#444444")
+    label_text = str(conv_rate)
+    ax.text(AB_xc[0] + label_x_shift, AB_xc[1], label_text, ha="center", va="center", fontsize=8, color="#444444")
+    ax.text(BC_xc[0], BC_xc[1] - label_y_shift, label_text, ha="center", va="center", fontsize=8, color="#444444")
 
 
 def resolve_cli_path(path_str: str, allow_missing: bool = False) -> Path:
