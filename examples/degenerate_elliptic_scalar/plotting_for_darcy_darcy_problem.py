@@ -216,6 +216,7 @@ def plot_loglog_convergence(
         y0 = reference_series[anchor - 1] * triangle.scale
         slope_line = y0 * (np.array([x0, x1]) / x0) ** triangle.slope
         plt.loglog([x0, x1], slope_line, "k-", linewidth=2, label=f"rate {triangle.slope}")
+        draw_unit_triangle(plt.gca())
 
     plt.xlabel("Element size h")
     plt.ylabel("L2 error")
@@ -223,6 +224,15 @@ def plot_loglog_convergence(
     plt.grid(True, which="both", linestyle=":", linewidth=0.6)
     plt.savefig(figure_path, bbox_inches="tight", dpi=300)
     plt.close()
+
+
+def draw_unit_triangle(ax: plt.Axes, anchor: tuple[float, float] = (0.72, 0.18), size: float = 0.1) -> None:
+    x0, y0 = anchor
+    points = [(x0, y0), (x0 + size, y0), (x0 + size, y0 + size)]
+    triangle = Polygon(points, closed=True, fill=False, edgecolor="black", linewidth=2, transform=ax.transAxes, clip_on=False)
+    ax.add_patch(triangle)
+    ax.text(x0 + size / 2, y0 - 0.03, "1", ha="center", va="top", fontsize=12, transform=ax.transAxes)
+    ax.text(x0 + size + 0.02, y0 + size / 2, "1", ha="left", va="center", fontsize=12, rotation=90, transform=ax.transAxes)
 
 
 def resolve_cli_path(path_str: str, allow_missing: bool = False) -> Path:
