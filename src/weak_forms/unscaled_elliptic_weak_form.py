@@ -39,6 +39,23 @@ from weak_forms.weak_from import WeakForm
 
 
 class UnscaledEllipticWeakForm(WeakForm):
+
+    def __init__(self, space=None):
+        super().__init__(space)
+        self._phi_threshold = 1.0e-16
+
+    @property
+    def phi_threshold(self):
+        """Get the threshold value for porosity and delta checks."""
+        return self._phi_threshold
+
+    @phi_threshold.setter
+    def phi_threshold(self, value):
+        """Set the threshold value for porosity and delta checks."""
+        if value <= 0:
+            raise ValueError("phi_threshold must be positive")
+        self._phi_threshold = value
+
     def evaluate_form(self, element_index, alpha):
         iel = element_index
         if self.space is None or self.functions is None:
@@ -115,12 +132,13 @@ class UnscaledEllipticWeakForm(WeakForm):
                     [np.trace(grad_psi_h, axis1=0, axis2=2) / det_jac[i]]
                 )
 
-                if  np.isclose(phi, 0.0) and phi < 0.0:
-                    phi = 1e-16
-                    print("UnscaledEllipticWeakForm:: porosity zero or negative.")
+                if  np.isclose(phi, self.phi_threshold) or phi < self.phi_threshold:
+                    phi = self.phi_threshold
+
+                if  np.isclose(delta, self.phi_threshold) or delta < self.phi_threshold:
+                    delta = self.phi_threshold
 
                 div_u_h = alpha[:, idx_dof["u"]] @ div_psi_h.T
-
                 equ_1_integrand = ((1/(delta*delta)) * u_h @ psi_h.T) - (p_h @ div_psi_h)
                 equ_2_integrand = div_u_h @ w_h.T + phi * p_h @ w_h.T
 
@@ -139,9 +157,6 @@ class UnscaledEllipticWeakFormBCDirichlet(WeakForm):
     def evaluate_form(self, element_index, alpha):
         iel = element_index
         p_D = self.functions["p"]
-        f_d_phi = self.functions["d_phi"]
-        f_porosity = self.functions["porosity"]
-
         mp_space = self.space.discrete_spaces["u"]
         mp_components = mp_space.n_comp
         mp_data: ElementData = mp_space.bc_elements[iel].data
@@ -195,10 +210,6 @@ class UnscaledEllipticWeakFormBCDirichlet(WeakForm):
             dim = neigh_cell.dimension
             for i, omega in enumerate(weights):
                 p_D_v = p_D(x[i, 0], x[i, 1], x[i, 2])
-                # d_phi = f_d_phi(x[i, 0], x[i, 1], x[i, 2])
-                # phi_v = f_porosity(x[i, 0], x[i, 1], x[i, 2])
-                # if not np.isclose(phi_v, 0.0) and phi_v > 0.0:
-                #     p_D_v *= d_phi / np.sqrt(phi_v)
                 phi = mp_tr_phi_tab[0, i, mp_dof_n_index, 0:dim] @ n[0:dim]
                 res_block_mp += det_jac[i] * omega * p_D_v[c] * phi
 

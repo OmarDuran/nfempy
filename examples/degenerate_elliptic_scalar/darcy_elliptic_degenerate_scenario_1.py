@@ -134,8 +134,6 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
     # retrieve exact functions
     u_exact = partial(exact_funcs.u_exact, m_par=m_par, dim=dim)
     p_exact = partial(exact_funcs.p_exact, m_par=m_par, dim=dim)
-    v_exact = partial(exact_funcs.v_exact, m_par=m_par, m_mu=m_mu, dim=dim)
-    q_exact = partial(exact_funcs.q_exact, m_par=m_par, dim=dim)
     f_rhs = partial(exact_funcs.f_rhs, m_par=m_par, dim=dim)
 
     m_functions = {
@@ -147,8 +145,6 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
     }
 
     bc_functions = {
-        "v": v_exact,
-        "q": q_exact,
         "u": u_exact,
         "p": p_exact,
         "d_phi": f_d_phi,
@@ -162,6 +158,8 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
 
     weak_form_unscaled = UnscaledEllipticWeakForm(fe_space_unscaled)
     weak_form_unscaled.functions = m_functions
+    weak_form_unscaled.phi_threshold = 1.0e-8
+
     bc_weak_form_unscaled = UnscaledEllipticWeakFormBCDirichlet(fe_space_unscaled)
     bc_weak_form_unscaled.functions = bc_functions
 
@@ -260,8 +258,6 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
         res_g *= 0.0
         jac_g.scale(0.0)
 
-    # alpha = l2_projector(fe_space, exact_functions)
-
     st = time.time()
     (
         u_l2_error,
@@ -269,7 +265,6 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
     ) = l2_error(dim, fe_space_unscaled, exact_functions, alpha)
 
     alpha_proj = l2_projector(fe_space_unscaled, exact_functions)
-    alpha_e = np.zeros_like(alpha)
     alpha_e = alpha - alpha_proj
     p_proj_l2_error = l2_error_projected(dim, fe_space_unscaled, alpha_e, ["u"])[0]
 
@@ -309,8 +304,7 @@ def create_domain(dimension, make_fitted_q):
     elif dimension == 2:
         offset = 0.5
         if make_fitted_q:
-            #offset = 0.75 # original
-            offset = 0.5
+            offset = 0.75 # original
         points = np.array(
             [
                 [-1.0, -1.0, 0],
@@ -360,6 +354,7 @@ def material_data_definition(dim):
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")
     cases = [case_0, case_1, case_2, case_3]
+    cases = [case_0]
     return cases
 
 
@@ -401,7 +396,7 @@ def main():
     # fixed directives
     k_order = 0
     h = 0.5
-    n_ref = 7
+    n_ref = 6
     dimensions = [2]
     folder_name = "output_scenario_1"
     plot_rates_q = True
