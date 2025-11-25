@@ -244,8 +244,10 @@ def draw_data_triangle(ax: plt.Axes, x0: float, x1: float, y_prev: float, y_curr
     BC_xc = np.mean([np.array(points[1]), np.array(points[2])], axis=0)
     triangle = Polygon(points, closed=True, fill=False, edgecolor="#444444", linewidth=2)
     ax.add_patch(triangle)
-    ax.text(AB_xc[0]+10 ** (7*delta_x), AB_xc[1], "1", ha="center", va="center", fontsize=8, color="#444444")
-    ax.text(BC_xc[0], BC_xc[1]+ 10 ** (1000.0*delta_y), "1", ha="center", va="center", fontsize=8, color="#444444")
+    label_x_shift = 10 ** (7*delta_x)
+    label_y_shift = 10 ** (1000.0*delta_y)
+    ax.text(AB_xc[0]+label_x_shift, AB_xc[1], "1", ha="center", va="center", fontsize=8, color="#444444")
+    ax.text(BC_xc[0], BC_xc[1]+label_y_shift, "1", ha="center", va="center", fontsize=8, color="#444444")
 
 
 def resolve_cli_path(path_str: str, allow_missing: bool = False) -> Path:
