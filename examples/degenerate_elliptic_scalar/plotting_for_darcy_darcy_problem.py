@@ -312,10 +312,10 @@ def main() -> None:
         ScalarFieldPlot(name="p_e", title="Physical pressure", clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
         ScalarFieldPlot(name="q_h", title="Unphysical pressure", clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
         ScalarFieldPlot(name="q_e", title="Unphysical pressure", clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
-        ScalarFieldPlot(name="u_h", title="Physical velocity norm", use_norm=True, clim=(0.0, 4.0)),
-        ScalarFieldPlot(name="u_e", title="Physical velocity norm", use_norm=True, clim=(0.0, 4.0)),
-        ScalarFieldPlot(name="v_h", title="Unphysical velocity norm", use_norm=True, clim=(0.0, 270.0)),
-        ScalarFieldPlot(name="v_e", title="Unphysical velocity norm", use_norm=True, clim=(0.0, 270.0)),
+        ScalarFieldPlot(name="u_h", title="Physical velocity norm", use_norm=True, clim=(0.0, 270.0)),
+        ScalarFieldPlot(name="u_e", title="Physical velocity norm", use_norm=True, clim=(0.0, 270.0)),
+        ScalarFieldPlot(name="v_h", title="Unphysical velocity norm", use_norm=True, clim=(0.0, 4.0)),
+        ScalarFieldPlot(name="v_e", title="Unphysical velocity norm", use_norm=True, clim=(0.0, 4.0)),
     ]
 
     field_lookup = {field.name: field for field in scalar_fields}
@@ -332,8 +332,8 @@ def main() -> None:
         field_pairs=[
             FieldPair("qh_ph", field_lookup["q_h"], field_lookup["p_h"], height_scale=(1.0, 1.0)),
             FieldPair("qe_pe", field_lookup["q_e"], field_lookup["p_e"], height_scale=(1.0, 1.0)),
-            FieldPair("ve_ue", field_lookup["v_e"], field_lookup["u_e"], height_scale=(1.2, 1.2)),
-            FieldPair("vh_uh", field_lookup["v_h"], field_lookup["u_h"], height_scale=(1.2, 1.2)),
+            FieldPair("ve_ue", field_lookup["v_e"], field_lookup["u_e"], height_scale=(1.0, 1.0/5000.0)),
+            FieldPair("vh_uh", field_lookup["v_h"], field_lookup["u_h"], height_scale=(1.0, 1.0/5000.0)),
         ],
         methods=methods,
         material_params=args.materials,
