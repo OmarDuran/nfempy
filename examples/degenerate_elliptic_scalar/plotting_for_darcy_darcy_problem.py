@@ -131,8 +131,10 @@ def plot_field_pair(mesh: pyvista.DataSet, config: PlotConfig, pair: FieldPair, 
         height=0.7,
         width=0.02,
         vertical=True,
-        title_font_size=18,
-        label_font_size=14,
+        title_font_size=20,
+        label_font_size=20,
+        title_bold=True,
+        label_bold=True,
     )
     right_bar = dict(
         title=pair.right.title,
@@ -141,8 +143,10 @@ def plot_field_pair(mesh: pyvista.DataSet, config: PlotConfig, pair: FieldPair, 
         height=0.7,
         width=0.02,
         vertical=True,
-        title_font_size=18,
-        label_font_size=14,
+        title_font_size=20,
+        label_font_size=20,
+        title_bold=True,
+        label_bold=True,
     )
 
     plotter.add_mesh(
