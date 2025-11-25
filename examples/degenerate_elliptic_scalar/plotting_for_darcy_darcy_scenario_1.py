@@ -174,6 +174,41 @@ def prepare_scalar_dataset(mesh: pyvista.DataSet, scalar: ScalarFieldPlot, heigh
     return warped, quantity_name
 
 
+def plot_scalar_field(mesh: pyvista.DataSet, config: PlotConfig, field: ScalarFieldPlot, figure_path: Path) -> None:
+    """Plot a single scalar field."""
+    field_mesh, scalar_name = prepare_scalar_dataset(mesh, field, config.height_scale)
+
+    plotter = pyvista.Plotter(off_screen=True, window_size=config.field_resolution)
+    bar_width = normalized_color_bar_width(config)
+    scalar_bar = dict(
+        title=field.title,
+        position_x=0.4,
+        position_y=0.05,
+        width=0.2,
+        height=0.05,
+        vertical=False,
+        title_font_size=20,
+        label_font_size=18,
+    )
+
+    plotter.add_mesh(
+        field_mesh,
+        scalars=scalar_name,
+        cmap=field.cmap,
+        clim=field.clim,
+        show_edges=False,
+        scalar_bar_args=scalar_bar,
+        copy_mesh=True,
+    )
+    plotter.enable_eye_dome_lighting()
+    plotter.view_isometric()
+    plotter.camera.azimuth = config.camera_azimuth
+    plotter.camera.elevation = config.camera_elevation
+    plotter.camera.zoom(config.camera_zoom)
+    plotter.screenshot(str(figure_path), window_size=config.field_resolution)
+    plotter.close()
+
+
 def plot_field_pair(mesh: pyvista.DataSet, config: PlotConfig, pair: FieldPair, figure_path: Path) -> None:
     pair_scale = pair.height_scale if pair.height_scale is not None else (config.height_scale, config.height_scale)
     left_mesh, left_scalar_name = prepare_scalar_dataset(mesh, pair.left, pair_scale[0])
@@ -380,7 +415,8 @@ def build_case_basename(method, dimension, domain, material, folder: Path | None
     return Path(prefix)
 
 
-def generate_field_plots(config: PlotConfig, verbose: bool = False) -> None:
+def generate_field_plots(config: PlotConfig, scalar_fields: Sequence[ScalarFieldPlot], verbose: bool = False) -> None:
+    """Generate individual field plots for each scalar field."""
     ensure_folder(config.figure_folder)
     for method, material, domain, dimension, level in iter_cases(config):
         vtk_base = build_case_basename(method, dimension, domain, material, config.vtks_folder)
@@ -394,9 +430,13 @@ def generate_field_plots(config: PlotConfig, verbose: bool = False) -> None:
             print(f"Skipping unreadable VTK file (read failure): {vtk_file} -> {e}")
             continue
         case_prefix = build_case_basename(method, dimension, domain, material, config.figure_folder)
-        for pair in config.field_pairs:
-            figure_name = f"{case_prefix.name}l_{level}_{pair.name}_pair.{config.figure_format}"
-            plot_field_pair(mesh, config, pair, config.figure_folder / figure_name)
+        for field in scalar_fields:
+            figure_name = f"{case_prefix.name}l_{level}_{field.name}.{config.figure_format}"
+            try:
+                plot_scalar_field(mesh, config, field, config.figure_folder / figure_name)
+            except KeyError as e:
+                print(f"Skipping field {field.name} (not found in mesh): {e}")
+                continue
 
 
 def generate_convergence_plots(config: PlotConfig, table_kind: str) -> None:
@@ -405,12 +445,10 @@ def generate_convergence_plots(config: PlotConfig, table_kind: str) -> None:
     The function will use custom y-range settings from config if present (via attributes added to main)."""
     ensure_folder(config.figure_folder)
     labels = {
-        "normal": ["q", "v", "p", "u"],
-        "enhanced": ["proj q", "proj p"],
+        "normal": ["p", "u", "proj p"],
     }[table_kind]
     file_suffix = {
-        "normal": "normal_conv_data.txt",
-        "enhanced": "enhanced_conv_data.txt",
+        "normal": "conv_data.txt",
     }[table_kind]
 
     for method, material, domain, dimension, _ in iter_cases(config):
@@ -421,14 +459,12 @@ def generate_convergence_plots(config: PlotConfig, table_kind: str) -> None:
         except FileNotFoundError:
             continue
         figure_name = f"{case_prefix.name}{table_kind}_convergence.{config.figure_format}"
-        conv_rate = 2 if table_kind == "enhanced" else 1
+        conv_rate = 1
         # Determine y-range to use: prefer attributes on config set by CLI (if any)
         y_range = None
         try:
             if table_kind == "normal":
                 y_range = getattr(config, "y_range_normal", None)
-            elif table_kind == "enhanced":
-                y_range = getattr(config, "y_range_enhanced", None)
         except Exception:
             y_range = None
 
@@ -500,14 +536,10 @@ def main() -> None:
     args.plot_enhanced = True
     methods = list(method_definition(k_order=0))
     scalar_fields = [
-        ScalarFieldPlot(name="p_h", title="Pressure", clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
-        ScalarFieldPlot(name="p_e", title="Pressure", clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
-        ScalarFieldPlot(name="q_h", title="Scaled pressure", clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
-        ScalarFieldPlot(name="q_e", title="Scaled pressure", clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
-        ScalarFieldPlot(name="u_h", title="Velocity norm", use_norm=True, clim=(0.0, 270.0)),
-        ScalarFieldPlot(name="u_e", title="Velocity norm", use_norm=True, clim=(0.0, 270.0)),
-        ScalarFieldPlot(name="v_h", title="Scaled velocity norm", use_norm=True, clim=(0.0, 4.0)),
-        ScalarFieldPlot(name="v_e", title="Scaled velocity norm", use_norm=True, clim=(0.0, 4.0)),
+        ScalarFieldPlot(name="p_h", title="Pressure (Computed)", clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
+        ScalarFieldPlot(name="p_e", title="Pressure (Exact)", clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
+        ScalarFieldPlot(name="u_h", title="Velocity norm (Computed)", use_norm=True, clim=(0.0, 270.0)),
+        ScalarFieldPlot(name="u_e", title="Velocity norm (Exact)", use_norm=True, clim=(0.0, 270.0)),
     ]
 
     field_lookup = {field.name: field for field in scalar_fields}
@@ -521,12 +553,7 @@ def main() -> None:
         figure_format=args.formats,
         vtks_folder=vtks_path,
         errors_folder=errors_path,
-        field_pairs=[
-            FieldPair("qh_ph", field_lookup["q_h"], field_lookup["p_h"], height_scale=(1.0, 1.0)),
-            FieldPair("qe_pe", field_lookup["q_e"], field_lookup["p_e"], height_scale=(1.0, 1.0)),
-            FieldPair("ve_ue", field_lookup["v_e"], field_lookup["u_e"], height_scale=(0.5, 1.0/5000.0)),
-            FieldPair("vh_uh", field_lookup["v_h"], field_lookup["u_h"], height_scale=(0.5, 1.0/5000.0)),
-        ],
+        field_pairs=[],
         methods=methods,
         material_params=args.materials,
         refinement_levels=args.levels,
