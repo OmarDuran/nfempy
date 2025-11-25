@@ -48,6 +48,7 @@ class FieldPair:
     name: str
     left: ScalarFieldPlot
     right: ScalarFieldPlot
+    height_scale: float | None = None
 
 
 @dataclass(frozen=True)
@@ -117,8 +118,9 @@ def prepare_scalar_dataset(mesh: pyvista.DataSet, scalar: ScalarFieldPlot, heigh
 
 
 def plot_field_pair(mesh: pyvista.DataSet, config: PlotConfig, pair: FieldPair, figure_path: Path) -> None:
-    left_mesh, left_scalar_name = prepare_scalar_dataset(mesh, pair.left, config.height_scale)
-    right_mesh, right_scalar_name = prepare_scalar_dataset(mesh, pair.right, config.height_scale)
+    pair_height_scale = pair.height_scale if pair.height_scale is not None else config.height_scale
+    left_mesh, left_scalar_name = prepare_scalar_dataset(mesh, pair.left, pair_height_scale)
+    right_mesh, right_scalar_name = prepare_scalar_dataset(mesh, pair.right, pair_height_scale)
 
     plotter = pyvista.Plotter(off_screen=True)
     left_bar = dict(
@@ -328,10 +330,10 @@ def main() -> None:
         vtks_folder=vtks_path,
         errors_folder=errors_path,
         field_pairs=[
-            FieldPair("qh_ph", field_lookup["q_h"], field_lookup["p_h"]),
-            FieldPair("qe_pe", field_lookup["q_e"], field_lookup["p_e"]),
-            FieldPair("ve_ue", field_lookup["v_e"], field_lookup["u_e"]),
-            FieldPair("vh_uh", field_lookup["v_h"], field_lookup["u_h"]),
+            FieldPair("qh_ph", field_lookup["q_h"], field_lookup["p_h"], height_scale=0.4),
+            FieldPair("qe_pe", field_lookup["q_e"], field_lookup["p_e"], height_scale=0.4),
+            FieldPair("ve_ue", field_lookup["v_e"], field_lookup["u_e"], height_scale=1.2),
+            FieldPair("vh_uh", field_lookup["v_h"], field_lookup["u_h"], height_scale=1.2),
         ],
         methods=methods,
         material_params=args.materials,
