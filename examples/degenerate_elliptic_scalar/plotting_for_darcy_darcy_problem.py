@@ -229,15 +229,20 @@ def plot_loglog_convergence(
 
 
 def draw_data_triangle(ax: plt.Axes, x0: float, x1: float, y_prev: float, y_curr: float) -> None:
-    y_base = max(y_prev, y_curr)
-    y_top = min(y_prev, y_curr)
-    points = [(x0, y_base), (x1, y_base), (x1, y_top)]
+    if min(x0, x1, y_prev, y_curr) <= 0:
+        return
+    logx0, logx1 = np.log10([x0, x1])
+    logy0, logy1 = np.log10([y_prev, y_curr])
+    log_base = max(logy0, logy1)
+    log_top = min(logy0, logy1)
+    points_log = [(logx0, log_base), (logx1, log_base), (logx1, log_top)]
+    points = [(10 ** px, 10 ** py) for px, py in points_log]
     triangle = Polygon(points, closed=True, fill=False, edgecolor="black", linewidth=2)
     ax.add_patch(triangle)
-    base_mid_x = np.sqrt(x0 * x1)
-    ax.text(base_mid_x, y_base, "1", ha="center", va="bottom", fontsize=12)
-    vert_mid_y = np.sqrt(y_base * y_top) if y_top > 0 else y_top
-    ax.text(x1, vert_mid_y, "1", ha="left", va="center", rotation=90, fontsize=12)
+    base_mid_log = 0.5 * (logx0 + logx1)
+    ax.text(10 ** base_mid_log, 10 ** log_base, "1", ha="center", va="bottom", fontsize=12)
+    vert_mid_log = 0.5 * (log_base + log_top)
+    ax.text(10 ** logx1, 10 ** vert_mid_log, "1", ha="left", va="center", rotation=90, fontsize=12)
 
 
 def resolve_cli_path(path_str: str, allow_missing: bool = False) -> Path:
