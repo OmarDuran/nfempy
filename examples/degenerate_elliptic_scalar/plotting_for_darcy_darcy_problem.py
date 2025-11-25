@@ -37,8 +37,9 @@ REPO_ROOT = find_repo_root(SCRIPT_DIR)
 class ScalarFieldPlot:
     name: str
     title: str
-    cmap: str = "viridis"
+    cmap: str = "terrain"
     clim: tuple[float, float] | None = None
+    use_norm: bool = False
 
 
 @dataclass(frozen=True)
