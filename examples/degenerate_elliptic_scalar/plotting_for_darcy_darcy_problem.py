@@ -246,10 +246,10 @@ def main() -> None:
         ScalarFieldPlot(name="p_e", title="Physical pressure"),
         ScalarFieldPlot(name="q_h", title="Unphysical pressure"),
         ScalarFieldPlot(name="q_e", title="Unphysical pressure"),
-        ScalarFieldPlot(name="u_h", title="Physical velocity norm"),
-        ScalarFieldPlot(name="u_e", title="Physical velocity norm"),
-        ScalarFieldPlot(name="v_h", title="Unphysical velocity norm"),
-        ScalarFieldPlot(name="v_e", title="Unphysical velocity norm"),
+        ScalarFieldPlot(name="u_h", title="Physical velocity norm", use_norm=True),
+        ScalarFieldPlot(name="u_e", title="Physical velocity norm", use_norm=True),
+        ScalarFieldPlot(name="v_h", title="Unphysical velocity norm", use_norm=True),
+        ScalarFieldPlot(name="v_e", title="Unphysical velocity norm", use_norm=True),
     ]
 
     figures_path = resolve_cli_path(args.figures, allow_missing=True)
