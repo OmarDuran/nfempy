@@ -125,12 +125,13 @@ def plot_field_pair(mesh: pyvista.DataSet, config: PlotConfig, pair: FieldPair, 
     right_mesh, right_scalar_name = prepare_scalar_dataset(mesh, pair.right, pair_scale[1])
 
     plotter = pyvista.Plotter(off_screen=True, window_size=config.field_resolution)
+    bar_width = normalized_color_bar_width(config)
     left_bar = dict(
         title=pair.left.title,
         position_x=0.1,
         position_y=0.15,
         height=0.7,
-        width=config.color_bar_width,
+        width=bar_width,
         vertical=True,
         title_font_size=32,
         label_font_size=32,
@@ -140,7 +141,7 @@ def plot_field_pair(mesh: pyvista.DataSet, config: PlotConfig, pair: FieldPair, 
         position_x=0.9,
         position_y=0.15,
         height=0.7,
-        width=config.color_bar_width,
+        width=bar_width,
         vertical=True,
         title_font_size=32,
         label_font_size=32,
