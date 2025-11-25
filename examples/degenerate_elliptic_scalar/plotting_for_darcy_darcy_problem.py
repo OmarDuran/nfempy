@@ -235,16 +235,41 @@ def draw_data_triangle(ax: plt.Axes, x0: float, x1: float, y_prev: float, y_curr
     vertical_shift = 0.15
     log_base_shifted = log_base + vertical_shift
     log_top_shifted = log_top + vertical_shift
-    points_log = [(logx0, log_base_shifted), (logx1, log_base_shifted), (logx1, log_top_shifted)]
+    A = np.array([logx0, log_base_shifted])
+    C = np.array([logx1, log_top_shifted])
+    B = np.array([logx1, log_base_shifted])
+    direction = C - A
+    direction_norm = direction / np.linalg.norm(direction)
+    proj_len = np.dot(B - A, direction_norm)
+    proj_point = A + proj_len * direction_norm
+    B_mirror = proj_point - (B - proj_point)
+    points_log = np.array([A, C, B_mirror])
     points = [(10 ** px, 10 ** py) for px, py in points_log]
     triangle = Polygon(points, closed=True, fill=False, edgecolor="#444444", linewidth=2)
     ax.add_patch(triangle)
-    base_mid_log = 0.5 * (logx0 + logx1)
-    base_label_log = log_base_shifted - 0.1
-    ax.text(10 ** base_mid_log, 10 ** base_label_log, "1", ha="center", va="top", fontsize=12, color="#444444")
-    vert_mid_log = 0.5 * (log_base_shifted + log_top_shifted)
-    vertical_label_logx = logx1 + 0.1
-    ax.text(10 ** vertical_label_logx, 10 ** vert_mid_log, "1", ha="left", va="center", fontsize=12, color="#444444")
+    centroid_log = points_log.mean(axis=0)
+    tol = 1e-8
+    horizontal_pair = None
+    vertical_pair = None
+    for i, j in [(0, 1), (0, 2), (1, 2)]:
+        if abs(points_log[i, 1] - points_log[j, 1]) < tol:
+            horizontal_pair = (i, j)
+        if abs(points_log[i, 0] - points_log[j, 0]) < tol:
+            vertical_pair = (i, j)
+    if horizontal_pair is not None:
+        i, j = horizontal_pair
+        hx = 0.5 * (points_log[i, 0] + points_log[j, 0])
+        hy = points_log[i, 1]
+        label_offset = 0.2 if centroid_log[1] > hy else -0.2
+        hy_label = hy - label_offset
+        ax.text(10 ** hx, 10 ** hy_label, "1", ha="center", va="bottom" if label_offset > 0 else "top", fontsize=12, color="#444444")
+    if vertical_pair is not None:
+        i, j = vertical_pair
+        vx = points_log[i, 0]
+        vy = 0.5 * (points_log[i, 1] + points_log[j, 1])
+        label_offset = 0.2 if centroid_log[0] < vx else -0.2
+        vx_label = vx + label_offset
+        ax.text(10 ** vx_label, 10 ** vy, "1", ha="left" if label_offset > 0 else "right", va="center", fontsize=12, color="#444444")
 
 
 def resolve_cli_path(path_str: str, allow_missing: bool = False) -> Path:
