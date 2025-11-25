@@ -52,7 +52,7 @@ def create_product_spaces(method, gmesh, flux_names, potential_names):
     if gmesh.dimension == 1:
         flux_unscale_bc_physical_tags = [3, 4]
     elif gmesh.dimension == 2:
-        flux_unscale_bc_physical_tags = [3, 4, 5, 6, 7, 8, 9, 10]
+        flux_unscale_bc_physical_tags = [3, 4, 5, 6, 7, 8]
     else:
         raise ValueError("Case not available.")
 
