@@ -215,9 +215,6 @@ def plot_loglog_convergence(
         series_at_anchor = error_values[anchor - 1, :]
         best_idx = int(np.argmin(series_at_anchor))
         reference_series = error_values[:, best_idx]
-        y0 = reference_series[anchor - 1] * triangle.scale
-        slope_line = y0 * (np.array([x0, x1]) / x0) ** triangle.slope
-        plt.loglog([x0, x1], slope_line, "k-", linewidth=2, label=f"rate {triangle.slope}")
         draw_data_triangle(plt.gca(), x0, x1, reference_series[anchor - 1], reference_series[anchor])
 
     plt.xlabel("Element size h")
@@ -243,10 +240,10 @@ def draw_data_triangle(ax: plt.Axes, x0: float, x1: float, y_prev: float, y_curr
     triangle = Polygon(points, closed=True, fill=False, edgecolor="#444444", linewidth=2)
     ax.add_patch(triangle)
     base_mid_log = 0.5 * (logx0 + logx1)
-    base_label_log = log_base_shifted - 0.05
+    base_label_log = log_base_shifted - 0.1
     ax.text(10 ** base_mid_log, 10 ** base_label_log, "1", ha="center", va="top", fontsize=12, color="#444444")
     vert_mid_log = 0.5 * (log_base_shifted + log_top_shifted)
-    vertical_label_logx = logx1 + 0.05
+    vertical_label_logx = logx1 + 0.1
     ax.text(10 ** vertical_label_logx, 10 ** vert_mid_log, "1", ha="left", va="center", fontsize=12, color="#444444")
 
 
