@@ -246,9 +246,8 @@ def generate_field_plots(config: PlotConfig) -> None:
             continue
         case_prefix = build_case_basename(method, dimension, domain, material, config.figure_folder)
         for pair in config.field_pairs:
-            for scalar in (pair.left, pair.right):
-                figure_name = f"{case_prefix.name}l_{level}_{scalar.name}_map.{config.figure_format}"
-                plot_scalar_field(mesh, config, scalar, config.figure_folder / figure_name)
+            figure_name = f"{case_prefix.name}l_{level}_{pair.name}_pair.{config.figure_format}"
+            plot_field_pair(mesh, config, pair, config.figure_folder / figure_name)
 
 
 def generate_convergence_plots(config: PlotConfig, table_kind: str) -> None:
@@ -296,15 +295,17 @@ def main() -> None:
     # args.plot_enhanced = True
     methods = list(method_definition(k_order=0))
     scalar_fields = [
-        ScalarFieldPlot(name="p_h", title="Physical pressure", clim=(-1.0, 1.0)),
-        ScalarFieldPlot(name="p_e", title="Physical pressure", clim=(-1.0, 1.0)),
-        ScalarFieldPlot(name="q_h", title="Unphysical pressure", clim=(-1.0, 1.0)),
-        ScalarFieldPlot(name="q_e", title="Unphysical pressure", clim=(-1.0, 1.0)),
+        ScalarFieldPlot(name="p_h", title="Physical pressure", clim=(-1.0, 1.0), threshold=(-1.0, 1.0)),
+        ScalarFieldPlot(name="p_e", title="Physical pressure", clim=(-1.0, 1.0), threshold=(-1.0, 1.0)),
+        ScalarFieldPlot(name="q_h", title="Unphysical pressure", clim=(-1.0, 1.0), threshold=(-1.0, 1.0)),
+        ScalarFieldPlot(name="q_e", title="Unphysical pressure", clim=(-1.0, 1.0), threshold=(-1.0, 1.0)),
         ScalarFieldPlot(name="u_h", title="Physical velocity norm", use_norm=True, clim=(0.0, 4.0)),
         ScalarFieldPlot(name="u_e", title="Physical velocity norm", use_norm=True, clim=(0.0, 4.0)),
         ScalarFieldPlot(name="v_h", title="Unphysical velocity norm", use_norm=True, clim=(0.0, 270.0)),
         ScalarFieldPlot(name="v_e", title="Unphysical velocity norm", use_norm=True, clim=(0.0, 270.0)),
     ]
+
+    field_lookup = {field.name: field for field in scalar_fields}
 
     figures_path = resolve_cli_path(args.figures, allow_missing=True)
     vtks_path = resolve_cli_path(args.vtks)
@@ -316,8 +317,10 @@ def main() -> None:
         vtks_folder=vtks_path,
         errors_folder=errors_path,
         field_pairs=[
-            FieldPair("pressure", scalar_fields[0], scalar_fields[1]),
-            FieldPair("velocity", scalar_fields[4], scalar_fields[5]),
+            FieldPair("qh_ph", field_lookup["q_h"], field_lookup["p_h"]),
+            FieldPair("qe_pe", field_lookup["q_e"], field_lookup["p_e"]),
+            FieldPair("ve_ue", field_lookup["v_e"], field_lookup["u_e"]),
+            FieldPair("vh_uh", field_lookup["v_h"], field_lookup["u_h"]),
         ],
         methods=methods,
         material_params=args.materials,
