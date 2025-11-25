@@ -132,10 +132,10 @@ class UnscaledEllipticWeakForm(WeakForm):
                     [np.trace(grad_psi_h, axis1=0, axis2=2) / det_jac[i]]
                 )
 
-                if  np.isclose(phi, self.phi_threshold) or phi < self.phi_threshold:
+                if  np.isclose(phi, 0.0) or phi < 0.0:
                     phi = self.phi_threshold
 
-                if  np.isclose(delta, self.phi_threshold) or delta < self.phi_threshold:
+                if  np.isclose(delta, 0.0) or delta < 0.0:
                     delta = self.phi_threshold
 
                 div_u_h = alpha[:, idx_dof["u"]] @ div_psi_h.T

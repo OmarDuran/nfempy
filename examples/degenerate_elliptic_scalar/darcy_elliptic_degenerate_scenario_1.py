@@ -158,7 +158,7 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
 
     weak_form_unscaled = UnscaledEllipticWeakForm(fe_space_unscaled)
     weak_form_unscaled.functions = m_functions
-    weak_form_unscaled.phi_threshold = 1.0e-8
+    weak_form_unscaled.phi_threshold = 1.0e-16
 
     bc_weak_form_unscaled = UnscaledEllipticWeakFormBCDirichlet(fe_space_unscaled)
     bc_weak_form_unscaled.functions = bc_functions
