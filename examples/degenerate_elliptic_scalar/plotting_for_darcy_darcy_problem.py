@@ -135,7 +135,7 @@ def plot_field_pair(mesh: pyvista.DataSet, config: PlotConfig, pair: FieldPair, 
     )
     right_bar = dict(
         title=pair.right.title,
-        position_x=0.72,
+        position_x=0.82,
         position_y=0.15,
         height=0.7,
         width=0.02,
