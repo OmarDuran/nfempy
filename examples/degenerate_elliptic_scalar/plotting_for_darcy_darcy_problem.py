@@ -43,6 +43,13 @@ class ScalarFieldPlot:
 
 
 @dataclass(frozen=True)
+class FieldPair:
+    name: str
+    left: ScalarFieldPlot
+    right: ScalarFieldPlot
+
+
+@dataclass(frozen=True)
 class TriangleSpec:
     slope: float
     anchor_idx: int = -2
@@ -55,7 +62,7 @@ class PlotConfig:
     figure_format: str
     vtks_folder: Path
     errors_folder: Path
-    scalar_fields: Sequence[ScalarFieldPlot]
+    field_pairs: Sequence[FieldPair]
     methods: Sequence[tuple[str, dict]]
     material_params: Sequence[float]
     refinement_levels: Sequence[int]
@@ -192,9 +199,10 @@ def generate_field_plots(config: PlotConfig) -> None:
             print(f"Skipping missing VTK file: {vtk_file}")
             continue
         case_prefix = build_case_basename(method, dimension, domain, material, config.figure_folder)
-        for scalar in config.scalar_fields:
-            figure_name = f"{case_prefix.name}l_{level}_{scalar.name}_map.{config.figure_format}"
-            plot_scalar_field(mesh, config, scalar, config.figure_folder / figure_name)
+        for pair in config.field_pairs:
+            for scalar in (pair.left, pair.right):
+                figure_name = f"{case_prefix.name}l_{level}_{scalar.name}_map.{config.figure_format}"
+                plot_scalar_field(mesh, config, scalar, config.figure_folder / figure_name)
 
 
 def generate_convergence_plots(config: PlotConfig, table_kind: str) -> None:
@@ -261,7 +269,10 @@ def main() -> None:
         figure_format=args.formats,
         vtks_folder=vtks_path,
         errors_folder=errors_path,
-        scalar_fields=scalar_fields,
+        field_pairs=[
+            FieldPair("pressure", scalar_fields[0], scalar_fields[1]),
+            FieldPair("velocity", scalar_fields[4], scalar_fields[5]),
+        ],
         methods=methods,
         material_params=args.materials,
         refinement_levels=args.levels,
