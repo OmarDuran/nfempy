@@ -122,10 +122,18 @@ def ensure_folder(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
+# Improved loader: differentiate missing file vs read/parse failure so caller prints accurate message.
 def load_mesh(vtk_path: Path) -> pyvista.DataSet:
     if not vtk_path.exists():
         raise FileNotFoundError(vtk_path)
-    return pyvista.read(vtk_path)
+    try:
+        return pyvista.read(vtk_path)
+    except FileNotFoundError:
+        # Propagate explicit FileNotFoundError (unlikely after exists check, but keep for safety)
+        raise
+    except Exception as e:  # noqa: BLE001
+        # Wrap any other failure so caller can distinguish from missing file scenario.
+        raise RuntimeError(f"Failed to read VTK file '{vtk_path}': {e}") from e
 
 
 def prepare_scalar_dataset(mesh: pyvista.DataSet, scalar: ScalarFieldPlot, height_scale: float) -> tuple[pyvista.DataSet, str]:
@@ -360,7 +368,10 @@ def generate_field_plots(config: PlotConfig) -> None:
         try:
             mesh = load_mesh(vtk_file)
         except FileNotFoundError:
-            print(f"Skipping missing VTK file: {vtk_file}")
+            print(f"Skipping missing VTK file (not found): {vtk_file}")
+            continue
+        except RuntimeError as e:
+            print(f"Skipping unreadable VTK file (read failure): {vtk_file} -> {e}")
             continue
         case_prefix = build_case_basename(method, dimension, domain, material, config.figure_folder)
         for pair in config.field_pairs:
