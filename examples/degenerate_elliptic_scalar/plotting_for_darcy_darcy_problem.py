@@ -78,7 +78,17 @@ class PlotConfig:
     camera_elevation: float = 30.0
     camera_zoom: float = 1.2
     field_resolution: tuple[int, int] = (1600, 900)
-    color_bar_width: float = 0.02
+    color_bar_width: float = 1.0
+
+
+def normalized_color_bar_width(config: PlotConfig) -> float:
+    width = config.color_bar_width
+    if width <= 0:
+        return 0.02
+    if width <= 1:
+        return width
+    window_width = max(config.field_resolution[0], 1)
+    return min(0.4, width / window_width)
 
 
 def ensure_folder(path: Path) -> None:
