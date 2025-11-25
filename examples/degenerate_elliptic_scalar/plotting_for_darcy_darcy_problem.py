@@ -12,7 +12,7 @@ import numpy as np
 import pyvista
 import seaborn as sns
 
-from degenerate_mixed_flow_model import (
+from darcy_elliptic_degenerate_scenario_2 import (
     compose_case_name,
     create_domain,
     material_data_definition,
