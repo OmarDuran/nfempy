@@ -37,7 +37,7 @@ CUSTOM_PALETTES = {
     ]
 }
 
-def get_palette(name: str, n_colors: int) -> list[str]:
+def get_palette(name: str, n_colors: int) -> list[str | tuple[float, float, float]]:
     base = CUSTOM_PALETTES.get(name)
     if base:
         if len(base) >= n_colors:
@@ -45,9 +45,10 @@ def get_palette(name: str, n_colors: int) -> list[str]:
         repeats = (n_colors + len(base) - 1) // len(base)
         return (base * repeats)[:n_colors]
     try:
-        return sns.color_palette(name, n_colors=n_colors)
+        pal = sns.color_palette(name, n_colors=n_colors)
     except ValueError:
-        return sns.color_palette("deep", n_colors=n_colors)
+        pal = sns.color_palette("deep", n_colors=n_colors)
+    return list(pal)
 
 def find_repo_root(start: Path) -> Path:
     for candidate in [start] + list(start.parents):
@@ -224,13 +225,37 @@ def plot_loglog_convergence(
     markers: Sequence[str],
     conv_rate: int = 1,
 ) -> None:
+    """Plot log-log convergence curves and save the figure.
+
+    Parameters
+    ----------
+    error_table : np.ndarray
+        Table with first column h values and subsequent pairs (err, order?) columns.
+    labels : Sequence[str]
+        Labels for each error series extracted from error_table.
+    figure_path : Path
+        Destination path (including filename) for the saved plot image.
+    triangle : TriangleSpec
+        Specification for decorative convergence-rate triangle; if None, skipped.
+    markers : Sequence[str]
+        Marker styles cycled across error series.
+    conv_rate : int, default 1
+        Rate annotation used for triangle slope label.
+    """
     h_values = error_table[:, 0]
     error_values = error_table[:, 1::2]
     palette = get_palette("tokyo", n_colors=len(labels))
 
     plt.figure(figsize=(8, 6))
+    ax = plt.gca()
     for idx, (errors, label) in enumerate(zip(error_values.T, labels)):
-        plt.loglog(h_values, errors, marker=markers[idx % len(markers)], label=label, color=palette[idx % len(palette)])
+        ax.loglog(
+            h_values,
+            errors,
+            marker=markers[idx % len(markers)],
+            label=label,
+            color=palette[idx % len(palette)],
+        )
 
     if triangle and len(h_values) >= 2:
         if error_values.shape[1] == 0:
@@ -243,13 +268,24 @@ def plot_loglog_convergence(
         best_idx = int(np.argmin(series_at_anchor))
         reference_series = error_values[:, best_idx]
         draw_data_triangle(
-            plt.gca(),
-            x0,
-            x1,
-            reference_series[anchor - 1],
-            reference_series[anchor],
+            ax,
+            float(x0),
+            float(x1),
+            float(reference_series[anchor - 1]),
+            float(reference_series[anchor]),
             conv_rate=conv_rate,
         )
+
+    # Axis decoration & saving
+    ax.set_xlabel("h")
+    ax.set_ylabel("Error")
+    ax.grid(True, which="both", linestyle="--", alpha=0.4)
+    ax.legend(loc="best", fontsize=10)
+    plt.tight_layout()
+    # Ensure parent directory exists (normally already created)
+    figure_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(str(figure_path), dpi=300)
+    plt.close()
 
 
 def draw_data_triangle(ax: plt.Axes, x0: float, x1: float, y_prev: float, y_curr: float, conv_rate: int = 1) -> None:
@@ -430,7 +466,7 @@ def main() -> None:
         camera_azimuth=args.camera_azimuth,
         camera_elevation=args.camera_elevation,
         camera_zoom=args.camera_zoom,
-        field_resolution=tuple(args.field_resolution),
+        field_resolution=(int(args.field_resolution[0]), int(args.field_resolution[1])),
         color_bar_width=args.color_bar_width,
     )
 
@@ -444,4 +480,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
