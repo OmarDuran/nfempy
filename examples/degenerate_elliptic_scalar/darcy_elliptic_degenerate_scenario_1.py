@@ -205,25 +205,6 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
         for k in range(nnz):
             jac_g.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
-    def scatter_coupling_form_data(jac_g, c1_idx, c0_n_idx, c0_p_idx, int_weak_form):
-
-        dest_c0_n = int_weak_form.space[0].bc_destination_indexes(c0_n_idx, "v")
-        dest_c0_p = int_weak_form.space[1].bc_destination_indexes(c0_p_idx, "u")
-        dest_c1 = int_weak_form.space[2].destination_indexes(c1_idx, "l")
-        dest = np.concatenate([dest_c0_n, dest_c0_p, dest_c1])
-        alpha_l = alpha[dest]
-        r_el, j_el = int_weak_form.evaluate_form(c1_idx, c0_n_idx, c0_p_idx, alpha_l)
-
-        # contribute rhs
-        res_g[dest] += r_el
-
-        # contribute lhs
-        data = j_el.ravel()
-        row = np.repeat(dest, len(dest))
-        col = np.tile(dest, len(dest))
-        nnz = data.shape[0]
-        for k in range(nnz):
-            jac_g.setValue(row=row[k], col=col[k], value=data[k], addv=True)
 
     # Assembler
     st = time.time()
