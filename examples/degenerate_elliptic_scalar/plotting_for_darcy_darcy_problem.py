@@ -134,6 +134,26 @@ def plot_loglog_convergence(
     plt.close()
 
 
+def resolve_cli_path(path_str: str, allow_missing: bool = False) -> Path:
+    raw = Path(path_str).expanduser()
+    if raw.is_absolute():
+        if raw.exists() or allow_missing:
+            return raw
+        raise FileNotFoundError(raw)
+
+    candidates = [Path.cwd() / raw, REPO_ROOT / raw, SCRIPT_DIR / raw]
+    for cand in candidates:
+        if cand.exists():
+            return cand.resolve()
+
+    if allow_missing:
+        return (REPO_ROOT / raw).resolve()
+
+    raise FileNotFoundError(
+        f"Could not resolve '{path_str}'. Tried cwd, repository root, and script-relative locations."
+    )
+
+
 def iter_cases(config: PlotConfig) -> Iterable[tuple[str, dict, tuple[str, object], dict, int]]:
     for method in config.methods:
         for material in material_data_definition(config.dimension):
