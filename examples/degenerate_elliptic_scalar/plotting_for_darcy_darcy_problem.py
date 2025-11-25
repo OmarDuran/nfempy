@@ -235,14 +235,19 @@ def draw_data_triangle(ax: plt.Axes, x0: float, x1: float, y_prev: float, y_curr
     logy0, logy1 = np.log10([y_prev, y_curr])
     log_base = max(logy0, logy1)
     log_top = min(logy0, logy1)
-    points_log = [(logx0, log_base), (logx1, log_base), (logx1, log_top)]
+    vertical_shift = 0.15
+    log_base_shifted = log_base + vertical_shift
+    log_top_shifted = log_top + vertical_shift
+    points_log = [(logx0, log_base_shifted), (logx1, log_base_shifted), (logx1, log_top_shifted)]
     points = [(10 ** px, 10 ** py) for px, py in points_log]
-    triangle = Polygon(points, closed=True, fill=False, edgecolor="black", linewidth=2)
+    triangle = Polygon(points, closed=True, fill=False, edgecolor="#444444", linewidth=2)
     ax.add_patch(triangle)
     base_mid_log = 0.5 * (logx0 + logx1)
-    ax.text(10 ** base_mid_log, 10 ** log_base, "1", ha="center", va="bottom", fontsize=12)
-    vert_mid_log = 0.5 * (log_base + log_top)
-    ax.text(10 ** logx1, 10 ** vert_mid_log, "1", ha="left", va="center", rotation=90, fontsize=12)
+    base_label_log = log_base_shifted - 0.05
+    ax.text(10 ** base_mid_log, 10 ** base_label_log, "1", ha="center", va="top", fontsize=12, color="#444444")
+    vert_mid_log = 0.5 * (log_base_shifted + log_top_shifted)
+    vertical_label_logx = logx1 + 0.05
+    ax.text(10 ** vertical_label_logx, 10 ** vert_mid_log, "1", ha="left", va="center", fontsize=12, color="#444444")
 
 
 def resolve_cli_path(path_str: str, allow_missing: bool = False) -> Path:
