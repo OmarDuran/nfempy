@@ -1,6 +1,5 @@
 import time
 
-import mpmath
 import numpy as np
 from petsc4py import PETSc
 
@@ -12,9 +11,6 @@ from mesh.mesh_metrics import mesh_size
 from postprocess.l2_error_post_processor import l2_error, l2_error_projected
 from postprocess.projectors import l2_projector
 from postprocess.solution_post_processor import (
-    write_vtk_file_with_exact_solution,
-    write_vtk_file_exact_solution,
-    write_vtk_file_pointwise_l2_error,
     write_fe_spaces_on_vtk_file_with_exact_solution
 )
 from spaces.product_space import ProductSpace
@@ -22,7 +18,6 @@ from weak_forms.unscaled_elliptic_weak_form import (
     UnscaledEllipticWeakForm,
     UnscaledEllipticWeakFormBCDirichlet,
 )
-from weak_forms.scaled_to_physical_l2_projection import ScaledToPhysicalL2Projection
 import strong_solutions_TArbogast as exact_funcs
 from functools import partial
 import matplotlib.pyplot as plt
@@ -473,33 +468,16 @@ def main():
                     raw_data[:, 1::2] = error_data[:, 1 : error_data.shape[1]]
                     raw_data[:, 2::2] = rates_data
 
-                    normal_conv_data = raw_data[:, 0 : raw_data.shape[1] - 4]
-                    enhanced_conv_data = raw_data[
-                        :,
-                        np.insert(
-                            np.arange(raw_data.shape[1] - 4, raw_data.shape[1]), 0, 0
-                        ),
-                    ]
-
                     np.set_printoptions(precision=5)
-                    print("normal convergence data: ", normal_conv_data)
-                    print("enhanced convergence data: ", enhanced_conv_data)
+                    print("convergence data: ", raw_data)
 
-                    normal_header = "h, q,  rate,   v,  rate,   p,  rate,   u,  rate"
-                    enhanced_header = "h,   proj q, rate,   proj p, rate, "
+                    header = "h, p, rate, u, rate, proj p, rate"
                     np.savetxt(
-                        case_name + "normal_conv_data.txt",
-                        normal_conv_data,
+                        case_name + "conv_data.txt",
+                        raw_data,
                         delimiter=",",
                         fmt="%1.6f",
-                        header=normal_header,
-                    )
-                    np.savetxt(
-                        case_name + "enhanced_conv_data.txt",
-                        enhanced_conv_data,
-                        delimiter=",",
-                        fmt="%1.6f",
-                        header=enhanced_header,
+                        header=header,
                     )
 
                     if plot_rates_q:
@@ -507,8 +485,8 @@ def main():
                         y = error_data[:, 1:n_data]
                         lineObjects = plt.loglog(x, y, marker="o")
                         plt.legend(
-                        lineObjects,
-                            ("q", "v", "p", "u", "projected q", "projected p"),
+                            lineObjects,
+                            ("p", "u", "projected p"),
                         )
                         plt.title("")
                         plt.xlabel("Element size")
