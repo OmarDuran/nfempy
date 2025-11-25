@@ -159,8 +159,8 @@ def plot_field_pair(mesh: pyvista.DataSet, config: PlotConfig, pair: FieldPair, 
     )
     plotter.enable_eye_dome_lighting()
     plotter.view_isometric()
-    plotter.camera.azimuth(config.camera_azimuth)
-    plotter.camera.elevation(config.camera_elevation)
+    plotter.camera.azimuth = config.camera_azimuth
+    plotter.camera.elevation = config.camera_elevation
     plotter.camera.zoom(config.camera_zoom)
     plotter.screenshot(str(figure_path))
     plotter.close()
