@@ -321,9 +321,6 @@ def two_fields_formulation(method, material, gmesh, case_name, write_vtk_q=True)
 
     # interface data
     cells_c1 = [cell for cell in gmesh.cells if cell.dimension ==1 and cell.material_id in fe_space_lm.fields_physical_tags["l"]]
-    # gd1_cm1 = gmesh.build_graph(dimension=2,co_dimension=1)
-    # c0_pairs = [list(gd1_cm1.predecessors(cell_c1.index())) for cell_c1 in cells_c1]
-    # c0_id_pairs = [[c0_pair[0][1],c0_pair[1][1]] for c0_pair in c0_pairs]
 
     # this is possible because the conformity
     c1_idxs = [fe_space_lm.discrete_spaces["l"].id_to_element[cell_c1.id] for cell_c1 in cells_c1]
@@ -545,7 +542,7 @@ def main():
     h = 0.5
     n_ref = 7
     dimensions = [2]
-    folder_name = "output_scenario_2"
+    folder_name = "output_scenario_1"
     plot_rates_q = True
 
     # method variants
