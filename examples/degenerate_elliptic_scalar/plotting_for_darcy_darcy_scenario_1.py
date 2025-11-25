@@ -491,7 +491,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dim", type=int, default=2)
     parser.add_argument("--plot-fields", action="store_true")
     parser.add_argument("--plot-normal", action="store_true")
-    parser.add_argument("--plot-enhanced", action="store_true")
     parser.add_argument(
         "--y-range-normal",
         nargs=2,
@@ -499,14 +498,6 @@ def parse_args() -> argparse.Namespace:
         metavar=("YMIN", "YMAX"),
         default=(1.0e-3,1.0e+3),
         help="Custom vertical axis range for normal convergence plots (provide two floats: ymin ymax)",
-    )
-    parser.add_argument(
-        "--y-range-enhanced",
-        nargs=2,
-        type=float,
-        metavar=("YMIN", "YMAX"),
-        default=(1.0e-5,1.0e+0),
-        help="Custom vertical axis range for enhanced convergence plots (provide two floats: ymin ymax)",
     )
     parser.add_argument("--camera-azimuth", type=float, default=-150.0, help="Azimuth angle for the 3D camera (degrees)")
     parser.add_argument("--camera-elevation", type=float, default=10.0, help="Elevation angle for the 3D camera (degrees)")
