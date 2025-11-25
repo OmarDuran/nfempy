@@ -237,14 +237,14 @@ def draw_data_triangle(ax: plt.Axes, x0: float, x1: float, y_prev: float, y_curr
     A = np.array([logx0, logy0 - log_shift])
     B = np.array([logx0, logy0 + delta - log_shift])
     C = np.array([logx1, logy0 + delta - log_shift])
-    AB_xc = np.mean([A, B]) - np.array([log_shift,0.0])
-    BC_xc = np.mean([B, C]) - np.array([0.0,log_shift])
     points_log = np.array([A, B, C])
     points = [(10 ** px, 10 ** py) for px, py in points_log]
+    AB_xc = np.mean([np.array(points[0]), np.array(points[1])],axis=1)
+    BC_xc = np.mean([np.array(points[1]), np.array(points[2])],axis=1)
     triangle = Polygon(points, closed=True, fill=False, edgecolor="#444444", linewidth=2)
     ax.add_patch(triangle)
-    ax.text(10 ** AB_xc[0], 10 ** AB_xc[1], "1", ha="center", va="center", fontsize=12, color="#444444")
-    ax.text(10 ** BC_xc[0], 10 ** BC_xc[1], "1", ha="center", va="center", fontsize=12, color="#444444")
+    ax.text(AB_xc[0], AB_xc[1], "1", ha="center", va="center", fontsize=12, color="#444444")
+    ax.text(BC_xc[0], BC_xc[1], "1", ha="center", va="center", fontsize=12, color="#444444")
 
 
 def resolve_cli_path(path_str: str, allow_missing: bool = False) -> Path:
