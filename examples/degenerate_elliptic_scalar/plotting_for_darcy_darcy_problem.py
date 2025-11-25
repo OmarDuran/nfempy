@@ -4,7 +4,7 @@ import argparse
 from dataclasses import dataclass
 from pathlib import Path
 from sys import platform
-from typing import Iterable, Sequence
+from typing import Iterable, Sequence, Optional, Tuple
 
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
@@ -242,6 +242,7 @@ def plot_loglog_convergence(
     triangle: TriangleSpec,
     markers: Sequence[str],
     conv_rate: int = 1,
+    y_range: Optional[Tuple[float, float]] = None,
 ) -> None:
     """Plot log-log convergence curves and save the figure.
 
@@ -299,6 +300,15 @@ def plot_loglog_convergence(
     ax.set_ylabel("Error")
     ax.grid(True, which="both", linestyle="--", alpha=0.4)
     ax.legend(loc="best", fontsize=10)
+    # Apply custom vertical axis range if requested
+    if y_range is not None:
+        try:
+            ymin, ymax = float(y_range[0]), float(y_range[1])
+            if ymin < ymax:
+                ax.set_ylim(ymin, ymax)
+        except Exception:
+            # Ignore invalid ranges and proceed with automatic scaling
+            pass
     plt.tight_layout()
     # Ensure parent directory exists (normally already created)
     figure_path.parent.mkdir(parents=True, exist_ok=True)
@@ -390,6 +400,9 @@ def generate_field_plots(config: PlotConfig, verbose: bool = False) -> None:
 
 
 def generate_convergence_plots(config: PlotConfig, table_kind: str) -> None:
+    """Generate convergence plots. This function will read convergence tables and call plot_loglog_convergence.
+
+    The function will use custom y-range settings from config if present (via attributes added to main)."""
     ensure_folder(config.figure_folder)
     labels = {
         "normal": ["q", "v", "p", "u"],
@@ -409,7 +422,25 @@ def generate_convergence_plots(config: PlotConfig, table_kind: str) -> None:
             continue
         figure_name = f"{case_prefix.name}{table_kind}_convergence.{config.figure_format}"
         conv_rate = 2 if table_kind == "enhanced" else 1
-        plot_loglog_convergence(table, labels, config.figure_folder / figure_name, config.triangle, config.loglog_markers, conv_rate=conv_rate)
+        # Determine y-range to use: prefer attributes on config set by CLI (if any)
+        y_range = None
+        try:
+            if table_kind == "normal":
+                y_range = getattr(config, "y_range_normal", None)
+            elif table_kind == "enhanced":
+                y_range = getattr(config, "y_range_enhanced", None)
+        except Exception:
+            y_range = None
+
+        plot_loglog_convergence(
+            table,
+            labels,
+            config.figure_folder / figure_name,
+            config.triangle,
+            config.loglog_markers,
+            conv_rate=conv_rate,
+            y_range=y_range,
+        )
 
 
 def parse_args() -> argparse.Namespace:
@@ -425,6 +456,22 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--plot-fields", action="store_true")
     parser.add_argument("--plot-normal", action="store_true")
     parser.add_argument("--plot-enhanced", action="store_true")
+    parser.add_argument(
+        "--y-range-normal",
+        nargs=2,
+        type=float,
+        metavar=("YMIN", "YMAX"),
+        default=(1.0e-3,1.0e+3),
+        help="Custom vertical axis range for normal convergence plots (provide two floats: ymin ymax)",
+    )
+    parser.add_argument(
+        "--y-range-enhanced",
+        nargs=2,
+        type=float,
+        metavar=("YMIN", "YMAX"),
+        default=(1.0e-5,1.0e+0),
+        help="Custom vertical axis range for enhanced convergence plots (provide two floats: ymin ymax)",
+    )
     parser.add_argument("--camera-azimuth", type=float, default=-150.0, help="Azimuth angle for the 3D camera (degrees)")
     parser.add_argument("--camera-elevation", type=float, default=10.0, help="Elevation angle for the 3D camera (degrees)")
     parser.add_argument("--camera-zoom", type=float, default=1.1, help="Zoom factor for the 3D camera")
@@ -491,6 +538,16 @@ def main() -> None:
         field_resolution=(int(args.field_resolution[0]), int(args.field_resolution[1])),
         color_bar_width=args.color_bar_width,
     )
+
+    # Attach CLI-provided y-ranges if present (convert lists to tuples)
+    if args.y_range_normal is not None:
+        setattr(config, "y_range_normal", (float(args.y_range_normal[0]), float(args.y_range_normal[1])))
+    else:
+        setattr(config, "y_range_normal", None)
+    if args.y_range_enhanced is not None:
+        setattr(config, "y_range_enhanced", (float(args.y_range_enhanced[0]), float(args.y_range_enhanced[1])))
+    else:
+        setattr(config, "y_range_enhanced", None)
 
     if args.plot_fields:
         generate_field_plots(config, verbose=args.verbose)
