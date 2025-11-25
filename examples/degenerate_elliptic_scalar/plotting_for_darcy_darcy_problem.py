@@ -73,6 +73,9 @@ class PlotConfig:
     loglog_markers: Sequence[str] = ("o", "s", "^", "D")
     triangle: TriangleSpec = TriangleSpec(slope=1.0)
     height_scale: float = 1.0
+    camera_azimuth: float = 0.0
+    camera_elevation: float = 30.0
+    camera_zoom: float = 1.2
 
 
 def ensure_folder(path: Path) -> None:
@@ -156,7 +159,9 @@ def plot_field_pair(mesh: pyvista.DataSet, config: PlotConfig, pair: FieldPair, 
     )
     plotter.enable_eye_dome_lighting()
     plotter.view_isometric()
-    plotter.camera.zoom(1.2)
+    plotter.camera.azimuth(config.camera_azimuth)
+    plotter.camera.elevation(config.camera_elevation)
+    plotter.camera.zoom(config.camera_zoom)
     plotter.screenshot(str(figure_path))
     plotter.close()
 
@@ -285,6 +290,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--plot-fields", action="store_true")
     parser.add_argument("--plot-normal", action="store_true")
     parser.add_argument("--plot-enhanced", action="store_true")
+    parser.add_argument("--camera-azimuth", type=float, default=0.0, help="Azimuth angle for the 3D camera (degrees)")
+    parser.add_argument("--camera-elevation", type=float, default=30.0, help="Elevation angle for the 3D camera (degrees)")
+    parser.add_argument("--camera-zoom", type=float, default=1.2, help="Zoom factor for the 3D camera")
     return parser.parse_args()
 
 
@@ -327,6 +335,9 @@ def main() -> None:
         refinement_levels=args.levels,
         domain_type=args.domain,
         dimension=args.dim,
+        camera_azimuth=args.camera_azimuth,
+        camera_elevation=args.camera_elevation,
+        camera_zoom=args.camera_zoom,
     )
 
     if args.plot_fields:
