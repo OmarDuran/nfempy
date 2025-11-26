@@ -435,7 +435,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--errors", default="examples/degenerate_elliptic_scalar/output_scenario_1", help="Folder containing convergence tables")
     parser.add_argument("--figures", default="examples/degenerate_elliptic_scalar/figures_scenario_1", help="Destination folder for plots")
     parser.add_argument("--formats", default="png", help="Figure format")
-    parser.add_argument("--materials", nargs="*", type=float, default=[2.0, 1.0, 0.25, 0.125])
+    parser.add_argument("--materials", nargs="*", type=int, default=[2, 4, 8, 16])
     parser.add_argument("--levels", nargs="*", type=int, default=[6])
     parser.add_argument("--domain", default="fitted")
     parser.add_argument("--dim", type=int, default=2)
@@ -505,8 +505,6 @@ def main() -> None:
         ScalarFieldPlot(name="u_h", title="Numeric velocity norm", use_norm=True, clim=(0.0, 270.0)),
         ScalarFieldPlot(name="u_e", title="Exact velocity norm", use_norm=True, clim=(0.0, 270.0)),
     ]
-
-    field_lookup = {field.name: field for field in scalar_fields}
 
     figures_path = resolve_cli_path(args.figures, allow_missing=True)
     vtks_path = resolve_cli_path(args.vtks)
