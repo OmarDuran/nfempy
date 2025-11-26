@@ -176,19 +176,29 @@ def prepare_scalar_dataset(mesh: pyvista.DataSet, scalar: ScalarFieldPlot, heigh
 
 def plot_scalar_field(mesh: pyvista.DataSet, config: PlotConfig, field: ScalarFieldPlot, figure_path: Path) -> None:
     """Plot a single scalar field."""
-    field_mesh, scalar_name = prepare_scalar_dataset(mesh, field, config.height_scale)
+    # Determine height scale based on field type
+    if field.name.startswith('p_'):  # pressure fields
+        height_scale = 1.0
+    elif field.name.startswith('u_'):  # velocity fields
+        height_scale = 1.0 / 5000.0
+    else:
+        height_scale = config.height_scale
+
+    field_mesh, scalar_name = prepare_scalar_dataset(mesh, field, height_scale)
 
     plotter = pyvista.Plotter(off_screen=True, window_size=config.field_resolution)
     bar_width = normalized_color_bar_width(config)
     scalar_bar = dict(
         title=field.title,
-        position_x=0.4,
-        position_y=0.05,
-        width=0.2,
-        height=0.05,
+        position_x=0.35,
+        position_y=0.08,
+        width=0.3,
+        height=0.08,
         vertical=False,
-        title_font_size=20,
-        label_font_size=18,
+        title_font_size=28,
+        label_font_size=24,
+        n_labels=5,
+        fmt="%.2f",
     )
 
     plotter.add_mesh(
