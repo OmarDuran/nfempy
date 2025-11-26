@@ -69,15 +69,6 @@ class ScalarFieldPlot:
     use_norm: bool = False
     threshold: tuple[float, float] | None = None
 
-
-@dataclass(frozen=True)
-class FieldPair:
-    name: str
-    left: ScalarFieldPlot
-    right: ScalarFieldPlot
-    height_scale: tuple[float, float] | None = None
-
-
 @dataclass(frozen=True)
 class TriangleSpec:
     slope: float
@@ -91,7 +82,6 @@ class PlotConfig:
     figure_format: str
     vtks_folder: Path
     errors_folder: Path
-    field_pairs: Sequence[FieldPair]
     methods: Sequence[tuple[str, dict]]
     material_params: Sequence[float]
     refinement_levels: Sequence[int]
@@ -581,7 +571,6 @@ def main() -> None:
         figure_format=args.formats,
         vtks_folder=vtks_path,
         errors_folder=errors_path,
-        field_pairs=[],
         methods=methods,
         material_params=args.materials,
         refinement_levels=args.levels,
