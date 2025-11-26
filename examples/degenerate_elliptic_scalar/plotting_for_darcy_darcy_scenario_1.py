@@ -526,10 +526,10 @@ def main() -> None:
     args.plot_normal = True
     methods = list(method_definition(k_order=0))
     scalar_fields = [
-        ScalarFieldPlot(name="p_h", title="Pressure (Computed)", clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
-        ScalarFieldPlot(name="p_e", title="Pressure (Exact)", clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
-        ScalarFieldPlot(name="u_h", title="Velocity norm (Computed)", use_norm=True, clim=(0.0, 270.0)),
-        ScalarFieldPlot(name="u_e", title="Velocity norm (Exact)", use_norm=True, clim=(0.0, 270.0)),
+        ScalarFieldPlot(name="p_h", title="Numeric pressure", clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
+        ScalarFieldPlot(name="p_e", title="Exact pressure", clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
+        ScalarFieldPlot(name="u_h", title="Numeric velocity norm", use_norm=True, clim=(0.0, 270.0)),
+        ScalarFieldPlot(name="u_e", title="Exact velocity norm", use_norm=True, clim=(0.0, 270.0)),
     ]
 
     field_lookup = {field.name: field for field in scalar_fields}
