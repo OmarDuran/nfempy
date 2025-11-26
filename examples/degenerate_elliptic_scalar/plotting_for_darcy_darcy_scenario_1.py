@@ -213,60 +213,6 @@ def plot_scalar_field(mesh: pyvista.DataSet, config: PlotConfig, field: ScalarFi
     plotter.close()
 
 
-def plot_field_pair(mesh: pyvista.DataSet, config: PlotConfig, pair: FieldPair, figure_path: Path) -> None:
-    pair_scale = pair.height_scale if pair.height_scale is not None else (config.height_scale, config.height_scale)
-    left_mesh, left_scalar_name = prepare_scalar_dataset(mesh, pair.left, pair_scale[0])
-    right_mesh, right_scalar_name = prepare_scalar_dataset(mesh, pair.right, pair_scale[1])
-
-    plotter = pyvista.Plotter(off_screen=True, window_size=config.field_resolution)
-    bar_width = normalized_color_bar_width(config)
-    left_bar = dict(
-        title=pair.left.title,
-        position_x=0.1,
-        position_y=0.15,
-        height=0.7,
-        width=bar_width,
-        vertical=True,
-        title_font_size=32,
-        label_font_size=32,
-    )
-    right_bar = dict(
-        title=pair.right.title,
-        position_x=0.9,
-        position_y=0.15,
-        height=0.7,
-        width=bar_width,
-        vertical=True,
-        title_font_size=32,
-        label_font_size=32,
-    )
-
-    plotter.add_mesh(
-        left_mesh,
-        scalars=left_scalar_name,
-        cmap=pair.left.cmap,
-        clim=pair.left.clim,
-        show_edges=False,
-        scalar_bar_args=left_bar,
-        copy_mesh=True,
-    )
-    plotter.add_mesh(
-        right_mesh,
-        scalars=right_scalar_name,
-        cmap=pair.right.cmap,
-        clim=pair.right.clim,
-        show_edges=False,
-        scalar_bar_args=right_bar,
-        copy_mesh=True,
-    )
-    plotter.enable_eye_dome_lighting()
-    plotter.view_isometric()
-    plotter.camera.azimuth = config.camera_azimuth
-    plotter.camera.elevation = config.camera_elevation
-    plotter.camera.zoom(config.camera_zoom)
-    plotter.screenshot(str(figure_path), window_size=config.field_resolution)
-    plotter.close()
-
 
 def load_error_table(path: Path) -> np.ndarray:
     if not path.exists():
