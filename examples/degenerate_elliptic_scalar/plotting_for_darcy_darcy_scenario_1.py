@@ -106,6 +106,10 @@ class PlotConfig:
     camera_zoom: float = 1.2
     field_resolution: tuple[int, int] = (1600, 900)
     color_bar_width: float = 1.0
+    color_bar_position_x: float = 0.35
+    color_bar_position_y: float = 0.08
+    color_bar_length: float = 0.3
+    color_bar_height: float = 0.08
 
 
 def normalized_color_bar_width(config: PlotConfig) -> float:
@@ -190,10 +194,10 @@ def plot_scalar_field(mesh: pyvista.DataSet, config: PlotConfig, field: ScalarFi
     bar_width = normalized_color_bar_width(config)
     scalar_bar = dict(
         title=field.title,
-        position_x=0.35,
-        position_y=0.08,
-        width=0.3,
-        height=0.08,
+        position_x=config.color_bar_position_x,
+        position_y=config.color_bar_position_y,
+        width=config.color_bar_length,
+        height=config.color_bar_height,
         vertical=False,
         title_font_size=28,
         label_font_size=24,
@@ -526,6 +530,30 @@ def parse_args() -> argparse.Namespace:
         default=0.02,
         help="Width of the scalar bar as a fraction of the render window",
     )
+    parser.add_argument(
+        "--color-bar-position-x",
+        type=float,
+        default=0.05,
+        help="Horizontal position of the colorbar (0.0 = left, 1.0 = right)",
+    )
+    parser.add_argument(
+        "--color-bar-position-y",
+        type=float,
+        default=0.93,
+        help="Vertical position of the colorbar (0.0 = bottom, 1.0 = top)",
+    )
+    parser.add_argument(
+        "--color-bar-length",
+        type=float,
+        default=0.4,
+        help="Length (width) of the horizontal colorbar as a fraction of window width",
+    )
+    parser.add_argument(
+        "--color-bar-height",
+        type=float,
+        default=0.08,
+        help="Height of the horizontal colorbar as a fraction of window height",
+    )
     parser.add_argument("--verbose", action="store_true", help="Enable verbose diagnostic output")
     return parser.parse_args()
 
@@ -564,6 +592,10 @@ def main() -> None:
         camera_zoom=args.camera_zoom,
         field_resolution=(int(args.field_resolution[0]), int(args.field_resolution[1])),
         color_bar_width=args.color_bar_width,
+        color_bar_position_x=args.color_bar_position_x,
+        color_bar_position_y=args.color_bar_position_y,
+        color_bar_length=args.color_bar_length,
+        color_bar_height=args.color_bar_height,
     )
 
     # Attach CLI-provided y-ranges if present (convert lists to tuples)
