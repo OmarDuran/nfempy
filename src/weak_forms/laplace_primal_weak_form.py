@@ -85,7 +85,7 @@ class LaplacePrimalWeakFormBCDirichlet(WeakForm):
 
         cell = p_data.cell
         dim = cell.dimension
-        points, weights = self.space.bc_quadrature[dim - 1]
+        points, weights = self.space.bc_quadrature[dim]
         x, jac, det_jac, inv_jac = p_space.bc_elements[iel].evaluate_mapping(points)
 
         # basis
