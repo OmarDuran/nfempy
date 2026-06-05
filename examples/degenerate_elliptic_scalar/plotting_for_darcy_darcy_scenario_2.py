@@ -599,9 +599,9 @@ def generate_convergence_plots(config: PlotConfig, table_kind: str) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Darcy degenerate plot generator")
-    parser.add_argument("--vtks", default="output_scenario_2", help="Folder containing VTK files")
-    parser.add_argument("--errors", default="output_scenario_2", help="Folder containing convergence tables")
-    parser.add_argument("--figures", default="figures_scenario_2", help="Destination folder for plots")
+    parser.add_argument("--vtks", default="examples/degenerate_elliptic_scalar/output_scenario_2", help="Folder containing VTK files")
+    parser.add_argument("--errors", default="examples/degenerate_elliptic_scalar/output_scenario_2", help="Folder containing convergence tables")
+    parser.add_argument("--figures", default="examples/degenerate_elliptic_scalar/figures_scenario_2", help="Destination folder for plots")
     parser.add_argument("--formats", default="png", help="Figure format")
     parser.add_argument("--materials", nargs="*", type=float, default=[2.0, 1.0, 0.25, 0.125])
     parser.add_argument("--levels", nargs="*", type=int, default=[6])
