@@ -296,10 +296,11 @@ def plot_loglog_convergence(
         )
 
     # Axis decoration & saving
-    ax.set_xlabel("h")
-    ax.set_ylabel("Error")
+    ax.set_xlabel("h", fontsize=20)
+    ax.set_ylabel("Error", fontsize=20)
+    ax.tick_params(axis='both', which='both', labelsize=20)
     ax.grid(True, which="both", linestyle="--", alpha=0.4)
-    ax.legend(loc="best", fontsize=10)
+    ax.legend(loc="best", fontsize=20)
     # Apply custom vertical axis range if requested
     if y_range is not None:
         try:
