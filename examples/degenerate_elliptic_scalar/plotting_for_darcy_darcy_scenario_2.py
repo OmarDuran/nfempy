@@ -175,7 +175,14 @@ def prepare_scalar_dataset(mesh: pyvista.DataSet, scalar: ScalarFieldPlot, heigh
 
 
 def prepare_scalar_dataset_2d(mesh: pyvista.DataSet, scalar: ScalarFieldPlot) -> tuple[pyvista.DataSet, str]:
-    """Like prepare_scalar_dataset but returns a flat dataset with no warp_by_scalar."""
+    """Like prepare_scalar_dataset but returns a flat dataset with no warp_by_scalar.
+
+    For vector/norm fields with no explicit threshold an automatic threshold is
+    derived from *scalar.clim* (or the data's finite range) so that NaN "no-data"
+    cells stored in the opposing sub-domain are stripped before rendering.
+    Without this, the second mesh added to the plotter covers the first with gray
+    NaN-colored cells in the region where the first field is actually defined.
+    """
     if scalar.name not in mesh.point_data:
         raise KeyError(f"Scalar '{scalar.name}' not found in mesh point data")
     values = mesh.point_data[scalar.name]
@@ -190,9 +197,22 @@ def prepare_scalar_dataset_2d(mesh: pyvista.DataSet, scalar: ScalarFieldPlot) ->
     plot_mesh = mesh.copy(deep=True)
     plot_mesh.point_data[quantity_name] = scalars
     result = plot_mesh
-    if scalar.threshold is not None:
+
+    # Resolve which threshold to use.
+    # For vector/norm fields that carry no explicit threshold, derive one from
+    # clim (or the finite data range) so NaN no-data cells are removed.
+    threshold_value = scalar.threshold
+    if threshold_value is None and (scalar.use_norm or is_vector):
+        if scalar.clim is not None:
+            threshold_value = scalar.clim
+        else:
+            finite_vals = scalars[np.isfinite(scalars)]
+            if len(finite_vals) > 0:
+                threshold_value = (float(np.min(finite_vals)), float(np.max(finite_vals)))
+
+    if threshold_value is not None:
         filtered_candidate = plot_mesh.threshold(
-            value=scalar.threshold,
+            value=threshold_value,
             scalars=quantity_name,
             preference="point",
         )
