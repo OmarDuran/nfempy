@@ -349,8 +349,8 @@ def material_data_definition(dim):
     elif dim == 2:
         case_0 = {"m_par": 2}
         case_1 = {"m_par": 4}
-        case_2 = {"m_par": 8}
-        case_3 = {"m_par": 16}
+        case_2 = {"m_par": 6}
+        case_3 = {"m_par": 8}
     else:
         raise ValueError("Only 1D and 2D settings are supported by this script.")
     cases = [case_0, case_1, case_2, case_3]

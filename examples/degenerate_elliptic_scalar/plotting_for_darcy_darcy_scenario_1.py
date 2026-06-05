@@ -435,7 +435,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--errors", default="examples/degenerate_elliptic_scalar/output_scenario_1", help="Folder containing convergence tables")
     parser.add_argument("--figures", default="examples/degenerate_elliptic_scalar/figures_scenario_1", help="Destination folder for plots")
     parser.add_argument("--formats", default="png", help="Figure format")
-    parser.add_argument("--materials", nargs="*", type=int, default=[2, 4, 8, 16])
+    parser.add_argument("--materials", nargs="*", type=int, default=[2, 4, 6, 8])
     parser.add_argument("--levels", nargs="*", type=int, default=[6])
     parser.add_argument("--domain", default="fitted")
     parser.add_argument("--dim", type=int, default=2)
