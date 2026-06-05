@@ -291,38 +291,33 @@ def plot_field_pair(mesh: pyvista.DataSet, config: PlotConfig, pair: FieldPair, 
 
 
 def plot_field_pair_2d(mesh: pyvista.DataSet, config: PlotConfig, pair: FieldPair, figure_path: Path) -> None:
-    """Plot a FieldPair as a pure 2D side-by-side colormap (no warp by scalar)."""
+    """Identical to plot_field_pair but renders a flat 2D colormap (no warp by scalar)."""
     left_mesh, left_scalar_name = prepare_scalar_dataset_2d(mesh, pair.left)
     right_mesh, right_scalar_name = prepare_scalar_dataset_2d(mesh, pair.right)
 
-    plotter = pyvista.Plotter(shape=(1, 2), off_screen=True, window_size=config.field_resolution)
+    plotter = pyvista.Plotter(off_screen=True, window_size=config.field_resolution)
     bar_width = normalized_color_bar_width(config)
     left_bar = dict(
         title=pair.left.title,
         position_x=0.1,
-        position_y=0.05,
-        width=0.8,
-        height=bar_width,
-        vertical=False,
-        title_font_size=28,
-        label_font_size=24,
-        n_labels=5,
-        fmt="%.2f",
+        position_y=0.15,
+        height=0.7,
+        width=bar_width,
+        vertical=True,
+        title_font_size=32,
+        label_font_size=32,
     )
     right_bar = dict(
         title=pair.right.title,
-        position_x=0.1,
-        position_y=0.05,
-        width=0.8,
-        height=bar_width,
-        vertical=False,
-        title_font_size=28,
-        label_font_size=24,
-        n_labels=5,
-        fmt="%.2f",
+        position_x=0.9,
+        position_y=0.15,
+        height=0.7,
+        width=bar_width,
+        vertical=True,
+        title_font_size=32,
+        label_font_size=32,
     )
 
-    plotter.subplot(0, 0)
     plotter.add_mesh(
         left_mesh,
         scalars=left_scalar_name,
@@ -332,10 +327,6 @@ def plot_field_pair_2d(mesh: pyvista.DataSet, config: PlotConfig, pair: FieldPai
         scalar_bar_args=left_bar,
         copy_mesh=True,
     )
-    plotter.view_xy()
-    plotter.camera.zoom(config.camera_zoom)
-
-    plotter.subplot(0, 1)
     plotter.add_mesh(
         right_mesh,
         scalars=right_scalar_name,
