@@ -174,6 +174,67 @@ def prepare_scalar_dataset(mesh: pyvista.DataSet, scalar: ScalarFieldPlot, heigh
     return warped, quantity_name
 
 
+def prepare_scalar_dataset_2d(mesh: pyvista.DataSet, scalar: ScalarFieldPlot) -> tuple[pyvista.DataSet, str]:
+    """Like prepare_scalar_dataset but returns a flat dataset with no warp_by_scalar."""
+    if scalar.name not in mesh.point_data:
+        raise KeyError(f"Scalar '{scalar.name}' not found in mesh point data")
+    values = mesh.point_data[scalar.name]
+    raw_values = np.asarray(values)
+    is_vector = raw_values.ndim == 2 and raw_values.shape[1] > 1
+    if scalar.use_norm or is_vector:
+        scalars = np.linalg.norm(raw_values, axis=1)
+    else:
+        scalars = raw_values.reshape(-1)
+
+    quantity_name = f"{scalar.name}_magnitude" if scalar.use_norm else scalar.name
+    plot_mesh = mesh.copy(deep=True)
+    plot_mesh.point_data[quantity_name] = scalars
+    result = plot_mesh
+    if scalar.threshold is not None:
+        filtered_candidate = plot_mesh.threshold(
+            value=scalar.threshold,
+            scalars=quantity_name,
+            preference="point",
+        )
+        if filtered_candidate.n_cells > 0:
+            result = filtered_candidate
+    return result, quantity_name
+
+
+def plot_scalar_field_2d(mesh: pyvista.DataSet, config: PlotConfig, field: ScalarFieldPlot, figure_path: Path) -> None:
+    """Plot a single scalar field as a pure 2D colormap (no warp by scalar)."""
+    field_mesh, scalar_name = prepare_scalar_dataset_2d(mesh, field)
+
+    plotter = pyvista.Plotter(off_screen=True, window_size=config.field_resolution)
+    bar_width = normalized_color_bar_width(config)
+    scalar_bar = dict(
+        title=field.title,
+        position_x=0.1,
+        position_y=0.05,
+        width=0.8,
+        height=bar_width,
+        vertical=False,
+        title_font_size=28,
+        label_font_size=24,
+        n_labels=5,
+        fmt="%.2f",
+    )
+
+    plotter.add_mesh(
+        field_mesh,
+        scalars=scalar_name,
+        cmap=field.cmap,
+        clim=field.clim,
+        show_edges=False,
+        scalar_bar_args=scalar_bar,
+        copy_mesh=True,
+    )
+    plotter.view_xy()
+    plotter.camera.zoom(config.camera_zoom)
+    plotter.screenshot(str(figure_path), window_size=config.field_resolution)
+    plotter.close()
+
+
 def plot_field_pair(mesh: pyvista.DataSet, config: PlotConfig, pair: FieldPair, figure_path: Path) -> None:
     pair_scale = pair.height_scale if pair.height_scale is not None else (config.height_scale, config.height_scale)
     left_mesh, left_scalar_name = prepare_scalar_dataset(mesh, pair.left, pair_scale[0])
@@ -225,6 +286,68 @@ def plot_field_pair(mesh: pyvista.DataSet, config: PlotConfig, pair: FieldPair, 
     plotter.camera.azimuth = config.camera_azimuth
     plotter.camera.elevation = config.camera_elevation
     plotter.camera.zoom(config.camera_zoom)
+    plotter.screenshot(str(figure_path), window_size=config.field_resolution)
+    plotter.close()
+
+
+def plot_field_pair_2d(mesh: pyvista.DataSet, config: PlotConfig, pair: FieldPair, figure_path: Path) -> None:
+    """Plot a FieldPair as a pure 2D side-by-side colormap (no warp by scalar)."""
+    left_mesh, left_scalar_name = prepare_scalar_dataset_2d(mesh, pair.left)
+    right_mesh, right_scalar_name = prepare_scalar_dataset_2d(mesh, pair.right)
+
+    plotter = pyvista.Plotter(shape=(1, 2), off_screen=True, window_size=config.field_resolution)
+    bar_width = normalized_color_bar_width(config)
+    left_bar = dict(
+        title=pair.left.title,
+        position_x=0.1,
+        position_y=0.05,
+        width=0.8,
+        height=bar_width,
+        vertical=False,
+        title_font_size=28,
+        label_font_size=24,
+        n_labels=5,
+        fmt="%.2f",
+    )
+    right_bar = dict(
+        title=pair.right.title,
+        position_x=0.1,
+        position_y=0.05,
+        width=0.8,
+        height=bar_width,
+        vertical=False,
+        title_font_size=28,
+        label_font_size=24,
+        n_labels=5,
+        fmt="%.2f",
+    )
+
+    plotter.subplot(0, 0)
+    plotter.add_mesh(
+        left_mesh,
+        scalars=left_scalar_name,
+        cmap=pair.left.cmap,
+        clim=pair.left.clim,
+        show_edges=False,
+        scalar_bar_args=left_bar,
+        copy_mesh=True,
+    )
+    plotter.view_xy()
+    plotter.camera.zoom(config.camera_zoom)
+
+    plotter.subplot(0, 1)
+    plotter.add_mesh(
+        right_mesh,
+        scalars=right_scalar_name,
+        cmap=pair.right.cmap,
+        clim=pair.right.clim,
+        show_edges=False,
+        scalar_bar_args=right_bar,
+        copy_mesh=True,
+    )
+    plotter.view_xy()
+    plotter.camera.zoom(config.camera_zoom)
+
     plotter.screenshot(str(figure_path), window_size=config.field_resolution)
     plotter.close()
 
@@ -400,6 +523,26 @@ def generate_field_plots(config: PlotConfig, verbose: bool = False) -> None:
             plot_field_pair(mesh, config, pair, config.figure_folder / figure_name)
 
 
+def generate_field_plots_2d(config: PlotConfig, verbose: bool = False) -> None:
+    """Generate pure-2D side-by-side colormap plots for each FieldPair (no warp by scalar)."""
+    ensure_folder(config.figure_folder)
+    for method, material, domain, dimension, level in iter_cases(config):
+        vtk_base = build_case_basename(method, dimension, domain, material, config.vtks_folder)
+        vtk_file = vtk_base.with_name(vtk_base.name + f"l_{level}_two_fields.vtk")
+        try:
+            mesh = load_mesh(vtk_file, verbose=verbose)
+        except FileNotFoundError:
+            print(f"Skipping missing VTK file (not found): {vtk_file}")
+            continue
+        except RuntimeError as e:
+            print(f"Skipping unreadable VTK file (read failure): {vtk_file} -> {e}")
+            continue
+        case_prefix = build_case_basename(method, dimension, domain, material, config.figure_folder)
+        for pair in config.field_pairs:
+            figure_name = f"{case_prefix.name}l_{level}_{pair.name}_pair_2d.{config.figure_format}"
+            plot_field_pair_2d(mesh, config, pair, config.figure_folder / figure_name)
+
+
 def generate_convergence_plots(config: PlotConfig, table_kind: str) -> None:
     """Generate convergence plots. This function will read convergence tables and call plot_loglog_convergence.
 
@@ -446,15 +589,16 @@ def generate_convergence_plots(config: PlotConfig, table_kind: str) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Darcy degenerate plot generator")
-    parser.add_argument("--vtks", default="examples/degenerate_elliptic_scalar/output_scenario_2", help="Folder containing VTK files")
-    parser.add_argument("--errors", default="examples/degenerate_elliptic_scalar/output_scenario_2", help="Folder containing convergence tables")
-    parser.add_argument("--figures", default="examples/degenerate_elliptic_scalar/figures_scenario_2", help="Destination folder for plots")
+    parser.add_argument("--vtks", default="output_scenario_2", help="Folder containing VTK files")
+    parser.add_argument("--errors", default="output_scenario_2", help="Folder containing convergence tables")
+    parser.add_argument("--figures", default="figures_scenario_2", help="Destination folder for plots")
     parser.add_argument("--formats", default="png", help="Figure format")
     parser.add_argument("--materials", nargs="*", type=float, default=[2.0, 1.0, 0.25, 0.125])
     parser.add_argument("--levels", nargs="*", type=int, default=[6])
     parser.add_argument("--domain", default="fitted")
     parser.add_argument("--dim", type=int, default=2)
     parser.add_argument("--plot-fields", action="store_true")
+    parser.add_argument("--plot-fields-2d", action="store_true")
     parser.add_argument("--plot-normal", action="store_true")
     parser.add_argument("--plot-enhanced", action="store_true")
     parser.add_argument(
@@ -497,6 +641,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     args.plot_fields = True
+    args.plot_fields_2d = True
     args.plot_normal = True
     args.plot_enhanced = True
     methods = list(method_definition(k_order=0))
@@ -552,6 +697,8 @@ def main() -> None:
 
     if args.plot_fields:
         generate_field_plots(config, verbose=args.verbose)
+    if args.plot_fields_2d:
+        generate_field_plots_2d(config, verbose=args.verbose)
     if args.plot_normal:
         generate_convergence_plots(config, "normal")
     if args.plot_enhanced:

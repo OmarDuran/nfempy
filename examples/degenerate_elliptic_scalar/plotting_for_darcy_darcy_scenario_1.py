@@ -168,6 +168,33 @@ def prepare_scalar_dataset(mesh: pyvista.DataSet, scalar: ScalarFieldPlot, heigh
     return warped, quantity_name
 
 
+def prepare_scalar_dataset_2d(mesh: pyvista.DataSet, scalar: ScalarFieldPlot) -> tuple[pyvista.DataSet, str]:
+    """Like prepare_scalar_dataset but returns a flat dataset with no warp_by_scalar."""
+    if scalar.name not in mesh.point_data:
+        raise KeyError(f"Scalar '{scalar.name}' not found in mesh point data")
+    values = mesh.point_data[scalar.name]
+    raw_values = np.asarray(values)
+    is_vector = raw_values.ndim == 2 and raw_values.shape[1] > 1
+    if scalar.use_norm or is_vector:
+        scalars = np.linalg.norm(raw_values, axis=1)
+    else:
+        scalars = raw_values.reshape(-1)
+
+    quantity_name = f"{scalar.name}_magnitude" if scalar.use_norm else scalar.name
+    plot_mesh = mesh.copy(deep=True)
+    plot_mesh.point_data[quantity_name] = scalars
+    result = plot_mesh
+    if scalar.threshold is not None:
+        filtered_candidate = plot_mesh.threshold(
+            value=scalar.threshold,
+            scalars=quantity_name,
+            preference="point",
+        )
+        if filtered_candidate.n_cells > 0:
+            result = filtered_candidate
+    return result, quantity_name
+
+
 def plot_scalar_field(mesh: pyvista.DataSet, config: PlotConfig, field: ScalarFieldPlot, figure_path: Path) -> None:
     """Plot a single scalar field."""
     # Determine height scale based on field type
@@ -212,6 +239,38 @@ def plot_scalar_field(mesh: pyvista.DataSet, config: PlotConfig, field: ScalarFi
     plotter.screenshot(str(figure_path), window_size=config.field_resolution)
     plotter.close()
 
+
+def plot_scalar_field_2d(mesh: pyvista.DataSet, config: PlotConfig, field: ScalarFieldPlot, figure_path: Path) -> None:
+    """Plot a single scalar field as a pure 2D colormap (no warp by scalar)."""
+    field_mesh, scalar_name = prepare_scalar_dataset_2d(mesh, field)
+
+    plotter = pyvista.Plotter(off_screen=True, window_size=config.field_resolution)
+    scalar_bar = dict(
+        title=field.title,
+        position_x=config.color_bar_position_x,
+        position_y=config.color_bar_position_y,
+        width=config.color_bar_length,
+        height=config.color_bar_height,
+        vertical=False,
+        title_font_size=28,
+        label_font_size=24,
+        n_labels=5,
+        fmt="%.2f",
+    )
+
+    plotter.add_mesh(
+        field_mesh,
+        scalars=scalar_name,
+        cmap=field.cmap,
+        clim=field.clim,
+        show_edges=False,
+        scalar_bar_args=scalar_bar,
+        copy_mesh=True,
+    )
+    plotter.view_xy()
+    plotter.camera.zoom(config.camera_zoom)
+    plotter.screenshot(str(figure_path), window_size=config.field_resolution)
+    plotter.close()
 
 
 def load_error_table(path: Path) -> np.ndarray:
@@ -390,6 +449,30 @@ def generate_field_plots(config: PlotConfig, scalar_fields: Sequence[ScalarField
                 continue
 
 
+def generate_field_plots_2d(config: PlotConfig, scalar_fields: Sequence[ScalarFieldPlot], verbose: bool = False) -> None:
+    """Generate individual pure-2D colormap plots for each scalar field (no warp by scalar)."""
+    ensure_folder(config.figure_folder)
+    for method, material, domain, dimension, level in iter_cases(config):
+        vtk_base = build_case_basename(method, dimension, domain, material, config.vtks_folder)
+        vtk_file = vtk_base.with_name(vtk_base.name + f"l_{level}_two_fields.vtk")
+        try:
+            mesh = load_mesh(vtk_file, verbose=verbose)
+        except FileNotFoundError:
+            print(f"Skipping missing VTK file (not found): {vtk_file}")
+            continue
+        except RuntimeError as e:
+            print(f"Skipping unreadable VTK file (read failure): {vtk_file} -> {e}")
+            continue
+        case_prefix = build_case_basename(method, dimension, domain, material, config.figure_folder)
+        for field in scalar_fields:
+            figure_name = f"{case_prefix.name}l_{level}_{field.name}_2d.{config.figure_format}"
+            try:
+                plot_scalar_field_2d(mesh, config, field, config.figure_folder / figure_name)
+            except KeyError as e:
+                print(f"Skipping field {field.name} (not found in mesh): {e}")
+                continue
+
+
 def generate_convergence_plots(config: PlotConfig, table_kind: str) -> None:
     """Generate convergence plots. This function will read convergence tables and call plot_loglog_convergence.
 
@@ -441,6 +524,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--domain", default="fitted")
     parser.add_argument("--dim", type=int, default=2)
     parser.add_argument("--plot-fields", action="store_true")
+    parser.add_argument("--plot-fields-2d", action="store_true")
     parser.add_argument("--plot-normal", action="store_true")
     parser.add_argument(
         "--y-range-normal",
@@ -498,6 +582,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     args.plot_fields = True
+    args.plot_fields_2d = True
     args.plot_normal = True
     methods = list(method_definition(k_order=0))
     scalar_fields = [
@@ -540,6 +625,8 @@ def main() -> None:
 
     if args.plot_fields:
         generate_field_plots(config, scalar_fields, verbose=args.verbose)
+    if args.plot_fields_2d:
+        generate_field_plots_2d(config, scalar_fields, verbose=args.verbose)
     if args.plot_normal:
         generate_convergence_plots(config, "normal")
 
