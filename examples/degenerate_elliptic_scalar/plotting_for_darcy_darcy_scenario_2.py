@@ -316,26 +316,25 @@ def plot_field_pair_2d(mesh: pyvista.DataSet, config: PlotConfig, pair: FieldPai
     right_mesh, right_scalar_name = prepare_scalar_dataset_2d(mesh, pair.right)
 
     plotter = pyvista.Plotter(off_screen=True, window_size=config.field_resolution)
-    bar_width = normalized_color_bar_width(config)
     left_bar = dict(
         title=pair.left.title,
         position_x=0.1,
-        position_y=0.15,
-        height=0.7,
-        width=bar_width,
-        vertical=True,
+        position_y=0.02,
+        width=0.8,
+        height=0.04,
+        vertical=False,
         title_font_size=32,
-        label_font_size=32,
+        label_font_size=28,
     )
     right_bar = dict(
         title=pair.right.title,
-        position_x=0.9,
-        position_y=0.15,
-        height=0.7,
-        width=bar_width,
-        vertical=True,
+        position_x=0.1,
+        position_y=0.94,
+        width=0.8,
+        height=0.04,
+        vertical=False,
         title_font_size=32,
-        label_font_size=32,
+        label_font_size=28,
     )
 
     plotter.add_mesh(
@@ -657,14 +656,14 @@ def main() -> None:
     args.plot_enhanced = True
     methods = list(method_definition(k_order=0))
     scalar_fields = [
-        ScalarFieldPlot(name="p_h", title="Pressure", clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
-        ScalarFieldPlot(name="p_e", title="Pressure", clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
-        ScalarFieldPlot(name="q_h", title="Scaled pressure", clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
-        ScalarFieldPlot(name="q_e", title="Scaled pressure", clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
-        ScalarFieldPlot(name="u_h", title="Velocity norm", use_norm=True, clim=(0.0, 270.0)),
-        ScalarFieldPlot(name="u_e", title="Velocity norm", use_norm=True, clim=(0.0, 270.0)),
-        ScalarFieldPlot(name="v_h", title="Scaled velocity norm", use_norm=True, clim=(0.0, 4.0)),
-        ScalarFieldPlot(name="v_e", title="Scaled velocity norm", use_norm=True, clim=(0.0, 4.0)),
+        ScalarFieldPlot(name="p_h", title="Pressure",               cmap="RdBu_r",  clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
+        ScalarFieldPlot(name="p_e", title="Pressure",               cmap="RdBu_r",  clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
+        ScalarFieldPlot(name="q_h", title="Scaled pressure",        cmap="RdBu_r",  clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
+        ScalarFieldPlot(name="q_e", title="Scaled pressure",        cmap="RdBu_r",  clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
+        ScalarFieldPlot(name="u_h", title="Velocity norm",          cmap="plasma",  use_norm=True, clim=(0.0, 270.0)),
+        ScalarFieldPlot(name="u_e", title="Velocity norm",          cmap="plasma",  use_norm=True, clim=(0.0, 270.0)),
+        ScalarFieldPlot(name="v_h", title="Scaled velocity norm",   cmap="plasma",  use_norm=True, clim=(0.0, 4.0)),
+        ScalarFieldPlot(name="v_e", title="Scaled velocity norm",   cmap="plasma",  use_norm=True, clim=(0.0, 4.0)),
     ]
 
     field_lookup = {field.name: field for field in scalar_fields}
