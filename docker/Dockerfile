@@ -43,7 +43,7 @@ RUN python -m pip install .
 
 WORKDIR /app/nfempy
 WORKDIR /app/nfempy
-RUN grep -Ev "^(gmsh|mkl|mkl-service|pypardiso)" requirements.txt | python -m pip install --upgrade -r /dev/stdin
+RUN python -m pip install --upgrade -r requirements.txt
 RUN python -m pip install --user -e .
 RUN python -m pytest
 

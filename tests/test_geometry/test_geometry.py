@@ -7,7 +7,7 @@ from topology.domain_market import (
     build_box_2D,
 )
 from topology.domain_market import build_box_2D_with_lines
-from topology.shape_manipulation import ShapeManipulation
+from topology.shape_manipulation import embed_vertex_in_edge
 
 from mesh.conformal_mesher import ConformalMesher
 
@@ -70,7 +70,7 @@ def test_domain_1d_vertex_in_edge():
         vertex.physical_tag = physical_tag
 
     # embed_vertex_in_edge will filter points not in the line
-    vertices = ShapeManipulation.embed_vertex_in_edge(
+    vertices = embed_vertex_in_edge(
         vertices, edge_0, tag_shift=max_edge_tag
     )
     domain.append_shapes(vertices)

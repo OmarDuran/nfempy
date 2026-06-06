@@ -56,7 +56,7 @@ def __mesh_md_domain(md_domain):
     h_val = 0.1
     domain_h = DiscreteDomain(dimension=md_domain.dimension)
     domain_h.domain = md_domain
-    domain_h.generate_mesh(h_val, 0)
+    domain_h.generate_mesh({"lc": h_val, "n_refinements": 0})
     domain_h.write_mesh("gmesh.msh")
 
     # Mesh representation

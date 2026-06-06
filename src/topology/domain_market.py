@@ -5,7 +5,7 @@ import numpy as np
 from topology.domain import Domain
 from topology.edge import Edge
 from topology.face import Face
-from topology.shape_manipulation import embed_edge_in_face
+from topology.shape_manipulation import embed_edge_in_face, intersect_edges
 from topology.shell import Shell
 from topology.solid import Solid
 from topology.vertex import Vertex
