@@ -11,6 +11,10 @@ from matplotlib.patches import Polygon
 import numpy as np
 import pyvista
 import seaborn as sns
+from vtkmodules.vtkCommonCore import vtkObject
+
+# Suppress VTK OpenGL colour-buffer warnings (macOS off_screen rendering)
+vtkObject.GlobalWarningDisplayOff()
 
 from darcy_elliptic_degenerate_scenario_2 import (
     compose_case_name,
@@ -491,7 +495,7 @@ def resolve_cli_path(path_str: str, allow_missing: bool = False) -> Path:
             return cand.resolve()
 
     if allow_missing:
-        return (REPO_ROOT / raw).resolve()
+        return (SCRIPT_DIR / raw).resolve()
 
     raise FileNotFoundError(
         f"Could not resolve '{path_str}'. Tried cwd, repository root, and script-relative locations."
