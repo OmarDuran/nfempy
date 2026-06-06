@@ -56,6 +56,7 @@ from __future__ import annotations
 import argparse
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -92,22 +93,46 @@ def _fail(msg: str) -> None:
     print(f"  [FAIL] {msg}", file=sys.stderr)
 
 
+_STDERR_NOISE = (
+    "Context leak detected, CoreAnalytics returned false",
+    "vtkCocoaRenderWindow",
+    "vtkOpenGLRenderWindow",
+    "Failed to get red color buffer",
+    "Failed to get green color buffer",
+    "Failed to get blue color buffer",
+    "Failed to get alpha color buffer",
+)
+
+
+def _relay_stderr(stream) -> None:
+    """Read *stream* line-by-line and forward to stderr, skipping known noise."""
+    for raw in stream:
+        line = raw.decode(errors="replace")
+        if not any(noise in line for noise in _STDERR_NOISE):
+            sys.stderr.write(line)
+            sys.stderr.flush()
+
+
 def run_script(script_name: str, extra_args: list[str] | None = None) -> bool:
     """Run *script_name* as a subprocess inside SCRIPT_DIR.
 
     Returns True on success, False on non-zero exit code.
-    stdout / stderr are streamed live to the terminal.
+    stdout is streamed live; stderr is forwarded with macOS/VTK noise filtered out.
     """
     cmd = [sys.executable, script_name] + (extra_args or [])
     print(f"  $ {' '.join(cmd)}")
     t0 = time.perf_counter()
-    result = subprocess.run(cmd, cwd=SCRIPT_DIR)
+    proc = subprocess.Popen(cmd, cwd=SCRIPT_DIR, stderr=subprocess.PIPE)
+    t = threading.Thread(target=_relay_stderr, args=(proc.stderr,), daemon=True)
+    t.start()
+    proc.wait()
+    t.join()
     elapsed = time.perf_counter() - t0
-    if result.returncode == 0:
+    if proc.returncode == 0:
         _ok(f"{script_name} finished in {elapsed:.1f}s")
         return True
     else:
-        _fail(f"{script_name} exited with code {result.returncode} after {elapsed:.1f}s")
+        _fail(f"{script_name} exited with code {proc.returncode} after {elapsed:.1f}s")
         return False
 
 
