@@ -4,6 +4,7 @@ networkx
 meshio
 gmsh
 scipy
+mpmath
 pyvista
 black
 pytest
