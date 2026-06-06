@@ -18,9 +18,9 @@ RUN apt-get install -yq texlive dvipng texlive-fonts-recommended texlive-fonts-e
 ARG CONDA_VER
 ARG OS_TYPE
 # Install miniconda to /miniconda
-RUN curl -LO "http://repo.continuum.io/miniconda/Miniconda3-${CONDA_VER}-Linux-${OS_TYPE}.sh"
-RUN bash Miniconda3-${CONDA_VER}-Linux-${OS_TYPE}.sh -b
-RUN rm Miniconda3-${CONDA_VER}-Linux-${OS_TYPE}.sh
+RUN curl -LO "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-${OS_TYPE}.sh"
+RUN bash Miniforge3-Linux-${OS_TYPE}.sh -b -p /miniconda
+RUN rm Miniforge3-Linux-${OS_TYPE}.sh
 ENV PATH=/miniconda/bin:${PATH}
 RUN conda update -y conda
 RUN conda config --add channels conda-forge
@@ -30,7 +30,7 @@ RUN conda update -n base -c conda-forge conda -y
 ARG PY_VER
 # Install packages from conda-forge and downgrade py (optional).
 RUN conda install -c conda-forge -y python=${PY_VER}
-RUN conda install -c conda-forge -y petsc4py 
+RUN conda install -c conda-forge -y petsc4py gmsh
 
 RUN git clone https://github.com/OmarDuran/nfempy.git
 RUN git clone https://github.com/PTNobel/AutoDiff.git
@@ -42,7 +42,8 @@ WORKDIR /app/AutoDiff
 RUN python -m pip install .
 
 WORKDIR /app/nfempy
-RUN python -m pip install --upgrade -r requirements.txt
+WORKDIR /app/nfempy
+RUN grep -Ev "^(gmsh|mkl|mkl-service|pypardiso)" requirements.txt | python -m pip install --upgrade -r /dev/stdin
 RUN python -m pip install --user -e .
 RUN python -m pytest
 
