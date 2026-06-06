@@ -30,7 +30,7 @@ RUN conda update -n base -c conda-forge conda -y
 ARG PY_VER
 # Install packages from conda-forge and downgrade py (optional).
 RUN conda install -c conda-forge -y python=${PY_VER}
-RUN conda install -c conda-forge -y petsc4py gmsh
+RUN conda install -c conda-forge -y petsc4py python-gmsh
 
 RUN git clone https://github.com/OmarDuran/nfempy.git
 RUN git clone https://github.com/PTNobel/AutoDiff.git
@@ -43,7 +43,8 @@ RUN python -m pip install .
 
 WORKDIR /app/nfempy
 WORKDIR /app/nfempy
-RUN python -m pip install --upgrade -r requirements.txt
+RUN grep -Ev "^(gmsh|mkl|mkl-service|pypardiso)" requirements.txt | python -m pip install --upgrade -r /dev/stdin
+
 RUN python -m pip install --user -e .
 RUN python -m pytest
 
