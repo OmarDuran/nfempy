@@ -646,8 +646,8 @@ class Mesh:
             raise ValueError("Dimension not available: ", dimension)
 
         for id in mesh_cell_list:
-            b_mesh_cell_index = mesh_cell.id
-            e_mesh_cell_index = self.cells[id].id
+            b_mesh_cell_index = (mesh_cell.dimension, mesh_cell.id)
+            e_mesh_cell_index = (self.cells[id].dimension, self.cells[id].id)
             tuple_id_list.append((b_mesh_cell_index, e_mesh_cell_index))
             if self.cells[id].dimension != dimension:
                 self.gather_graph_edges(dimension, self.cells[id], tuple_id_list)
@@ -767,7 +767,7 @@ class Mesh:
             # edges duplication
             neighs_by_face = []
             for edge_id in f_cell_ids:
-                neighs_by_face = neighs_by_face + list(gd2c1.predecessors(edge_id))
+                neighs_by_face = neighs_by_face + [node[1] for node in gd2c1.predecessors((1, edge_id))]
             cells_n = []
             cells_p = []
             for neigh_id in neighs_by_face:
@@ -836,8 +836,8 @@ class Mesh:
 
             neighs_by_vertex = []
             for vertex in vertices:
-                neighs_by_vertex = neighs_by_vertex + list(gd2c2.predecessors(vertex))
-                neighs_by_vertex = neighs_by_vertex + list(gd1c1.predecessors(vertex))
+                neighs_by_vertex = neighs_by_vertex + [node[1] for node in gd2c2.predecessors((0, vertex))]
+                neighs_by_vertex = neighs_by_vertex + [node[1] for node in gd1c1.predecessors((0, vertex))]
             neighs_by_vertex = [
                 neigh_id for neigh_id in neighs_by_vertex if neigh_id not in f_cell_ids
             ]
@@ -1019,7 +1019,7 @@ class Mesh:
 
             neighs_by_face = []
             for edge_id in f_cell_ids:
-                neighs_by_face = neighs_by_face + list(gd2c1.predecessors(edge_id))
+                neighs_by_face = neighs_by_face + [node[1] for node in gd2c1.predecessors((1, edge_id))]
 
             # edges duplication
             cells_n = []
@@ -1083,8 +1083,8 @@ class Mesh:
 
             neighs_by_vertex = []
             for vertex in vertices:
-                neighs_by_vertex = neighs_by_vertex + list(gd2c2.predecessors(vertex))
-                neighs_by_vertex = neighs_by_vertex + list(gd1c1.predecessors(vertex))
+                neighs_by_vertex = neighs_by_vertex + [node[1] for node in gd2c2.predecessors((0, vertex))]
+                neighs_by_vertex = neighs_by_vertex + [node[1] for node in gd1c1.predecessors((0, vertex))]
             neighs_by_vertex = [
                 neigh_id for neigh_id in neighs_by_vertex if neigh_id not in f_cell_ids
             ]
@@ -1195,9 +1195,9 @@ class Mesh:
             for cell_0d in cells_0d:
                 duplicated_ids = {}
 
-                if gd2c2.has_node(cell_0d.id):
-                    cells_1d_ids = list(gd1c1.predecessors(cell_0d.id))
-                    cells_2d_ids = list(gd2c2.predecessors(cell_0d.id))
+                if gd2c2.has_node((0, cell_0d.id)):
+                    cells_1d_ids = [node[1] for node in gd1c1.predecessors((0, cell_0d.id))]
+                    cells_2d_ids = [node[1] for node in gd2c2.predecessors((0, cell_0d.id))]
                 else:
                     continue
 
@@ -1298,7 +1298,7 @@ class Mesh:
             # cutting edge conformity
 
             for cell_1d in f_cells:
-                cells_2d_ids = list(gd2c1.predecessors(cell_1d.id))
+                cells_2d_ids = [node[1] for node in gd2c1.predecessors((1, cell_1d.id))]
 
                 # create new edge support
 
@@ -1442,10 +1442,10 @@ class Mesh:
     def next_d_m_1(self, seed_id, cell_id, cell_m_1_id, graph, closed_q):
         fracture_tags = self.conformal_mesher.fracture_network.fracture_tags
         pc = list(graph.predecessors(cell_m_1_id))
-        neighs = [id for id in pc if self.cells[id].material_id not in fracture_tags]
+        neighs = [idx for idx in pc if self.cells[idx[1]].material_id not in fracture_tags]
         assert len(neighs) == 2
 
-        fcell_ids = [id for id in neighs if id != cell_id]
+        fcell_ids = [idx for idx in neighs if idx != cell_id]
         assert len(fcell_ids) == 1
 
         sc = list(graph.successors(fcell_ids[0]))
@@ -1480,10 +1480,10 @@ class Mesh:
         ]
 
         graph = self.build_graph_on_materials(1, 1)
-        seed_id = f_vertices[0]
+        seed_id = (self.cells[f_vertices[0]].dimension, f_vertices[0])
         cells_1d = list(graph.predecessors(seed_id))
         skin_cell_ids = [
-            id for id in cells_1d if self.cells[id].material_id not in fracture_tags
+            idx for idx in cells_1d if self.cells[idx[1]].material_id not in fracture_tags
         ]
 
         id = seed_id
@@ -1495,10 +1495,10 @@ class Mesh:
         self, fracture_tags, seed_id, cell_id, cell_m_1_id, graph, closed_q
     ):
         pc = list(graph.predecessors(cell_m_1_id))
-        neighs = [id for id in pc if self.cells[id].material_id not in fracture_tags]
+        neighs = [idx for idx in pc if self.cells[idx[1]].material_id not in fracture_tags]
         assert len(neighs) == 2
 
-        fcell_ids = [id for id in neighs if id != cell_id]
+        fcell_ids = [idx for idx in neighs if idx != cell_id]
         assert len(fcell_ids) == 1
 
         sc = list(graph.successors(fcell_ids[0]))
@@ -1549,10 +1549,10 @@ class Mesh:
         ]
 
         graph = self.build_graph_on_materials(1, 1)
-        seed_id = f_vertices[0]
+        seed_id = (self.cells[f_vertices[0]].dimension, f_vertices[0])
         cells_1d = list(graph.predecessors(seed_id))
         skin_cell_ids = [
-            id for id in cells_1d if self.cells[id].material_id not in fracture_tags
+            idx for idx in cells_1d if self.cells[idx[1]].material_id not in fracture_tags
         ]
 
         id = seed_id
