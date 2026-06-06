@@ -646,8 +646,8 @@ class Mesh:
             raise ValueError("Dimension not available: ", dimension)
 
         for id in mesh_cell_list:
-            b_mesh_cell_index = mesh_cell.index()
-            e_mesh_cell_index = self.cells[id].index()
+            b_mesh_cell_index = mesh_cell.id
+            e_mesh_cell_index = self.cells[id].id
             tuple_id_list.append((b_mesh_cell_index, e_mesh_cell_index))
             if self.cells[id].dimension != dimension:
                 self.gather_graph_edges(dimension, self.cells[id], tuple_id_list)
@@ -685,6 +685,22 @@ class Mesh:
             raise ValueError("Provide cell_ids as a np.ndarray.")
         disjoint_cells = [
             cell_i for cell_i in self.cells[cell_ids] if cell_i.dimension == dimension
+        ]
+
+        tuple_id_list = []
+        for cell_i in disjoint_cells:
+            self.gather_graph_edges(dimension - co_dimension, cell_i, tuple_id_list)
+
+        graph = nx.from_edgelist(tuple_id_list, create_using=nx.DiGraph)
+        return graph
+
+    def build_graph_on_materials(self, dimension, co_dimension):
+        disjoint_cells = [
+            cell_i
+            for cell_i in self.cells
+            if cell_i.dimension == dimension
+            and cell_i.id is not None
+            and cell_i.material_id is not None
         ]
 
         tuple_id_list = []

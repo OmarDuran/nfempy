@@ -1,6 +1,7 @@
 import pytest
 import numpy as np
 from geometry.geometry_builder import GeometryBuilder
+import geometry.fracture_network as fn
 from mesh.conformal_mesher import ConformalMesher
 from mesh.mesh import Mesh
 

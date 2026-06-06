@@ -109,13 +109,16 @@ def test_scalar_h1_projector(k_order):
                 "s": v_disc_Q,
             }
 
+            discrete_spaces_physical_tags = {
+                "s": [],
+            }
             discrete_spaces_bc_physical_tags = {
                 "s": [],
             }
 
             space = ProductSpace(discrete_spaces_data)
             space.make_subspaces_discontinuous(discrete_spaces_disc)
-            space.build_structures(discrete_spaces_bc_physical_tags)
+            space.build_structures(discrete_spaces_physical_tags, discrete_spaces_bc_physical_tags)
 
             alpha = l2_projector(space, exact_functions)
             error_val = l2_error(dim, space, exact_functions, alpha)
@@ -151,13 +154,16 @@ def test_vector_hdiv_projector(k_order):
                     "v": v_disc_Q,
                 }
 
+                discrete_spaces_physical_tags = {
+                    "v": [],
+                }
                 discrete_spaces_bc_physical_tags = {
                     "v": [],
                 }
 
                 space = ProductSpace(discrete_spaces_data)
                 space.make_subspaces_discontinuous(discrete_spaces_disc)
-                space.build_structures(discrete_spaces_bc_physical_tags)
+                space.build_structures(discrete_spaces_physical_tags, discrete_spaces_bc_physical_tags)
 
                 alpha = l2_projector(space, exact_functions)
                 error_val = l2_error(dim, space, exact_functions, alpha)
@@ -193,13 +199,16 @@ def test_vector_hcurl_projector(k_order):
                     "v": v_disc_Q,
                 }
 
+                discrete_spaces_physical_tags = {
+                    "v": [],
+                }
                 discrete_spaces_bc_physical_tags = {
                     "v": [],
                 }
 
                 space = ProductSpace(discrete_spaces_data)
                 space.make_subspaces_discontinuous(discrete_spaces_disc)
-                space.build_structures(discrete_spaces_bc_physical_tags)
+                space.build_structures(discrete_spaces_physical_tags, discrete_spaces_bc_physical_tags)
 
                 alpha = l2_projector(space, exact_functions)
                 error_val = l2_error(dim, space, exact_functions, alpha)
