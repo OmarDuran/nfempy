@@ -67,9 +67,10 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 
 # ---------------------------------------------------------------------------
-# Detect uv
+# Detect uv and xvfb-run
 # ---------------------------------------------------------------------------
 _UV_PATH: str | None = shutil.which("uv")
+_XVFB_PATH: str | None = shutil.which("xvfb-run")
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -119,11 +120,19 @@ def _relay_stderr(stream) -> None:
             sys.stderr.flush()
 
 
-def run_script(script_name: str, extra_args: list[str] | None = None) -> bool:
+def run_script(
+    script_name: str,
+    extra_args: list[str] | None = None,
+    use_xvfb: bool = False,
+) -> bool:
     """Run *script_name* as a subprocess inside SCRIPT_DIR.
 
     Uses ``uv run <script>`` when *uv* is available on PATH; otherwise falls
     back to the current Python interpreter (``sys.executable``).
+
+    When *use_xvfb* is True **and** ``xvfb-run`` is found on PATH, the command
+    is wrapped with ``xvfb-run --auto-servernum`` so that off-screen VTK
+    rendering works without a display.
 
     Returns True on success, False on non-zero exit code.
     stdout is streamed live; stderr is forwarded with macOS/VTK noise filtered out.
@@ -132,6 +141,10 @@ def run_script(script_name: str, extra_args: list[str] | None = None) -> bool:
         cmd = [_UV_PATH, "run", script_name] + (extra_args or [])
     else:
         cmd = [sys.executable, script_name] + (extra_args or [])
+
+    if use_xvfb and _XVFB_PATH:
+        cmd = [_XVFB_PATH, "--auto-servernum"] + cmd
+
     print(f"  $ {' '.join(cmd)}")
     t0 = time.perf_counter()
     proc = subprocess.Popen(cmd, cwd=SCRIPT_DIR, stderr=subprocess.PIPE)
@@ -198,6 +211,7 @@ def run_plots() -> bool:
             "--color-bar-width", "0.04",
             "--camera-zoom", "1.1",
         ],
+        use_xvfb=True,
     )
     if ok1:
         ok1 = check_folder("figures_scenario_1")
@@ -218,6 +232,7 @@ def run_plots() -> bool:
             "--color-bar-width", "0.04",
             "--camera-zoom", "1.1",
         ],
+        use_xvfb=True,
     )
     if ok2:
         ok2 = check_folder("figures_scenario_2")
@@ -267,6 +282,10 @@ def main() -> None:
             f"  Runner            : sys.executable  "
             f"(install 'uv' for faster dependency resolution)"
         )
+    if _XVFB_PATH:
+        print(f"  xvfb-run          : {_XVFB_PATH}  ← plotting wrapped with xvfb-run --auto-servernum")
+    else:
+        print("  xvfb-run          : not found  (plotting runs without virtual display)")
 
     success = True
 
