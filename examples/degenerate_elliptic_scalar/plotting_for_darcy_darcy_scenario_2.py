@@ -1,19 +1,5 @@
 from __future__ import annotations
 
-import os
-import sys
-
-# Force headless state before any plotting libraries load
-os.environ["PYVISTA_OFF_SCREEN"] = "True"
-os.environ["VTK_DISABLE_RENDER_WINDOW_INITIALIZATION"] = "1"
-
-# If you use PyVista explicitly:
-try:
-    import pyvista as pv
-    pv.OFF_SCREEN = True
-except ImportError:
-    pass
-
 import argparse
 from dataclasses import dataclass
 from pathlib import Path

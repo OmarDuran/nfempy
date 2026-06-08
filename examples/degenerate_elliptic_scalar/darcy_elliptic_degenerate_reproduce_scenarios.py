@@ -54,6 +54,7 @@ Notes
 from __future__ import annotations
 
 import argparse
+import shutil
 import subprocess
 import sys
 import threading
@@ -64,6 +65,11 @@ from pathlib import Path
 # Paths
 # ---------------------------------------------------------------------------
 SCRIPT_DIR = Path(__file__).resolve().parent
+
+# ---------------------------------------------------------------------------
+# Detect uv
+# ---------------------------------------------------------------------------
+_UV_PATH: str | None = shutil.which("uv")
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -116,10 +122,16 @@ def _relay_stderr(stream) -> None:
 def run_script(script_name: str, extra_args: list[str] | None = None) -> bool:
     """Run *script_name* as a subprocess inside SCRIPT_DIR.
 
+    Uses ``uv run <script>`` when *uv* is available on PATH; otherwise falls
+    back to the current Python interpreter (``sys.executable``).
+
     Returns True on success, False on non-zero exit code.
     stdout is streamed live; stderr is forwarded with macOS/VTK noise filtered out.
     """
-    cmd = [sys.executable, script_name] + (extra_args or [])
+    if _UV_PATH:
+        cmd = [_UV_PATH, "run", script_name] + (extra_args or [])
+    else:
+        cmd = [sys.executable, script_name] + (extra_args or [])
     print(f"  $ {' '.join(cmd)}")
     t0 = time.perf_counter()
     proc = subprocess.Popen(cmd, cwd=SCRIPT_DIR, stderr=subprocess.PIPE)
@@ -248,6 +260,13 @@ def main() -> None:
     _banner("Darcy degenerate elliptic scalar – full reproducibility run")
     print(f"  Working directory : {SCRIPT_DIR}")
     print(f"  Python executable : {sys.executable}")
+    if _UV_PATH:
+        print(f"  Runner            : uv  ({_UV_PATH})  ← scripts run via 'uv run'")
+    else:
+        print(
+            f"  Runner            : sys.executable  "
+            f"(install 'uv' for faster dependency resolution)"
+        )
 
     success = True
 
