@@ -217,8 +217,8 @@ def plot_scalar_field(mesh: pyvista.DataSet, config: PlotConfig, field: ScalarFi
         width=config.color_bar_length,
         height=config.color_bar_height,
         vertical=False,
-        title_font_size=56,
-        label_font_size=54,
+        title_font_size=64,
+        label_font_size=64,
         bold=True,
         n_labels=5,
         fmt="%.2f",
@@ -254,8 +254,8 @@ def plot_scalar_field_2d(mesh: pyvista.DataSet, config: PlotConfig, field: Scala
         width=config.color_bar_length,
         height=config.color_bar_height,
         vertical=False,
-        title_font_size=56,
-        label_font_size=54,
+        title_font_size=64,
+        label_font_size=64,
         bold=True,
         n_labels=5,
         fmt="%.2f",
@@ -561,13 +561,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--color-bar-position-x",
         type=float,
-        default=0.05,
+        default=0.1,
         help="Horizontal position of the colorbar (0.0 = left, 1.0 = right)",
     )
     parser.add_argument(
         "--color-bar-position-y",
         type=float,
-        default=0.90,
+        default=0.0125,
         help="Vertical position of the colorbar (0.0 = bottom, 1.0 = top)",
     )
     parser.add_argument(
