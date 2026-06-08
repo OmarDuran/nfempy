@@ -36,7 +36,7 @@ RUN git clone https://github.com/OmarDuran/nfempy.git
 RUN git clone https://github.com/PTNobel/AutoDiff.git
 
 RUN python -m pip install --upgrade pip
-RUN python -m pip install pytest colorcet
+RUN python -m pip install pytest colorcet seaborn
 
 WORKDIR /app/AutoDiff
 RUN python -m pip install .
