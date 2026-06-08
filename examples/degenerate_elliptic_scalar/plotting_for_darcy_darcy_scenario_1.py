@@ -593,10 +593,10 @@ def main() -> None:
     args.plot_normal = True
     methods = list(method_definition(k_order=0))
     scalar_fields = [
-        ScalarFieldPlot(name="p_h", title="Pressure",       cmap="turbo", clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
-        ScalarFieldPlot(name="p_e", title="Pressure",       cmap="turbo", clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
-        ScalarFieldPlot(name="u_h", title="Velocity norm",  cmap="turbo", use_norm=True, clim=(0.0, 270.0)),
-        ScalarFieldPlot(name="u_e", title="Velocity norm",  cmap="turbo", use_norm=True, clim=(0.0, 270.0)),
+        ScalarFieldPlot(name="p_h", title="Pressure",       cmap="balance", clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
+        ScalarFieldPlot(name="p_e", title="Pressure",       cmap="balance", clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
+        ScalarFieldPlot(name="u_h", title="Velocity norm",  cmap="balance", use_norm=True, clim=(0.0, 270.0)),
+        ScalarFieldPlot(name="u_e", title="Velocity norm",  cmap="balance", use_norm=True, clim=(0.0, 270.0)),
     ]
 
     figures_path = resolve_cli_path(args.figures, allow_missing=True)

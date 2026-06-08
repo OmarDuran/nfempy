@@ -666,14 +666,14 @@ def main() -> None:
     args.plot_enhanced = True
     methods = list(method_definition(k_order=0))
     scalar_fields = [
-        ScalarFieldPlot(name="p_h", title="Pressure",               cmap="turbo", clim=(-1.0, 1.0), threshold=(-1.5, 1.5)),
-        ScalarFieldPlot(name="p_e", title="Pressure",               cmap="turbo", clim=(-1.0, 1.0), threshold=(-1.5, 1.5)),
-        ScalarFieldPlot(name="q_h", title="Scaled pressure",        cmap="turbo", clim=(-1.0, 1.0), threshold=(-1.5, 1.5)),
-        ScalarFieldPlot(name="q_e", title="Scaled pressure",        cmap="turbo", clim=(-1.0, 1.0), threshold=(-1.5, 1.5)),
-        ScalarFieldPlot(name="u_h", title="Velocity norm",          cmap="turbo",    use_norm=True, threshold=(0.0, 270.0), clim=(0.0, 270.0)),
-        ScalarFieldPlot(name="u_e", title="Velocity norm",          cmap="turbo",    use_norm=True, threshold=(0.0, 270.0), clim=(0.0, 270.0)),
-        ScalarFieldPlot(name="v_h", title="Scaled velocity norm",   cmap="turbo",    use_norm=True, threshold=(0.0, 4.0), clim=(0.0, 4.0)),
-        ScalarFieldPlot(name="v_e", title="Scaled velocity norm",   cmap="turbo",    use_norm=True, threshold=(0.0, 4.0), clim=(0.0, 4.0)),
+        ScalarFieldPlot(name="p_h", title="Pressure",               cmap="balance", clim=(-1.0, 1.0), threshold=(-1.5, 1.5)),
+        ScalarFieldPlot(name="p_e", title="Pressure",               cmap="balance", clim=(-1.0, 1.0), threshold=(-1.5, 1.5)),
+        ScalarFieldPlot(name="q_h", title="Scaled pressure",        cmap="balance", clim=(-1.0, 1.0), threshold=(-1.5, 1.5)),
+        ScalarFieldPlot(name="q_e", title="Scaled pressure",        cmap="balance", clim=(-1.0, 1.0), threshold=(-1.5, 1.5)),
+        ScalarFieldPlot(name="u_h", title="Velocity norm",          cmap="balance", use_norm=True, threshold=(-1.0, 10000.0), clim=(0.0, 270.0)),
+        ScalarFieldPlot(name="u_e", title="Velocity norm",          cmap="balance", use_norm=True, threshold=(-1.0, 10000.0), clim=(0.0, 270.0)),
+        ScalarFieldPlot(name="v_h", title="Scaled velocity norm",   cmap="balance", use_norm=True, threshold=(-1.0, 1000.0), clim=(0.0, 4.0)),
+        ScalarFieldPlot(name="v_e", title="Scaled velocity norm",   cmap="balance", use_norm=True, threshold=(-1.0, 1000.0), clim=(0.0, 4.0)),
     ]
 
     field_lookup = {field.name: field for field in scalar_fields}
@@ -690,8 +690,8 @@ def main() -> None:
         field_pairs=[
             FieldPair("qh_ph", field_lookup["q_h"], field_lookup["p_h"], height_scale=(1.0, 1.0)),
             FieldPair("qe_pe", field_lookup["q_e"], field_lookup["p_e"], height_scale=(1.0, 1.0)),
-            FieldPair("ve_ue", field_lookup["v_e"], field_lookup["u_e"], height_scale=(0.5, 1.0/5000.0)),
-            FieldPair("vh_uh", field_lookup["v_h"], field_lookup["u_h"], height_scale=(0.5, 1.0/5000.0)),
+            FieldPair("ve_ue", field_lookup["v_e"], field_lookup["u_e"], height_scale=(0.5, 1.0/7000.0)),
+            FieldPair("vh_uh", field_lookup["v_h"], field_lookup["u_h"], height_scale=(0.5, 1.0/7000.0)),
         ],
         methods=methods,
         material_params=args.materials,
