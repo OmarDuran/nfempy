@@ -1,9 +1,22 @@
 from __future__ import annotations
 
+import os
+import sys
+
+# Force headless state before any plotting libraries load
+os.environ["PYVISTA_OFF_SCREEN"] = "True"
+os.environ["VTK_DISABLE_RENDER_WINDOW_INITIALIZATION"] = "1"
+
+# If you use PyVista explicitly:
+try:
+    import pyvista as pv
+    pv.OFF_SCREEN = True
+except ImportError:
+    pass
+
 import argparse
 from dataclasses import dataclass
 from pathlib import Path
-from sys import platform
 from typing import Iterable, Sequence, Optional, Tuple
 
 import matplotlib.pyplot as plt
@@ -23,8 +36,6 @@ from darcy_elliptic_degenerate_scenario_1 import (
     method_definition,
 )
 
-if platform == "linux" or platform == "linux2":
-    pyvista.start_xvfb()
 pyvista.global_theme.colorbar_orientation = "horizontal"
 
 SCRIPT_DIR = Path(__file__).resolve().parent
