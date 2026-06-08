@@ -5,7 +5,7 @@ meshio
 gmsh
 scipy
 mpmath
-pyvista
+pyvista[colormaps]
 black
 pytest
 pypardiso
