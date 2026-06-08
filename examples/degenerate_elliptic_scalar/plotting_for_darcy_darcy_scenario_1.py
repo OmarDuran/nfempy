@@ -217,8 +217,9 @@ def plot_scalar_field(mesh: pyvista.DataSet, config: PlotConfig, field: ScalarFi
         width=config.color_bar_length,
         height=config.color_bar_height,
         vertical=False,
-        title_font_size=28,
-        label_font_size=24,
+        title_font_size=30,
+        label_font_size=26,
+        bold=True,
         n_labels=5,
         fmt="%.2f",
     )
@@ -253,8 +254,9 @@ def plot_scalar_field_2d(mesh: pyvista.DataSet, config: PlotConfig, field: Scala
         width=config.color_bar_length,
         height=config.color_bar_height,
         vertical=False,
-        title_font_size=28,
-        label_font_size=24,
+        title_font_size=30,
+        label_font_size=26,
+        bold=True,
         n_labels=5,
         fmt="%.2f",
     )
@@ -341,11 +343,15 @@ def plot_loglog_convergence(
         )
 
     # Axis decoration & saving
-    ax.set_xlabel("h", fontsize=20)
-    ax.set_ylabel("Error", fontsize=20)
-    ax.tick_params(axis='both', which='both', labelsize=20)
+    ax.set_xlabel("h", fontsize=22, fontweight='bold')
+    ax.set_ylabel("Error", fontsize=22, fontweight='bold')
+    ax.tick_params(axis='both', which='both', labelsize=22)
+    for _lbl in ax.get_xticklabels() + ax.get_yticklabels():
+        _lbl.set_fontweight('bold')
     ax.grid(True, which="both", linestyle="--", alpha=0.4)
-    ax.legend(loc="best", fontsize=20)
+    _legend = ax.legend(loc="best", fontsize=22)
+    for _txt in _legend.get_texts():
+        _txt.set_fontweight('bold')
     # Apply custom vertical axis range if requested
     if y_range is not None:
         try:
@@ -386,8 +392,8 @@ def draw_data_triangle(ax: plt.Axes, x0: float, x1: float, y_prev: float, y_curr
     triangle = Polygon(points, closed=True, fill=False, edgecolor="#444444", linewidth=2)
     ax.add_patch(triangle)
     label_text = str(conv_rate)
-    ax.text(AB_xc[0] + label_x_shift, AB_xc[1], label_text, ha="center", va="center", fontsize=8, color="#444444")
-    ax.text(BC_xc[0], BC_xc[1] - label_y_shift, str(1), ha="center", va="center", fontsize=8, color="#444444")
+    ax.text(AB_xc[0] + label_x_shift, AB_xc[1], label_text, ha="center", va="center", fontsize=10, fontweight='bold', color="#444444")
+    ax.text(BC_xc[0], BC_xc[1] - label_y_shift, str(1), ha="center", va="center", fontsize=10, fontweight='bold', color="#444444")
 
 
 def resolve_cli_path(path_str: str, allow_missing: bool = False) -> Path:
@@ -587,10 +593,10 @@ def main() -> None:
     args.plot_normal = True
     methods = list(method_definition(k_order=0))
     scalar_fields = [
-        ScalarFieldPlot(name="p_h", title="Numeric pressure", clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
-        ScalarFieldPlot(name="p_e", title="Exact pressure", clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
-        ScalarFieldPlot(name="u_h", title="Numeric velocity norm", use_norm=True, clim=(0.0, 270.0)),
-        ScalarFieldPlot(name="u_e", title="Exact velocity norm", use_norm=True, clim=(0.0, 270.0)),
+        ScalarFieldPlot(name="p_h", title="Pressure",       cmap="turbo", clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
+        ScalarFieldPlot(name="p_e", title="Pressure",       cmap="turbo", clim=(-1.5, 1.5), threshold=(-1.5, 1.5)),
+        ScalarFieldPlot(name="u_h", title="Velocity norm",  cmap="turbo", use_norm=True, clim=(0.0, 270.0)),
+        ScalarFieldPlot(name="u_e", title="Velocity norm",  cmap="turbo", use_norm=True, clim=(0.0, 270.0)),
     ]
 
     figures_path = resolve_cli_path(args.figures, allow_missing=True)
